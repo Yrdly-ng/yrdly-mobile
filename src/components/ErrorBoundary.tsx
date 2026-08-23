@@ -28,9 +28,12 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error(`[ErrorBoundary${this.props.screenName ? `:${this.props.screenName}` : ''}] Caught:`, error.message);
-    console.error('[ErrorBoundary] Stack:', error.stack);
-    console.error('[ErrorBoundary] Component Stack:', info.componentStack);
+    const prefix = `[ErrorBoundary${this.props.screenName ? `:${this.props.screenName}` : ''}]`;
+    console.error(`${prefix} Caught:`, error.message);
+    
+    // Explicitly stringify the full error object and stack to prevent truncation in RN Metro logs
+    console.error(`${prefix} Full Error Object:`, JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+    console.error(`${prefix} Component Stack:\n`, info.componentStack);
   }
 
   handleRestart = () => {
