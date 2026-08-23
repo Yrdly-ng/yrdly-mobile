@@ -331,15 +331,13 @@ export default function CreateForSaleScreen() {
           <TouchableOpacity 
             style={stylesheet.btnPrimary}
             onPress={() => {
-              if (router.canDismiss()) router.dismissAll();
-              router.push('/(tabs)/catalog');
+              router.replace('/(tabs)/catalog');
             }}
           >
             <Text style={stylesheet.btnPrimaryText}>View Marketplace</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => {
-            if (router.canDismiss()) router.dismissAll();
-            router.push('/(tabs)');
+            router.replace('/(tabs)');
           }}>
             <Text style={stylesheet.btnText}>Back to Feed</Text>
           </TouchableOpacity>
@@ -354,18 +352,16 @@ export default function CreateForSaleScreen() {
         </View>
         <Text style={stylesheet.successTitle}>Item Listed!</Text>
         <Text style={stylesheet.successDesc}>Your listing is now live in the neighbourhood marketplace.</Text>
-        <TouchableOpacity 
-          style={stylesheet.btnPrimary}
-          onPress={() => {
-            if (router.canDismiss()) router.dismissAll();
-            router.push('/(tabs)/catalog');
-          }}
-        >
+          <TouchableOpacity 
+            style={stylesheet.btnPrimary}
+            onPress={() => {
+              router.replace('/(tabs)/catalog');
+            }}
+          >
           <Text style={stylesheet.btnPrimaryText}>View Marketplace</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => {
-          if (router.canDismiss()) router.dismissAll();
-          router.push('/(tabs)');
+          router.replace('/(tabs)');
         }}>
           <Text style={stylesheet.btnText}>Back to Feed</Text>
         </TouchableOpacity>

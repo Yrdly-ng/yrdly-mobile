@@ -41,26 +41,16 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     hasInitializedRef.current = true;
     const loadPersistedFilter = async () => {
       try {
-        const hasDefaulted = await SecureStore.getItemAsync('yrdly_has_defaulted_lga_v2');
-        const savedData = await SecureStore.getItemAsync(GLOBAL_FILTER_STORAGE_KEY);
-        
-        if (!hasDefaulted && hasLocation && userState && userLga) {
+        if (hasLocation && userState && userLga) {
           setActiveFilterRaw({ state: userState, lga: userLga });
-          await SecureStore.setItemAsync('yrdly_has_defaulted_lga_v2', 'true');
-        } else if (savedData) {
-          const parsed = JSON.parse(savedData);
-          if (parsed.isAllNigeria) {
-            setActiveFilterRaw(null);
-          } else {
-            setActiveFilterRaw(parsed);
-          }
-        } else if (hasLocation) {
-          setActiveFilterRaw({ state: userState, lga: userLga });
+        } else if (hasLocation && userState) {
+          setActiveFilterRaw({ state: userState });
+        } else {
+          setActiveFilterRaw(null);
         }
       } catch {
-        if (hasLocation) {
-          setActiveFilterRaw({ state: userState, lga: userLga });
-        }
+        // Fallback
+        setActiveFilterRaw(null);
       } finally {
         setIsInitialized(true);
       }

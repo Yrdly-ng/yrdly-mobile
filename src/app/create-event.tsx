@@ -387,8 +387,7 @@ export default function CreateEventScreen() {
           <TouchableOpacity 
             style={stylesheet.btnPrimary}
             onPress={() => {
-               
-              router.replace('/');
+              router.replace('/(tabs)');
             }}
           >
             <Text style={stylesheet.btnPrimaryText}>Explore Events</Text>
@@ -407,9 +406,8 @@ export default function CreateEventScreen() {
         <TouchableOpacity 
           style={stylesheet.btnPrimary}
           onPress={() => {
-             
-            router.replace('/');
-          }}
+              router.replace('/(tabs)');
+            }}
         >
           <Text style={stylesheet.btnPrimaryText}>Explore Events</Text>
         </TouchableOpacity>
