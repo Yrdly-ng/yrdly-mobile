@@ -162,12 +162,14 @@ function MarketplaceDetailContent() {
       });
 
       if (existing?.id) {
-        router.push('/', { params: { id: existing.id } });
+        router.push({ pathname: '/chat/[id]', params: { id: existing.id } });
         return;
       }
 
       const imageUrl = post.image_urls?.[0] || post.image_url || '';
-      router.push('/', { params: { 
+      router.push({
+        pathname: '/chat/[id]',
+        params: { 
           id: 'new',
           type: 'marketplace',
           participant_id: post.user_id,
@@ -175,7 +177,8 @@ function MarketplaceDetailContent() {
           item_title: post.title || post.text || 'Listing',
           item_image: imageUrl,
           item_price: post.price ?? ''
-        } });
+        }
+      });
     } catch (e) {
       console.error('Error starting chat', e);
     }
@@ -602,7 +605,7 @@ function MarketplaceDetailContent() {
           <>
             <TouchableOpacity 
               disabled={post.is_sold}
-              onPress={() => router.push('/', { params: { id: post.id, type: 'marketplace' } })}
+              onPress={() => router.push({ pathname: '/checkout/[id]', params: { id: post.id, type: 'marketplace' } })}
               style={{ flex: 1, height: 52, borderRadius: 16, backgroundColor: post.is_sold ? theme.colors.SURFACE : theme.colors.G, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ color: post.is_sold ? theme.colors.LABEL : '#000', fontFamily: 'Outfit-Bold', fontWeight: '700', fontSize: 16 }}>{post.is_sold ? 'Item Sold' : 'Buy Now'}</Text>
             </TouchableOpacity>

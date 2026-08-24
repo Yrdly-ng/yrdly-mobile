@@ -282,7 +282,7 @@ export default function CheckoutScreen() {
           buyerName: profile?.name ?? user.user_metadata?.name ?? 'Yrdly User',
           itemTitle: item.title,
           sellerName: item.seller?.name ?? 'Seller',
-          itemType: type,
+          itemType: type === 'catalog_item' ? 'catalog_item' : 'post',
         }
       );
 

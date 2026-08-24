@@ -86,7 +86,7 @@ function RootNavigationGuard() {
     const inOnboarding = segments[0] === '(onboarding)';
 
     // These segments are valid deep-link destinations — never redirect away from them
-    const DEEP_LINK_SEGMENTS = ['posts', 'events', 'marketplace', 'profile', 'chat'];
+    const DEEP_LINK_SEGMENTS = ['posts', 'events', 'marketplace', 'profile', 'chat', 'checkout'];
     const inDeepLink = DEEP_LINK_SEGMENTS.includes(segments[0] as string);
 
     try {
