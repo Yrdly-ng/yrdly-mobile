@@ -244,7 +244,7 @@ export default function CheckoutScreen() {
     const msg: string = e?.message ?? '';
     console.log('[Checkout] handlePaylukError — msg:', msg);
     if (msg === 'PHONE_VERIFICATION_REQUIRED') {
-      router.push('/(auth)/phone' as any);
+      router.push('/verify-phone' as any);
       return;
     }
     if (msg === 'INSUFFICIENT_BALANCE') {
@@ -325,7 +325,7 @@ export default function CheckoutScreen() {
     } catch (e: any) {
       console.log('[Checkout] handleInitializePayment error:', e?.message, e);
       if (e?.message === 'PHONE_VERIFICATION_REQUIRED') {
-        router.push('/(auth)/phone' as any);
+        router.push('/verify-phone' as any);
         return;
       }
       
