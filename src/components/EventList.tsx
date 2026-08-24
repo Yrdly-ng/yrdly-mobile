@@ -293,7 +293,7 @@ export function EventList({ searchQuery = '', sortOption = 'newest' }: EventList
 
         <TouchableOpacity
           style={[stylesheet.createBanner, { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER }]}
-          onPress={() => router.push(/new-post, { params: { category: 'Event' } })}>
+          onPress={() => router.push('/', { params: { category: 'Event' } })}>
           <View style={[stylesheet.createIcon, { backgroundColor: 'rgba(130,219,126,0.1)' }]}>
             <Ionicons name="calendar-outline" size={24} color={theme.colors.G} />
           </View>
@@ -301,7 +301,7 @@ export function EventList({ searchQuery = '', sortOption = 'newest' }: EventList
             <Text style={[stylesheet.createTitle, { color: theme.colors.TEXT_PRIMARY }]}>Can't find your event?</Text>
             <Text style={[stylesheet.createSub, { color: theme.colors.MUTED }]}>Create and share events with your community.</Text>
           </View>
-          <TouchableOpacity style={[stylesheet.createCTA, { backgroundColor: theme.colors.G }]} onPress={() => router.push(/new-post, { params: { category: 'Event' } })}>
+          <TouchableOpacity style={[stylesheet.createCTA, { backgroundColor: theme.colors.G }]} onPress={() => router.push('/', { params: { category: 'Event' } })}>
             <Text style={stylesheet.createCTATxt}>Create Event</Text>
             <Ionicons name="add-circle-outline" size={14} color="#0B0D0B" style={{ marginLeft: 4 }} />
           </TouchableOpacity>
@@ -340,7 +340,7 @@ export function EventList({ searchQuery = '', sortOption = 'newest' }: EventList
             </Text>
             <TouchableOpacity
               style={[stylesheet.createBtn, { backgroundColor: theme.colors.G }]}
-              onPress={() => router.push(/new-post, { params: { category: 'Event' } })}>
+              onPress={() => router.push('/', { params: { category: 'Event' } })}>
               <Ionicons name="add-circle-outline" size={16} color="#0B0D0B" style={{ marginRight: 6 }} />
               <Text style={stylesheet.createBtnTxt}>Create Event</Text>
             </TouchableOpacity>

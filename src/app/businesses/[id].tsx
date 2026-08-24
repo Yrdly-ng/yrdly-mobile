@@ -119,8 +119,8 @@ export default function BusinessProfileScreen() {
     try {
       const { data: convs } = await supabase.from('conversations').select('id, type, participant_ids, item_id').eq('item_id', business.id).order('created_at', { ascending: true });
       const existing = convs?.find(c => c.type === 'briefcase' && c.item_id === business.id && c.participant_ids?.includes(user.id) && c.participant_ids?.includes(business.owner_id));
-      if (existing?.id) return router.push(/chat/[id], { params: { id: existing.id } });
-      router.push(/chat/[id], { params: { id: 'new', type: 'briefcase', participant_id: business.owner_id, item_id: business.id, item_title: business.name, item_image: business.cover_image || business.logo || '' } });
+      if (existing?.id) return router.push('/', { params: { id: existing.id } });
+      router.push('/', { params: { id: 'new', type: 'briefcase', participant_id: business.owner_id, item_id: business.id, item_title: business.name, item_image: business.cover_image || business.logo || '' } });
     } catch (e) { console.error(e); }
   }, [business, user, router]);
 

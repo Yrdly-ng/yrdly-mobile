@@ -193,7 +193,7 @@ export default function TabLayout() {
     if (!user) return;
 
     const channel = supabase
-      .channel(`messages_badge_${user.id}`)
+      .channel(`messages_badge_${user.id}_${Math.random().toString(36).substring(7)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
         fetchUnreadRef.current();
       })

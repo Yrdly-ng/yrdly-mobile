@@ -130,7 +130,7 @@ export default function CatalogItemScreen() {
       });
 
       if (existing?.id) {
-        router.push(/chat/[id], { params: { id: existing.id } });
+        router.push('/', { params: { id: existing.id } });
         return;
       }
 
@@ -154,7 +154,7 @@ export default function CatalogItemScreen() {
       Alert.alert("Sold Out", "This item is currently out of stock.");
       return;
     }
-    router.push(/checkout/[id], { params: { id: item.id, type: 'catalog_item' } });
+    router.push('/', { params: { id: item.id, type: 'catalog_item' } });
   }, [item, router]);
 
   const handleRestock = useCallback(async () => {

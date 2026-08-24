@@ -186,7 +186,7 @@ export default function MyEventsScreen() {
               </Text>
               <TouchableOpacity
                 style={[stylesheet.createButton, { backgroundColor: theme.colors.G }]}
-                onPress={() => router.push(/new-post, { params: { category: 'Event' } })}
+                onPress={() => router.push('/', { params: { category: 'Event' } })}
               >
                 <Text style={stylesheet.createButtonText}>Create Event</Text>
               </TouchableOpacity>
