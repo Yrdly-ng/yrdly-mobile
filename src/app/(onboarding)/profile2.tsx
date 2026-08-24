@@ -100,8 +100,9 @@ export default function Profile2Screen() {
               {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
 
               {/* Location Input */}
-              <View style={{ zIndex: 50, marginBottom: 12 }}>
+              <View style={{ zIndex: 50, elevation: 50, marginBottom: 12 }}>
                 <GooglePlacesAutocomplete
+                  keyboardShouldPersistTaps="handled"
                   placeholder="Search your neighbourhood…"
                   fetchDetails={true}
                   onPress={async (data, details = null) => {
@@ -162,6 +163,7 @@ export default function Profile2Screen() {
                     components: 'country:ng',
                   }}
                   styles={{
+                    container: { flex: 0 },
                     textInput: styles.input,
                     listView: styles.listView,
                     row: styles.row,
