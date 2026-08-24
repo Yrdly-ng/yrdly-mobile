@@ -160,20 +160,25 @@ export default function CheckoutScreen() {
 
   // ── Payluk: fetch wallet balance and branch ───────────────────────────────
   const enterPaylukFlow = useCallback(async (transactionId: string, totalAmount: number) => {
+    console.log('[Checkout] enterPaylukFlow — transactionId:', transactionId, 'totalAmount:', totalAmount);
     setPaylukTransactionId(transactionId);
     setPaylukTotalAmount(totalAmount); // store server value — never recompute locally
     setStage('payluk_checking');
     try {
       const wallet = await api.get<WalletBalanceResponse>('/api/payluk/wallet-balance');
+      console.log('[Checkout] wallet balance:', wallet.mainBalance, 'needed:', totalAmount);
       setWalletBalance(wallet.mainBalance);
       if (wallet.mainBalance >= totalAmount) {
+        console.log('[Checkout] sufficient balance → payluk_confirm');
         setStage('payluk_confirm');
       } else {
+        console.log('[Checkout] insufficient balance → fetching virtual account');
         await fetchVirtualAccount();
         setStage('payluk_fund');
         startPolling(transactionId, totalAmount);
       }
     } catch (e: any) {
+      console.log('[Checkout] enterPaylukFlow error:', e?.message, e);
       handlePaylukError(e);
     }
   }, []);
@@ -218,15 +223,18 @@ export default function CheckoutScreen() {
   // ── Payluk: execute wallet payment ───────────────────────────────────────
   const handlePaylukPay = async () => {
     if (!paylukTransactionId || isPaying) return;
+    console.log('[Checkout] handlePaylukPay — transactionId:', paylukTransactionId);
     setIsPaying(true);
     setStage('payluk_pending');
     try {
-      await api.post('/api/payluk/pay-escrow', { transactionId: paylukTransactionId });
+      const result = await api.post('/api/payluk/pay-escrow', { transactionId: paylukTransactionId });
+      console.log('[Checkout] pay-escrow success:', result);
       router.replace({
         pathname: '/checkout/success',
         params: { transactionId: paylukTransactionId, itemTitle: item?.title, amount: String(item?.price) },
       } as any);
     } catch (e: any) {
+      console.log('[Checkout] pay-escrow error:', e?.message, e);
       setIsPaying(false);
       handlePaylukError(e);
     }
@@ -234,6 +242,7 @@ export default function CheckoutScreen() {
 
   const handlePaylukError = (e: any) => {
     const msg: string = e?.message ?? '';
+    console.log('[Checkout] handlePaylukError — msg:', msg);
     if (msg === 'PHONE_VERIFICATION_REQUIRED') {
       router.push('/(auth)/phone' as any);
       return;
@@ -261,39 +270,46 @@ export default function CheckoutScreen() {
 
   // 2. Initialize payment via web API
   const handleInitializePayment = async () => {
-    if (!item || !user || !profile) return;
+    if (!item || !user || !profile) {
+      console.log('[Checkout] handleInitializePayment — missing state:', { item: !!item, user: !!user, profile: !!profile });
+      return;
+    }
 
     if (item.user_id === user.id) {
       Alert.alert('Error', "You can't buy your own item.");
       return;
     }
 
+    console.log('[Checkout] handleInitializePayment — itemId:', item.id, 'sellerId:', item.user_id, 'price:', item.price, 'itemType:', type);
     setStage('loading');
     setErrorMsg('');
     try {
-      const result = await api.post<InitializeResponse>(
-        '/api/payment/initialize',
-        {
-          itemId: item.id,
-          buyerId: user.id,
-          sellerId: item.user_id,
-          price: item.price ?? 0,
-          buyerEmail: user.email || 'no-email@yrdly.ng',
-          buyerName: profile?.name ?? user.user_metadata?.name ?? 'Yrdly User',
-          itemTitle: item.title,
-          sellerName: item.seller?.name ?? 'Seller',
-          itemType: type === 'catalog_item' ? 'catalog_item' : 'post',
-        }
-      );
+      const payload = {
+        itemId: item.id,
+        buyerId: user.id,
+        sellerId: item.user_id,
+        price: item.price ?? 0,
+        buyerEmail: user.email || 'no-email@yrdly.ng',
+        buyerName: profile?.name ?? user.user_metadata?.name ?? 'Yrdly User',
+        itemTitle: item.title,
+        sellerName: item.seller?.name ?? 'Seller',
+        itemType: type === 'catalog_item' ? 'catalog_item' : 'post',
+      };
+      console.log('[Checkout] POST /api/payment/initialize payload:', JSON.stringify(payload));
+
+      const result = await api.post<InitializeResponse>('/api/payment/initialize', payload);
+      console.log('[Checkout] /api/payment/initialize response:', JSON.stringify(result));
 
       // ── Payluk path: paylukEscrowId present, no paymentLink ──
       if (result.paylukEscrowId) {
+        console.log('[Checkout] → Payluk path. escrowId:', result.paylukEscrowId, 'transactionId:', result.transactionId);
         await enterPaylukFlow(result.transactionId, result.totalAmount);
         return;
       }
 
       // ── Free item path: no paymentLink ──
       if (!result.paymentLink) {
+        console.log('[Checkout] → Free item path. transactionId:', result.transactionId);
         router.replace({
           pathname: '/checkout/success',
           params: { transactionId: result.transactionId, itemTitle: item.title, amount: String(item.price) },
@@ -302,10 +318,12 @@ export default function CheckoutScreen() {
       }
 
       // ── Fallback error ──
+      console.log('[Checkout] → Unexpected: paymentLink present but no Payluk. result:', JSON.stringify(result));
       setStage('error');
       setErrorMsg('Unexpected response from server. Please try again.');
 
     } catch (e: any) {
+      console.log('[Checkout] handleInitializePayment error:', e?.message, e);
       if (e?.message === 'PHONE_VERIFICATION_REQUIRED') {
         router.push('/(auth)/phone' as any);
         return;
