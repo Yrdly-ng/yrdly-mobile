@@ -399,7 +399,7 @@ export default function TransactionDetailScreen() {
 
       const existing = convs?.find(c => c.participant_ids?.includes(user.id) && c.participant_ids?.includes(counterparty.id));
       if (existing?.id) {
-        router.push({ pathname: '/chat/[id]', params: { id: existing.id } });
+        router.push(/chat/[id], { params: { id: existing.id } });
         return;
       }
 
@@ -413,7 +413,7 @@ export default function TransactionDetailScreen() {
         .single();
 
       if (newConv?.id) {
-        router.push({ pathname: '/chat/[id]', params: { id: newConv.id } });
+        router.push(/chat/[id], { params: { id: newConv.id } });
       }
     } catch (e) {
       console.error('Message counterparty error:', e);

@@ -73,12 +73,12 @@ export default function SignUpScreen() {
         try {
           await supabase.auth.resend({ type: 'signup', email: cleanEmail });
         } catch {}
-        router.push({ pathname: '/(auth)/verify-email', params: { email: cleanEmail } } as any);
+        router.push(/(auth)/verify-email, { params: { email: cleanEmail } });
         return;
       }
       setError(err.message);
     } else if (!session) {
-      router.push({ pathname: '/(auth)/verify-email', params: { email: cleanEmail } } as any);
+      router.push(/(auth)/verify-email, { params: { email: cleanEmail } });
     } else {
       router.push('/(auth)/phone' as any);
     }

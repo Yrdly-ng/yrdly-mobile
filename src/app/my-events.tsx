@@ -114,7 +114,7 @@ export default function MyEventsScreen() {
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
               <TouchableOpacity
                 style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: theme.colors.G, paddingVertical: 8, borderRadius: 12 }}
-                onPress={() => router.push({ pathname: '/events/scan' as any, params: { eventId: item.id } })}
+                onPress={() => router.push('/events/scan' as any, { params: { eventId: item.id } })}
               >
                 <Ionicons name="qr-code" size={16} color={theme.colors.TEXT_PRIMARY} />
                 <Text style={stylesheet.scanBtnText}>Scan Attendee Tickets</Text>
@@ -186,7 +186,7 @@ export default function MyEventsScreen() {
               </Text>
               <TouchableOpacity
                 style={[stylesheet.createButton, { backgroundColor: theme.colors.G }]}
-                onPress={() => router.push({ pathname: '/new-post', params: { category: 'Event' } } as any)}
+                onPress={() => router.push(/new-post, { params: { category: 'Event' } })}
               >
                 <Text style={stylesheet.createButtonText}>Create Event</Text>
               </TouchableOpacity>

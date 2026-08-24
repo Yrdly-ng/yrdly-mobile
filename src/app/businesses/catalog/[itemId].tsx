@@ -130,22 +130,19 @@ export default function CatalogItemScreen() {
       });
 
       if (existing?.id) {
-        router.push({ pathname: '/chat/[id]', params: { id: existing.id } });
+        router.push(/chat/[id], { params: { id: existing.id } });
         return;
       }
 
       const imageUrl = (item?.images && item.images[0]) || business.cover_image || business.logo || '';
-      router.push({ 
-        pathname: '/chat/[id]', 
-        params: { 
+      router.push('/chat/[id]', { params: { 
           id: 'new',
           type: 'briefcase',
           participant_id: business.owner_id,
           item_id: business.id,
           item_title: item ? `${item.title} (${business.name})` : business.name,
           item_image: imageUrl,
-        } 
-      });
+        } });
     } catch (e) {
       console.error('Error starting chat from catalog item:', e);
     }
@@ -157,10 +154,7 @@ export default function CatalogItemScreen() {
       Alert.alert("Sold Out", "This item is currently out of stock.");
       return;
     }
-    router.push({
-      pathname: '/checkout/[id]',
-      params: { id: item.id, type: 'catalog_item' }
-    });
+    router.push(/checkout/[id], { params: { id: item.id, type: 'catalog_item' } });
   }, [item, router]);
 
   const handleRestock = useCallback(async () => {
@@ -221,10 +215,7 @@ export default function CatalogItemScreen() {
       );
       return;
     }
-    router.push({
-      pathname: '/businesses/create-catalog-item',
-      params: { itemId: item?.id },
-    } as any);
+    router.push('/businesses/create-catalog-item', { params: { itemId: item?.id } });
   }, [checkPendingTransaction, item, router]);
 
   const handleDeleteItem = useCallback(async () => {

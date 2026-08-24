@@ -7,7 +7,12 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  LogBox,
 } from 'react-native';
+
+LogBox.ignoreLogs([
+  'VirtualizedLists should never be nested inside plain ScrollViews',
+]);
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SceneBg, GlassCard, StepBar, PrimaryBtn } from '@/components/onboarding/primitives';
@@ -157,6 +162,9 @@ export default function Profile2Screen() {
                       setFormError('Could not get location details. Please try another address.');
                     }
                   }}
+                  onFail={(error) => console.error('[GooglePlaces] onFail:', error)}
+                  onNotFound={() => console.warn('[GooglePlaces] onNotFound')}
+                  debounce={400}
                   query={{
                     key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '',
                     language: 'en',

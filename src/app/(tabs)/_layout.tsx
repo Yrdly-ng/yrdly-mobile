@@ -7,7 +7,7 @@ import { useAppTheme } from '../../context/ThemeContext';
 import {
   HomeIcon, ExploreIcon, MessagesIcon, ProfileIcon
 } from '../../components/SvgIcons';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BlurView } from 'expo-blur';
 import { PencilSimple, Storefront, CalendarBlank, WarningCircle, X } from 'phosphor-react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
@@ -139,28 +139,33 @@ export default function TabLayout() {
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
 
+  // Stable ref so the realtime callback always calls the latest fetcher
+  // without needing to re-subscribe whenever profile changes.
+  const fetchUnreadRef = useRef<() => Promise<void>>(async () => {});
+  const blockedUsersKey = JSON.stringify(profile?.blocked_users ?? []);
+
   useEffect(() => {
     if (!user) return;
-    
+
     const fetchUnread = async () => {
       let unreadTotal = 0;
-      
+
       const { data: convs } = await supabase
         .from('conversations')
         .select('id, type, deleted_by, participant_ids')
         .contains('participant_ids', [user.id]);
-        
+
       if (convs) {
-        // Filter out deleted and blocked conversations
+        const blockedUsers: string[] = profile?.blocked_users ?? [];
         const activeConvs = convs.filter(c => {
           if (c.deleted_by && c.deleted_by.includes(user.id)) return false;
           const otherId = c.participant_ids?.find((id: string) => id !== user.id);
-          if (profile?.blocked_users && otherId && profile.blocked_users.includes(otherId)) return false;
+          if (otherId && blockedUsers.includes(otherId)) return false;
           return true;
         });
-        
+
         const activeConvIds = activeConvs.map(c => c.id);
-          
+
         if (activeConvIds.length > 0) {
           const { data: unreadData } = await supabase
             .from('messages')
@@ -169,27 +174,35 @@ export default function TabLayout() {
             .neq('sender_id', user.id)
             .not('deleted_by', 'cs', `{${user.id}}`)
             .in('conversation_id', activeConvIds);
-            
+
           if (unreadData) {
             unreadTotal += unreadData.length;
           }
         }
       }
-      
+
       setUnreadMessages(unreadTotal);
     };
 
+    fetchUnreadRef.current = fetchUnread;
     fetchUnread();
+  }, [user, blockedUsersKey]);
+
+  // Separate effect: subscribe once per user, call via ref to avoid re-subscribing
+  useEffect(() => {
+    if (!user) return;
 
     const channel = supabase
-      .channel('messages_badge')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, fetchUnread)
+      .channel(`messages_badge_${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
+        fetchUnreadRef.current();
+      })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, profile?.blocked_users]);
+  }, [user]);
 
   const tabBarHeight = TAB_BAR_HEIGHT + insets.bottom;
 
