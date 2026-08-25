@@ -1,2 +1,0 @@
-ALTER TABLE events ADD COLUMN is_archived BOOLEAN DEFAULT false;
-ALTER TABLE tickets ADD COLUMN is_archived BOOLEAN DEFAULT false;

@@ -4,7 +4,7 @@
  */
 import { supabase } from './supabase';
 
-const WEB_APP_URL = process.env.EXPO_PUBLIC_WEB_APP_URL ?? 'https://yrdly.com';
+const WEB_APP_URL = process.env.EXPO_PUBLIC_WEB_APP_URL ?? 'https://app.yrdly.ng';
 
 async function getAuthHeaders(): Promise<HeadersInit> {
   const { data } = await supabase.auth.getSession();
