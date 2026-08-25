@@ -189,7 +189,7 @@ function MarketplaceDetailContent() {
     try {
       await Share.share({
         message: `Check out ${post.title || 'this item'} for ${post.price === 0 ? 'FREE' : formatPrice(post.price || 0)} on YRDLY!`,
-        url: `https://yrdly.com/marketplace/${post.id}`
+        url: `https://yrdly.ng/marketplace/${post.id}`
       });
     } catch (error) {
       console.error(error);

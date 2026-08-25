@@ -14,7 +14,7 @@
 
 import { supabase } from './supabase';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://app.yrdly.ng';
+const API_URL = process.env.EXPO_PUBLIC_WEB_APP_URL || 'https://app.yrdly.ng';
 
 export interface PaymentInitRequest {
   transactionId: string;

@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import { EscrowStatus } from '@/types/escrow';
 import { NotificationService } from './notification-service';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://app.yrdly.ng';
+const API_URL = process.env.EXPO_PUBLIC_WEB_APP_URL || 'https://app.yrdly.ng';
 
 export class TransactionStatusService {
   /**
