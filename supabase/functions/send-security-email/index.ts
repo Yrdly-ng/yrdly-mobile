@@ -58,7 +58,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Yrdly Security <security@yrdly.com>',
+        from: 'Yrdly Security <security@yrdly.ng>',
         to: user.email,
         subject: 'Security Alert: Your password was changed',
         html: `
