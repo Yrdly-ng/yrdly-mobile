@@ -385,11 +385,10 @@ export default function CheckoutScreen() {
         <Feather name="alert-triangle" size={48} color="#F59E0B" />
         <Text style={[stylesheet.errorTitle, { color: theme.colors.TEXT_PRIMARY }]}>Payment received</Text>
         <Text style={[stylesheet.errorMsg, { color: theme.colors.LABEL }]}>
-          Your payment went through successfully, but we're still confirming it on our end.
-          {'\n\n'}If this screen persists, please contact support with reference:
+          payment processed, please contact support
         </Text>
-        <Text style={[stylesheet.errorMsg, { color: theme.colors.G, fontFamily: 'Inter-SemiBold' }]}>
-          {paylukTransactionId}
+        <Text style={[stylesheet.errorMsg, { color: theme.colors.G, fontFamily: 'Inter-SemiBold', marginTop: 16 }]}>
+          Reference: {paylukTransactionId}
         </Text>
       </SafeAreaView>
     );

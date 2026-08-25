@@ -304,7 +304,7 @@ export default function TransactionDetailScreen() {
               if (msg === 'DELIVERY_RECORDED_FAILED') {
                 Alert.alert(
                   'Action Completed',
-                  'Delivery was confirmed with the payment provider, but our records are still updating. Please contact support if this persists.',
+                  'payment processed, please contact support',
                 );
               } else {
                 Alert.alert('Error', msg || 'Could not confirm receipt. Please try again.');
@@ -344,7 +344,7 @@ export default function TransactionDetailScreen() {
               if (msg === 'CLAIM_RECORDED_FAILED') {
                 Alert.alert(
                   'Action Completed',
-                  'Funds were claimed from the payment provider, but our records are still updating. Contact support if needed.',
+                  'payment processed, please contact support',
                 );
               } else {
                 Alert.alert('Cannot Claim Yet', msg || 'Funds cannot be claimed yet. The buyer\'s confirmation window may not have elapsed.');
