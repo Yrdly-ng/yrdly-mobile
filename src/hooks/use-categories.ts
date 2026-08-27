@@ -30,7 +30,7 @@ const FALLBACK_CATEGORIES: Record<string, Category[]> = {
     { id: 'rpt-2', name: 'Spam', type: 'report' },
     { id: 'rpt-3', name: 'Harassment', type: 'report' },
     { id: 'rpt-4', name: 'Other', type: 'report' },
-  ]
+  ],
 };
 
 export function useCategories(type: 'marketplace' | 'event' | 'report') {
@@ -51,7 +51,7 @@ export function useCategories(type: 'marketplace' | 'event' | 'report') {
         if (fetchError) {
           throw fetchError;
         }
-        
+
         if (data && data.length > 0) {
           setCategories(data);
         } else {

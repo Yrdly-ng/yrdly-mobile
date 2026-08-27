@@ -28,12 +28,14 @@ export class TransactionStatusService {
       try {
         const { data: transaction } = await supabase
           .from('escrow_transactions')
-          .select(`
+          .select(
+            `
             buyer_id,
             seller_id,
             amount,
             item:posts(title, text)
-          `)
+          `
+          )
           .eq('id', transactionId)
           .single();
 
@@ -107,11 +109,13 @@ export class TransactionStatusService {
       try {
         const { data: transaction } = await supabase
           .from('escrow_transactions')
-          .select(`
+          .select(
+            `
             buyer_id,
             seller_id,
             item:posts(title, text)
-          `)
+          `
+          )
           .eq('id', transactionId)
           .single();
 
@@ -184,11 +188,13 @@ export class TransactionStatusService {
       try {
         const { data: transaction } = await supabase
           .from('escrow_transactions')
-          .select(`
+          .select(
+            `
             buyer_id,
             seller_id,
             item:posts(title, text)
-          `)
+          `
+          )
           .eq('id', transactionId)
           .single();
 
@@ -226,7 +232,7 @@ export class TransactionStatusService {
     try {
       const sessionResponse = await supabase.auth.getSession();
       const token = sessionResponse.data.session?.access_token;
-      
+
       if (!token) {
         throw new Error('Not authenticated');
       }
@@ -234,12 +240,12 @@ export class TransactionStatusService {
       const res = await fetch(`${API_URL}/api/transactions/${transactionId}/complete`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       const data = await res.json();
-      
+
       if (!res.ok) {
         throw new Error(data.error || 'Failed to complete transaction');
       }
@@ -279,7 +285,6 @@ export class TransactionStatusService {
         const { ItemTrackingService } = await import('./item-tracking-service');
         await ItemTrackingService.markItemAsAvailable(transaction.item_id);
       }
-
     } catch (error) {
       console.error('Failed to cancel transaction:', error);
       throw new Error('Failed to cancel transaction');
@@ -292,20 +297,22 @@ export class TransactionStatusService {
    */
   static async getTransactionDetails(transactionId: string) {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       const response = await fetch(`${API_URL}/api/transactions/${transactionId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
         },
       });
 
       if (!response.ok) {
         const errorData = await response.json();
         console.error(`Error fetching transaction details: ${response.status}`, errorData);
-        
+
         if (response.status === 401) {
           throw new Error('You must be logged in to view transactions');
         } else if (response.status === 403) {

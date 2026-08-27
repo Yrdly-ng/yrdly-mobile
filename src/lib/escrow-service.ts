@@ -1,11 +1,11 @@
 import { supabase } from '@/lib/supabase';
-import { 
-  EscrowTransaction, 
-  EscrowStatus, 
-  PaymentMethod, 
-  DeliveryOption, 
+import {
+  EscrowTransaction,
+  EscrowStatus,
+  PaymentMethod,
+  DeliveryOption,
   DeliveryDetails,
-  EscrowStats 
+  EscrowStats,
 } from '@/types/escrow';
 import { MARKETPLACE_CONSTANTS } from '@/lib/constants';
 
@@ -145,10 +145,7 @@ export class EscrowService {
   }
 
   // Dispute a transaction
-  static async disputeTransaction(
-    transactionId: string,
-    reason: string
-  ): Promise<void> {
+  static async disputeTransaction(transactionId: string, reason: string): Promise<void> {
     const { error } = await supabase
       .from('escrow_transactions')
       .update({
@@ -161,10 +158,7 @@ export class EscrowService {
   }
 
   // Resolve a dispute
-  static async resolveDispute(
-    transactionId: string,
-    resolution: string
-  ): Promise<void> {
+  static async resolveDispute(transactionId: string, resolution: string): Promise<void> {
     const { error } = await supabase
       .from('escrow_transactions')
       .update({
@@ -178,9 +172,7 @@ export class EscrowService {
 
   // Get escrow statistics
   static async getStats(): Promise<EscrowStats> {
-    const { data, error } = await supabase
-      .from('escrow_transactions')
-      .select('*');
+    const { data, error } = await supabase.from('escrow_transactions').select('*');
 
     if (error) throw error;
 
@@ -215,7 +207,7 @@ export class EscrowService {
       totalCommission,
       pendingTransactions,
       completedTransactions,
-      disputedTransactions
+      disputedTransactions,
     };
   }
 }

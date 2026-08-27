@@ -1,6 +1,15 @@
 import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SceneBg, GlassCard, PrimaryBtn, BackBtn } from '@/components/onboarding/primitives';
@@ -17,7 +26,7 @@ export default function VerifyOtpScreen() {
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
   useEffect(() => {
-    const timer = setInterval(() => setCountdown(c => (c > 0 ? c - 1 : 0)), 1000);
+    const timer = setInterval(() => setCountdown((c) => (c > 0 ? c - 1 : 0)), 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -41,7 +50,7 @@ export default function VerifyOtpScreen() {
     router.push('/(onboarding)/profile1' as any);
   };
 
-  const filled = digits.every(d => d !== '');
+  const filled = digits.every((d) => d !== '');
 
   useEffect(() => {
     if (filled) {
@@ -54,12 +63,19 @@ export default function VerifyOtpScreen() {
       <SceneBg photoId="1654762550505-7c58277e0fac" pos="center 30%" gradientStart="40%" />
 
       <SafeAreaView style={styles.safeArea}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
           <View style={styles.topBar}>
             <BackBtn onClick={() => router.back()} light />
           </View>
 
-          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             <View style={{ flex: 1, minHeight: 40 }} />
 
             <GlassCard>
@@ -78,9 +94,11 @@ export default function VerifyOtpScreen() {
                 {digits.map((d, i) => (
                   <TextInput
                     key={i}
-                    ref={el => { inputRefs.current[i] = el; }}
+                    ref={(el) => {
+                      inputRefs.current[i] = el;
+                    }}
                     value={d}
-                    onChangeText={v => handleDigit(i, v)}
+                    onChangeText={(v) => handleDigit(i, v)}
                     onKeyPress={({ nativeEvent }) => handleKeyPress(i, nativeEvent.key)}
                     keyboardType="number-pad"
                     maxLength={1}
@@ -98,8 +116,18 @@ export default function VerifyOtpScreen() {
               {/* Countdown */}
               <View style={styles.resendBox}>
                 <TouchableOpacity onPress={countdown === 0 ? () => setCountdown(45) : undefined}>
-                  <Text style={[styles.timerText, { color: countdown > 0 ? colors.LABEL : colors.G, fontFamily: 'Inter-SemiBold' }]}>
-                    {countdown > 0 ? `Resend SMS in 0:${String(countdown).padStart(2, '0')}` : 'Resend Code'}
+                  <Text
+                    style={[
+                      styles.timerText,
+                      {
+                        color: countdown > 0 ? colors.LABEL : colors.G,
+                        fontFamily: 'Inter-SemiBold',
+                      },
+                    ]}
+                  >
+                    {countdown > 0
+                      ? `Resend SMS in 0:${String(countdown).padStart(2, '0')}`
+                      : 'Resend Code'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -113,7 +141,7 @@ export default function VerifyOtpScreen() {
   );
 }
 
-const stylesheet = createStyleSheet(theme => ({
+const stylesheet = createStyleSheet((theme) => ({
   container: {
     flex: 1,
     backgroundColor: colors.DARK,

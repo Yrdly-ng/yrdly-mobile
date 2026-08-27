@@ -23,14 +23,16 @@ export const api = {
       headers,
       body: JSON.stringify(body),
     });
-    
+
     let json;
     const contentType = res.headers.get('content-type') || '';
     if (contentType.includes('application/json')) {
       json = await res.json();
     } else {
       const text = await res.text();
-      throw new Error(`API Error (${res.status}): Server returned non-JSON response. Ensure your WEB_APP_URL is correct.`);
+      throw new Error(
+        `API Error (${res.status}): Server returned non-JSON response. Ensure your WEB_APP_URL is correct.`
+      );
     }
 
     if (!res.ok) throw new Error(json.message ?? json.error ?? `Request failed (${res.status})`);
@@ -39,18 +41,20 @@ export const api = {
 
   async get<T = any>(path: string): Promise<T> {
     const headers = await getAuthHeaders();
-    const res = await fetch(`${WEB_APP_URL}${path}`, { 
+    const res = await fetch(`${WEB_APP_URL}${path}`, {
       headers,
-      cache: 'no-store' // Critical for RN iOS to bypass aggressive GET caching
+      cache: 'no-store', // Critical for RN iOS to bypass aggressive GET caching
     });
-    
+
     let json;
     const contentType = res.headers.get('content-type') || '';
     if (contentType.includes('application/json')) {
       json = await res.json();
     } else {
       const text = await res.text();
-      throw new Error(`API Error (${res.status}): Server returned non-JSON response. Ensure your WEB_APP_URL is correct.`);
+      throw new Error(
+        `API Error (${res.status}): Server returned non-JSON response. Ensure your WEB_APP_URL is correct.`
+      );
     }
 
     if (!res.ok) throw new Error(json.message ?? json.error ?? `Request failed (${res.status})`);

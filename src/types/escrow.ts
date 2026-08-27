@@ -5,18 +5,18 @@ export enum EscrowStatus {
   DELIVERED = 'delivered',
   COMPLETED = 'completed',
   DISPUTED = 'disputed',
-  CANCELLED = 'cancelled'
+  CANCELLED = 'cancelled',
 }
 
 export enum PaymentMethod {
   CARD = 'card',
   BANK_TRANSFER = 'bank_transfer',
-  MOBILE_MONEY = 'mobile_money'
+  MOBILE_MONEY = 'mobile_money',
 }
 
 export enum DeliveryOption {
-  FACE_TO_FACE = 'face_to_face',      // Buyer and seller meet in person
-  SELLER_DELIVERY = 'seller_delivery'  // Seller uses their own rider/logistics
+  FACE_TO_FACE = 'face_to_face', // Buyer and seller meet in person
+  SELLER_DELIVERY = 'seller_delivery', // Seller uses their own rider/logistics
 }
 
 export interface DeliveryDetails {

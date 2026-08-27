@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from "react-native-unistyles";
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, RefreshControl, Dimensions } from 'react-native';
 import { supabase } from '../lib/supabase';
@@ -12,11 +12,11 @@ import { PostSkeleton } from '../components/Skeleton';
 const { width } = Dimensions.get('window');
 
 export default function BookmarksScreen() {
-    const { styles, theme } = useStyles(sStylesheet);
+  const { styles, theme } = useStyles(sStylesheet);
 
   const { user } = useAuth();
   const router = useRouter();
-  
+
   const [activeTab, setActiveTab] = useState<'posts' | 'events'>('posts');
   const [posts, setPosts] = useState<Post[]>([]);
   const [events, setEvents] = useState<Post[]>([]);
@@ -29,13 +29,15 @@ export default function BookmarksScreen() {
       if (activeTab === 'posts') {
         const { data } = await supabase
           .from('post_bookmarks')
-          .select(`
+          .select(
+            `
             post_id,
             created_at
-          `)
+          `
+          )
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
-        
+
         if (data) {
           const postIds = data.map((b: any) => b.post_id);
           if (postIds.length > 0) {
@@ -43,9 +45,11 @@ export default function BookmarksScreen() {
               .from('posts')
               .select('*, profiles:user_id(*)')
               .in('id', postIds);
-            
+
             // Re-order by bookmark time
-            const orderedPosts = postIds.map(id => fullPosts?.find(p => p.id === id)).filter(Boolean);
+            const orderedPosts = postIds
+              .map((id) => fullPosts?.find((p) => p.id === id))
+              .filter(Boolean);
             setPosts(orderedPosts as Post[]);
           } else {
             setPosts([]);
@@ -57,7 +61,7 @@ export default function BookmarksScreen() {
           .select('event_id')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
-        
+
         if (data) {
           const eventIds = data.map((b: any) => b.event_id);
           if (eventIds.length > 0) {
@@ -65,9 +69,11 @@ export default function BookmarksScreen() {
               .from('events')
               .select('*')
               .in('id', eventIds);
-            
+
             // Re-order by bookmark time
-            const orderedEvents = eventIds.map(id => fullEvents?.find(e => e.id === id)).filter(Boolean);
+            const orderedEvents = eventIds
+              .map((id) => fullEvents?.find((e) => e.id === id))
+              .filter(Boolean);
             setEvents(orderedEvents as Post[]);
           } else {
             setEvents([]);
@@ -94,20 +100,46 @@ export default function BookmarksScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.DARK }]}>
-      <ScreenHeader title="Saved Items"  />
-      
-      <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: theme.colors.GLASS_BORDER }}>
-        <TouchableOpacity 
-          style={[{ flex: 1, paddingVertical: 12, alignItems: 'center' }, activeTab === 'posts' && { borderBottomWidth: 2, borderBottomColor: theme.colors.G }]} 
+      <ScreenHeader title="Saved Items" />
+
+      <View
+        style={{
+          flexDirection: 'row',
+          borderBottomWidth: 1,
+          borderBottomColor: theme.colors.GLASS_BORDER,
+        }}
+      >
+        <TouchableOpacity
+          style={[
+            { flex: 1, paddingVertical: 12, alignItems: 'center' },
+            activeTab === 'posts' && { borderBottomWidth: 2, borderBottomColor: theme.colors.G },
+          ]}
           onPress={() => setActiveTab('posts')}
         >
-          <Text style={[styles.tabText, { color: activeTab === 'posts' ? theme.colors.G : theme.colors.MUTED }]}>Posts & Market</Text>
+          <Text
+            style={[
+              styles.tabText,
+              { color: activeTab === 'posts' ? theme.colors.G : theme.colors.MUTED },
+            ]}
+          >
+            Posts & Market
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={[{ flex: 1, paddingVertical: 12, alignItems: 'center' }, activeTab === 'events' && { borderBottomWidth: 2, borderBottomColor: theme.colors.G }]} 
+        <TouchableOpacity
+          style={[
+            { flex: 1, paddingVertical: 12, alignItems: 'center' },
+            activeTab === 'events' && { borderBottomWidth: 2, borderBottomColor: theme.colors.G },
+          ]}
           onPress={() => setActiveTab('events')}
         >
-          <Text style={[styles.tabText, { color: activeTab === 'events' ? theme.colors.G : theme.colors.MUTED }]}>Events</Text>
+          <Text
+            style={[
+              styles.tabText,
+              { color: activeTab === 'events' ? theme.colors.G : theme.colors.MUTED },
+            ]}
+          >
+            Events
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -120,40 +152,53 @@ export default function BookmarksScreen() {
       ) : activeTab === 'posts' ? (
         <FlatList
           data={posts}
-          keyExtractor={item => item.id}
+          keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingBottom: 100 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.G} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.colors.G}
+            />
+          }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={[styles.emptyText, { color: theme.colors.TEXT_SECONDARY }]}>No saved posts yet.</Text>
+              <Text style={[styles.emptyText, { color: theme.colors.TEXT_SECONDARY }]}>
+                No saved posts yet.
+              </Text>
             </View>
           }
           renderItem={({ item }) => (
-            <PostCard 
-              post={item} 
+            <PostCard
+              post={item}
               onPress={() => {
                 if (item.category === 'For Sale') router.push(`/marketplace/${item.id}`);
                 else router.push(`/posts/${item.id}`);
-              }} 
+              }}
             />
           )}
         />
       ) : (
         <FlatList
           data={events}
-          keyExtractor={item => item.id}
+          keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.G} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.colors.G}
+            />
+          }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={[styles.emptyText, { color: theme.colors.TEXT_SECONDARY }]}>No saved events yet.</Text>
+              <Text style={[styles.emptyText, { color: theme.colors.TEXT_SECONDARY }]}>
+                No saved events yet.
+              </Text>
             </View>
           }
           renderItem={({ item }) => (
-            <EventCard 
-              event={item} 
-              onPress={() => router.push(`/events/${item.id}`)} 
-            />
+            <EventCard event={item} onPress={() => router.push(`/events/${item.id}`)} />
           )}
         />
       )}
@@ -161,27 +206,25 @@ export default function BookmarksScreen() {
   );
 }
 
-
-
-const sStylesheet = createStyleSheet(theme => ({
-      container: { flex: 1 },
-      tabs: {
-        flexDirection: 'row',
-        borderBottomWidth: 1,
-      },
-      tab: {
-        flex: 1,
-        alignItems: 'center',
-        paddingVertical: 14,
-      },
-      tabText: {
-        fontSize: 15,
-      },
-      emptyContainer: {
-        padding: 32,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: 64,
-      },
-      emptyText: { fontFamily: 'Inter-Regular', fontSize: 16 }
-    }));
+const sStylesheet = createStyleSheet((theme) => ({
+  container: { flex: 1 },
+  tabs: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 14,
+  },
+  tabText: {
+    fontSize: 15,
+  },
+  emptyContainer: {
+    padding: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 64,
+  },
+  emptyText: { fontFamily: 'Inter-Regular', fontSize: 16 },
+}));

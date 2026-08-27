@@ -1,9 +1,23 @@
 import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  TouchableOpacity,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { SceneBg, GlassCard, GlassInput, PrimaryBtn, BackBtn } from '@/components/onboarding/primitives';
+import {
+  SceneBg,
+  GlassCard,
+  GlassInput,
+  PrimaryBtn,
+  BackBtn,
+} from '@/components/onboarding/primitives';
 import { ONBOARDING_THEME } from '@/constants/onboarding-theme';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -19,19 +33,27 @@ export default function PhoneScreen() {
       <SceneBg photoId="1654762550505-7c58277e0fac" pos="center 35%" gradientStart="40%" />
 
       <SafeAreaView style={styles.safeArea}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
           <View style={styles.topBar}>
             <BackBtn onClick={() => router.back()} light />
           </View>
 
-          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             <View style={{ flex: 1, minHeight: 40 }} />
 
             <GlassCard>
               <View style={styles.titleBox}>
                 <Text style={styles.titleText}>Verify your phone number</Text>
                 <Text style={styles.subtitleText}>
-                  YRDLY is a verified community. We use your number to keep buyers and sellers safe in your neighbourhood.
+                  YRDLY is a verified community. We use your number to keep buyers and sellers safe
+                  in your neighbourhood.
                 </Text>
               </View>
 
@@ -47,7 +69,7 @@ export default function PhoneScreen() {
                   <GlassInput
                     placeholder="801 234 5678"
                     value={phone}
-                    onChange={v => setPhone(v.replace(/\D/g, '').slice(0, 10))}
+                    onChange={(v) => setPhone(v.replace(/\D/g, '').slice(0, 10))}
                     keyboardType="number-pad"
                     maxLength={10}
                   />
@@ -56,7 +78,12 @@ export default function PhoneScreen() {
 
               {/* Trust Badge */}
               <View style={styles.trustBadge}>
-                <Ionicons name="shield-checkmark-outline" size={20} color={colors.G} style={{ marginTop: 2 }} />
+                <Ionicons
+                  name="shield-checkmark-outline"
+                  size={20}
+                  color={colors.G}
+                  style={{ marginTop: 2 }}
+                />
                 <Text style={styles.trustText}>
                   Your number is never shared publicly with other users.
                 </Text>
@@ -75,7 +102,7 @@ export default function PhoneScreen() {
   );
 }
 
-const stylesheet = createStyleSheet(theme => ({
+const stylesheet = createStyleSheet((theme) => ({
   container: {
     flex: 1,
     backgroundColor: colors.DARK,

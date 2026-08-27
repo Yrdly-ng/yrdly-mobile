@@ -1,6 +1,18 @@
-import { createStyleSheet, useStyles } from "react-native-unistyles";
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, FlatList, ActivityIndicator, Alert, RefreshControl, Animated, Pressable } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  FlatList,
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+  Animated,
+  Pressable,
+} from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -22,7 +34,7 @@ interface CategoryTile {
 }
 
 export function BusinessHub({ searchQuery }: BusinessHubProps) {
-    const { styles: s, theme } = useStyles(sStylesheet);
+  const { styles: s, theme } = useStyles(sStylesheet);
 
   const { isDarkMode } = useAppTheme();
   const router = useRouter();
@@ -42,10 +54,10 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
         .select('*')
         .eq('is_active', true)
         .order('created_at', { ascending: false });
-        
+
       const { data, error } = await q;
       if (error) throw error;
-      setBusinesses(data as Business[] || []);
+      setBusinesses((data as Business[]) || []);
     } catch (e) {
       console.error('Error fetching businesses:', e);
     } finally {
@@ -75,7 +87,9 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
         }
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const onRefresh = useCallback(async () => {
@@ -87,7 +101,7 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
   const categoryTiles = useMemo<CategoryTile[]>(() => {
     const map = new Map<string, CategoryTile>();
     for (const biz of businesses) {
-      const name = (biz.category || "Other").trim() || "Other";
+      const name = (biz.category || 'Other').trim() || 'Other';
       const image = biz.cover_image || biz.image_urls?.[0] || null;
 
       const existing = map.get(name);
@@ -105,7 +119,7 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
     let list = businesses;
 
     if (activeCategory) {
-      list = list.filter((b) => (b.category || "Other").trim() === activeCategory);
+      list = list.filter((b) => (b.category || 'Other').trim() === activeCategory);
     }
 
     if (searchQuery.trim()) {
@@ -126,12 +140,18 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
   if (loading && businesses.length === 0) {
     return (
       <View style={s.skeletonGrid}>
-        {[1, 2, 3, 4].map(k => {
-        return (
-                  <View key={k} style={[s.skeletonCard, { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER }]}>
-                    <Skeleton width="100%" height={150} />
-                  </View>
-                );
+        {[1, 2, 3, 4].map((k) => {
+          return (
+            <View
+              key={k}
+              style={[
+                s.skeletonCard,
+                { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER },
+              ]}
+            >
+              <Skeleton width="100%" height={150} />
+            </View>
+          );
         })}
       </View>
     );
@@ -143,7 +163,8 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
 
     useEffect(() => {
       if (user && item.id) {
-        supabase.from('business_favorites')
+        supabase
+          .from('business_favorites')
           .select('id')
           .eq('business_id', item.id)
           .eq('user_id', user.id)
@@ -165,10 +186,15 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
       ]).start();
 
       if (newSaved) {
-        const { error } = await supabase.from('business_favorites').insert({ business_id: item.id, user_id: user.id });
+        const { error } = await supabase
+          .from('business_favorites')
+          .insert({ business_id: item.id, user_id: user.id });
         if (error) setSaved(false);
       } else {
-        const { error } = await supabase.from('business_favorites').delete().match({ business_id: item.id, user_id: user.id });
+        const { error } = await supabase
+          .from('business_favorites')
+          .delete()
+          .match({ business_id: item.id, user_id: user.id });
         if (error) setSaved(true);
       }
     };
@@ -177,31 +203,58 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
       <TouchableOpacity
         activeOpacity={0.7}
         onPress={() => router.push(`/businesses/${item.id}` as any)}
-        style={[s.bizCard, { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER }]}
+        style={[
+          s.bizCard,
+          { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER },
+        ]}
       >
         <View style={[s.bizImgContainer, { backgroundColor: theme.colors.DARK }]}>
-          <Image 
-            source={{ uri: item.logo || item.cover_image || item.image_urls?.[0] || 'https://via.placeholder.com/150' }} 
-            style={s.bizImg} 
-            contentFit="cover" 
+          <Image
+            source={{
+              uri:
+                item.logo ||
+                item.cover_image ||
+                item.image_urls?.[0] ||
+                'https://via.placeholder.com/150',
+            }}
+            style={s.bizImg}
+            contentFit="cover"
           />
         </View>
         <View style={s.bizInfo}>
-          <Text style={[s.bizName, { color: theme.colors.TEXT_PRIMARY }]} numberOfLines={1}>{item.name}</Text>
-          <Text style={[s.bizCat, { color: theme.colors.MUTED }]} numberOfLines={1}>{item.category || 'Other'}</Text>
-          
+          <Text style={[s.bizName, { color: theme.colors.TEXT_PRIMARY }]} numberOfLines={1}>
+            {item.name}
+          </Text>
+          <Text style={[s.bizCat, { color: theme.colors.MUTED }]} numberOfLines={1}>
+            {item.category || 'Other'}
+          </Text>
+
           <View style={s.bizMetaRow}>
             <View style={s.bizRating}>
               <Ionicons name="star" size={12} color="#FBBF24" />
-              <Text style={[s.bizRatingTxt, { color: theme.colors.TEXT_PRIMARY }]}>{item.rating?.toFixed(1) || '0.0'}</Text>
-              <Text style={[s.bizReviewCount, { color: theme.colors.MUTED }]}>({item.review_count || 0})</Text>
+              <Text style={[s.bizRatingTxt, { color: theme.colors.TEXT_PRIMARY }]}>
+                {item.rating?.toFixed(1) || '0.0'}
+              </Text>
+              <Text style={[s.bizReviewCount, { color: theme.colors.MUTED }]}>
+                ({item.review_count || 0})
+              </Text>
             </View>
           </View>
         </View>
-        
-        <Pressable style={{ padding: 8 }} onPress={(e) => { e.stopPropagation(); toggleSave(); }}>
+
+        <Pressable
+          style={{ padding: 8 }}
+          onPress={(e) => {
+            e.stopPropagation();
+            toggleSave();
+          }}
+        >
           <Animated.View style={{ transform: [{ scale: heartScale }] }}>
-            <Ionicons name={saved ? 'heart' : 'heart-outline'} size={22} color={saved ? '#ff4d6d' : theme.colors.MUTED} />
+            <Ionicons
+              name={saved ? 'heart' : 'heart-outline'}
+              size={22}
+              color={saved ? '#ff4d6d' : theme.colors.MUTED}
+            />
           </Animated.View>
         </Pressable>
       </TouchableOpacity>
@@ -211,10 +264,7 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
   return (
     <View style={s.container}>
       {activeCategory && !searchQuery.trim() && (
-        <TouchableOpacity 
-          style={s.backBtn}
-          onPress={() => setActiveCategory(null)}
-        >
+        <TouchableOpacity style={s.backBtn} onPress={() => setActiveCategory(null)}>
           <Ionicons name="chevron-back" size={18} color={theme.colors.MUTED} />
           <Text style={[s.backTxt, { color: theme.colors.MUTED }]}>Back to categories</Text>
         </TouchableOpacity>
@@ -223,46 +273,65 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
       {!showingList ? (
         <ScrollView
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.G} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.colors.G}
+            />
+          }
           contentContainerStyle={s.contentPad}
         >
           <View style={s.grid}>
-            {categoryTiles.map(tile => {
-return (
-                          <TouchableOpacity
-                            key={tile.name}
-                            activeOpacity={0.8}
-                            onPress={() => setActiveCategory(tile.name)}
-                            style={s.tile}
-                          >
-                            {tile.image ? (
-                              <Image source={{ uri: tile.image }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
-                            ) : (
-                              <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#2e7d32' }]} />
-                            )}
-                            <View style={s.tileOverlay} />
-                            <View style={s.tileBadge}>
-                              <Text style={s.tileBadgeTxt}>{tile.count}</Text>
-                            </View>
-                            <Text style={s.tileTitle}>{tile.name}</Text>
-                          </TouchableOpacity>
-                        );
+            {categoryTiles.map((tile) => {
+              return (
+                <TouchableOpacity
+                  key={tile.name}
+                  activeOpacity={0.8}
+                  onPress={() => setActiveCategory(tile.name)}
+                  style={s.tile}
+                >
+                  {tile.image ? (
+                    <Image
+                      source={{ uri: tile.image }}
+                      style={StyleSheet.absoluteFillObject}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#2e7d32' }]} />
+                  )}
+                  <View style={s.tileOverlay} />
+                  <View style={s.tileBadge}>
+                    <Text style={s.tileBadgeTxt}>{tile.count}</Text>
+                  </View>
+                  <Text style={s.tileTitle}>{tile.name}</Text>
+                </TouchableOpacity>
+              );
             })}
           </View>
         </ScrollView>
       ) : (
         <FlatList
           data={visibleBusinesses}
-          keyExtractor={i => i.id}
+          keyExtractor={(i) => i.id}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.G} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.colors.G}
+            />
+          }
           contentContainerStyle={s.contentPad}
           ListEmptyComponent={
             <View style={s.empty}>
-              <Ionicons name="storefront-outline" size={48} color={theme.colors.MUTED} style={{ opacity: 0.4, marginBottom: 12 }} />
-              <Text style={[s.emptyTxt, { color: theme.colors.MUTED }]}>
-                No businesses found
-              </Text>
+              <Ionicons
+                name="storefront-outline"
+                size={48}
+                color={theme.colors.MUTED}
+                style={{ opacity: 0.4, marginBottom: 12 }}
+              />
+              <Text style={[s.emptyTxt, { color: theme.colors.MUTED }]}>No businesses found</Text>
             </View>
           }
           renderItem={({ item }) => <BusinessCard item={item} />}
@@ -272,29 +341,70 @@ return (
   );
 }
 
-const sStylesheet = createStyleSheet(theme => ({
-      container: { flex: 1 },
-      skeletonGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 16 },
-      skeletonCard: { width: '48%', borderRadius: 20, overflow: 'hidden', borderWidth: 1, marginBottom: 14, height: 150 },
-      backBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, gap: 6 },
-      backTxt: { fontSize: 13, fontWeight: '600' },
-      contentPad: { paddingHorizontal: 16, paddingBottom: 100 },
-      grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-      tile: { width: '48%', height: 160, borderRadius: 20, overflow: 'hidden', marginBottom: 14 },
-      tileOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
-      tileBadge: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 },
-      tileBadgeTxt: { color: '#2e7d32', fontSize: 11, fontWeight: '700' },
-      tileTitle: { position: 'absolute', bottom: 12, left: 12, right: 12, color: theme.colors.TEXT_PRIMARY, fontSize: 16, fontWeight: '800' },
-      empty: { paddingVertical: 60, alignItems: 'center' },
-      emptyTxt: { fontSize: 15, textAlign: 'center' },
-      bizCard: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 20, borderWidth: 1, marginBottom: 12 },
-      bizImgContainer: { width: 64, height: 64, borderRadius: 16, overflow: 'hidden', marginRight: 12 },
-      bizImg: { width: '100%', height: '100%' },
-      bizInfo: { flex: 1 },
-      bizName: { fontSize: 16, fontWeight: '700', marginBottom: 2 },
-      bizCat: { fontSize: 13, marginBottom: 6 },
-      bizMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-      bizRating: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-      bizRatingTxt: { fontSize: 12, fontWeight: '600' },
-      bizReviewCount: { fontSize: 12 },
-    }));
+const sStylesheet = createStyleSheet((theme) => ({
+  container: { flex: 1 },
+  skeletonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  skeletonCard: {
+    width: '48%',
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    marginBottom: 14,
+    height: 150,
+  },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 6,
+  },
+  backTxt: { fontSize: 13, fontWeight: '600' },
+  contentPad: { paddingHorizontal: 16, paddingBottom: 100 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  tile: { width: '48%', height: 160, borderRadius: 20, overflow: 'hidden', marginBottom: 14 },
+  tileOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
+  tileBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  tileBadgeTxt: { color: '#2e7d32', fontSize: 11, fontWeight: '700' },
+  tileTitle: {
+    position: 'absolute',
+    bottom: 12,
+    left: 12,
+    right: 12,
+    color: theme.colors.TEXT_PRIMARY,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  empty: { paddingVertical: 60, alignItems: 'center' },
+  emptyTxt: { fontSize: 15, textAlign: 'center' },
+  bizCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  bizImgContainer: { width: 64, height: 64, borderRadius: 16, overflow: 'hidden', marginRight: 12 },
+  bizImg: { width: '100%', height: '100%' },
+  bizInfo: { flex: 1 },
+  bizName: { fontSize: 16, fontWeight: '700', marginBottom: 2 },
+  bizCat: { fontSize: 13, marginBottom: 6 },
+  bizMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  bizRating: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  bizRatingTxt: { fontSize: 12, fontWeight: '600' },
+  bizReviewCount: { fontSize: 12 },
+}));

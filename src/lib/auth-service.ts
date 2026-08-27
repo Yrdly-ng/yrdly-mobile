@@ -42,7 +42,8 @@ export interface AuthUser {
   };
   is_online?: boolean;
   last_seen?: string;
-  onboarding_status?: 'signup' | 'email_verification' | 'profile_setup' | 'welcome' | 'tour' | 'completed';
+  onboarding_status?:
+    'signup' | 'email_verification' | 'profile_setup' | 'welcome' | 'tour' | 'completed';
   profile_completed?: boolean;
   onboarding_completed_at?: string;
   tour_completed?: boolean;
@@ -58,7 +59,7 @@ export interface AuthUser {
 export class AuthService {
   private static getRedirectUrl() {
     const url = makeRedirectUri({
-      path: 'auth/callback'
+      path: 'auth/callback',
     });
 
     return url;
@@ -124,26 +125,24 @@ export class AuthService {
       if (data?.url) {
         // Opens the secure native browser to complete OAuth
         // Force Chrome on Android to bypass buggy app interceptors (like OPay/EaseMoni)
-        const result = await WebBrowser.openAuthSessionAsync(
-          data.url, 
-          redirectTo, 
-          { browserPackage: 'com.android.chrome' }
-        );
-        
+        const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo, {
+          browserPackage: 'com.android.chrome',
+        });
+
         if (result.type === 'success' && result.url) {
           // If Supabase uses PKCE flow (default in v2), extract code:
           const urlParams = new URLSearchParams(result.url.split('?')[1] || '');
           const code = urlParams.get('code');
           if (code) {
-             await supabase.auth.exchangeCodeForSession(code);
+            await supabase.auth.exchangeCodeForSession(code);
           } else {
-             // If Implicit flow (hash), extract token:
-             const hashParams = new URLSearchParams(result.url.split('#')[1] || '');
-             const access_token = hashParams.get('access_token');
-             const refresh_token = hashParams.get('refresh_token');
-             if (access_token && refresh_token) {
-               await supabase.auth.setSession({ access_token, refresh_token });
-             }
+            // If Implicit flow (hash), extract token:
+            const hashParams = new URLSearchParams(result.url.split('#')[1] || '');
+            const access_token = hashParams.get('access_token');
+            const refresh_token = hashParams.get('refresh_token');
+            if (access_token && refresh_token) {
+              await supabase.auth.setSession({ access_token, refresh_token });
+            }
           }
         }
       }
@@ -188,7 +187,10 @@ export class AuthService {
   // Get current user
   static async getCurrentUser(): Promise<User | null> {
     try {
-      const { data: { session }, error } = await supabase.auth.getSession();
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
       if (error) {
         if (error.message !== 'Auth session missing!') {
           console.error('Get current session error:', error);
@@ -218,7 +220,7 @@ export class AuthService {
         console.error('Database error fetching user profile:', error);
         return null;
       }
-      
+
       return data;
     } catch (error) {
       console.error('Get user profile error:', error);
@@ -227,15 +229,15 @@ export class AuthService {
   }
 
   // Check if a username is available (case-insensitive)
-  static async checkUsernameAvailability(username: string, excludeUserId?: string): Promise<boolean> {
+  static async checkUsernameAvailability(
+    username: string,
+    excludeUserId?: string
+  ): Promise<boolean> {
     try {
       const clean = username.replace(/^@/, '').trim().toLowerCase();
       if (!clean) return true;
 
-      let query = supabase
-        .from('users')
-        .select('id')
-        .ilike('username', clean);
+      let query = supabase.from('users').select('id').ilike('username', clean);
 
       if (excludeUserId) {
         query = query.neq('id', excludeUserId);
@@ -254,7 +256,6 @@ export class AuthService {
     }
   }
 
-
   // Create user profile in public.users table
   static async createUserProfile(user: User, name: string) {
     try {
@@ -265,25 +266,23 @@ export class AuthService {
 
       const finalName = name || user.user_metadata?.name || user.email?.split('@')[0];
 
-      const { error } = await supabase
-        .from('users')
-        .insert({
-          id: user.id,
-          name: finalName,
-          legal_name: user.user_metadata?.legal_name,
-          email: user.email,
-          avatar_url: user.user_metadata?.avatar_url,
-          profile_completed: false,
-          onboarding_status: 'profile_setup',
-          notification_settings: {
-            friendRequests: true,
-            messages: true,
-            postUpdates: true,
-            comments: true,
-            postLikes: true,
-            eventInvites: true,
-          },
-        });
+      const { error } = await supabase.from('users').insert({
+        id: user.id,
+        name: finalName,
+        legal_name: user.user_metadata?.legal_name,
+        email: user.email,
+        avatar_url: user.user_metadata?.avatar_url,
+        profile_completed: false,
+        onboarding_status: 'profile_setup',
+        notification_settings: {
+          friendRequests: true,
+          messages: true,
+          postUpdates: true,
+          comments: true,
+          postLikes: true,
+          eventInvites: true,
+        },
+      });
 
       if (error) {
         if (error.code === '23505') {
@@ -305,10 +304,7 @@ export class AuthService {
         updates.username = updates.username.replace(/^@/, '').trim().toLowerCase();
       }
 
-      const { error } = await supabase
-        .from('users')
-        .update(updates)
-        .eq('id', userId);
+      const { error } = await supabase.from('users').update(updates).eq('id', userId);
 
       if (error) throw error;
     } catch (error) {
@@ -329,7 +325,11 @@ export class AuthService {
         .limit(1);
 
       if (pendingTx && pendingTx.length > 0) {
-        return { canDelete: false, reason: 'You have active escrow transactions in progress. Please complete or cancel them before deleting your account.' };
+        return {
+          canDelete: false,
+          reason:
+            'You have active escrow transactions in progress. Please complete or cancel them before deleting your account.',
+        };
       }
 
       // Check for open disputes
@@ -341,7 +341,11 @@ export class AuthService {
         .limit(1);
 
       if (openDisputes && openDisputes.length > 0) {
-        return { canDelete: false, reason: 'You have open marketplace disputes. Please resolve all open disputes before deleting your account.' };
+        return {
+          canDelete: false,
+          reason:
+            'You have open marketplace disputes. Please resolve all open disputes before deleting your account.',
+        };
       }
 
       return { canDelete: true };

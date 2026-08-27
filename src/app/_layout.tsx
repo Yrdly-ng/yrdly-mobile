@@ -9,7 +9,8 @@ import { ThemeProvider } from '../context/ThemeContext';
 import { LocationProvider } from '../context/LocationContext';
 import { NotificationBadgeProvider } from '../context/NotificationBadgeContext';
 import * as SplashScreen from 'expo-splash-screen';
-import { PostHogProvider, usePostHog } from 'posthog-react-native';
+import { PostHogProvider, usePostHog, PostHogErrorBoundary } from 'posthog-react-native';
+import { PostHogSurveyProvider } from 'posthog-react-native/surveys';
 import { setAudioModeAsync } from 'expo-audio';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -30,12 +31,30 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
-import { View } from 'react-native';
+import { View, Text } from 'react-native';
+
+const ErrorFallback = ({ error }: { error: any }) => (
+  <View
+    style={{
+      flex: 1,
+      backgroundColor: '#0A0A0A',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 32,
+    }}
+  >
+    <Text style={{ color: '#EF4444', fontSize: 22, fontWeight: '800', marginBottom: 12 }}>
+      Something went wrong
+    </Text>
+    <Text style={{ color: '#9CA3AF', textAlign: 'center' }}>
+      {error instanceof Error ? error.message : String(error)}
+    </Text>
+  </View>
+);
 
 SplashScreen.preventAutoHideAsync().catch(() => {
   // already hidden, ignore
 });
-
 
 function AnalyticsTracker() {
   const posthog = usePostHog();
@@ -83,7 +102,7 @@ function RootNavigationGuard() {
 
   useEffect(() => {
     if (user && !profile) {
-      const timer = setTimeout(() => setProfileWaitTime(prev => prev + 1), 1000);
+      const timer = setTimeout(() => setProfileWaitTime((prev) => prev + 1), 1000);
       return () => clearTimeout(timer);
     } else {
       setProfileWaitTime(0);
@@ -114,7 +133,7 @@ function RootNavigationGuard() {
 
       // Signed in — wait for profile to load
       if (!profile) {
-        // Deadlock prevention: if we've waited > 4 seconds and profile is still null, 
+        // Deadlock prevention: if we've waited > 4 seconds and profile is still null,
         // assume it's a broken OAuth sign-up or network failure and push to onboarding to recover.
         if (profileWaitTime > 4 && !inOnboarding) {
           router.replace('/(onboarding)/profile1' as any);
@@ -134,8 +153,12 @@ function RootNavigationGuard() {
         }
       } else {
         // Onboarding complete — redirect out of auth/onboarding/root to tabs
-        const isRoot = (segments as any).length === 0 || (segments[0] as string) === 'index' || (segments[0] as string) === '';
-        const isResetPassword = (segments[0] === '(auth)' || segments[0] === 'auth') && segments[1] === 'reset-password';
+        const isRoot =
+          (segments as any).length === 0 ||
+          (segments[0] as string) === 'index' ||
+          (segments[0] as string) === '';
+        const isResetPassword =
+          (segments[0] === '(auth)' || segments[0] === 'auth') && segments[1] === 'reset-password';
         if (!isResetPassword && (inAuth || inOnboarding || isRoot)) {
           router.replace('/(tabs)');
         }
@@ -152,9 +175,15 @@ function RootNavigationGuard() {
         <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
         <Stack.Screen name="(onboarding)" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-        <Stack.Screen name="new-post" options={{ presentation: 'modal', animation: 'slide_from_bottom', headerShown: false }} />
+        <Stack.Screen
+          name="new-post"
+          options={{ presentation: 'modal', animation: 'slide_from_bottom', headerShown: false }}
+        />
         <Stack.Screen name="verify-phone" options={{ presentation: 'modal', headerShown: false }} />
-        <Stack.Screen name="verify-phone-otp" options={{ presentation: 'modal', headerShown: false }} />
+        <Stack.Screen
+          name="verify-phone-otp"
+          options={{ presentation: 'modal', headerShown: false }}
+        />
         <Stack.Screen name="tickets" options={{ headerShown: false }} />
       </Stack>
     </ErrorBoundary>
@@ -168,8 +197,8 @@ import { getStoredThemePreference } from '../lib/theme-preference';
 export default function Layout() {
   useEffect(() => {
     oneSignalService.initialize();
-    
-    getStoredThemePreference().then(theme => {
+
+    getStoredThemePreference().then((theme) => {
       if (theme) {
         UnistylesRuntime.setTheme(theme);
       }
@@ -206,24 +235,49 @@ export default function Layout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       {process.env.EXPO_PUBLIC_POSTHOG_KEY ? (
-        <PostHogProvider apiKey={process.env.EXPO_PUBLIC_POSTHOG_KEY} options={{ host: process.env.EXPO_PUBLIC_POSTHOG_HOST }}>
-          <AnalyticsTracker />
-          <KeyboardProvider>
-            <ThemeProvider>
-              <BottomSheetModalProvider>
-                <AuthProvider>
-                  <LocationProvider>
-                    <NotificationBadgeProvider>
-                      <AudioSettingsHandler />
-                      <NotificationsHandler />
-                      <OneSignalVerificationDialog />
-                      <RootNavigationGuard />
-                    </NotificationBadgeProvider>
-                  </LocationProvider>
-                </AuthProvider>
-              </BottomSheetModalProvider>
-            </ThemeProvider>
-          </KeyboardProvider>
+        <PostHogProvider
+          apiKey={process.env.EXPO_PUBLIC_POSTHOG_KEY}
+          options={{
+            host: process.env.EXPO_PUBLIC_POSTHOG_HOST,
+            captureAppLifecycleEvents: true,
+            enableSessionReplay: true,
+            sessionReplay: {
+              maskAllTextInputs: true,
+              maskAllImages: false,
+              captureLog: true,
+            },
+            errorTracking: {
+              autocapture: {
+                nativeCrashes: true,
+              },
+            },
+          }}
+          autocapture={{ captureTouches: true }}
+        >
+          <PostHogErrorBoundary
+            fallback={ErrorFallback}
+            additionalProperties={{ app_section: 'root' }}
+          >
+            <PostHogSurveyProvider>
+              <AnalyticsTracker />
+              <KeyboardProvider>
+                <ThemeProvider>
+                  <BottomSheetModalProvider>
+                    <AuthProvider>
+                      <LocationProvider>
+                        <NotificationBadgeProvider>
+                          <AudioSettingsHandler />
+                          <NotificationsHandler />
+                          <OneSignalVerificationDialog />
+                          <RootNavigationGuard />
+                        </NotificationBadgeProvider>
+                      </LocationProvider>
+                    </AuthProvider>
+                  </BottomSheetModalProvider>
+                </ThemeProvider>
+              </KeyboardProvider>
+            </PostHogSurveyProvider>
+          </PostHogErrorBoundary>
         </PostHogProvider>
       ) : (
         <KeyboardProvider>

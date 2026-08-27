@@ -1,8 +1,13 @@
-import { createStyleSheet, useStyles } from "react-native-unistyles";
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, ScrollView,
-  TouchableOpacity, ActivityIndicator, Alert, Linking,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  Linking,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -38,9 +43,9 @@ interface UserProfile {
 }
 
 export default function OtherUserProfileScreen() {
-    const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { styles: stylesheet, theme } = useStyles(_stylesheet);
 
-    const router = useRouter();
+  const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user: currentUser, profile: currentProfile, updateProfile } = useAuth();
   const { width: windowWidth } = useWindowDimensions();
@@ -88,7 +93,8 @@ export default function OtherUserProfileScreen() {
 
       const { data: postData } = await supabase
         .from('posts')
-        .select(`
+        .select(
+          `
           *,
           user:users!posts_user_id_fkey(
             id,
@@ -97,19 +103,30 @@ export default function OtherUserProfileScreen() {
             location,
             created_at
           )
-        `)
+        `
+        )
         .eq('user_id', id)
         .eq('moderation_status', 'approved')
         .order('created_at', { ascending: false });
-      
+
       if (postData) {
         setPosts(postData as Post[]);
-        setHasMarketplace(postData.some(p => p.category === 'For Sale' || p.category === 'Giveaway' || p.category === 'Business'));
+        setHasMarketplace(
+          postData.some(
+            (p) =>
+              p.category === 'For Sale' || p.category === 'Giveaway' || p.category === 'Business'
+          )
+        );
       }
 
       // Check if user has a business
       try {
-        const { data: bData } = await supabase.from('businesses').select('id').eq('owner_id', id).eq('is_active', true).limit(1);
+        const { data: bData } = await supabase
+          .from('businesses')
+          .select('id')
+          .eq('owner_id', id)
+          .eq('is_active', true)
+          .limit(1);
         if (bData && bData.length > 0) {
           setHasBusiness(true);
         }
@@ -118,8 +135,14 @@ export default function OtherUserProfileScreen() {
       // Dynamically fetch accurate follower counts
       try {
         const [{ count: fers }, { count: fing }] = await Promise.all([
-          supabase.from('followers').select('*', { count: 'exact', head: true }).eq('following_id', id),
-          supabase.from('followers').select('*', { count: 'exact', head: true }).eq('follower_id', id)
+          supabase
+            .from('followers')
+            .select('*', { count: 'exact', head: true })
+            .eq('following_id', id),
+          supabase
+            .from('followers')
+            .select('*', { count: 'exact', head: true })
+            .eq('follower_id', id),
         ]);
         setFollowersCount(fers || 0);
         setFollowingCount(fing || 0);
@@ -153,12 +176,16 @@ export default function OtherUserProfileScreen() {
         { event: 'UPDATE', schema: 'public', table: 'users', filter: `id=eq.${id}` },
         (payload) => {
           if (payload.new) {
-            setProfile((prev) => prev ? { ...prev, ...(payload.new as Partial<UserProfile>) } : prev);
+            setProfile((prev) =>
+              prev ? { ...prev, ...(payload.new as Partial<UserProfile>) } : prev
+            );
           }
         }
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [id]);
 
   const handleToggleFollow = async () => {
@@ -167,19 +194,21 @@ export default function OtherUserProfileScreen() {
 
     try {
       if (isFollowing) {
-        const { error } = await supabase.from('followers').delete()
+        const { error } = await supabase
+          .from('followers')
+          .delete()
           .eq('follower_id', currentProfile.id)
           .eq('following_id', profile.id);
         if (error) throw error;
-        setFollowersCount(prev => Math.max(0, prev - 1));
+        setFollowersCount((prev) => Math.max(0, prev - 1));
       } else {
         const { error } = await supabase.from('followers').insert({
           follower_id: currentProfile.id,
           following_id: profile.id,
         });
         if (error) throw error;
-        setFollowersCount(prev => prev + 1);
-        
+        setFollowersCount((prev) => prev + 1);
+
         // Trigger notification
         const { NotificationTriggers } = await import('../../lib/notification-triggers');
         await NotificationTriggers.onNewFollower(currentProfile.id, profile.id);
@@ -198,14 +227,14 @@ export default function OtherUserProfileScreen() {
       const { data: convs, error } = await supabase
         .from('conversations')
         .select('id, participant_ids');
-      
+
       if (error) {
         console.error('Error fetching conversations:', error);
       }
 
-      const existingChat = convs?.find(c => 
-        c.participant_ids?.includes(currentProfile.id) && 
-        c.participant_ids?.includes(profile.id)
+      const existingChat = convs?.find(
+        (c) =>
+          c.participant_ids?.includes(currentProfile.id) && c.participant_ids?.includes(profile.id)
       );
 
       if (existingChat) {
@@ -221,7 +250,12 @@ export default function OtherUserProfileScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={[stylesheet.container, { backgroundColor: theme.colors.DARK, justifyContent: 'center', alignItems: 'center' }]}>
+      <SafeAreaView
+        style={[
+          stylesheet.container,
+          { backgroundColor: theme.colors.DARK, justifyContent: 'center', alignItems: 'center' },
+        ]}
+      >
         <ActivityIndicator size="large" color={theme.colors.G} />
       </SafeAreaView>
     );
@@ -234,7 +268,14 @@ export default function OtherUserProfileScreen() {
           <TouchableOpacity onPress={() => router.back()} style={stylesheet.navBtn}>
             <Ionicons name="chevron-back" size={24} color={theme.colors.TEXT_PRIMARY} />
           </TouchableOpacity>
-          <Text style={[stylesheet.headerTitle, { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Outfit' }]}>Profile Not Found</Text>
+          <Text
+            style={[
+              stylesheet.headerTitle,
+              { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Outfit' },
+            ]}
+          >
+            Profile Not Found
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -250,31 +291,73 @@ export default function OtherUserProfileScreen() {
           <TouchableOpacity onPress={() => router.back()} style={stylesheet.navBtn}>
             <Ionicons name="chevron-back" size={24} color={theme.colors.TEXT_PRIMARY} />
           </TouchableOpacity>
-          <Text style={[stylesheet.headerTitle, { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Outfit' }]}>Blocked</Text>
+          <Text
+            style={[
+              stylesheet.headerTitle,
+              { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Outfit' },
+            ]}
+          >
+            Blocked
+          </Text>
         </View>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 }}>
-          <Ionicons name="lock-closed" size={48} color={theme.colors.MUTED} style={{ marginBottom: 16 }} />
-          <Text style={{ color: theme.colors.TEXT_PRIMARY, fontSize: 18, fontFamily: 'Outfit-Bold', textAlign: 'center', marginBottom: 8 }}>
+        <View
+          style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 }}
+        >
+          <Ionicons
+            name="lock-closed"
+            size={48}
+            color={theme.colors.MUTED}
+            style={{ marginBottom: 16 }}
+          />
+          <Text
+            style={{
+              color: theme.colors.TEXT_PRIMARY,
+              fontSize: 18,
+              fontFamily: 'Outfit-Bold',
+              textAlign: 'center',
+              marginBottom: 8,
+            }}
+          >
             You have blocked this user
           </Text>
-          <Text style={{ color: theme.colors.MUTED, fontSize: 14, fontFamily: 'Inter-Regular', textAlign: 'center', marginBottom: 24 }}>
+          <Text
+            style={{
+              color: theme.colors.MUTED,
+              fontSize: 14,
+              fontFamily: 'Inter-Regular',
+              textAlign: 'center',
+              marginBottom: 24,
+            }}
+          >
             You will not see their posts, and they cannot message you.
           </Text>
-          <TouchableOpacity 
-            style={{ paddingHorizontal: 24, paddingVertical: 12, backgroundColor: theme.colors.G, borderRadius: 24 }}
+          <TouchableOpacity
+            style={{
+              paddingHorizontal: 24,
+              paddingVertical: 12,
+              backgroundColor: theme.colors.G,
+              borderRadius: 24,
+            }}
             onPress={async () => {
               if (!currentProfile) return;
               try {
-                const newBlocks = currentProfile.blocked_users?.filter(id => id !== profile.id) || [];
+                const newBlocks =
+                  currentProfile.blocked_users?.filter((id) => id !== profile.id) || [];
                 await updateProfile({ blocked_users: newBlocks });
-                await supabase.from('user_blocks').delete().eq('blocker_id', currentProfile.id).eq('blocked_id', profile.id);
+                await supabase
+                  .from('user_blocks')
+                  .delete()
+                  .eq('blocker_id', currentProfile.id)
+                  .eq('blocked_id', profile.id);
                 Alert.alert('Unblocked', 'User has been unblocked.');
-              } catch(e) {
+              } catch (e) {
                 console.error(e);
               }
             }}
           >
-            <Text style={{ color: '#000', fontFamily: 'Inter-SemiBold', fontSize: 14 }}>Unblock</Text>
+            <Text style={{ color: '#000', fontFamily: 'Inter-SemiBold', fontSize: 14 }}>
+              Unblock
+            </Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -287,42 +370,63 @@ export default function OtherUserProfileScreen() {
         <TouchableOpacity onPress={() => router.back()} style={stylesheet.navBtn}>
           <Ionicons name="chevron-back" size={20} color={theme.colors.TEXT_PRIMARY} />
         </TouchableOpacity>
-        <Text style={[stylesheet.headerTitle, { color: theme.colors.MUTED, fontFamily: 'Outfit-Bold' }]}>
+        <Text
+          style={[stylesheet.headerTitle, { color: theme.colors.MUTED, fontFamily: 'Outfit-Bold' }]}
+        >
           @{profile.username || 'user'}
         </Text>
-        <TouchableOpacity 
-            onPress={() => {
-              if (isOwnProfile) return;
-              Alert.alert('Options', '', [
-                { text: 'Block User', style: 'destructive', onPress: async () => {
-                try {
-                  if (!currentProfile) return;
-                  const currentBlocks = currentProfile?.blocked_users || [];
-                  if (!currentBlocks.includes(profile.id)) {
-                    await updateProfile({ blocked_users: [...currentBlocks, profile.id] });
-                  }
-                  await supabase.from('user_blocks').insert({ blocker_id: currentProfile.id, blocked_id: profile.id });
-                  Alert.alert('User blocked');
-                  router.back();
-                } catch (e) {}
-                }},
-                { text: 'Report User', style: 'destructive', onPress: async () => {
-                try {
-                  if (!currentProfile) return;
-                  await supabase.from('reports').insert({ reporter_id: currentProfile.id, reported_user_id: profile.id, reason: 'Inappropriate profile' });
-                  Alert.alert('User reported');
-                } catch (e) {}
-                }},
-                { text: 'Cancel', style: 'cancel' }
-              ]);
-            }}
-            style={stylesheet.navBtn}
+        <TouchableOpacity
+          onPress={() => {
+            if (isOwnProfile) return;
+            Alert.alert('Options', '', [
+              {
+                text: 'Block User',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    if (!currentProfile) return;
+                    const currentBlocks = currentProfile?.blocked_users || [];
+                    if (!currentBlocks.includes(profile.id)) {
+                      await updateProfile({ blocked_users: [...currentBlocks, profile.id] });
+                    }
+                    await supabase
+                      .from('user_blocks')
+                      .insert({ blocker_id: currentProfile.id, blocked_id: profile.id });
+                    Alert.alert('User blocked');
+                    router.back();
+                  } catch (e) {}
+                },
+              },
+              {
+                text: 'Report User',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    if (!currentProfile) return;
+                    await supabase
+                      .from('reports')
+                      .insert({
+                        reporter_id: currentProfile.id,
+                        reported_user_id: profile.id,
+                        reason: 'Inappropriate profile',
+                      });
+                    Alert.alert('User reported');
+                  } catch (e) {}
+                },
+              },
+              { text: 'Cancel', style: 'cancel' },
+            ]);
+          }}
+          style={stylesheet.navBtn}
         >
           <Ionicons name="ellipsis-horizontal" size={18} color={theme.colors.TEXT_PRIMARY} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40 }}
+      >
         {/* Profile hero */}
         <View style={stylesheet.profileHero}>
           <View style={stylesheet.heroTopRow}>
@@ -339,32 +443,40 @@ export default function OtherUserProfileScreen() {
             <View style={stylesheet.heroInfo}>
               <View style={[stylesheet.nameRow, { gap: 6 }]}>
                 <Text style={stylesheet.heroName}>{profile.name}</Text>
-                {profile.phone_verified && (
-                  <VerifiedBadge size={16} />
-                )}
+                {profile.phone_verified && <VerifiedBadge size={16} />}
               </View>
               <Text style={stylesheet.heroHandle}>@{profile.username || 'user'}</Text>
-              
+
               <View style={stylesheet.locationRow}>
                 <Ionicons name="location" size={12} color={theme.colors.G} />
                 <Text style={stylesheet.locationTxt}>
-                  {[profile.home_ward || profile.location?.ward, profile.home_lga || profile.location?.lga, profile.home_state || profile.location?.state].filter(Boolean).join(', ') || 'Unknown Location'}
+                  {[
+                    profile.home_ward || profile.location?.ward,
+                    profile.home_lga || profile.location?.lga,
+                    profile.home_state || profile.location?.state,
+                  ]
+                    .filter(Boolean)
+                    .join(', ') || 'Unknown Location'}
                 </Text>
               </View>
             </View>
           </View>
 
-          {profile.bio && (
-            <Text style={stylesheet.heroBio}>{profile.bio}</Text>
-          )}
+          {profile.bio && <Text style={stylesheet.heroBio}>{profile.bio}</Text>}
 
           {/* Stats */}
           <View style={stylesheet.statsRow}>
-            <TouchableOpacity style={stylesheet.statBtn} onPress={() => router.push(`/network/${profile.id}?mode=followers` as any)}>
+            <TouchableOpacity
+              style={stylesheet.statBtn}
+              onPress={() => router.push(`/network/${profile.id}?mode=followers` as any)}
+            >
               <Text style={stylesheet.statV}>{followersCount}</Text>
               <Text style={stylesheet.statL}>Followers</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={stylesheet.statBtn} onPress={() => router.push(`/network/${profile.id}?mode=following` as any)}>
+            <TouchableOpacity
+              style={stylesheet.statBtn}
+              onPress={() => router.push(`/network/${profile.id}?mode=following` as any)}
+            >
               <Text style={stylesheet.statV}>{followingCount}</Text>
               <Text style={stylesheet.statL}>Following</Text>
             </TouchableOpacity>
@@ -381,29 +493,65 @@ export default function OtherUserProfileScreen() {
           {!isOwnProfile && (
             <View style={stylesheet.actionRow}>
               <TouchableOpacity
-                style={[stylesheet.btnAction, { backgroundColor: isFollowing ? theme.colors.SURFACE : theme.colors.G, borderColor: isFollowing ? theme.colors.GLASS_BORDER : theme.colors.G, borderWidth: 1 }]}
+                style={[
+                  stylesheet.btnAction,
+                  {
+                    backgroundColor: isFollowing ? theme.colors.SURFACE : theme.colors.G,
+                    borderColor: isFollowing ? theme.colors.GLASS_BORDER : theme.colors.G,
+                    borderWidth: 1,
+                  },
+                ]}
                 onPress={handleToggleFollow}
                 disabled={followLoading}
               >
                 {followLoading ? (
-                  <ActivityIndicator size="small" color={isFollowing ? theme.colors.TEXT_PRIMARY : '#000'} />
+                  <ActivityIndicator
+                    size="small"
+                    color={isFollowing ? theme.colors.TEXT_PRIMARY : '#000'}
+                  />
                 ) : (
                   <>
-                    {isFollowing && <Ionicons name="checkmark" size={16} color={theme.colors.TEXT_PRIMARY} style={{ marginRight: 6 }} />}
-                    <Text style={[stylesheet.btnActionTxt, { color: isFollowing ? theme.colors.TEXT_PRIMARY : '#000' }]}>
+                    {isFollowing && (
+                      <Ionicons
+                        name="checkmark"
+                        size={16}
+                        color={theme.colors.TEXT_PRIMARY}
+                        style={{ marginRight: 6 }}
+                      />
+                    )}
+                    <Text
+                      style={[
+                        stylesheet.btnActionTxt,
+                        { color: isFollowing ? theme.colors.TEXT_PRIMARY : '#000' },
+                      ]}
+                    >
                       {isFollowing ? 'Following' : isFollower ? 'Follow Back' : 'Follow'}
                     </Text>
                   </>
                 )}
               </TouchableOpacity>
-              
+
               {isFollowing && isFollower && (
                 <TouchableOpacity
-                  style={[stylesheet.btnAction, { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER, borderWidth: 1 }]}
+                  style={[
+                    stylesheet.btnAction,
+                    {
+                      backgroundColor: theme.colors.SURFACE,
+                      borderColor: theme.colors.GLASS_BORDER,
+                      borderWidth: 1,
+                    },
+                  ]}
                   onPress={handleMessage}
                 >
-                  <Ionicons name="chatbubble-outline" size={16} color={theme.colors.TEXT_PRIMARY} style={{ marginRight: 6 }} />
-                  <Text style={[stylesheet.btnActionTxt, { color: theme.colors.TEXT_PRIMARY }]}>Message</Text>
+                  <Ionicons
+                    name="chatbubble-outline"
+                    size={16}
+                    color={theme.colors.TEXT_PRIMARY}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text style={[stylesheet.btnActionTxt, { color: theme.colors.TEXT_PRIMARY }]}>
+                    Message
+                  </Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -412,31 +560,37 @@ export default function OtherUserProfileScreen() {
 
         {/* Tabs */}
         <View style={stylesheet.tabsWrap}>
-          {(['posts', 'reviews'] as const).map(t => {
-          return (
-                      <TouchableOpacity key={t} onPress={() => setActiveTab(t)} style={stylesheet.tabBtn}>
-                        <Text style={[stylesheet.tabTxt, { color: activeTab === t ? theme.colors.TEXT_PRIMARY : theme.colors.LABEL, fontFamily: activeTab === t ? 'Outfit-Bold' : 'Outfit-Medium' }]}>
-                          {t}
-                        </Text>
-                        {activeTab === t && <View style={stylesheet.tabIndicator} />}
-                      </TouchableOpacity>
-                    );
+          {(['posts', 'reviews'] as const).map((t) => {
+            return (
+              <TouchableOpacity key={t} onPress={() => setActiveTab(t)} style={stylesheet.tabBtn}>
+                <Text
+                  style={[
+                    stylesheet.tabTxt,
+                    {
+                      color: activeTab === t ? theme.colors.TEXT_PRIMARY : theme.colors.LABEL,
+                      fontFamily: activeTab === t ? 'Outfit-Bold' : 'Outfit-Medium',
+                    },
+                  ]}
+                >
+                  {t}
+                </Text>
+                {activeTab === t && <View style={stylesheet.tabIndicator} />}
+              </TouchableOpacity>
+            );
           })}
         </View>
-
-
 
         <View style={stylesheet.feedSection}>
           {activeTab === 'posts' ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', width: '100%' }}>
               {posts.length > 0 ? (
-                posts.map(post => {
+                posts.map((post) => {
                   const TARGET_TILE_WIDTH = 120;
                   const numColumns = Math.max(3, Math.floor(windowWidth / TARGET_TILE_WIDTH));
                   return (
-                    <ProfilePostGridItem 
-                      key={post.id} 
-                      post={post} 
+                    <ProfilePostGridItem
+                      key={post.id}
+                      post={post}
                       width={windowWidth / numColumns}
                       onPress={() => router.push(`/posts/${post.id}`)}
                     />
@@ -445,44 +599,115 @@ export default function OtherUserProfileScreen() {
               ) : (
                 <View style={[stylesheet.emptyState, { width: '100%' }]}>
                   <Feather name="image" size={40} color={theme.colors.LABEL} />
-                  <Text style={[stylesheet.emptyTitle, { color: theme.colors.MUTED, fontFamily: 'Outfit' }]}>No posts yet</Text>
-                  <Text style={[stylesheet.emptySubtitle, { color: theme.colors.LABEL, fontFamily: 'Inter' }]}>{profile.name} hasn't posted anything.</Text>
+                  <Text
+                    style={[
+                      stylesheet.emptyTitle,
+                      { color: theme.colors.MUTED, fontFamily: 'Outfit' },
+                    ]}
+                  >
+                    No posts yet
+                  </Text>
+                  <Text
+                    style={[
+                      stylesheet.emptySubtitle,
+                      { color: theme.colors.LABEL, fontFamily: 'Inter' },
+                    ]}
+                  >
+                    {profile.name} hasn't posted anything.
+                  </Text>
                 </View>
               )}
             </View>
           ) : (
             <View style={stylesheet.reviewsList}>
               {reviews.length > 0 ? (
-                reviews.map(review => {
-                return (
-                                  <View key={review.id} style={[stylesheet.reviewCard, { backgroundColor: theme.colors.SURFACE, borderBottomColor: theme.colors.GLASS_BORDER }]}>
-                                    <View style={stylesheet.reviewHeader}>
-                                      <Avatar url={review.buyer?.avatar_url} name={review.buyer?.name} size={100} style={stylesheet.reviewerAvatar as any} />
-                                      <View style={stylesheet.reviewerInfo}>
-                                        <Text style={[stylesheet.reviewerName, { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Outfit' }]}>{review.buyer?.name}</Text>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                          <FontAwesome name="star" size={12} color="#FFD700" />
-                                          <Text style={[stylesheet.reviewRatingText, { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Outfit' }]}> {review.rating}</Text>
-                                        </View>
-                                      </View>
-                                      {review.verified_purchase && (
-                                        <View style={stylesheet.verifiedBadge}>
-                                          <Feather name="check-circle" size={12} color={theme.colors.G} />
-                                          <Text style={[stylesheet.verifiedText, { color: theme.colors.G, fontFamily: 'Inter' }]}>Verified</Text>
-                                        </View>
-                                      )}
-                                    </View>
-                                    {review.comment ? (
-                                      <Text style={[stylesheet.reviewComment, { color: theme.colors.MUTED, fontFamily: 'Inter' }]}>{review.comment}</Text>
-                                    ) : null}
-                                  </View>
-                                );
+                reviews.map((review) => {
+                  return (
+                    <View
+                      key={review.id}
+                      style={[
+                        stylesheet.reviewCard,
+                        {
+                          backgroundColor: theme.colors.SURFACE,
+                          borderBottomColor: theme.colors.GLASS_BORDER,
+                        },
+                      ]}
+                    >
+                      <View style={stylesheet.reviewHeader}>
+                        <Avatar
+                          url={review.buyer?.avatar_url}
+                          name={review.buyer?.name}
+                          size={100}
+                          style={stylesheet.reviewerAvatar as any}
+                        />
+                        <View style={stylesheet.reviewerInfo}>
+                          <Text
+                            style={[
+                              stylesheet.reviewerName,
+                              { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Outfit' },
+                            ]}
+                          >
+                            {review.buyer?.name}
+                          </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <FontAwesome name="star" size={12} color="#FFD700" />
+                            <Text
+                              style={[
+                                stylesheet.reviewRatingText,
+                                { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Outfit' },
+                              ]}
+                            >
+                              {' '}
+                              {review.rating}
+                            </Text>
+                          </View>
+                        </View>
+                        {review.verified_purchase && (
+                          <View style={stylesheet.verifiedBadge}>
+                            <Feather name="check-circle" size={12} color={theme.colors.G} />
+                            <Text
+                              style={[
+                                stylesheet.verifiedText,
+                                { color: theme.colors.G, fontFamily: 'Inter' },
+                              ]}
+                            >
+                              Verified
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      {review.comment ? (
+                        <Text
+                          style={[
+                            stylesheet.reviewComment,
+                            { color: theme.colors.MUTED, fontFamily: 'Inter' },
+                          ]}
+                        >
+                          {review.comment}
+                        </Text>
+                      ) : null}
+                    </View>
+                  );
                 })
               ) : (
                 <View style={[stylesheet.emptyState, { width: '100%' }]}>
                   <Feather name="star" size={40} color={theme.colors.LABEL} />
-                  <Text style={[stylesheet.emptyTitle, { color: theme.colors.MUTED, fontFamily: 'Outfit' }]}>No reviews yet</Text>
-                  <Text style={[stylesheet.emptySubtitle, { color: theme.colors.LABEL, fontFamily: 'Inter' }]}>{profile.name} doesn't have any reviews.</Text>
+                  <Text
+                    style={[
+                      stylesheet.emptyTitle,
+                      { color: theme.colors.MUTED, fontFamily: 'Outfit' },
+                    ]}
+                  >
+                    No reviews yet
+                  </Text>
+                  <Text
+                    style={[
+                      stylesheet.emptySubtitle,
+                      { color: theme.colors.LABEL, fontFamily: 'Inter' },
+                    ]}
+                  >
+                    {profile.name} doesn't have any reviews.
+                  </Text>
                 </View>
               )}
             </View>
@@ -493,53 +718,128 @@ export default function OtherUserProfileScreen() {
   );
 }
 
-const _stylesheet = createStyleSheet(theme => ({
-      container: { flex: 1 },
-      header: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        paddingHorizontal: 20, paddingBottom: 12
-      },
-      navBtn: { width: 34, height: 34, borderRadius: 11, backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-      headerTitle: { fontSize: 15, textAlign: 'center' },
-      profileHero: { paddingHorizontal: 20, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: theme.colors.GLASS_BORDER },
-      heroTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 16, marginBottom: 16 },
-      avatarWrap: { position: 'relative' },
-      avatarImg: { width: 80, height: 80, borderRadius: 40, borderWidth: 2.5, borderColor: theme.colors.GLASS_BORDER },
-      avatarFallback: { backgroundColor: theme.colors.G, alignItems: 'center', justifyContent: 'center' },
-      avatarFallbackTxt: { fontSize: 32, fontFamily: 'Outfit-Bold', color: '#000' },
-      onlineDot: { position: 'absolute', bottom: 3, right: 3, width: 14, height: 14, borderRadius: 7, backgroundColor: theme.colors.G, borderWidth: 2, borderColor: theme.colors.DARK },
-      heroInfo: { flex: 1, justifyContent: 'center' },
-      nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-      heroName: { fontSize: 20, fontFamily: 'Outfit-Bold', color: theme.colors.TEXT_PRIMARY },
-      heroHandle: { fontSize: 13, fontFamily: 'Inter-Regular', color: theme.colors.LABEL, marginBottom: 6 },
-      locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-      locationTxt: { fontSize: 12, fontFamily: 'Inter-Regular', color: theme.colors.LABEL },
-      heroBio: { fontSize: 14, fontFamily: 'Inter-Regular', color: theme.colors.MUTED, lineHeight: 22, marginBottom: 12 },
-      statsRow: { flexDirection: 'row', gap: 20, marginBottom: 16 },
-      statBtn: { alignItems: 'center' },
-      statV: { fontSize: 18, fontFamily: 'Outfit-Bold', color: theme.colors.TEXT_PRIMARY },
-      statL: { fontSize: 11, fontFamily: 'Inter-Regular', color: theme.colors.LABEL },
-      actionRow: { flexDirection: 'row', gap: 12 },
-      btnAction: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 14 },
-      btnActionTxt: { fontSize: 14, fontFamily: 'Outfit-Bold' },
-      tabsWrap: { flexDirection: 'row', paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: theme.colors.GLASS_BORDER },
-      tabBtn: { flex: 1, paddingVertical: 12, position: 'relative' },
-      tabTxt: { fontSize: 14, textAlign: 'center', textTransform: 'capitalize' },
-      tabIndicator: { position: 'absolute', bottom: -1, left: 0, right: 0, height: 2, borderRadius: 99, backgroundColor: theme.colors.G },
-      
-      feedSection: { paddingTop: 16 },
-      emptyState: { alignItems: 'center', padding: 40 },
-      emptyTitle: { fontSize: 16, fontWeight: 'bold', marginTop: 12 },
-      emptySubtitle: { fontSize: 14, marginTop: 6 },
-      reviewsList: { paddingHorizontal: 16 },
-      reviewCard: { paddingVertical: 16, borderBottomWidth: 1 },
-      reviewHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-      reviewerAvatar: { width: 40, height: 40, borderRadius: 20, marginRight: 12 },
-      reviewerInfo: { flex: 1 },
-      reviewerName: { fontSize: 15, fontWeight: 'bold', marginBottom: 2 },
-      reviewRatingText: { fontSize: 13, fontWeight: 'bold' },
-      verifiedBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#E8F5E9', paddingHorizontal: 6, paddingVertical: 4, borderRadius: 4, opacity: 0.8 },
-      verifiedText: { fontSize: 11, fontWeight: 'bold', marginLeft: 4 },
-      reviewComment: { fontSize: 14, lineHeight: 20, marginTop: 4 },
+const _stylesheet = createStyleSheet((theme) => ({
+  container: { flex: 1 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+  },
+  navBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: theme.colors.SURFACE,
+    borderColor: theme.colors.GLASS_BORDER,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: { fontSize: 15, textAlign: 'center' },
+  profileHero: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.GLASS_BORDER,
+  },
+  heroTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 16, marginBottom: 16 },
+  avatarWrap: { position: 'relative' },
+  avatarImg: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2.5,
+    borderColor: theme.colors.GLASS_BORDER,
+  },
+  avatarFallback: {
+    backgroundColor: theme.colors.G,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarFallbackTxt: { fontSize: 32, fontFamily: 'Outfit-Bold', color: '#000' },
+  onlineDot: {
+    position: 'absolute',
+    bottom: 3,
+    right: 3,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: theme.colors.G,
+    borderWidth: 2,
+    borderColor: theme.colors.DARK,
+  },
+  heroInfo: { flex: 1, justifyContent: 'center' },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  heroName: { fontSize: 20, fontFamily: 'Outfit-Bold', color: theme.colors.TEXT_PRIMARY },
+  heroHandle: {
+    fontSize: 13,
+    fontFamily: 'Inter-Regular',
+    color: theme.colors.LABEL,
+    marginBottom: 6,
+  },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  locationTxt: { fontSize: 12, fontFamily: 'Inter-Regular', color: theme.colors.LABEL },
+  heroBio: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: theme.colors.MUTED,
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  statsRow: { flexDirection: 'row', gap: 20, marginBottom: 16 },
+  statBtn: { alignItems: 'center' },
+  statV: { fontSize: 18, fontFamily: 'Outfit-Bold', color: theme.colors.TEXT_PRIMARY },
+  statL: { fontSize: 11, fontFamily: 'Inter-Regular', color: theme.colors.LABEL },
+  actionRow: { flexDirection: 'row', gap: 12 },
+  btnAction: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 14,
+  },
+  btnActionTxt: { fontSize: 14, fontFamily: 'Outfit-Bold' },
+  tabsWrap: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.GLASS_BORDER,
+  },
+  tabBtn: { flex: 1, paddingVertical: 12, position: 'relative' },
+  tabTxt: { fontSize: 14, textAlign: 'center', textTransform: 'capitalize' },
+  tabIndicator: {
+    position: 'absolute',
+    bottom: -1,
+    left: 0,
+    right: 0,
+    height: 2,
+    borderRadius: 99,
+    backgroundColor: theme.colors.G,
+  },
 
-    }));
+  feedSection: { paddingTop: 16 },
+  emptyState: { alignItems: 'center', padding: 40 },
+  emptyTitle: { fontSize: 16, fontWeight: 'bold', marginTop: 12 },
+  emptySubtitle: { fontSize: 14, marginTop: 6 },
+  reviewsList: { paddingHorizontal: 16 },
+  reviewCard: { paddingVertical: 16, borderBottomWidth: 1 },
+  reviewHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  reviewerAvatar: { width: 40, height: 40, borderRadius: 20, marginRight: 12 },
+  reviewerInfo: { flex: 1 },
+  reviewerName: { fontSize: 15, fontWeight: 'bold', marginBottom: 2 },
+  reviewRatingText: { fontSize: 13, fontWeight: 'bold' },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 4,
+    opacity: 0.8,
+  },
+  verifiedText: { fontSize: 11, fontWeight: 'bold', marginLeft: 4 },
+  reviewComment: { fontSize: 14, lineHeight: 20, marginTop: 4 },
+}));

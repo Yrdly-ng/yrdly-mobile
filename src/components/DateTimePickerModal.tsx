@@ -13,7 +13,14 @@ interface DateTimePickerModalProps {
 
 const G = '#2dd4bf';
 
-export function DateTimePickerModal({ visible, mode, value, onConfirm, onCancel, title }: DateTimePickerModalProps) {
+export function DateTimePickerModal({
+  visible,
+  mode,
+  value,
+  onConfirm,
+  onCancel,
+  title,
+}: DateTimePickerModalProps) {
   const [tempDate, setTempDate] = useState(value);
 
   // Android opens its own modal
@@ -37,19 +44,16 @@ export function DateTimePickerModal({ visible, mode, value, onConfirm, onCancel,
 
   // iOS requires a wrapper modal to present the spinner nicely
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onCancel}
-    >
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onCancel}>
         <TouchableOpacity activeOpacity={1} style={styles.sheet}>
           <View style={styles.header}>
             <TouchableOpacity onPress={onCancel} style={styles.btn}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
-            <Text style={styles.title}>{title || (mode === 'date' ? 'Select Date' : 'Select Time')}</Text>
+            <Text style={styles.title}>
+              {title || (mode === 'date' ? 'Select Date' : 'Select Time')}
+            </Text>
             <TouchableOpacity onPress={() => onConfirm(tempDate)} style={styles.btn}>
               <Text style={styles.confirmText}>Done</Text>
             </TouchableOpacity>

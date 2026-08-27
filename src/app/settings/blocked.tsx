@@ -1,6 +1,14 @@
-import { createStyleSheet, useStyles } from "react-native-unistyles";
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -72,7 +80,8 @@ export default function BlockedUsersScreen() {
 
       <ScrollView contentContainerStyle={s.content}>
         <Text style={s.desc}>
-          Blocked users cannot message you, see your posts, or find your profile in local search results.
+          Blocked users cannot message you, see your posts, or find your profile in local search
+          results.
         </Text>
 
         {loading ? (
@@ -128,26 +137,101 @@ export default function BlockedUsersScreen() {
   );
 }
 
-const sStylesheet = createStyleSheet(theme => ({
-      root: { flex: 1, backgroundColor: theme.colors.DARK },
-      header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.GLASS_BORDER },
-      backBtn: { width: 34, height: 34, borderRadius: 11, backgroundColor: theme.colors.SURFACE, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER, alignItems: 'center', justifyContent: 'center' },
-      headerTitle: { fontFamily: 'Outfit-Bold', fontSize: 18, color: theme.colors.TEXT_PRIMARY },
-      content: { padding: 20, flexGrow: 1 },
-      desc: { fontFamily: 'Inter', fontSize: 14, color: theme.colors.MUTED, lineHeight: 22, marginBottom: 24 },
-      loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40 },
-      card: { backgroundColor: theme.colors.SURFACE, borderRadius: 16, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER, paddingHorizontal: 16, overflow: 'hidden' },
-      row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
-      avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: theme.colors.SURFACE, marginRight: 12 },
-      userInfo: { flex: 1 },
-      userName: { fontFamily: 'Inter-SemiBold', fontSize: 15, color: theme.colors.TEXT_PRIMARY, marginBottom: 2 },
-      userHandle: { fontFamily: 'Inter', fontSize: 13, color: theme.colors.MUTED },
-      unblockBtn: { paddingHorizontal: 16, height: 32, borderRadius: 16, backgroundColor: theme.colors.GLASS_BORDER, justifyContent: 'center', alignItems: 'center' },
-      unblockBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 13, color: theme.colors.TEXT_PRIMARY },
-      divider: { height: 1, backgroundColor: theme.colors.GLASS_BORDER },
-      
-      emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 80 },
-      iconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: theme.colors.GLASS_BORDER, alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
-      emptyTitle: { fontFamily: 'Outfit-Bold', fontSize: 20, color: theme.colors.TEXT_PRIMARY, marginBottom: 8 },
-      emptySub: { fontFamily: 'Inter', fontSize: 14, color: theme.colors.MUTED, textAlign: 'center', paddingHorizontal: 32, lineHeight: 22 },
-    }));
+const sStylesheet = createStyleSheet((theme) => ({
+  root: { flex: 1, backgroundColor: theme.colors.DARK },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.GLASS_BORDER,
+  },
+  backBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: theme.colors.SURFACE,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: { fontFamily: 'Outfit-Bold', fontSize: 18, color: theme.colors.TEXT_PRIMARY },
+  content: { padding: 20, flexGrow: 1 },
+  desc: {
+    fontFamily: 'Inter',
+    fontSize: 14,
+    color: theme.colors.MUTED,
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  card: {
+    backgroundColor: theme.colors.SURFACE,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    paddingHorizontal: 16,
+    overflow: 'hidden',
+  },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.colors.SURFACE,
+    marginRight: 12,
+  },
+  userInfo: { flex: 1 },
+  userName: {
+    fontFamily: 'Inter-SemiBold',
+    fontSize: 15,
+    color: theme.colors.TEXT_PRIMARY,
+    marginBottom: 2,
+  },
+  userHandle: { fontFamily: 'Inter', fontSize: 13, color: theme.colors.MUTED },
+  unblockBtn: {
+    paddingHorizontal: 16,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: theme.colors.GLASS_BORDER,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  unblockBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 13, color: theme.colors.TEXT_PRIMARY },
+  divider: { height: 1, backgroundColor: theme.colors.GLASS_BORDER },
+
+  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 80 },
+  iconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  emptyTitle: {
+    fontFamily: 'Outfit-Bold',
+    fontSize: 20,
+    color: theme.colors.TEXT_PRIMARY,
+    marginBottom: 8,
+  },
+  emptySub: {
+    fontFamily: 'Inter',
+    fontSize: 14,
+    color: theme.colors.MUTED,
+    textAlign: 'center',
+    paddingHorizontal: 32,
+    lineHeight: 22,
+  },
+}));

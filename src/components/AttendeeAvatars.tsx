@@ -89,7 +89,10 @@ export function AttendeeAvatars({
                 size={80}
                 style={{ width: '100%', height: '100%', borderRadius: radius }}
                 fallbackStyle={{ backgroundColor: theme.colors.G + '33' }}
-                fallbackTextStyle={{ fontSize: Math.max(9, Math.round(size * 0.45)), color: theme.colors.G }}
+                fallbackTextStyle={{
+                  fontSize: Math.max(9, Math.round(size * 0.45)),
+                  color: theme.colors.G,
+                }}
               />
             </View>
           );

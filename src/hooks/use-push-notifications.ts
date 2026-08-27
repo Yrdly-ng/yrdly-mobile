@@ -60,14 +60,14 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
     }
 
     // Step 4c — get token
-    const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
+    const projectId =
+      Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
     if (!projectId) {
       console.error('Missing EAS projectId in app.json extra.eas.projectId');
       return null;
     }
     const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
     return tokenData.data;
-
   } catch (error) {
     console.error('Push notification setup failed:', error);
     return null;
@@ -94,24 +94,27 @@ export function usePushNotifications() {
       AuthService.updateUserProfile(user.id, { push_token: token }).catch(console.error);
 
       // Step 4d & 4e — listeners, only after successful registration
-      notificationListener.current = 
-        Notifications.addNotificationReceivedListener(n => {
-          setNotification(n);
-        });
+      notificationListener.current = Notifications.addNotificationReceivedListener((n) => {
+        setNotification(n);
+      });
 
-      responseListener.current = 
-        Notifications.addNotificationResponseReceivedListener(response => {
+      responseListener.current = Notifications.addNotificationResponseReceivedListener(
+        (response) => {
           console.log('Notification Response:', response);
           const data = response.notification.request.content.data;
           const url = data?.url;
           const type = data?.type;
-          
+
           if (url) {
             router.push(url as any);
-          } else if (typeof type === 'string' && ['ticket', 'ticket_purchase', 'ticket_confirmed', 'event_rsvp'].includes(type)) {
+          } else if (
+            typeof type === 'string' &&
+            ['ticket', 'ticket_purchase', 'ticket_confirmed', 'event_rsvp'].includes(type)
+          ) {
             router.push('/tickets');
           }
-        });
+        }
+      );
     });
 
     return () => {

@@ -1,22 +1,26 @@
-import { useState, useCallback, useRef } from "react";
-import * as Location from "expo-location";
-import { detectLocation as detectLocationService, ResolvedLocation, OUTSIDE_NIGERIA } from "@/lib/geocoding-service";
+import { useState, useCallback, useRef } from 'react';
+import * as Location from 'expo-location';
+import {
+  detectLocation as detectLocationService,
+  ResolvedLocation,
+  OUTSIDE_NIGERIA,
+} from '@/lib/geocoding-service';
 
 // ── Types ───────────────────────────────────────────────────────
 
 export type GpsStatus =
-  | "idle"
-  | "requesting"
-  | "geocoding"
-  | "success"
-  | "denied"
-  | "unavailable"
-  | "timeout"
-  | "error"
+  | 'idle'
+  | 'requesting'
+  | 'geocoding'
+  | 'success'
+  | 'denied'
+  | 'unavailable'
+  | 'timeout'
+  | 'error'
   | typeof OUTSIDE_NIGERIA;
 
 export interface GpsLocationResult extends ResolvedLocation {
-  status: "success";
+  status: 'success';
 }
 
 export interface GpsLocationState {
@@ -27,11 +31,11 @@ export interface GpsLocationState {
 
 // ── Fallback ──────────────────────────────────────────────────────
 export const DEFAULT_BOUNDING_BOX: ResolvedLocation = {
-  state: "Lagos",
-  lga: "Ikeja",
-  ward: "Ikeja",
-  displayAddress: "Nigeria", // Use country-level display for fallback
-  lat: 9.0820,
+  state: 'Lagos',
+  lga: 'Ikeja',
+  ward: 'Ikeja',
+  displayAddress: 'Nigeria', // Use country-level display for fallback
+  lat: 9.082,
   lng: 8.6753, // Centered roughly on Nigeria
 };
 
@@ -39,7 +43,7 @@ export const DEFAULT_BOUNDING_BOX: ResolvedLocation = {
 
 export function useGpsLocation() {
   const [state, setState] = useState<GpsLocationState>({
-    status: "idle",
+    status: 'idle',
     location: null,
     error: null,
   });
@@ -50,17 +54,17 @@ export function useGpsLocation() {
     if (requesting.current) return;
     requesting.current = true;
 
-    setState({ status: "requesting", location: null, error: null });
+    setState({ status: 'requesting', location: null, error: null });
 
     try {
       // Request foreground location permission via expo-location
       const { status } = await Location.requestForegroundPermissionsAsync();
 
-      if (status !== "granted") {
+      if (status !== 'granted') {
         setState({
-          status: "denied",
+          status: 'denied',
           location: DEFAULT_BOUNDING_BOX,
-          error: "Location access was denied. Showing Lagos feed instead.",
+          error: 'Location access was denied. Showing Lagos feed instead.',
         });
         requesting.current = false;
         return;
@@ -72,11 +76,11 @@ export function useGpsLocation() {
 
       const { latitude, longitude } = position.coords;
 
-      setState((prev) => ({ ...prev, status: "geocoding" }));
+      setState((prev) => ({ ...prev, status: 'geocoding' }));
 
       const resolved = await detectLocationService();
-      
-      if ("status" in resolved && resolved.status === OUTSIDE_NIGERIA) {
+
+      if ('status' in resolved && resolved.status === OUTSIDE_NIGERIA) {
         setState({
           status: OUTSIDE_NIGERIA,
           location: null,
@@ -86,22 +90,22 @@ export function useGpsLocation() {
       }
 
       setState({
-        status: "success",
+        status: 'success',
         location: resolved as ResolvedLocation,
         error: null,
       });
     } catch (err: any) {
-      if (err?.code === "E_LOCATION_TIMEOUT") {
+      if (err?.code === 'E_LOCATION_TIMEOUT') {
         setState({
-          status: "timeout",
+          status: 'timeout',
           location: null,
-          error: "Location detection timed out. Please try again or select manually.",
+          error: 'Location detection timed out. Please try again or select manually.',
         });
       } else {
         setState({
-          status: "error",
+          status: 'error',
           location: null,
-          error: "Could not detect your location. Please select manually.",
+          error: 'Could not detect your location. Please select manually.',
         });
       }
     } finally {
@@ -110,7 +114,7 @@ export function useGpsLocation() {
   }, []);
 
   const reset = useCallback(() => {
-    setState({ status: "idle", location: null, error: null });
+    setState({ status: 'idle', location: null, error: null });
     requesting.current = false;
   }, []);
 

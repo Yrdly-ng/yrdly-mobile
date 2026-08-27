@@ -20,11 +20,13 @@ export async function getPublishedEvents(opts?: {
 }): Promise<Event[]> {
   let query = supabase
     .from('events')
-    .select(`
+    .select(
+      `
       *,
       organizer:users!events_organizer_id_fkey(id, name, avatar_url, phone_verified),
       ticket_tiers(*)
-    `)
+    `
+    )
     .eq('status', 'PUBLISHED')
     .or(`end_time.gte.${new Date().toISOString()},start_time.gte.${new Date().toISOString()}`)
     .order('start_time', { ascending: true });
@@ -40,7 +42,7 @@ export async function getPublishedEvents(opts?: {
   const events = (data || []).map(enrichEventTiers);
 
   if (events.length > 0) {
-    const eventIds = events.map(e => e.id);
+    const eventIds = events.map((e) => e.id);
     try {
       const { data: ticketsData } = await supabase
         .from('tickets')
@@ -50,7 +52,10 @@ export async function getPublishedEvents(opts?: {
         .limit(100);
 
       if (ticketsData) {
-        const attendeesByEvent: Record<string, Array<{ id: string; name?: string; avatar_url?: string }>> = {};
+        const attendeesByEvent: Record<
+          string,
+          Array<{ id: string; name?: string; avatar_url?: string }>
+        > = {};
         const seenByEvent: Record<string, Set<string>> = {};
 
         for (const t of ticketsData) {
@@ -71,7 +76,7 @@ export async function getPublishedEvents(opts?: {
           }
         }
 
-        events.forEach(e => {
+        events.forEach((e) => {
           e.attendees = attendeesByEvent[e.id] || [];
         });
       }
@@ -93,7 +98,7 @@ export async function getEventAttendees(eventId: string, limit: number = 5) {
       .limit(limit * 3);
 
     if (!data) return [];
-    
+
     const seen = new Set<string>();
     const attendees: Array<{ id: string; name?: string; avatar_url?: string }> = [];
     for (const item of data) {
@@ -118,11 +123,13 @@ export async function getEventAttendees(eventId: string, limit: number = 5) {
 export async function getEventById(id: string): Promise<Event | null> {
   const { data, error } = await supabase
     .from('events')
-    .select(`
+    .select(
+      `
       *,
       organizer:users!events_organizer_id_fkey(id, name, avatar_url, phone_verified),
       ticket_tiers(*)
-    `)
+    `
+    )
     .eq('id', id)
     .maybeSingle();
 
@@ -150,11 +157,13 @@ export async function getOrganizerEvents(organizerId: string): Promise<Event[]> 
 export async function getMyTickets(userId: string): Promise<Ticket[]> {
   const { data, error } = await supabase
     .from('tickets')
-    .select(`
+    .select(
+      `
       *,
       event:events(id, title, cover_image_url, start_time, end_time, location_address, location_online, online_link, status),
       tier:ticket_tiers(id, name, price)
-    `)
+    `
+    )
     .eq('buyer_id', userId)
     .order('created_at', { ascending: false });
 
@@ -165,11 +174,13 @@ export async function getMyTickets(userId: string): Promise<Ticket[]> {
 export async function getTicketByToken(ticketId: string): Promise<Ticket | null> {
   const { data, error } = await supabase
     .from('tickets')
-    .select(`
+    .select(
+      `
       *,
       event:events(id, title, cover_image_url, start_time, end_time, location_address, status),
       tier:ticket_tiers(id, name, price)
-    `)
+    `
+    )
     .eq('id', ticketId)
     .single();
 

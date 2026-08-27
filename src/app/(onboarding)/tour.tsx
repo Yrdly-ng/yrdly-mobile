@@ -12,25 +12,29 @@ const { colors } = ONBOARDING_THEME;
 const SLIDES = [
   {
     headline: 'Welcome to Your\nNeighbourhood',
-    description: 'Stay connected with the people, places, and conversations that make your neighbourhood feel like home.',
+    description:
+      'Stay connected with the people, places, and conversations that make your neighbourhood feel like home.',
     imageId: '1752622176337-5d9315e2df6e',
     cta: 'Continue',
   },
   {
     headline: 'Everything You Need,\nClose to Home',
-    description: 'Discover trusted neighbours, support local businesses, and find great deals just around the corner.',
+    description:
+      'Discover trusted neighbours, support local businesses, and find great deals just around the corner.',
     imageId: '1579998120708-682dd8a5624f',
     cta: 'Continue',
   },
   {
     headline: "Something's Always\nHappening Nearby",
-    description: "From community gatherings to weekend markets, there's always something worth showing up for.",
+    description:
+      "From community gatherings to weekend markets, there's always something worth showing up for.",
     imageId: '1673280401347-309363111070',
     cta: 'Continue',
   },
   {
     headline: 'Meet the People\nAround You',
-    description: 'Build meaningful relationships with the people who live, work and create around you.',
+    description:
+      'Build meaningful relationships with the people who live, work and create around you.',
     imageId: '1758525225816-8dd1901ef6ec',
     cta: 'Welcome Home',
   },
@@ -45,7 +49,7 @@ export default function TourScreen() {
 
   const advance = () => {
     if (!isLast) {
-      setIdx(prev => prev + 1);
+      setIdx((prev) => prev + 1);
     } else {
       router.push('/(auth)/login');
     }
@@ -73,9 +77,9 @@ export default function TourScreen() {
           <Text style={styles.headline}>{currentSlide.headline}</Text>
           <Text style={styles.description}>{currentSlide.description}</Text>
           <View style={{ marginTop: 8 }}>
-            <PrimaryBtn 
-              label={currentSlide.cta} 
-              onClick={advance} 
+            <PrimaryBtn
+              label={currentSlide.cta}
+              onClick={advance}
               icon={<Ionicons name={isLast ? 'home' : 'arrow-forward'} size={18} color="#000" />}
             />
           </View>
@@ -85,7 +89,7 @@ export default function TourScreen() {
   );
 }
 
-const stylesheet = createStyleSheet(theme => ({
+const stylesheet = createStyleSheet((theme) => ({
   container: {
     flex: 1,
     backgroundColor: colors.DARK,

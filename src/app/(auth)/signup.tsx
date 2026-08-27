@@ -1,6 +1,14 @@
 import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -33,12 +41,7 @@ export default function SignUpScreen() {
   const [error, setError] = useState('');
 
   const isPasswordStrong = (pw: string) => {
-    return (
-      pw.length >= 8 &&
-      /[A-Z]/.test(pw) &&
-      /[0-9]/.test(pw) &&
-      /[^A-Za-z0-9]/.test(pw)
-    );
+    return pw.length >= 8 && /[A-Z]/.test(pw) && /[0-9]/.test(pw) && /[^A-Za-z0-9]/.test(pw);
   };
 
   const handleGoogle = async () => {
@@ -69,7 +72,10 @@ export default function SignUpScreen() {
 
     const { error: err, session } = await signUp(cleanEmail, password, name);
     if (err) {
-      if (err.message.toLowerCase().includes('already registered') || err.message.toLowerCase().includes('already in use')) {
+      if (
+        err.message.toLowerCase().includes('already registered') ||
+        err.message.toLowerCase().includes('already in use')
+      ) {
         try {
           await supabase.auth.resend({ type: 'signup', email: cleanEmail });
         } catch {}
@@ -86,10 +92,7 @@ export default function SignUpScreen() {
 
   return (
     <View style={styles.container}>
-      <SceneBg
-        photoId="1571346746462-d4e51c41072f"
-        gradientStart="40%"
-      />
+      <SceneBg photoId="1571346746462-d4e51c41072f" gradientStart="40%" />
 
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView
@@ -100,13 +103,18 @@ export default function SignUpScreen() {
             <Logo size={36} />
           </View>
 
-          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
             <View style={styles.flexSpacer} />
 
             <GlassCard>
               <View style={styles.titleBox}>
                 <Text style={styles.titleText}>Join your neighbourhood</Text>
-                <Text style={styles.subtitleText}>Create your account — it only takes a moment</Text>
+                <Text style={styles.subtitleText}>
+                  Create your account — it only takes a moment
+                </Text>
               </View>
 
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -147,11 +155,7 @@ export default function SignUpScreen() {
                 {password.length > 0 && <PasswordStrength value={password} />}
               </View>
 
-              <PrimaryBtn
-                label="Create Account"
-                onClick={handleSignUp}
-                disabled={loading}
-              />
+              <PrimaryBtn label="Create Account" onClick={handleSignUp} disabled={loading} />
 
               <Divider label="or continue with" />
 
@@ -159,7 +163,11 @@ export default function SignUpScreen() {
 
               <View style={styles.crossLinkRow}>
                 <Text style={styles.crossLinkText}>Already have an account? </Text>
-                <TouchableOpacity onPress={() => { router.push('/(auth)/login'); }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    router.push('/(auth)/login');
+                  }}
+                >
                   <Text style={styles.crossLinkAction}>Sign in</Text>
                 </TouchableOpacity>
               </View>
@@ -171,7 +179,7 @@ export default function SignUpScreen() {
   );
 }
 
-const stylesheet = createStyleSheet(theme => ({
+const stylesheet = createStyleSheet((theme) => ({
   container: {
     flex: 1,
     backgroundColor: colors.DARK,

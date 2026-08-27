@@ -63,80 +63,80 @@ export class ReviewService {
     comment?: string
   ): Promise<string> {
     try {
-          // Validate rating
-          if (rating < 1 || rating > 5) {
-            throw new Error('Rating must be between 1 and 5');
-          }
+      // Validate rating
+      if (rating < 1 || rating > 5) {
+        throw new Error('Rating must be between 1 and 5');
+      }
 
-          // Check eligibility
-          const { canReview, reason } = await this.canUserReviewBusiness(
-            userId,
-            businessId,
-            transactionId
-          );
+      // Check eligibility
+      const { canReview, reason } = await this.canUserReviewBusiness(
+        userId,
+        businessId,
+        transactionId
+      );
 
-          if (!canReview) {
-            throw new Error(reason || 'Cannot review this business');
-          }
+      if (!canReview) {
+        throw new Error(reason || 'Cannot review this business');
+      }
 
-          // Insert review
-          const { data, error } = await supabase
-            .from('business_reviews')
-            .insert({
-              business_id: businessId,
-              user_id: userId,
-              transaction_id: transactionId,
-              verified_purchase: true,
-              rating,
-              comment: comment || '',
-            })
-            .select('id')
-            .single();
+      // Insert review
+      const { data, error } = await supabase
+        .from('business_reviews')
+        .insert({
+          business_id: businessId,
+          user_id: userId,
+          transaction_id: transactionId,
+          verified_purchase: true,
+          rating,
+          comment: comment || '',
+        })
+        .select('id')
+        .single();
 
-          if (error) throw error;
+      if (error) throw error;
 
-          // Update business rating and count
-          await this.updateBusinessRating(businessId);
+      // Update business rating and count
+      await this.updateBusinessRating(businessId);
 
-          // Send notification to business owner
-          try {
-            const { data: business } = await supabase
-              .from('businesses')
-              .select('owner_id')
-              .eq('id', businessId)
-              .single();
+      // Send notification to business owner
+      try {
+        const { data: business } = await supabase
+          .from('businesses')
+          .select('owner_id')
+          .eq('id', businessId)
+          .single();
 
-            const { data: reviewer } = await supabase
-              .from('users')
-              .select('name')
-              .eq('id', userId)
-              .single();
+        const { data: reviewer } = await supabase
+          .from('users')
+          .select('name')
+          .eq('id', userId)
+          .single();
 
-            if (business && reviewer) {
-              await NotificationService.createBusinessReviewReceivedNotification(
-                business.owner_id,
-                reviewer.name || 'A customer',
-                rating,
-                businessId,
-                data.id
-              );
-            }
-          } catch (notificationError) {
-            console.error('Failed to send review notification:', notificationError);
-            // Don't throw error - review is still created
-          }
-
-          console.log('Review submitted successfully', {
-            reviewId: data.id,
-            businessId,
+        if (business && reviewer) {
+          await NotificationService.createBusinessReviewReceivedNotification(
+            business.owner_id,
+            reviewer.name || 'A customer',
             rating,
-          });
-
-          return data.id;
-        } catch (error) {
-          console.error('Error submitting review:', error);
-          throw new Error('Failed to submit review');
+            businessId,
+            data.id
+          );
         }
+      } catch (notificationError) {
+        console.error('Failed to send review notification:', notificationError);
+        // Don't throw error - review is still created
+      }
+
+      console.log('Review submitted successfully', {
+        reviewId: data.id,
+        businessId,
+        rating,
+      });
+
+      return data.id;
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      throw new Error('Failed to submit review');
+    }
   }
 
   /**
@@ -221,14 +221,16 @@ export class ReviewService {
     try {
       const { data, error } = await supabase
         .from('business_reviews')
-        .select(`
+        .select(
+          `
           *,
           users!business_reviews_user_id_fkey(
             id,
             name,
             avatar_url
           )
-        `)
+        `
+        )
         .eq('business_id', businessId)
         .order('created_at', { ascending: false });
 
@@ -241,4 +243,3 @@ export class ReviewService {
     }
   }
 }
-

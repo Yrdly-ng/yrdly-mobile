@@ -13,15 +13,22 @@ interface AvatarProps {
   fallbackTextStyle?: StyleProp<any>;
 }
 
-export function Avatar({ url, name, size = 150, style, fallbackStyle, fallbackTextStyle }: AvatarProps) {
+export function Avatar({
+  url,
+  name,
+  size = 150,
+  style,
+  fallbackStyle,
+  fallbackTextStyle,
+}: AvatarProps) {
   const { theme } = useStyles();
   const [error, setError] = useState(false);
 
   // Guard against file:// URLs from broken uploads saving local URIs
   const isValidUrl = !!url && !url.startsWith('file://') && !error;
-  
-  const finalUrl = isValidUrl ? (StorageService.getOptimizedImageUrl(url, size) || url) : null;
-  
+
+  const finalUrl = isValidUrl ? StorageService.getOptimizedImageUrl(url, size) || url : null;
+
   const initials = (name || 'U').charAt(0).toUpperCase();
 
   // Extract dimensions to size the text dynamically if a size is provided in style
@@ -40,25 +47,29 @@ export function Avatar({ url, name, size = 150, style, fallbackStyle, fallbackTe
   }
 
   return (
-    <View style={[
-      { 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        backgroundColor: theme.colors.SURFACE,
-        overflow: 'hidden'
-      }, 
-      style as any,
-      fallbackStyle
-    ]}>
-      <Text style={[
-        { 
-          fontFamily: 'Outfit-Bold', 
-          fontWeight: '700', 
-          fontSize: typeof dimension === 'number' ? dimension * 0.4 : 16, 
-          color: theme.colors.G 
+    <View
+      style={[
+        {
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: theme.colors.SURFACE,
+          overflow: 'hidden',
         },
-        fallbackTextStyle
-      ]}>
+        style as any,
+        fallbackStyle,
+      ]}
+    >
+      <Text
+        style={[
+          {
+            fontFamily: 'Outfit-Bold',
+            fontWeight: '700',
+            fontSize: typeof dimension === 'number' ? dimension * 0.4 : 16,
+            color: theme.colors.G,
+          },
+          fallbackTextStyle,
+        ]}
+      >
         {initials}
       </Text>
     </View>

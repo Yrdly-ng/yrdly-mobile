@@ -1,6 +1,14 @@
-import { createStyleSheet, useStyles } from "react-native-unistyles";
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Alert, TextInput, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  TextInput,
+  ScrollView,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,7 +23,7 @@ export default function WithdrawScreen() {
   const { user } = useAuth();
 
   const [step, setStep] = useState<'amount' | 'confirm'>('amount');
-  
+
   const [balance, setBalance] = useState(0);
   const [bankInfo, setBankInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -32,19 +40,26 @@ export default function WithdrawScreen() {
     setLoading(true);
     try {
       const [txRes, payoutRes, bankRes] = await Promise.all([
-        supabase.from('escrow_transactions').select('seller_amount, status').eq('seller_id', user.id),
+        supabase
+          .from('escrow_transactions')
+          .select('seller_amount, status')
+          .eq('seller_id', user.id),
         supabase.from('payout_requests').select('amount, status').eq('seller_id', user.id),
-        api.get('/api/seller/setup-account').catch(() => ({ account: null }))
+        api.get('/api/seller/setup-account').catch(() => ({ account: null })),
       ]);
 
       const txs = txRes.data ?? [];
       const pyts = payoutRes.data ?? [];
 
-      const earned = txs.filter((t: any) => t.status === 'completed').reduce((sum: number, t: any) => sum + (t.seller_amount ?? 0), 0);
-      const paidOut = pyts.filter((p: any) => ['pending', 'processing', 'completed'].includes(p.status)).reduce((sum: number, p: any) => sum + (p.amount ?? 0), 0);
+      const earned = txs
+        .filter((t: any) => t.status === 'completed')
+        .reduce((sum: number, t: any) => sum + (t.seller_amount ?? 0), 0);
+      const paidOut = pyts
+        .filter((p: any) => ['pending', 'processing', 'completed'].includes(p.status))
+        .reduce((sum: number, p: any) => sum + (p.amount ?? 0), 0);
 
       setBalance(Math.max(0, earned - paidOut));
-      
+
       if (bankRes.account) {
         setBankInfo(bankRes.account);
       }
@@ -55,13 +70,18 @@ export default function WithdrawScreen() {
     }
   }, [user]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleWithdraw = async () => {
     setConfirming(true);
     try {
       await api.post('/api/seller/payout', { amount: numAmount });
-      router.replace({ pathname: '/settings/withdraw-success', params: { amount: numAmount } } as any);
+      router.replace({
+        pathname: '/settings/withdraw-success',
+        params: { amount: numAmount },
+      } as any);
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to request withdrawal');
       setStep('amount');
@@ -78,7 +98,9 @@ export default function WithdrawScreen() {
             <Ionicons name="chevron-back" size={20} color={theme.colors.TEXT_PRIMARY} />
           </TouchableOpacity>
         </View>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color={theme.colors.G} /></View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={theme.colors.G} />
+        </View>
       </SafeAreaView>
     );
   }
@@ -95,8 +117,26 @@ export default function WithdrawScreen() {
 
         <ScrollView style={{ flex: 1, paddingHorizontal: 20, paddingTop: 24 }}>
           <View style={{ alignItems: 'center', marginBottom: 24 }}>
-            <Text style={{ fontFamily: 'Inter', fontSize: 13, color: theme.colors.LABEL, marginBottom: 8 }}>You are withdrawing</Text>
-            <Text style={{ fontFamily: 'Outfit-Bold', fontSize: 42, color: theme.colors.TEXT_PRIMARY, letterSpacing: -1 }}>₦{numAmount.toLocaleString()}</Text>
+            <Text
+              style={{
+                fontFamily: 'Inter',
+                fontSize: 13,
+                color: theme.colors.LABEL,
+                marginBottom: 8,
+              }}
+            >
+              You are withdrawing
+            </Text>
+            <Text
+              style={{
+                fontFamily: 'Outfit-Bold',
+                fontSize: 42,
+                color: theme.colors.TEXT_PRIMARY,
+                letterSpacing: -1,
+              }}
+            >
+              ₦{numAmount.toLocaleString()}
+            </Text>
           </View>
 
           <View style={{ gap: 8, marginBottom: 24 }}>
@@ -106,26 +146,33 @@ export default function WithdrawScreen() {
               { l: 'Account Holder', v: bankInfo?.accountName || '' },
               { l: 'Transfer Fee', v: fee === 0 ? 'Free' : `₦${fee}` },
               { l: 'Net Amount', v: `₦${net.toLocaleString()}` },
-            ].map(r => {
-            const { styles: s } = useStyles(sStylesheet);
-            return (
-                          <View key={r.l} style={s.confirmRow}>
-                            <Text style={s.confirmRowL}>{r.l}</Text>
-                            <Text style={s.confirmRowR}>{r.v}</Text>
-                          </View>
-                        );
+            ].map((r) => {
+              const { styles: s } = useStyles(sStylesheet);
+              return (
+                <View key={r.l} style={s.confirmRow}>
+                  <Text style={s.confirmRowL}>{r.l}</Text>
+                  <Text style={s.confirmRowR}>{r.v}</Text>
+                </View>
+              );
             })}
           </View>
 
           <View style={s.warningBox}>
             <Feather name="alert-circle" size={16} color="#FFB700" style={{ marginTop: 2 }} />
-            <Text style={s.warningTxt}>Transfers usually arrive within 1–5 minutes. This action moves real money and cannot be undone.</Text>
+            <Text style={s.warningTxt}>
+              Transfers usually arrive within 1–5 minutes. This action moves real money and cannot
+              be undone.
+            </Text>
           </View>
         </ScrollView>
 
         <View style={s.footerBtnWrap}>
           <TouchableOpacity style={s.footerBtn} onPress={handleWithdraw} disabled={confirming}>
-            {confirming ? <ActivityIndicator color="#000" /> : <Text style={s.footerBtnTxt}>Confirm — Withdraw ₦{numAmount.toLocaleString()}</Text>}
+            {confirming ? (
+              <ActivityIndicator color="#000" />
+            ) : (
+              <Text style={s.footerBtnTxt}>Confirm — Withdraw ₦{numAmount.toLocaleString()}</Text>
+            )}
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -141,12 +188,17 @@ export default function WithdrawScreen() {
         <Text style={s.headerTitle}>Withdraw Funds</Text>
       </View>
 
-      <ScrollView style={{ flex: 1, paddingHorizontal: 20, paddingTop: 20 }} keyboardShouldPersistTaps="handled">
-        
+      <ScrollView
+        style={{ flex: 1, paddingHorizontal: 20, paddingTop: 20 }}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Balance Badge */}
         <View style={s.availBadge}>
           <Ionicons name="wallet-outline" size={16} color={theme.colors.G} />
-          <Text style={s.availBadgeTxt}>Available balance: <Text style={{ fontFamily: 'Inter-Bold' }}>₦{balance.toLocaleString()}</Text></Text>
+          <Text style={s.availBadgeTxt}>
+            Available balance:{' '}
+            <Text style={{ fontFamily: 'Inter-Bold' }}>₦{balance.toLocaleString()}</Text>
+          </Text>
         </View>
 
         {/* Amount Input */}
@@ -154,9 +206,9 @@ export default function WithdrawScreen() {
           <Text style={s.amtLabel}>WITHDRAWAL AMOUNT</Text>
           <View style={s.amtInputBox}>
             <Text style={s.amtNaira}>₦</Text>
-            <TextInput 
+            <TextInput
               value={amount}
-              onChangeText={v => setAmount(v.replace(/\D/g, ''))}
+              onChangeText={(v) => setAmount(v.replace(/\D/g, ''))}
               placeholder="0"
               placeholderTextColor={theme.colors.LABEL}
               keyboardType="number-pad"
@@ -164,15 +216,23 @@ export default function WithdrawScreen() {
             />
           </View>
           <View style={s.quickAmtsRow}>
-            {[10000, 25000, 50000, 100000].map(v => {
+            {[10000, 25000, 50000, 100000].map((v) => {
               const isSel = numAmount === v;
               return (
-                <TouchableOpacity 
+                <TouchableOpacity
                   key={v}
                   onPress={() => setAmount(String(v))}
-                  style={[s.quickAmtBtn, isSel && { backgroundColor: 'rgba(130,219,126,0.12)', borderColor: 'rgba(130,219,126,0.3)' }]}
+                  style={[
+                    s.quickAmtBtn,
+                    isSel && {
+                      backgroundColor: 'rgba(130,219,126,0.12)',
+                      borderColor: 'rgba(130,219,126,0.3)',
+                    },
+                  ]}
                 >
-                  <Text style={[s.quickAmtTxt, isSel && { color: theme.colors.G }]}>₦{(v/1000)}k</Text>
+                  <Text style={[s.quickAmtTxt, isSel && { color: theme.colors.G }]}>
+                    ₦{v / 1000}k
+                  </Text>
                 </TouchableOpacity>
               );
             })}
@@ -186,7 +246,11 @@ export default function WithdrawScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.destBank}>{bankInfo?.bankName || 'No bank linked'}</Text>
-            <Text style={s.destUser}>{bankInfo ? `**** ${(bankInfo.accountNumber || '').slice(-4)} · ${bankInfo.accountName}` : 'Tap change to link a bank'}</Text>
+            <Text style={s.destUser}>
+              {bankInfo
+                ? `**** ${(bankInfo.accountNumber || '').slice(-4)} · ${bankInfo.accountName}`
+                : 'Tap change to link a bank'}
+            </Text>
           </View>
           <TouchableOpacity onPress={() => router.push('/settings/payout-settings' as any)}>
             <Text style={s.destChange}>Change</Text>
@@ -211,62 +275,195 @@ export default function WithdrawScreen() {
             </View>
           </View>
         )}
-
       </ScrollView>
 
       <View style={s.footerBtnWrap}>
-        <TouchableOpacity 
-          style={[s.footerBtn, (!numAmount || numAmount <= 0 || numAmount > balance) && { backgroundColor: 'rgba(130,219,126,0.2)' }]} 
-          onPress={() => setStep('confirm')} 
+        <TouchableOpacity
+          style={[
+            s.footerBtn,
+            (!numAmount || numAmount <= 0 || numAmount > balance) && {
+              backgroundColor: 'rgba(130,219,126,0.2)',
+            },
+          ]}
+          onPress={() => setStep('confirm')}
           disabled={!numAmount || numAmount <= 0 || numAmount > balance}
         >
-          <Text style={[s.footerBtnTxt, (!numAmount || numAmount <= 0 || numAmount > balance) && { color: 'rgba(130,219,126,0.4)' }]}>Continue</Text>
+          <Text
+            style={[
+              s.footerBtnTxt,
+              (!numAmount || numAmount <= 0 || numAmount > balance) && {
+                color: 'rgba(130,219,126,0.4)',
+              },
+            ]}
+          >
+            Continue
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 }
 
-const sStylesheet = createStyleSheet(theme => ({
-      root: { flex: 1, backgroundColor: theme.colors.DARK },
-      header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.GLASS_BORDER },
-      backBtn: { width: 34, height: 34, borderRadius: 11, backgroundColor: theme.colors.SURFACE, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER, alignItems: 'center', justifyContent: 'center' },
-      headerTitle: { fontFamily: 'Outfit-Bold', fontSize: 18, color: theme.colors.TEXT_PRIMARY },
+const sStylesheet = createStyleSheet((theme) => ({
+  root: { flex: 1, backgroundColor: theme.colors.DARK },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.GLASS_BORDER,
+  },
+  backBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: theme.colors.SURFACE,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: { fontFamily: 'Outfit-Bold', fontSize: 18, color: theme.colors.TEXT_PRIMARY },
 
-      availBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: 'rgba(130,219,126,0.06)', borderWidth: 1, borderColor: 'rgba(130,219,126,0.18)', borderRadius: 14, marginBottom: 20 },
-      availBadgeTxt: { fontFamily: 'Inter', fontSize: 13, color: theme.colors.G },
+  availBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(130,219,126,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(130,219,126,0.18)',
+    borderRadius: 14,
+    marginBottom: 20,
+  },
+  availBadgeTxt: { fontFamily: 'Inter', fontSize: 13, color: theme.colors.G },
 
-      amtLabel: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: theme.colors.LABEL, marginBottom: 8, letterSpacing: 1 },
-      amtInputBox: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 64, paddingHorizontal: 16, borderRadius: 18, backgroundColor: theme.colors.SURFACE, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER },
-      amtNaira: { fontFamily: 'Outfit-Bold', fontSize: 24, color: theme.colors.LABEL },
-      amtInput: { flex: 1, fontFamily: 'Outfit-Bold', fontSize: 28, color: theme.colors.TEXT_PRIMARY, height: '100%' },
-      
-      quickAmtsRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
-      quickAmtBtn: { flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: theme.colors.SURFACE, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER, alignItems: 'center' },
-      quickAmtTxt: { fontFamily: 'Inter', fontSize: 11, color: theme.colors.MUTED },
+  amtLabel: {
+    fontFamily: 'Inter-SemiBold',
+    fontSize: 12,
+    color: theme.colors.LABEL,
+    marginBottom: 8,
+    letterSpacing: 1,
+  },
+  amtInputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    height: 64,
+    paddingHorizontal: 16,
+    borderRadius: 18,
+    backgroundColor: theme.colors.SURFACE,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+  },
+  amtNaira: { fontFamily: 'Outfit-Bold', fontSize: 24, color: theme.colors.LABEL },
+  amtInput: {
+    flex: 1,
+    fontFamily: 'Outfit-Bold',
+    fontSize: 28,
+    color: theme.colors.TEXT_PRIMARY,
+    height: '100%',
+  },
 
-      destCard: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 16, backgroundColor: theme.colors.SURFACE_ALT, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER, borderRadius: 18, marginTop: 20 },
-      destIconBox: { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(130,219,126,0.08)', alignItems: 'center', justifyContent: 'center' },
-      destBank: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: theme.colors.TEXT_PRIMARY },
-      destUser: { fontFamily: 'Inter', fontSize: 12, color: theme.colors.LABEL },
-      destChange: { fontFamily: 'Inter', fontSize: 12, color: theme.colors.G },
+  quickAmtsRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  quickAmtBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: theme.colors.SURFACE,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    alignItems: 'center',
+  },
+  quickAmtTxt: { fontFamily: 'Inter', fontSize: 11, color: theme.colors.MUTED },
 
-      feeCard: { padding: 16, backgroundColor: theme.colors.SURFACE_ALT, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER, borderRadius: 18, marginTop: 20 },
-      feeRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-      feeRowL: { fontFamily: 'Inter', fontSize: 13, color: theme.colors.MUTED },
-      feeRowR: { fontFamily: 'Inter', fontSize: 13, color: theme.colors.TEXT_PRIMARY },
-      feeDiv: { height: 1, backgroundColor: theme.colors.GLASS_BORDER, marginVertical: 8 },
-      feeRowNetL: { fontFamily: 'Outfit-Bold', fontSize: 14, color: theme.colors.TEXT_PRIMARY },
-      feeRowNetR: { fontFamily: 'Outfit-Bold', fontSize: 15, color: theme.colors.G },
+  destCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: theme.colors.SURFACE_ALT,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    borderRadius: 18,
+    marginTop: 20,
+  },
+  destIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(130,219,126,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  destBank: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: theme.colors.TEXT_PRIMARY },
+  destUser: { fontFamily: 'Inter', fontSize: 12, color: theme.colors.LABEL },
+  destChange: { fontFamily: 'Inter', fontSize: 12, color: theme.colors.G },
 
-      footerBtnWrap: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 34, borderTopWidth: 1, borderTopColor: theme.colors.GLASS_BORDER },
-      footerBtn: { width: '100%', paddingVertical: 16, borderRadius: 18, backgroundColor: theme.colors.G, alignItems: 'center' },
-      footerBtnTxt: { fontFamily: 'Outfit-Bold', fontSize: 16, color: '#000' },
+  feeCard: {
+    padding: 16,
+    backgroundColor: theme.colors.SURFACE_ALT,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    borderRadius: 18,
+    marginTop: 20,
+  },
+  feeRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  feeRowL: { fontFamily: 'Inter', fontSize: 13, color: theme.colors.MUTED },
+  feeRowR: { fontFamily: 'Inter', fontSize: 13, color: theme.colors.TEXT_PRIMARY },
+  feeDiv: { height: 1, backgroundColor: theme.colors.GLASS_BORDER, marginVertical: 8 },
+  feeRowNetL: { fontFamily: 'Outfit-Bold', fontSize: 14, color: theme.colors.TEXT_PRIMARY },
+  feeRowNetR: { fontFamily: 'Outfit-Bold', fontSize: 15, color: theme.colors.G },
 
-      confirmRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: theme.colors.SURFACE_ALT, borderRadius: 16, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER },
-      confirmRowL: { fontFamily: 'Inter', fontSize: 13, color: theme.colors.LABEL },
-      confirmRowR: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: theme.colors.TEXT_PRIMARY },
+  footerBtnWrap: {
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 34,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.GLASS_BORDER,
+  },
+  footerBtn: {
+    width: '100%',
+    paddingVertical: 16,
+    borderRadius: 18,
+    backgroundColor: theme.colors.G,
+    alignItems: 'center',
+  },
+  footerBtnTxt: { fontFamily: 'Outfit-Bold', fontSize: 16, color: '#000' },
 
-      warningBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 16, backgroundColor: 'rgba(255,183,28,0.05)', borderWidth: 1, borderColor: 'rgba(255,183,28,0.2)', borderRadius: 16 },
-      warningTxt: { flex: 1, fontFamily: 'Inter', fontSize: 13, color: theme.colors.MUTED, lineHeight: 20 },
-    }));
+  confirmRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: theme.colors.SURFACE_ALT,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+  },
+  confirmRowL: { fontFamily: 'Inter', fontSize: 13, color: theme.colors.LABEL },
+  confirmRowR: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: theme.colors.TEXT_PRIMARY },
+
+  warningBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    padding: 16,
+    backgroundColor: 'rgba(255,183,28,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,183,28,0.2)',
+    borderRadius: 16,
+  },
+  warningTxt: {
+    flex: 1,
+    fontFamily: 'Inter',
+    fontSize: 13,
+    color: theme.colors.MUTED,
+    lineHeight: 20,
+  },
+}));

@@ -23,6 +23,4 @@ export class ModerationService {
       return { isSafe: false, reason: 'moderation_error' };
     }
   }
-
-
 }

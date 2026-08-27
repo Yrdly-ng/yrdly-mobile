@@ -1,6 +1,14 @@
-import { createStyleSheet, useStyles } from "react-native-unistyles";
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  TextInput,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
@@ -19,11 +27,17 @@ export default function LocationSettingsScreen() {
 
   const currentLga = profile?.home_lga || (profile?.location as any)?.lga;
   const currentState = profile?.home_state || (profile?.location as any)?.state;
-  const currentNeighbourhood = currentLga && currentState 
-    ? `${currentLga}, ${currentState}` 
-    : (currentState || 'Not set');
+  const currentNeighbourhood =
+    currentLga && currentState ? `${currentLga}, ${currentState}` : currentState || 'Not set';
 
-  const saveLocation = async (state: string, lga: string, ward: string | null, lat: number, lng: number, fullDesc: string) => {
+  const saveLocation = async (
+    state: string,
+    lga: string,
+    ward: string | null,
+    lat: number,
+    lng: number,
+    fullDesc: string
+  ) => {
     setUpdating(true);
     try {
       // Use context updateProfile so in-memory state + cache refresh immediately
@@ -57,7 +71,7 @@ export default function LocationSettingsScreen() {
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const lat = loc.coords.latitude;
       const lng = loc.coords.longitude;
-      
+
       const match = await resolveCoords(lat, lng);
       if (match) {
         await saveLocation(
@@ -118,7 +132,7 @@ export default function LocationSettingsScreen() {
 
         {/* Search */}
         <Text style={s.sectionLabel}>CHANGE NEIGHBOURHOOD</Text>
-        
+
         <View style={s.searchContainer}>
           <GooglePlacesAutocomplete
             placeholder="Search communities..."
@@ -127,10 +141,10 @@ export default function LocationSettingsScreen() {
               if (details?.geometry?.location) {
                 const lat = details.geometry.location.lat;
                 const lng = details.geometry.location.lng;
-                
+
                 let gState = '';
                 let gLga = '';
-                
+
                 if (details.address_components) {
                   details.address_components.forEach((c: any) => {
                     if (c.types.includes('administrative_area_level_1')) {
@@ -179,23 +193,97 @@ export default function LocationSettingsScreen() {
   );
 }
 
-const sStylesheet = createStyleSheet(theme => ({
-      root: { flex: 1, backgroundColor: theme.colors.DARK },
-      header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.GLASS_BORDER, zIndex: 100 },
-      backBtn: { width: 34, height: 34, borderRadius: 11, backgroundColor: theme.colors.SURFACE, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER, alignItems: 'center', justifyContent: 'center' },
-      headerTitle: { fontFamily: 'Outfit-Bold', fontSize: 18, color: theme.colors.TEXT_PRIMARY },
-      content: { flex: 1, padding: 20 },
-      currentCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.SURFACE, borderRadius: 16, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER, padding: 16, marginBottom: 16 },
-      gpsBadge: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(130,219,126,0.1)', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-      currentInfo: { flex: 1 },
-      currentLabel: { fontFamily: 'Inter-Bold', fontSize: 11, color: theme.colors.MUTED, letterSpacing: 0.8, marginBottom: 4 },
-      currentValue: { fontFamily: 'Inter-SemiBold', fontSize: 15, color: theme.colors.TEXT_PRIMARY },
-      gpsBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 50, borderRadius: 25, backgroundColor: theme.colors.G, marginBottom: 24, zIndex: 1 },
-      gpsBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: theme.colors.TEXT_PRIMARY },
-      sectionLabel: { fontFamily: 'Inter-Bold', fontSize: 11, color: theme.colors.MUTED, letterSpacing: 0.8, marginBottom: 10, zIndex: 1 },
-      searchContainer: { flex: 1, zIndex: 50 },
-      searchInput: { backgroundColor: theme.colors.SURFACE, color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter', fontSize: 14, height: 48, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER, borderRadius: 14, paddingHorizontal: 12 },
-      listView: { backgroundColor: theme.colors.SURFACE, borderRadius: 14, marginTop: 8, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER },
-      listItem: { backgroundColor: 'transparent', paddingVertical: 14, paddingHorizontal: 16 },
-      listItemText: { fontFamily: 'Inter', fontSize: 14, color: theme.colors.TEXT_PRIMARY },
-    }));
+const sStylesheet = createStyleSheet((theme) => ({
+  root: { flex: 1, backgroundColor: theme.colors.DARK },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.GLASS_BORDER,
+    zIndex: 100,
+  },
+  backBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: theme.colors.SURFACE,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: { fontFamily: 'Outfit-Bold', fontSize: 18, color: theme.colors.TEXT_PRIMARY },
+  content: { flex: 1, padding: 20 },
+  currentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.SURFACE,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    padding: 16,
+    marginBottom: 16,
+  },
+  gpsBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(130,219,126,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  currentInfo: { flex: 1 },
+  currentLabel: {
+    fontFamily: 'Inter-Bold',
+    fontSize: 11,
+    color: theme.colors.MUTED,
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  currentValue: { fontFamily: 'Inter-SemiBold', fontSize: 15, color: theme.colors.TEXT_PRIMARY },
+  gpsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: theme.colors.G,
+    marginBottom: 24,
+    zIndex: 1,
+  },
+  gpsBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: theme.colors.TEXT_PRIMARY },
+  sectionLabel: {
+    fontFamily: 'Inter-Bold',
+    fontSize: 11,
+    color: theme.colors.MUTED,
+    letterSpacing: 0.8,
+    marginBottom: 10,
+    zIndex: 1,
+  },
+  searchContainer: { flex: 1, zIndex: 50 },
+  searchInput: {
+    backgroundColor: theme.colors.SURFACE,
+    color: theme.colors.TEXT_PRIMARY,
+    fontFamily: 'Inter',
+    fontSize: 14,
+    height: 48,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+  },
+  listView: {
+    backgroundColor: theme.colors.SURFACE,
+    borderRadius: 14,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+  },
+  listItem: { backgroundColor: 'transparent', paddingVertical: 14, paddingHorizontal: 16 },
+  listItemText: { fontFamily: 'Inter', fontSize: 14, color: theme.colors.TEXT_PRIMARY },
+}));

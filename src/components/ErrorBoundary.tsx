@@ -30,31 +30,35 @@ export class ErrorBoundary extends React.Component<Props, State> {
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     const prefix = `[ErrorBoundary${this.props.screenName ? `:${this.props.screenName}` : ''}]`;
     console.error(`${prefix} Caught:`, error.message);
-    
+
     // Explicitly stringify the full error object and stack to prevent truncation in RN Metro logs
-    console.error(`${prefix} Full Error Object:`, JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+    console.error(
+      `${prefix} Full Error Object:`,
+      JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+    );
     console.error(`${prefix} Component Stack:\n`, info.componentStack);
   }
 
   handleRestart = () => {
     // Increment resetKey to force full remount of children tree
-    this.setState((prev) => ({ hasError: false, error: null, resetKey: prev.resetKey + 1 }), () => {
-      // Navigate to root to reset the navigator stack cleanly
-      try {
-        router.replace('/' as any);
-      } catch (e) {
-        // If router isn't ready yet, the setState above is enough
+    this.setState(
+      (prev) => ({ hasError: false, error: null, resetKey: prev.resetKey + 1 }),
+      () => {
+        // Navigate to root to reset the navigator stack cleanly
+        try {
+          router.replace('/' as any);
+        } catch (e) {
+          // If router isn't ready yet, the setState above is enough
+        }
       }
-    });
+    );
   };
 
   render() {
     if (!this.state.hasError) {
       return (
         // Key forces full remount of children when resetKey changes
-        <React.Fragment key={this.state.resetKey}>
-          {this.props.children}
-        </React.Fragment>
+        <React.Fragment key={this.state.resetKey}>{this.props.children}</React.Fragment>
       );
     }
 

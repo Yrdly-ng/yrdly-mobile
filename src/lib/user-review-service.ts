@@ -25,7 +25,7 @@ export class UserReviewService {
       if (transaction.buyer_id !== userId) {
         return { canReview: false, reason: 'Only buyers can review the seller' };
       }
-      
+
       // Check if the seller matches
       if (transaction.seller_id !== sellerId) {
         return { canReview: false, reason: 'Seller mismatch' };
@@ -109,20 +109,19 @@ export class UserReviewService {
     try {
       const { data: reviews, error } = await supabase
         .from('user_reviews')
-        .select(`
+        .select(
+          `
           rating,
           escrow_transactions!inner(status)
-        `)
+        `
+        )
         .eq('seller_id', sellerId)
         .in('escrow_transactions.status', ['completed', 'delivered']);
 
       if (error) throw error;
 
       if (!reviews || reviews.length === 0) {
-        await supabase
-          .from('users')
-          .update({ rating: null, review_count: 0 })
-          .eq('id', sellerId);
+        await supabase.from('users').update({ rating: null, review_count: 0 }).eq('id', sellerId);
         return;
       }
 
@@ -149,14 +148,16 @@ export class UserReviewService {
     try {
       const { data, error } = await supabase
         .from('user_reviews')
-        .select(`
+        .select(
+          `
           *,
           buyer:users!user_reviews_buyer_id_fkey(
             id,
             name,
             avatar_url
           )
-        `)
+        `
+        )
         .eq('seller_id', sellerId)
         .order('created_at', { ascending: false });
 

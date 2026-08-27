@@ -28,8 +28,8 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
   const userWard = profile?.home_ward || profile?.location?.ward || undefined;
   const hasLocation = !!userState;
 
-  const userProfileLocation: LocationFilter | null = hasLocation 
-    ? { state: userState, lga: userLga, ward: userWard } 
+  const userProfileLocation: LocationFilter | null = hasLocation
+    ? { state: userState, lga: userLga, ward: userWard }
     : null;
 
   const [activeFilter, setActiveFilterRaw] = useState<LocationFilter | null>(null);
@@ -64,7 +64,10 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       if (newFilter) {
         await SecureStore.setItemAsync(GLOBAL_FILTER_STORAGE_KEY, JSON.stringify(newFilter));
       } else {
-        await SecureStore.setItemAsync(GLOBAL_FILTER_STORAGE_KEY, JSON.stringify({ isAllNigeria: true }));
+        await SecureStore.setItemAsync(
+          GLOBAL_FILTER_STORAGE_KEY,
+          JSON.stringify({ isAllNigeria: true })
+        );
       }
     } catch {
       // Ignore
@@ -72,7 +75,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Build the display label
-  let displayLabel = "All Nigeria";
+  let displayLabel = 'All Nigeria';
   if (activeFilter) {
     if (activeFilter.lga && activeFilter.state) {
       displayLabel = `${activeFilter.lga}, ${activeFilter.state}`;
@@ -101,7 +104,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
 export function useLocation() {
   const context = useContext(LocationContext);
   if (context === undefined) {
-    throw new Error("useLocation must be used within a LocationProvider");
+    throw new Error('useLocation must be used within a LocationProvider');
   }
   return context;
 }

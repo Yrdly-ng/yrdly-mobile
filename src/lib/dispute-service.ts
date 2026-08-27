@@ -130,16 +130,17 @@ export class DisputeService {
         throw updateError;
       }
 
-
       // Send notifications to both parties
       try {
         const { data: transaction } = await supabase
           .from('escrow_transactions')
-          .select(`
+          .select(
+            `
             buyer_id,
             seller_id,
             item:posts(title, text)
-          `)
+          `
+          )
           .eq('id', transactionId)
           .single();
 
@@ -154,9 +155,8 @@ export class DisputeService {
           const openedByName = openedByUser?.name || 'User';
 
           // Notify the other party
-          const otherUserId = userId === transaction.buyer_id 
-            ? transaction.seller_id 
-            : transaction.buyer_id;
+          const otherUserId =
+            userId === transaction.buyer_id ? transaction.seller_id : transaction.buyer_id;
 
           await NotificationService.createDisputeOpenedNotification(
             otherUserId,
@@ -173,15 +173,17 @@ export class DisputeService {
 
       // Sync to Zoho in the background (fire and forget so it doesn't block UI)
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
         fetch('/api/disputes/sync-zoho', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
           },
-          body: JSON.stringify({ disputeId: data.id })
-        }).catch(err => console.error('Background Zoho sync failed:', err));
+          body: JSON.stringify({ disputeId: data.id }),
+        }).catch((err) => console.error('Background Zoho sync failed:', err));
       } catch (e) {
         // Ignore auth fetch errors for Zoho sync
       }
@@ -240,10 +242,7 @@ export class DisputeService {
         updateData.seller_evidence = evidence;
       }
 
-      const { error } = await supabase
-        .from('disputes')
-        .update(updateData)
-        .eq('id', disputeId);
+      const { error } = await supabase.from('disputes').update(updateData).eq('id', disputeId);
 
       if (error) {
         console.error('Error submitting evidence:', error);
@@ -267,19 +266,21 @@ export class DisputeService {
   ): Promise<void> {
     try {
       // Get the current session to pass the access token
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       const response = await fetch(`/api/admin/disputes/${disputeId}/resolve`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
         },
         body: JSON.stringify({
           resolution,
           refundAmount,
-          sellerAmount
-        })
+          sellerAmount,
+        }),
       });
 
       if (!response.ok) {
@@ -299,7 +300,8 @@ export class DisputeService {
     try {
       const { data, error } = await supabase
         .from('disputes')
-        .select(`
+        .select(
+          `
           *,
           transaction:escrow_transactions(
             id,
@@ -314,8 +316,11 @@ export class DisputeService {
               image_urls
             )
           )
-        `)
-        .or(`opened_by.eq.${userId},transaction.buyer_id.eq.${userId},transaction.seller_id.eq.${userId}`)
+        `
+        )
+        .or(
+          `opened_by.eq.${userId},transaction.buyer_id.eq.${userId},transaction.seller_id.eq.${userId}`
+        )
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -337,7 +342,8 @@ export class DisputeService {
     try {
       const { data, error } = await supabase
         .from('disputes')
-        .select(`
+        .select(
+          `
           *,
           transaction:escrow_transactions(
             id,
@@ -362,7 +368,8 @@ export class DisputeService {
               avatar_url
             )
           )
-        `)
+        `
+        )
         .eq('status', status)
         .order('created_at', { ascending: false });
 
@@ -385,7 +392,8 @@ export class DisputeService {
     try {
       const { data, error } = await supabase
         .from('disputes')
-        .select(`
+        .select(
+          `
           *,
           transaction:escrow_transactions(
             id,
@@ -412,7 +420,8 @@ export class DisputeService {
               email
             )
           )
-        `)
+        `
+        )
         .eq('id', disputeId)
         .single();
 

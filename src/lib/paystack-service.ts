@@ -45,7 +45,9 @@ export class PaystackService {
    */
   static async initializePayment(data: PaymentInitRequest): Promise<PaymentInitResult> {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       if (!session) {
         return { success: false, error: 'You must be logged in to make a payment' };
@@ -55,7 +57,7 @@ export class PaystackService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           transactionId: data.transactionId,
@@ -88,13 +90,15 @@ export class PaystackService {
    */
   static async verifyPayment(txRef: string): Promise<PaymentVerifyResult> {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       const response = await fetch(`${API_URL}/api/payment/verify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(session ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+          ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
         },
         body: JSON.stringify({ txRef }),
       });

@@ -1,6 +1,12 @@
 import React, { useEffect } from 'react';
 import { View, StyleSheet, ViewStyle, DimensionValue } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence } from 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  withSequence,
+} from 'react-native-reanimated';
 import { useStyles, createStyleSheet } from 'react-native-unistyles';
 
 interface SkeletonProps {
@@ -16,10 +22,7 @@ export function Skeleton({ width = '100%', height = 20, borderRadius = 4, style 
 
   useEffect(() => {
     opacity.value = withRepeat(
-      withSequence(
-        withTiming(0.7, { duration: 800 }),
-        withTiming(0.3, { duration: 800 })
-      ),
+      withSequence(withTiming(0.7, { duration: 800 }), withTiming(0.3, { duration: 800 })),
       -1,
       true
     );
@@ -47,7 +50,7 @@ export function Skeleton({ width = '100%', height = 20, borderRadius = 4, style 
 
 export function PostSkeleton() {
   const { theme } = useStyles(createStyleSheet(() => ({})));
-  
+
   return (
     <View style={[styles.postContainer, { borderBottomColor: theme.colors.GLASS_BORDER }]}>
       <View style={styles.header}>

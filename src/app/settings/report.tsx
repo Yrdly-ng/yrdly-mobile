@@ -1,6 +1,15 @@
-import { createStyleSheet, useStyles } from "react-native-unistyles";
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert, Linking } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  TextInput,
+  ActivityIndicator,
+  Alert,
+  Linking,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -21,7 +30,7 @@ export default function ReportScreen() {
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [image, setImage] = useState<{ uri: string, mime: string, name: string } | null>(null);
+  const [image, setImage] = useState<{ uri: string; mime: string; name: string } | null>(null);
 
   const pickImage = async () => {
     try {
@@ -36,7 +45,7 @@ export default function ReportScreen() {
         setImage({
           uri: img.path,
           mime: img.mime || 'image/jpeg',
-          name: img.filename || `report-${Date.now()}.jpg`
+          name: img.filename || `report-${Date.now()}.jpg`,
         });
       }
     } catch (e: any) {
@@ -77,38 +86,48 @@ export default function ReportScreen() {
         description: description.trim(),
         status: 'open',
       };
-      
+
       if (uploadedImageUrl) {
         insertData.image_url = uploadedImageUrl;
       }
 
-      const { error } = await supabase
-        .from('reports')
-        .insert(insertData);
+      const { error } = await supabase.from('reports').insert(insertData);
 
       if (error) {
         // Table probably doesn't exist or RLS issue. Fallback to Email Support.
         console.warn('DB report insert failed, falling back to email client:', error);
-        
+
         let bodyText = description;
         if (uploadedImageUrl) {
           bodyText += `\n\nAttached Image: ${uploadedImageUrl}`;
         }
-        
-        const safeSubject = encodeURIComponent(`[Report - ${category}] ${subject}`).replace(/%20/g, ' ');
+
+        const safeSubject = encodeURIComponent(`[Report - ${category}] ${subject}`).replace(
+          /%20/g,
+          ' '
+        );
         const safeBody = encodeURIComponent(bodyText).replace(/%20/g, ' ');
-        
+
         const mailUrl = `mailto:support@yrdly.ng?subject=${safeSubject}&body=${safeBody}`;
         const supported = await Linking.canOpenURL(mailUrl);
         if (supported) {
           await Linking.openURL(mailUrl);
-          Alert.alert('Open Mail', 'We opened your email app to send the report. Please send the pre-filled email.');
+          Alert.alert(
+            'Open Mail',
+            'We opened your email app to send the report. Please send the pre-filled email.'
+          );
           router.back();
         } else {
-          Alert.alert('Error', 'Unable to open email client. Please send your report directly to support@yrdly.ng');
+          Alert.alert(
+            'Error',
+            'Unable to open email client. Please send your report directly to support@yrdly.ng'
+          );
         }
       } else {
-        Alert.alert('Thank You', 'Your report has been submitted successfully. Our team will review it shortly.');
+        Alert.alert(
+          'Thank You',
+          'Your report has been submitted successfully. Our team will review it shortly.'
+        );
         router.back();
       }
     } catch (e: any) {
@@ -132,14 +151,19 @@ export default function ReportScreen() {
 
       <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
         <Text style={s.desc}>
-          If you run into technical bugs, have marketplace disputes, or wish to report inappropriate content or behaviour, let us know below.
+          If you run into technical bugs, have marketplace disputes, or wish to report inappropriate
+          content or behaviour, let us know below.
         </Text>
 
         {/* Category Dropdown */}
         <Text style={s.inputLabel}>ISSUE CATEGORY</Text>
         <TouchableOpacity style={s.dropdownBtn} onPress={() => setShowDropdown(!showDropdown)}>
           <Text style={s.dropdownBtnText}>{selectedCategoryLabel}</Text>
-          <Ionicons name={showDropdown ? 'chevron-up' : 'chevron-down'} size={18} color={theme.colors.LABEL} />
+          <Ionicons
+            name={showDropdown ? 'chevron-up' : 'chevron-down'}
+            size={18}
+            color={theme.colors.LABEL}
+          />
         </TouchableOpacity>
 
         {showDropdown && (
@@ -148,29 +172,34 @@ export default function ReportScreen() {
               <ActivityIndicator color={theme.colors.GOLD} style={{ padding: 12 }} />
             ) : (
               categories.map((c, idx) => {
-              return (
-                            <React.Fragment key={c.id}>
-                              {idx > 0 && <View style={s.divider} />}
-                              <TouchableOpacity
-                                style={s.optionItem}
-                                onPress={() => {
-                                  setCategory(c.name);
-                                  setShowDropdown(false);
-                                }}
-                              >
-                                <Text style={[
-                                  s.optionText,
-                                  category === c.name && { color: theme.colors.G, fontFamily: 'Inter-SemiBold' }
-                                ]}>
-                                  {c.name}
-                                </Text>
-                                {category === c.name && (
-                                  <Ionicons name="checkmark" size={18} color={theme.colors.G} />
-                                )}
-                              </TouchableOpacity>
-                            </React.Fragment>
-                          );
-                        })
+                return (
+                  <React.Fragment key={c.id}>
+                    {idx > 0 && <View style={s.divider} />}
+                    <TouchableOpacity
+                      style={s.optionItem}
+                      onPress={() => {
+                        setCategory(c.name);
+                        setShowDropdown(false);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          s.optionText,
+                          category === c.name && {
+                            color: theme.colors.G,
+                            fontFamily: 'Inter-SemiBold',
+                          },
+                        ]}
+                      >
+                        {c.name}
+                      </Text>
+                      {category === c.name && (
+                        <Ionicons name="checkmark" size={18} color={theme.colors.G} />
+                      )}
+                    </TouchableOpacity>
+                  </React.Fragment>
+                );
+              })
             )}
           </View>
         )}
@@ -207,10 +236,7 @@ export default function ReportScreen() {
           {image ? (
             <>
               <Image source={{ uri: image.uri }} style={s.previewImage} contentFit="cover" />
-              <TouchableOpacity
-                style={s.removeImageBtn}
-                onPress={() => setImage(null)}
-              >
+              <TouchableOpacity style={s.removeImageBtn} onPress={() => setImage(null)}>
                 <Ionicons name="close" size={16} color={theme.colors.TEXT_PRIMARY} />
               </TouchableOpacity>
             </>
@@ -234,26 +260,121 @@ export default function ReportScreen() {
   );
 }
 
-const sStylesheet = createStyleSheet(theme => ({
-      root: { flex: 1, backgroundColor: theme.colors.DARK },
-      header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.GLASS_BORDER },
-      backBtn: { width: 34, height: 34, borderRadius: 11, backgroundColor: theme.colors.SURFACE, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER, alignItems: 'center', justifyContent: 'center' },
-      headerTitle: { fontFamily: 'Outfit-Bold', fontSize: 18, color: theme.colors.TEXT_PRIMARY },
-      content: { padding: 20 },
-      desc: { fontFamily: 'Inter', fontSize: 14, color: theme.colors.MUTED, lineHeight: 22, marginBottom: 24 },
-      inputLabel: { fontFamily: 'Inter-Bold', fontSize: 11, color: theme.colors.MUTED, letterSpacing: 0.8, marginBottom: 8 },
-      dropdownBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: theme.colors.SURFACE, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER, borderRadius: 12, height: 48, paddingHorizontal: 16, marginBottom: 8 },
-      dropdownBtnText: { fontFamily: 'Inter', fontSize: 14, color: theme.colors.TEXT_PRIMARY },
-      dropdownOptions: { backgroundColor: theme.colors.SURFACE, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER, overflow: 'hidden', marginBottom: 8 },
-      optionItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 16 },
-      optionText: { fontFamily: 'Inter', fontSize: 14, color: theme.colors.TEXT_PRIMARY },
-      divider: { height: 1, backgroundColor: theme.colors.GLASS_BORDER },
-      inputBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.SURFACE, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER, borderRadius: 12, height: 48, paddingHorizontal: 16 },
-      textInput: { flex: 1, color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter', fontSize: 14, height: '100%' },
-      imageUploadBtn: { backgroundColor: theme.colors.SURFACE, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER, borderRadius: 12, height: 100, justifyContent: 'center', alignItems: 'center', marginTop: 8, overflow: 'hidden' },
-      uploadText: { fontFamily: 'Inter', fontSize: 13, color: theme.colors.MUTED, marginTop: 8 },
-      previewImage: { width: '100%', height: '100%' },
-      removeImageBtn: { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.6)', width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-      submitBtn: { height: 50, borderRadius: 25, backgroundColor: theme.colors.G, justifyContent: 'center', alignItems: 'center', marginTop: 32 },
-      submitBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 15, color: theme.colors.TEXT_PRIMARY },
-    }));
+const sStylesheet = createStyleSheet((theme) => ({
+  root: { flex: 1, backgroundColor: theme.colors.DARK },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.GLASS_BORDER,
+  },
+  backBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: theme.colors.SURFACE,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: { fontFamily: 'Outfit-Bold', fontSize: 18, color: theme.colors.TEXT_PRIMARY },
+  content: { padding: 20 },
+  desc: {
+    fontFamily: 'Inter',
+    fontSize: 14,
+    color: theme.colors.MUTED,
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  inputLabel: {
+    fontFamily: 'Inter-Bold',
+    fontSize: 11,
+    color: theme.colors.MUTED,
+    letterSpacing: 0.8,
+    marginBottom: 8,
+  },
+  dropdownBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.SURFACE,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    borderRadius: 12,
+    height: 48,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  dropdownBtnText: { fontFamily: 'Inter', fontSize: 14, color: theme.colors.TEXT_PRIMARY },
+  dropdownOptions: {
+    backgroundColor: theme.colors.SURFACE,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  optionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  optionText: { fontFamily: 'Inter', fontSize: 14, color: theme.colors.TEXT_PRIMARY },
+  divider: { height: 1, backgroundColor: theme.colors.GLASS_BORDER },
+  inputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.SURFACE,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    borderRadius: 12,
+    height: 48,
+    paddingHorizontal: 16,
+  },
+  textInput: {
+    flex: 1,
+    color: theme.colors.TEXT_PRIMARY,
+    fontFamily: 'Inter',
+    fontSize: 14,
+    height: '100%',
+  },
+  imageUploadBtn: {
+    backgroundColor: theme.colors.SURFACE,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    borderRadius: 12,
+    height: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+    overflow: 'hidden',
+  },
+  uploadText: { fontFamily: 'Inter', fontSize: 13, color: theme.colors.MUTED, marginTop: 8 },
+  previewImage: { width: '100%', height: '100%' },
+  removeImageBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitBtn: {
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: theme.colors.G,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 32,
+  },
+  submitBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 15, color: theme.colors.TEXT_PRIMARY },
+}));

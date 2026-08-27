@@ -85,7 +85,16 @@ export interface BusinessReview {
   verified_purchase?: boolean;
 }
 
-export type PostCategory = 'General' | 'Event' | 'For Sale' | 'Selling' | 'Wanted' | 'Request' | 'Recommendation' | 'Giveaway' | 'Business';
+export type PostCategory =
+  | 'General'
+  | 'Event'
+  | 'For Sale'
+  | 'Selling'
+  | 'Wanted'
+  | 'Request'
+  | 'Recommendation'
+  | 'Giveaway'
+  | 'Business';
 
 export interface Post {
   id: string;
@@ -269,5 +278,3 @@ export interface NotificationSettings {
   postLikes: boolean;
   eventInvites: boolean;
 }
-
-

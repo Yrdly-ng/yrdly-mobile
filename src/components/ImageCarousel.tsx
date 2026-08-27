@@ -1,6 +1,12 @@
-import { createStyleSheet, useStyles } from "react-native-unistyles";
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState, useRef, useEffect } from 'react';
-import { View, ScrollView, NativeSyntheticEvent, NativeScrollEvent, LayoutChangeEvent } from 'react-native';
+import {
+  View,
+  ScrollView,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+  LayoutChangeEvent,
+} from 'react-native';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 
@@ -11,7 +17,7 @@ interface ImageCarouselProps {
 }
 
 export function ImageCarousel({ imageUrls, height = 300, autoPlay = false }: ImageCarouselProps) {
-    const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { styles: stylesheet, theme } = useStyles(_stylesheet);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -25,7 +31,7 @@ export function ImageCarousel({ imageUrls, height = 300, autoPlay = false }: Ima
       if (nextIndex >= imageUrls.length) {
         nextIndex = 0;
       }
-      
+
       scrollViewRef.current?.scrollTo({
         x: nextIndex * containerWidth,
         animated: true,
@@ -80,7 +86,7 @@ export function ImageCarousel({ imageUrls, height = 300, autoPlay = false }: Ima
           ))}
         </ScrollView>
       )}
-      
+
       {imageUrls.length > 1 && (
         <View style={stylesheet.paginationContainer}>
           {imageUrls.map((_, index) => (
@@ -88,7 +94,7 @@ export function ImageCarousel({ imageUrls, height = 300, autoPlay = false }: Ima
               key={index}
               style={[
                 stylesheet.dot,
-                currentIndex === index ? stylesheet.activeDot : stylesheet.inactiveDot
+                currentIndex === index ? stylesheet.activeDot : stylesheet.inactiveDot,
               ]}
             />
           ))}
@@ -98,33 +104,33 @@ export function ImageCarousel({ imageUrls, height = 300, autoPlay = false }: Ima
   );
 }
 
-const _stylesheet = createStyleSheet(theme => ({
-      placeholder: {
-        width: '100%',
-        backgroundColor: theme.colors.SURFACE,
-        justifyContent: 'center',
-        alignItems: 'center',
-      },
-      paginationContainer: {
-        position: 'absolute',
-        bottom: 12,
-        left: 0,
-        right: 0,
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: 6,
-      },
-      dot: {
-        height: 6,
-        borderRadius: 3,
-      },
-      activeDot: {
-        width: 16,
-        backgroundColor: theme.colors.TEXT_PRIMARY,
-      },
-      inactiveDot: {
-        width: 6,
-        backgroundColor: 'rgba(255, 255, 255, 0.5)',
-      }
-    }));
+const _stylesheet = createStyleSheet((theme) => ({
+  placeholder: {
+    width: '100%',
+    backgroundColor: theme.colors.SURFACE,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  paginationContainer: {
+    position: 'absolute',
+    bottom: 12,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dot: {
+    height: 6,
+    borderRadius: 3,
+  },
+  activeDot: {
+    width: 16,
+    backgroundColor: theme.colors.TEXT_PRIMARY,
+  },
+  inactiveDot: {
+    width: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+  },
+}));

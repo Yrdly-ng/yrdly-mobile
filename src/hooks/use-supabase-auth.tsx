@@ -15,7 +15,12 @@ interface AuthContextType {
   user: User | null;
   profile: AuthUser | null;
   loading: boolean;
-  signUp: (email: string, password: string, name: string, username?: string) => Promise<{ user: User | null; session: Session | null; error: any }>;
+  signUp: (
+    email: string,
+    password: string,
+    name: string,
+    username?: string
+  ) => Promise<{ user: User | null; session: Session | null; error: any }>;
   signIn: (email: string, password: string) => Promise<{ user: User | null; error: any }>;
   signInWithGoogle: () => Promise<{ data: any; error: any }>;
   signInWithApple: () => Promise<{ data: any; error: any }>;
@@ -46,10 +51,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const currentUser = await AuthService.getCurrentUser();
         if (isMounted) {
           setUser(currentUser);
-          
+
           if (currentUser) {
             try {
-
               let userProfile = null;
               try {
                 // Try cache first for fast boot
@@ -66,17 +70,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               const netInfo = await NetInfo.fetch();
               if (netInfo.isConnected) {
                 // Fetch fresh profile in background and update state when ready
-                AuthService.getUserProfile(currentUser.id).then((freshProfile) => {
-                  if (freshProfile && isMounted) {
-                    setProfile(freshProfile);
-                    FileSystem.writeAsStringAsync(PROFILE_CACHE_FILE, JSON.stringify(freshProfile)).catch(() => {});
-                  }
-                }).catch((e) => console.warn('Background profile fetch error:', e));
+                AuthService.getUserProfile(currentUser.id)
+                  .then((freshProfile) => {
+                    if (freshProfile && isMounted) {
+                      setProfile(freshProfile);
+                      FileSystem.writeAsStringAsync(
+                        PROFILE_CACHE_FILE,
+                        JSON.stringify(freshProfile)
+                      ).catch(() => {});
+                    }
+                  })
+                  .catch((e) => console.warn('Background profile fetch error:', e));
 
                 // Also try quick fetch for initial mount
                 try {
                   const fetchPromise = AuthService.getUserProfile(currentUser.id);
-                  const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000));
+                  const timeoutPromise = new Promise<null>((resolve) =>
+                    setTimeout(() => resolve(null), 2000)
+                  );
                   const quickProfile = await Promise.race([fetchPromise, timeoutPromise]);
                   if (quickProfile) {
                     userProfile = quickProfile;
@@ -88,18 +99,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               if (!userProfile && !profileCreationInProgress.current) {
                 profileCreationInProgress.current = true;
                 try {
-                  await AuthService.createUserProfile(currentUser, 
-                    currentUser.user_metadata?.name || 
-                    currentUser.user_metadata?.full_name ||
-                    currentUser.user_metadata?.display_name ||
-                    currentUser.user_metadata?.given_name ||
-                    currentUser.email?.split('@')[0] || 
-                    'User'
+                  await AuthService.createUserProfile(
+                    currentUser,
+                    currentUser.user_metadata?.name ||
+                      currentUser.user_metadata?.full_name ||
+                      currentUser.user_metadata?.display_name ||
+                      currentUser.user_metadata?.given_name ||
+                      currentUser.email?.split('@')[0] ||
+                      'User'
                   );
                   // Fetch the newly created profile
                   userProfile = await AuthService.getUserProfile(currentUser.id);
                   if (userProfile) {
-                    FileSystem.writeAsStringAsync(PROFILE_CACHE_FILE, JSON.stringify(userProfile)).catch(() => {});
+                    FileSystem.writeAsStringAsync(
+                      PROFILE_CACHE_FILE,
+                      JSON.stringify(userProfile)
+                    ).catch(() => {});
                   }
                 } catch (createError) {
                   console.error('Error creating user profile on initial load:', createError);
@@ -113,7 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   profileCreationInProgress.current = false;
                 }
               }
-              
+
               if (isMounted) {
                 setProfile(userProfile);
               }
@@ -177,7 +192,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     getInitialSession();
 
     // Listen for auth state changes
-    const { data: { subscription } } = AuthService.onAuthStateChange(async (event, session) => {
+    const {
+      data: { subscription },
+    } = AuthService.onAuthStateChange(async (event, session) => {
       const user = session?.user ?? null;
 
       // Skip INITIAL_SESSION — already handled by getInitialSession above
@@ -206,7 +223,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setProfile(null);
           supabase.auth.signOut().catch(() => {});
         } else {
-          console.warn('[Yrdly Auth] Token refresh failed but offline, keeping current user state.');
+          console.warn(
+            '[Yrdly Auth] Token refresh failed but offline, keeping current user state.'
+          );
         }
         return;
       }
@@ -218,7 +237,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .then((freshProfile) => {
               if (freshProfile && isMounted) {
                 setProfile(freshProfile);
-                FileSystem.writeAsStringAsync(PROFILE_CACHE_FILE, JSON.stringify(freshProfile)).catch(() => {});
+                FileSystem.writeAsStringAsync(
+                  PROFILE_CACHE_FILE,
+                  JSON.stringify(freshProfile)
+                ).catch(() => {});
               }
             })
             .catch(() => {});
@@ -228,7 +250,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (isMounted) {
         setUser(user);
-        
+
         if (user) {
           if (posthog) {
             posthog.identify(user.id);
@@ -252,12 +274,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (netInfo.isConnected) {
               try {
                 const fetchPromise = AuthService.getUserProfile(user.id);
-                const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000));
+                const timeoutPromise = new Promise<null>((resolve) =>
+                  setTimeout(() => resolve(null), 5000)
+                );
                 const freshProfile = await Promise.race([fetchPromise, timeoutPromise]);
-                
+
                 if (freshProfile) {
                   userProfile = freshProfile;
-                  FileSystem.writeAsStringAsync(PROFILE_CACHE_FILE, JSON.stringify(freshProfile)).catch(() => {});
+                  FileSystem.writeAsStringAsync(
+                    PROFILE_CACHE_FILE,
+                    JSON.stringify(freshProfile)
+                  ).catch(() => {});
                 }
               } catch (e) {
                 console.warn('Network fetch for profile failed:', e);
@@ -268,18 +295,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (!userProfile && !profileCreationInProgress.current) {
               profileCreationInProgress.current = true;
               try {
-                await AuthService.createUserProfile(user, 
-                  user.user_metadata?.name || 
-                  user.user_metadata?.full_name ||
-                  user.user_metadata?.display_name ||
-                  user.user_metadata?.given_name ||
-                  user.email?.split('@')[0] || 
-                  'User'
+                await AuthService.createUserProfile(
+                  user,
+                  user.user_metadata?.name ||
+                    user.user_metadata?.full_name ||
+                    user.user_metadata?.display_name ||
+                    user.user_metadata?.given_name ||
+                    user.email?.split('@')[0] ||
+                    'User'
                 );
                 // Fetch the newly created profile
                 userProfile = await AuthService.getUserProfile(user.id);
                 if (userProfile) {
-                  FileSystem.writeAsStringAsync(PROFILE_CACHE_FILE, JSON.stringify(userProfile)).catch(() => {});
+                  FileSystem.writeAsStringAsync(
+                    PROFILE_CACHE_FILE,
+                    JSON.stringify(userProfile)
+                  ).catch(() => {});
                 }
               } catch (createError) {
                 console.error('Error creating user profile:', createError);
@@ -293,7 +324,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 profileCreationInProgress.current = false;
               }
             }
-            
+
             if (isMounted) {
               setProfile(userProfile);
               // Set up real-time subscription for this user's profile
@@ -311,7 +342,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             profileChannel = null;
           }
         }
-        
+
         setLoading(false);
       }
     });
@@ -329,7 +360,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const result = await AuthService.signUp(email, password, name, username);
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (result.error || !session) {
         setLoading(false);
       }
@@ -358,7 +391,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const result = await AuthService.signInWithGoogle();
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (result.error || !session) {
         setLoading(false);
       }
@@ -373,7 +408,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const result = await AuthService.signInWithApple();
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (result.error || !session) {
         setLoading(false);
       }
@@ -414,10 +451,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateProfile = async (updates: Partial<AuthUser>) => {
     if (!user) throw new Error('No user logged in');
-    
+
     try {
       await AuthService.updateUserProfile(user.id, updates);
-      
+
       const updatedProfile = profile ? { ...profile, ...updates } : null;
       setProfile(updatedProfile);
     } catch (error) {
@@ -448,11 +485,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       if (error) throw new Error(error.message || 'Failed to verify OTP');
       if (data?.error) throw new Error(data.error);
-      
+
       if (profile) {
         const updatedProfile = { ...profile, phone_verified: true };
         setProfile(updatedProfile);
-        FileSystem.writeAsStringAsync(PROFILE_CACHE_FILE, JSON.stringify(updatedProfile)).catch(() => {});
+        FileSystem.writeAsStringAsync(PROFILE_CACHE_FILE, JSON.stringify(updatedProfile)).catch(
+          () => {}
+        );
       }
       return true;
     } finally {
@@ -476,11 +515,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     verifyPhoneOtp,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
@@ -490,4 +525,3 @@ export function useAuth() {
   }
   return context;
 }
-

@@ -1,6 +1,14 @@
 import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -39,7 +47,7 @@ export default function ResetPasswordScreen() {
       Alert.alert('Error', 'Password must be at least 8 characters');
       return;
     }
-    
+
     setLoading(true);
     const { error } = await updatePassword(pw);
     setLoading(false);
@@ -56,7 +64,7 @@ export default function ResetPasswordScreen() {
       } catch (e) {
         console.warn('Failed to send security email', e);
       }
-      
+
       // Sign out to force the user to log in with the new password.
       setTimeout(async () => {
         await signOut();
@@ -70,12 +78,18 @@ export default function ResetPasswordScreen() {
       <SceneBg photoId="1707011017057-e80acf66ddeb" pos="center 55%" gradientStart="30%" />
 
       <SafeAreaView style={styles.safeArea}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
           <View style={styles.topBar}>
             <BackBtn onClick={() => router.back()} light />
           </View>
 
-          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
             <View style={{ flex: 1 }} />
 
             <GlassCard>
@@ -95,7 +109,11 @@ export default function ResetPasswordScreen() {
                   icon={<Ionicons name="lock-closed-outline" size={18} color={colors.LABEL} />}
                   right={
                     <TouchableOpacity onPress={() => setShow1(!show1)}>
-                      <Ionicons name={show1 ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.LABEL} />
+                      <Ionicons
+                        name={show1 ? 'eye-off-outline' : 'eye-outline'}
+                        size={18}
+                        color={colors.LABEL}
+                      />
                     </TouchableOpacity>
                   }
                 />
@@ -110,13 +128,20 @@ export default function ResetPasswordScreen() {
                   icon={<Ionicons name="lock-closed-outline" size={18} color={colors.LABEL} />}
                   right={
                     <TouchableOpacity onPress={() => setShow2(!show2)}>
-                      <Ionicons name={show2 ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.LABEL} />
+                      <Ionicons
+                        name={show2 ? 'eye-off-outline' : 'eye-outline'}
+                        size={18}
+                        color={colors.LABEL}
+                      />
                     </TouchableOpacity>
                   }
                 />
               </View>
 
-              <PrimaryBtn label={loading ? "Updating..." : "Reset Password"} onClick={handleUpdate} />
+              <PrimaryBtn
+                label={loading ? 'Updating...' : 'Reset Password'}
+                onClick={handleUpdate}
+              />
 
               {done && (
                 <View style={styles.successToast}>
@@ -134,7 +159,7 @@ export default function ResetPasswordScreen() {
   );
 }
 
-const stylesheet = createStyleSheet(theme => ({
+const stylesheet = createStyleSheet((theme) => ({
   container: {
     flex: 1,
     backgroundColor: colors.DARK,

@@ -1,9 +1,15 @@
-import { createStyleSheet, useStyles } from "react-native-unistyles";
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity,
-  ActivityIndicator, ScrollView, Modal, FlatList,
-  TextInput, SafeAreaView,
+  View,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+  ScrollView,
+  Modal,
+  FlatList,
+  TextInput,
+  SafeAreaView,
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import {
@@ -31,12 +37,12 @@ interface LocationPickerProps {
 type PickerMode = 'state' | 'lga';
 
 export function LocationPicker({ value, onChange }: LocationPickerProps) {
-    const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { styles: stylesheet, theme } = useStyles(_stylesheet);
 
-    const [detecting, setDetecting] = useState(false);
-  const [detectionResult, setDetectionResult] = useState<
-    'success' | 'outside' | 'denied' | null
-  >(null);
+  const [detecting, setDetecting] = useState(false);
+  const [detectionResult, setDetectionResult] = useState<'success' | 'outside' | 'denied' | null>(
+    null
+  );
 
   // Modal state
   const [pickerVisible, setPickerVisible] = useState(false);
@@ -96,7 +102,11 @@ export function LocationPicker({ value, onChange }: LocationPickerProps) {
     <View>
       {/* GPS Auto-detect button */}
       <TouchableOpacity
-        style={[stylesheet.gpsBtn, { borderColor: theme.colors.G }, detecting && stylesheet.gpsBtnLoading]}
+        style={[
+          stylesheet.gpsBtn,
+          { borderColor: theme.colors.G },
+          detecting && stylesheet.gpsBtnLoading,
+        ]}
         onPress={handleAutoDetect}
         disabled={detecting}
         activeOpacity={0.8}
@@ -104,12 +114,21 @@ export function LocationPicker({ value, onChange }: LocationPickerProps) {
         {detecting ? (
           <>
             <ActivityIndicator size="small" color={theme.colors.G} style={{ marginRight: 8 }} />
-            <Text style={[stylesheet.gpsBtnText, { color: theme.colors.G }]}>Detecting your location…</Text>
+            <Text style={[stylesheet.gpsBtnText, { color: theme.colors.G }]}>
+              Detecting your location…
+            </Text>
           </>
         ) : (
           <>
-            <Ionicons name="location-outline" size={18} color={theme.colors.G} style={{ marginRight: 8 }} />
-            <Text style={[stylesheet.gpsBtnText, { color: theme.colors.G }]}>Auto-detect my location</Text>
+            <Ionicons
+              name="location-outline"
+              size={18}
+              color={theme.colors.G}
+              style={{ marginRight: 8 }}
+            />
+            <Text style={[stylesheet.gpsBtnText, { color: theme.colors.G }]}>
+              Auto-detect my location
+            </Text>
           </>
         )}
       </TouchableOpacity>
@@ -141,7 +160,9 @@ export function LocationPicker({ value, onChange }: LocationPickerProps) {
       {/* Divider */}
       <View style={stylesheet.divider}>
         <View style={[stylesheet.dividerLine, { backgroundColor: theme.colors.GLASS_BORDER }]} />
-        <Text style={[stylesheet.dividerText, { color: theme.colors.MUTED }]}>or select manually</Text>
+        <Text style={[stylesheet.dividerText, { color: theme.colors.MUTED }]}>
+          or select manually
+        </Text>
         <View style={[stylesheet.dividerLine, { backgroundColor: theme.colors.GLASS_BORDER }]} />
       </View>
 
@@ -149,20 +170,36 @@ export function LocationPicker({ value, onChange }: LocationPickerProps) {
       <View style={stylesheet.fieldGroup}>
         <Text style={[stylesheet.label, { color: theme.colors.TEXT_PRIMARY }]}>State *</Text>
         <TouchableOpacity
-          style={[stylesheet.selector, { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER }, value.state ? { borderColor: theme.colors.G } : null]}
+          style={[
+            stylesheet.selector,
+            { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER },
+            value.state ? { borderColor: theme.colors.G } : null,
+          ]}
           onPress={() => openPicker('state')}
           activeOpacity={0.8}
         >
-          <Text style={[stylesheet.selectorText, { color: theme.colors.TEXT_PRIMARY }, !value.state && { color: theme.colors.MUTED }]}>
+          <Text
+            style={[
+              stylesheet.selectorText,
+              { color: theme.colors.TEXT_PRIMARY },
+              !value.state && { color: theme.colors.MUTED },
+            ]}
+          >
             {value.state || 'Select your state'}
           </Text>
-          <Feather name="chevron-down" size={18} color={value.state ? theme.colors.G : theme.colors.MUTED} />
+          <Feather
+            name="chevron-down"
+            size={18}
+            color={value.state ? theme.colors.G : theme.colors.MUTED}
+          />
         </TouchableOpacity>
       </View>
 
       {/* LGA selector */}
       <View style={stylesheet.fieldGroup}>
-        <Text style={[stylesheet.label, { color: theme.colors.TEXT_PRIMARY }]}>Local Government Area *</Text>
+        <Text style={[stylesheet.label, { color: theme.colors.TEXT_PRIMARY }]}>
+          Local Government Area *
+        </Text>
         <TouchableOpacity
           style={[
             stylesheet.selector,
@@ -173,10 +210,20 @@ export function LocationPicker({ value, onChange }: LocationPickerProps) {
           onPress={() => value.state && openPicker('lga')}
           activeOpacity={0.8}
         >
-          <Text style={[stylesheet.selectorText, { color: theme.colors.TEXT_PRIMARY }, !value.lga && { color: theme.colors.MUTED }]}>
+          <Text
+            style={[
+              stylesheet.selectorText,
+              { color: theme.colors.TEXT_PRIMARY },
+              !value.lga && { color: theme.colors.MUTED },
+            ]}
+          >
             {value.lga || (!value.state ? 'Select state first' : 'Select your LGA')}
           </Text>
-          <Feather name="chevron-down" size={18} color={value.lga ? theme.colors.G : theme.colors.MUTED} />
+          <Feather
+            name="chevron-down"
+            size={18}
+            color={value.lga ? theme.colors.G : theme.colors.MUTED}
+          />
         </TouchableOpacity>
       </View>
 
@@ -193,8 +240,18 @@ export function LocationPicker({ value, onChange }: LocationPickerProps) {
           </View>
 
           {/* Search */}
-          <View style={[stylesheet.searchBox, { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER }]}>
-            <Feather name="search" size={18} color={theme.colors.MUTED} style={{ marginRight: 8 }} />
+          <View
+            style={[
+              stylesheet.searchBox,
+              { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER },
+            ]}
+          >
+            <Feather
+              name="search"
+              size={18}
+              color={theme.colors.MUTED}
+              style={{ marginRight: 8 }}
+            />
             <TextInput
               style={[stylesheet.searchInput, { color: theme.colors.TEXT_PRIMARY }]}
               value={search}
@@ -209,9 +266,7 @@ export function LocationPicker({ value, onChange }: LocationPickerProps) {
             data={filteredItems}
             keyExtractor={(item) => item}
             renderItem={({ item }) => {
-
-              const isSelected =
-                pickerMode === 'state' ? item === value.state : item === value.lga;
+              const isSelected = pickerMode === 'state' ? item === value.state : item === value.lga;
               return (
                 <TouchableOpacity
                   style={[stylesheet.listItem, isSelected && stylesheet.listItemSelected]}
@@ -219,14 +274,22 @@ export function LocationPicker({ value, onChange }: LocationPickerProps) {
                     pickerMode === 'state' ? handleSelectState(item) : handleSelectLga(item)
                   }
                 >
-                  <Text style={[stylesheet.listItemText, { color: theme.colors.TEXT_PRIMARY }, isSelected && { color: theme.colors.G, fontWeight: '700' }]}>
+                  <Text
+                    style={[
+                      stylesheet.listItemText,
+                      { color: theme.colors.TEXT_PRIMARY },
+                      isSelected && { color: theme.colors.G, fontWeight: '700' },
+                    ]}
+                  >
                     {item}
                   </Text>
                   {isSelected && <Feather name="check" size={18} color={theme.colors.G} />}
                 </TouchableOpacity>
               );
             }}
-            ItemSeparatorComponent={() => <View style={[stylesheet.itemSep, { backgroundColor: theme.colors.GLASS_BORDER }]} />}
+            ItemSeparatorComponent={() => (
+              <View style={[stylesheet.itemSep, { backgroundColor: theme.colors.GLASS_BORDER }]} />
+            )}
             keyboardShouldPersistTaps="handled"
           />
         </SafeAreaView>
@@ -235,89 +298,88 @@ export function LocationPicker({ value, onChange }: LocationPickerProps) {
   );
 }
 
-const _stylesheet = createStyleSheet(theme => ({
-      gpsBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: 16,
-        borderWidth: 1,
-        paddingVertical: 14,
-        marginBottom: 12,
-        backgroundColor: 'rgba(130, 225, 87, 0.1)',
-      },
-      gpsBtnLoading: { opacity: 0.7 },
-      gpsBtnText: { fontSize: 15, fontWeight: '700' },
+const _stylesheet = createStyleSheet((theme) => ({
+  gpsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingVertical: 14,
+    marginBottom: 12,
+    backgroundColor: 'rgba(130, 225, 87, 0.1)',
+  },
+  gpsBtnLoading: { opacity: 0.7 },
+  gpsBtnText: { fontSize: 15, fontWeight: '700' },
 
-      feedback: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: 8,
-        padding: 12,
-        borderRadius: 10,
-        marginBottom: 12,
-      },
-      feedbackSuccess: { backgroundColor: 'rgba(130, 225, 87, 0.1)' },
-      feedbackWarn: { backgroundColor: 'rgba(230, 81, 0, 0.1)' },
-      feedbackTextSuccess: { fontSize: 13, color: '#82E157', flex: 1, lineHeight: 18 },
-      feedbackTextWarn: { fontSize: 13, color: '#E65100', flex: 1, lineHeight: 18 },
+  feedback: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 12,
+  },
+  feedbackSuccess: { backgroundColor: 'rgba(130, 225, 87, 0.1)' },
+  feedbackWarn: { backgroundColor: 'rgba(230, 81, 0, 0.1)' },
+  feedbackTextSuccess: { fontSize: 13, color: '#82E157', flex: 1, lineHeight: 18 },
+  feedbackTextWarn: { fontSize: 13, color: '#E65100', flex: 1, lineHeight: 18 },
 
-      divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 16 },
-      dividerLine: { flex: 1, height: 1 },
-      dividerText: { fontSize: 12, marginHorizontal: 12, fontWeight: '600' },
+  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 16 },
+  dividerLine: { flex: 1, height: 1 },
+  dividerText: { fontSize: 12, marginHorizontal: 12, fontWeight: '600' },
 
-      fieldGroup: { marginBottom: 16 },
-      label: {
-        fontSize: 12,
-        fontWeight: '700',
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-        marginBottom: 8,
-      },
-      selector: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        borderRadius: 16,
-        borderWidth: 1,
-        paddingHorizontal: 16,
-        paddingVertical: 16,
-      },
-      selectorDisabled: { opacity: 0.5 },
-      selectorText: { fontSize: 16, flex: 1 },
+  fieldGroup: { marginBottom: 16 },
+  label: {
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  selector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  selectorDisabled: { opacity: 0.5 },
+  selectorText: { fontSize: 16, flex: 1 },
 
-      modal: { flex: 1 },
-      modalHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-        borderBottomWidth: 1,
-      },
-      modalTitle: { fontSize: 18, fontWeight: '800' },
-      modalClose: { padding: 4 },
+  modal: { flex: 1 },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '800' },
+  modalClose: { padding: 4 },
 
-      searchBox: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        margin: 16,
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        borderRadius: 16,
-        borderWidth: 1,
-      },
-      searchInput: { flex: 1, fontSize: 16 },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    margin: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  searchInput: { flex: 1, fontSize: 16 },
 
-      listItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-      },
-      listItemSelected: { backgroundColor: 'rgba(130, 225, 87, 0.1)' },
-      listItemText: { fontSize: 15 },
-      itemSep: { height: 1, marginLeft: 20 },
-    }));
-
+  listItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  listItemSelected: { backgroundColor: 'rgba(130, 225, 87, 0.1)' },
+  listItemText: { fontSize: 15 },
+  itemSep: { height: 1, marginLeft: 20 },
+}));

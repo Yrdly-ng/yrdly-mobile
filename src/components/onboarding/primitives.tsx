@@ -53,35 +53,44 @@ const LOCAL_SCENE_IMAGES: Record<string, any> = {
   '1764921587464-f3cdd46fb4c9': require('../../../assets/images/onboarding/profile_bg.jpg'),
 };
 
-export function SceneBg({ photoId, pos = 'center', gradientStart = '40%' }: { photoId: string; pos?: string; gradientStart?: string }) {
-  const source = LOCAL_SCENE_IMAGES[photoId] || { uri: `https://images.unsplash.com/photo-${photoId}?w=800&h=900&fit=crop&auto=format&q=85` };
+export function SceneBg({
+  photoId,
+  pos = 'center',
+  gradientStart = '40%',
+}: {
+  photoId: string;
+  pos?: string;
+  gradientStart?: string;
+}) {
+  const source = LOCAL_SCENE_IMAGES[photoId] || {
+    uri: `https://images.unsplash.com/photo-${photoId}?w=800&h=900&fit=crop&auto=format&q=85`,
+  };
 
   return (
     <View style={StyleSheet.absoluteFillObject}>
-      <Image
-        source={source}
-        style={StyleSheet.absoluteFillObject}
-        resizeMode="cover"
-      />
-      <View
-        style={[
-          StyleSheet.absoluteFillObject,
-          { backgroundColor: 'rgba(5,5,5,0.78)' },
-        ]}
-      />
+      <Image source={source} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+      <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(5,5,5,0.78)' }]} />
     </View>
   );
 }
 
 export function GlassCard({ children, style }: { children: React.ReactNode; style?: any }) {
-  return (
-    <View style={[styles.glassCard, style]}>
-      {children}
-    </View>
-  );
+  return <View style={[styles.glassCard, style]}>{children}</View>;
 }
 
-export function PrimaryBtn({ label, onClick, icon, disabled, loading }: { label: string; onClick: () => void; icon?: React.ReactNode; disabled?: boolean; loading?: boolean }) {
+export function PrimaryBtn({
+  label,
+  onClick,
+  icon,
+  disabled,
+  loading,
+}: {
+  label: string;
+  onClick: () => void;
+  icon?: React.ReactNode;
+  disabled?: boolean;
+  loading?: boolean;
+}) {
   const [scale] = useState(new Animated.Value(1));
 
   const handlePressIn = () => {
@@ -170,7 +179,7 @@ export function PasswordStrength({ value }: { value: string }) {
     { label: 'Number (0-9)', met: /[0-9]/.test(value) },
     { label: 'Special symbol (!@#$)', met: /[^A-Za-z0-9]/.test(value) },
   ];
-  const score = reqs.filter(r => r.met).length;
+  const score = reqs.filter((r) => r.met).length;
   const labels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
   const colorsList = ['', '#FF5C5C', '#FFB648', colors.G, colors.G];
 
@@ -178,7 +187,7 @@ export function PasswordStrength({ value }: { value: string }) {
     <View style={{ gap: 6 }}>
       <View style={styles.strengthRow}>
         <View style={styles.barsContainer}>
-          {[1, 2, 3, 4].map(i => (
+          {[1, 2, 3, 4].map((i) => (
             <View
               key={i}
               style={[
@@ -188,12 +197,14 @@ export function PasswordStrength({ value }: { value: string }) {
             />
           ))}
         </View>
-        <Text style={[styles.strengthLabel, { color: score > 0 ? colorsList[score] : colors.LABEL }]}>
+        <Text
+          style={[styles.strengthLabel, { color: score > 0 ? colorsList[score] : colors.LABEL }]}
+        >
           {labels[score]}
         </Text>
       </View>
       <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
-        {reqs.map(r => (
+        {reqs.map((r) => (
           <View
             key={r.label}
             style={{
@@ -213,7 +224,9 @@ export function PasswordStrength({ value }: { value: string }) {
               size={12}
               color={r.met ? colors.G : colors.LABEL}
             />
-            <Text style={{ fontSize: 11, color: r.met ? colors.G : colors.LABEL, fontWeight: '500' }}>
+            <Text
+              style={{ fontSize: 11, color: r.met ? colors.G : colors.LABEL, fontWeight: '500' }}
+            >
               {r.label}
             </Text>
           </View>
@@ -233,7 +246,13 @@ export function Divider({ label }: { label: string }) {
   );
 }
 
-export function SocialRow({ onGooglePress, onApplePress }: { onGooglePress?: () => void; onApplePress?: () => void }) {
+export function SocialRow({
+  onGooglePress,
+  onApplePress,
+}: {
+  onGooglePress?: () => void;
+  onApplePress?: () => void;
+}) {
   return (
     <View style={styles.socialRow}>
       <TouchableOpacity activeOpacity={0.8} onPress={onGooglePress} style={styles.socialBtn}>
@@ -251,8 +270,14 @@ export function SocialRow({ onGooglePress, onApplePress }: { onGooglePress?: () 
 export function BackBtn({ onClick, light }: { onClick: () => void; light?: boolean }) {
   return (
     <TouchableOpacity activeOpacity={0.7} onPress={onClick} style={styles.backBtn}>
-      <Ionicons name="chevron-back" size={20} color={light ? 'rgba(255,255,255,0.6)' : colors.LABEL} />
-      <Text style={[styles.backBtnText, { color: light ? 'rgba(255,255,255,0.6)' : colors.LABEL }]}>Back</Text>
+      <Ionicons
+        name="chevron-back"
+        size={20}
+        color={light ? 'rgba(255,255,255,0.6)' : colors.LABEL}
+      />
+      <Text style={[styles.backBtnText, { color: light ? 'rgba(255,255,255,0.6)' : colors.LABEL }]}>
+        Back
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -280,7 +305,9 @@ export function StepBar({ step, total, label }: { step: number; total: number; l
   return (
     <View style={styles.stepContainer}>
       <View style={styles.stepHeader}>
-        <Text style={styles.stepTitle}>STEP {step} OF {total}</Text>
+        <Text style={styles.stepTitle}>
+          STEP {step} OF {total}
+        </Text>
         <Text style={styles.stepLabel}>{label}</Text>
       </View>
       <View style={styles.stepTrack}>

@@ -1,8 +1,15 @@
-import { createStyleSheet, useStyles } from "react-native-unistyles";
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity,
-  TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Alert,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -13,18 +20,18 @@ import { useAuth } from '../../../hooks/use-supabase-auth';
 import { Avatar } from '../../../components/Avatar';
 
 const RESOLUTION_OPTIONS = [
-  { value: 'refund_buyer',   label: 'Refund Buyer',            icon: 'rotate-ccw' as const },
+  { value: 'refund_buyer', label: 'Refund Buyer', icon: 'rotate-ccw' as const },
   { value: 'release_seller', label: 'Release Funds to Seller', icon: 'check-circle' as const },
-  { value: 'partial_refund', label: 'Partial Refund',          icon: 'percent' as const },
-  { value: 'escalate',       label: 'Escalate',                icon: 'alert-triangle' as const },
-  { value: 'close',          label: 'Close Without Action',    icon: 'x-circle' as const },
+  { value: 'partial_refund', label: 'Partial Refund', icon: 'percent' as const },
+  { value: 'escalate', label: 'Escalate', icon: 'alert-triangle' as const },
+  { value: 'close', label: 'Close Without Action', icon: 'x-circle' as const },
 ];
 
 const STATUS_COLOR: Record<string, string> = {
-  open:         '#EF4444',
+  open: '#EF4444',
   under_review: '#F59E0B',
-  resolved:     '#82DB7E',
-  closed:       '#6B7280',
+  resolved: '#82DB7E',
+  closed: '#6B7280',
 };
 
 function formatDate(d: string) {
@@ -32,12 +39,12 @@ function formatDate(d: string) {
 }
 
 export default function AdminDisputeDetailScreen() {
-    const { styles: sStylesheet, theme } = useStyles(stylesheet);
+  const { styles: sStylesheet, theme } = useStyles(stylesheet);
 
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
-  
+
   const [dispute, setDispute] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [resolving, setResolving] = useState(false);
@@ -61,7 +68,8 @@ export default function AdminDisputeDetailScreen() {
 
       const { data, error } = await supabase
         .from('disputes')
-        .select(`
+        .select(
+          `
           *,
           transaction:transactions(
             id, amount, status, escrow_status,
@@ -69,7 +77,8 @@ export default function AdminDisputeDetailScreen() {
             seller:users!transactions_seller_id_fkey(id, name, avatar_url, email),
             catalog_item:catalog_items(id, name, images)
           )
-        `)
+        `
+        )
         .eq('id', id)
         .maybeSingle();
 
@@ -82,7 +91,9 @@ export default function AdminDisputeDetailScreen() {
     }
   }, [id, user]);
 
-  useEffect(() => { fetchDispute(); }, [fetchDispute]);
+  useEffect(() => {
+    fetchDispute();
+  }, [fetchDispute]);
 
   const handleResolve = async () => {
     if (!selectedResolution) {
@@ -92,7 +103,7 @@ export default function AdminDisputeDetailScreen() {
 
     Alert.alert(
       'Confirm Resolution',
-      `Apply "${RESOLUTION_OPTIONS.find(o => o.value === selectedResolution)?.label}" to this dispute?`,
+      `Apply "${RESOLUTION_OPTIONS.find((o) => o.value === selectedResolution)?.label}" to this dispute?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -147,7 +158,9 @@ export default function AdminDisputeDetailScreen() {
       <SafeAreaView style={[sStylesheet.container, { backgroundColor: theme.colors.DARK }]}>
         <View style={sStylesheet.center}>
           <Feather name="lock" size={48} color={theme.colors.MUTED} />
-          <Text style={[sStylesheet.centerText, { color: theme.colors.LABEL }]}>Admin access required</Text>
+          <Text style={[sStylesheet.centerText, { color: theme.colors.LABEL }]}>
+            Admin access required
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -167,7 +180,9 @@ export default function AdminDisputeDetailScreen() {
     return (
       <SafeAreaView style={[sStylesheet.container, { backgroundColor: theme.colors.DARK }]}>
         <View style={sStylesheet.center}>
-          <Text style={[sStylesheet.centerText, { color: theme.colors.LABEL }]}>Dispute not found.</Text>
+          <Text style={[sStylesheet.centerText, { color: theme.colors.LABEL }]}>
+            Dispute not found.
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -183,58 +198,100 @@ export default function AdminDisputeDetailScreen() {
 
   return (
     <SafeAreaView style={[sStylesheet.container, { backgroundColor: theme.colors.DARK }]}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         {/* Header */}
         <View style={[sStylesheet.header, { borderBottomColor: theme.colors.GLASS_BORDER }]}>
           <TouchableOpacity onPress={() => router.back()} style={sStylesheet.backBtn}>
             <Ionicons name="chevron-back" size={28} color={theme.colors.TEXT_PRIMARY} />
           </TouchableOpacity>
-          <Text style={[sStylesheet.headerTitle, { color: theme.colors.TEXT_PRIMARY }]}>Dispute Detail</Text>
-          <View style={[sStylesheet.statusBadge, { backgroundColor: statusColor + '22', borderColor: statusColor + '55' }]}>
+          <Text style={[sStylesheet.headerTitle, { color: theme.colors.TEXT_PRIMARY }]}>
+            Dispute Detail
+          </Text>
+          <View
+            style={[
+              sStylesheet.statusBadge,
+              { backgroundColor: statusColor + '22', borderColor: statusColor + '55' },
+            ]}
+          >
             <Text style={[sStylesheet.statusText, { color: statusColor }]}>
               {dispute.status.replace('_', ' ').toUpperCase()}
             </Text>
           </View>
         </View>
 
-        <ScrollView contentContainerStyle={sStylesheet.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-
+        <ScrollView
+          contentContainerStyle={sStylesheet.scroll}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Parties */}
-          <View style={[sStylesheet.section, { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER }]}>
+          <View
+            style={[
+              sStylesheet.section,
+              { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER },
+            ]}
+          >
             <Text style={[sStylesheet.sectionTitle, { color: theme.colors.MUTED }]}>PARTIES</Text>
-            {[{ role: 'Buyer', p: buyer }, { role: 'Seller', p: seller }].map(({ role, p }) => {
-            const { styles: sStylesheet } = useStyles(stylesheet);
-            return (
-                          <View key={role} style={sStylesheet.partyRow}>
-                            <Avatar
-                              url={p?.avatar_url}
-                              name={p?.name}
-                              size={36}
-                              style={sStylesheet.avatar as any}
-                              fallbackStyle={[sStylesheet.avatar, sStylesheet.avatarFallback, { backgroundColor: theme.colors.SURFACE }] as any}
-                              fallbackTextStyle={{ color: theme.colors.MUTED, fontSize: 16 } as any}
-                            />
-                            <View style={{ flex: 1 }}>
-                              <Text style={[sStylesheet.partyRole, { color: theme.colors.MUTED }]}>{role}</Text>
-                              <Text style={[sStylesheet.partyName, { color: theme.colors.TEXT_PRIMARY }]}>{p?.name ?? '—'}</Text>
-                              {p?.email && <Text style={[sStylesheet.partyEmail, { color: theme.colors.MUTED }]}>{p.email}</Text>}
-                            </View>
-                          </View>
-                        );
+            {[
+              { role: 'Buyer', p: buyer },
+              { role: 'Seller', p: seller },
+            ].map(({ role, p }) => {
+              const { styles: sStylesheet } = useStyles(stylesheet);
+              return (
+                <View key={role} style={sStylesheet.partyRow}>
+                  <Avatar
+                    url={p?.avatar_url}
+                    name={p?.name}
+                    size={36}
+                    style={sStylesheet.avatar as any}
+                    fallbackStyle={
+                      [
+                        sStylesheet.avatar,
+                        sStylesheet.avatarFallback,
+                        { backgroundColor: theme.colors.SURFACE },
+                      ] as any
+                    }
+                    fallbackTextStyle={{ color: theme.colors.MUTED, fontSize: 16 } as any}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[sStylesheet.partyRole, { color: theme.colors.MUTED }]}>
+                      {role}
+                    </Text>
+                    <Text style={[sStylesheet.partyName, { color: theme.colors.TEXT_PRIMARY }]}>
+                      {p?.name ?? '—'}
+                    </Text>
+                    {p?.email && (
+                      <Text style={[sStylesheet.partyEmail, { color: theme.colors.MUTED }]}>
+                        {p.email}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              );
             })}
           </View>
 
           {/* Transaction info */}
           {tx && (
-            <View style={[sStylesheet.section, { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER }]}>
+            <View
+              style={[
+                sStylesheet.section,
+                { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER },
+              ]}
+            >
               <Text style={[sStylesheet.sectionTitle, { color: theme.colors.MUTED }]}>ORDER</Text>
               {item && (
                 <Text style={[sStylesheet.detailRow, { color: theme.colors.TEXT_PRIMARY }]}>
-                  <Text style={{ color: theme.colors.MUTED }}>Item: </Text>{item.name}
+                  <Text style={{ color: theme.colors.MUTED }}>Item: </Text>
+                  {item.name}
                 </Text>
               )}
               <Text style={[sStylesheet.detailRow, { color: theme.colors.TEXT_PRIMARY }]}>
-                <Text style={{ color: theme.colors.MUTED }}>Amount: </Text>₦{Number(tx.amount).toLocaleString()}
+                <Text style={{ color: theme.colors.MUTED }}>Amount: </Text>₦
+                {Number(tx.amount).toLocaleString()}
               </Text>
               <Text style={[sStylesheet.detailRow, { color: theme.colors.TEXT_PRIMARY }]}>
                 <Text style={{ color: theme.colors.MUTED }}>Escrow: </Text>
@@ -248,7 +305,12 @@ export default function AdminDisputeDetailScreen() {
           )}
 
           {/* Dispute info */}
-          <View style={[sStylesheet.section, { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER }]}>
+          <View
+            style={[
+              sStylesheet.section,
+              { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER },
+            ]}
+          >
             <Text style={[sStylesheet.sectionTitle, { color: theme.colors.MUTED }]}>DISPUTE</Text>
             <Text style={[sStylesheet.detailRow, { color: theme.colors.TEXT_PRIMARY }]}>
               <Text style={{ color: theme.colors.MUTED }}>Reason: </Text>
@@ -259,17 +321,35 @@ export default function AdminDisputeDetailScreen() {
               {formatDate(dispute.created_at)}
             </Text>
             {dispute.description && (
-              <Text style={[sStylesheet.description, { color: theme.colors.LABEL }]}>{dispute.description}</Text>
+              <Text style={[sStylesheet.description, { color: theme.colors.LABEL }]}>
+                {dispute.description}
+              </Text>
             )}
           </View>
 
           {/* Evidence images */}
           {evidence.length > 0 && (
-            <View style={[sStylesheet.section, { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER }]}>
-              <Text style={[sStylesheet.sectionTitle, { color: theme.colors.MUTED }]}>EVIDENCE ({evidence.length})</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+            <View
+              style={[
+                sStylesheet.section,
+                { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER },
+              ]}
+            >
+              <Text style={[sStylesheet.sectionTitle, { color: theme.colors.MUTED }]}>
+                EVIDENCE ({evidence.length})
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8 }}
+              >
                 {evidence.map((url, i) => (
-                  <Image key={i} source={{ uri: url }} style={sStylesheet.evidenceImg} contentFit="cover" />
+                  <Image
+                    key={i}
+                    source={{ uri: url }}
+                    style={sStylesheet.evidenceImg}
+                    contentFit="cover"
+                  />
                 ))}
               </ScrollView>
             </View>
@@ -277,9 +357,18 @@ export default function AdminDisputeDetailScreen() {
 
           {/* Admin note (if already resolved) */}
           {isResolved && dispute.admin_note && (
-            <View style={[sStylesheet.section, { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER }]}>
-              <Text style={[sStylesheet.sectionTitle, { color: theme.colors.MUTED }]}>RESOLUTION NOTE</Text>
-              <Text style={[sStylesheet.description, { color: theme.colors.LABEL }]}>{dispute.admin_note}</Text>
+            <View
+              style={[
+                sStylesheet.section,
+                { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER },
+              ]}
+            >
+              <Text style={[sStylesheet.sectionTitle, { color: theme.colors.MUTED }]}>
+                RESOLUTION NOTE
+              </Text>
+              <Text style={[sStylesheet.description, { color: theme.colors.LABEL }]}>
+                {dispute.admin_note}
+              </Text>
               {dispute.resolution && (
                 <Text style={[sStylesheet.detailRow, { color: theme.colors.G }]}>
                   Action: {dispute.resolution.replace(/_/g, ' ')}
@@ -290,11 +379,18 @@ export default function AdminDisputeDetailScreen() {
 
           {/* Resolution controls — only for non-resolved disputes */}
           {!isResolved && (
-            <View style={[sStylesheet.section, { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER }]}>
-              <Text style={[sStylesheet.sectionTitle, { color: theme.colors.MUTED }]}>RESOLUTION</Text>
+            <View
+              style={[
+                sStylesheet.section,
+                { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER },
+              ]}
+            >
+              <Text style={[sStylesheet.sectionTitle, { color: theme.colors.MUTED }]}>
+                RESOLUTION
+              </Text>
 
-              {RESOLUTION_OPTIONS.map(opt => {
-                  const { styles: sStylesheet } = useStyles(stylesheet);
+              {RESOLUTION_OPTIONS.map((opt) => {
+                const { styles: sStylesheet } = useStyles(stylesheet);
 
                 const active = selectedResolution === opt.value;
                 return (
@@ -309,11 +405,27 @@ export default function AdminDisputeDetailScreen() {
                       },
                     ]}
                   >
-                    <Feather name={opt.icon} size={18} color={active ? theme.colors.G : theme.colors.MUTED} />
-                    <Text style={[sStylesheet.resolutionLabel, { color: active ? theme.colors.G : theme.colors.TEXT_PRIMARY }]}>
+                    <Feather
+                      name={opt.icon}
+                      size={18}
+                      color={active ? theme.colors.G : theme.colors.MUTED}
+                    />
+                    <Text
+                      style={[
+                        sStylesheet.resolutionLabel,
+                        { color: active ? theme.colors.G : theme.colors.TEXT_PRIMARY },
+                      ]}
+                    >
                       {opt.label}
                     </Text>
-                    {active && <Feather name="check" size={16} color={theme.colors.G} style={{ marginLeft: 'auto' }} />}
+                    {active && (
+                      <Feather
+                        name="check"
+                        size={16}
+                        color={theme.colors.G}
+                        style={{ marginLeft: 'auto' }}
+                      />
+                    )}
                   </TouchableOpacity>
                 );
               })}
@@ -327,7 +439,11 @@ export default function AdminDisputeDetailScreen() {
                 numberOfLines={3}
                 style={[
                   sStylesheet.noteInput,
-                  { backgroundColor: theme.colors.SURFACE, color: theme.colors.TEXT_PRIMARY, borderColor: theme.colors.GLASS_BORDER },
+                  {
+                    backgroundColor: theme.colors.SURFACE,
+                    color: theme.colors.TEXT_PRIMARY,
+                    borderColor: theme.colors.GLASS_BORDER,
+                  },
                 ]}
               />
 
@@ -336,13 +452,18 @@ export default function AdminDisputeDetailScreen() {
                 disabled={resolving || !selectedResolution}
                 style={[
                   sStylesheet.resolveBtn,
-                  { backgroundColor: selectedResolution ? theme.colors.G : theme.colors.GLASS_BORDER },
+                  {
+                    backgroundColor: selectedResolution
+                      ? theme.colors.G
+                      : theme.colors.GLASS_BORDER,
+                  },
                 ]}
               >
-                {resolving
-                  ? <ActivityIndicator size="small" color={theme.colors.TEXT_PRIMARY} />
-                  : <Text style={sStylesheet.resolveBtnText}>Apply Resolution</Text>
-                }
+                {resolving ? (
+                  <ActivityIndicator size="small" color={theme.colors.TEXT_PRIMARY} />
+                ) : (
+                  <Text style={sStylesheet.resolveBtnText}>Apply Resolution</Text>
+                )}
               </TouchableOpacity>
             </View>
           )}
@@ -354,54 +475,73 @@ export default function AdminDisputeDetailScreen() {
   );
 }
 
-const stylesheet = createStyleSheet(theme => ({
-      container: { flex: 1 },
-      center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-      centerText: { marginTop: 12, fontSize: 16 },
-      header: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 0.5,
-      },
-      backBtn: { padding: 4 },
-      headerTitle: { fontFamily: 'Inter-Bold', fontSize: 17, flex: 1, marginLeft: 8 },
-      statusBadge: {
-        paddingHorizontal: 10, paddingVertical: 4,
-        borderRadius: 20, borderWidth: 1,
-      },
-      statusText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
-      scroll: { padding: 16, gap: 12 },
-      section: {
-        borderRadius: 16, padding: 16, gap: 10,
-        borderWidth: 1,
-      },
-      sectionTitle: {
-        fontSize: 11, fontWeight: '700', letterSpacing: 0.8,
-      },
-      partyRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-      avatar: { width: 40, height: 40, borderRadius: 20 },
-      avatarFallback: { alignItems: 'center', justifyContent: 'center' },
-      partyRole: { fontSize: 11 },
-      partyName: { fontSize: 15, fontWeight: '600' },
-      partyEmail: { fontSize: 12 },
-      detailRow: { fontSize: 14 },
-      description: { fontSize: 14, lineHeight: 21 },
-      evidenceImg: { width: 120, height: 100, borderRadius: 10 },
-      resolutionOption: {
-        flexDirection: 'row', alignItems: 'center', gap: 12,
-        paddingHorizontal: 14, paddingVertical: 12,
-        borderRadius: 12, borderWidth: 1,
-      },
-      resolutionLabel: { fontSize: 14, fontWeight: '500' },
-      noteInput: {
-        borderRadius: 12, borderWidth: 1,
-        padding: 12, fontSize: 14,
-        minHeight: 80, textAlignVertical: 'top',
-        marginTop: 4,
-      },
-      resolveBtn: {
-        borderRadius: 14, paddingVertical: 14,
-        alignItems: 'center', justifyContent: 'center',
-        marginTop: 8,
-      },
-      resolveBtnText: { fontSize: 15, fontWeight: '700', color: '#000' },
-    }));
+const stylesheet = createStyleSheet((theme) => ({
+  container: { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
+  centerText: { marginTop: 12, fontSize: 16 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+  },
+  backBtn: { padding: 4 },
+  headerTitle: { fontFamily: 'Inter-Bold', fontSize: 17, flex: 1, marginLeft: 8 },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  statusText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
+  scroll: { padding: 16, gap: 12 },
+  section: {
+    borderRadius: 16,
+    padding: 16,
+    gap: 10,
+    borderWidth: 1,
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+  },
+  partyRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  avatar: { width: 40, height: 40, borderRadius: 20 },
+  avatarFallback: { alignItems: 'center', justifyContent: 'center' },
+  partyRole: { fontSize: 11 },
+  partyName: { fontSize: 15, fontWeight: '600' },
+  partyEmail: { fontSize: 12 },
+  detailRow: { fontSize: 14 },
+  description: { fontSize: 14, lineHeight: 21 },
+  evidenceImg: { width: 120, height: 100, borderRadius: 10 },
+  resolutionOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  resolutionLabel: { fontSize: 14, fontWeight: '500' },
+  noteInput: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    fontSize: 14,
+    minHeight: 80,
+    textAlignVertical: 'top',
+    marginTop: 4,
+  },
+  resolveBtn: {
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  resolveBtnText: { fontSize: 15, fontWeight: '700', color: '#000' },
+}));

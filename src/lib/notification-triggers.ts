@@ -28,7 +28,7 @@ export class NotificationTriggers {
           relatedType: 'user',
           title: 'New Friend Request',
           message: `New friend request from ${senderData.name}`,
-          data: { fromUserName: senderData.name }
+          data: { fromUserName: senderData.name },
         });
       }
     } catch (error) {
@@ -57,7 +57,7 @@ export class NotificationTriggers {
           relatedType: 'user',
           title: 'Friend Request Accepted',
           message: `${acceptorData.name} accepted your friend request`,
-          data: { acceptorName: acceptorData.name }
+          data: { acceptorName: acceptorData.name },
         });
       }
     } catch (error) {
@@ -86,7 +86,7 @@ export class NotificationTriggers {
           relatedType: 'user',
           title: 'New Follower',
           message: `${followerData.name} started following you`,
-          data: { followerName: followerData.name }
+          data: { followerName: followerData.name },
         });
       }
     } catch (error) {
@@ -104,8 +104,13 @@ export class NotificationTriggers {
     messageContent: string
   ) {
     try {
-      console.log('Creating message notification:', { toUserId, fromUserId, conversationId, messageContent });
-      
+      console.log('Creating message notification:', {
+        toUserId,
+        fromUserId,
+        conversationId,
+        messageContent,
+      });
+
       // Debounce: Check for recent notifications in the last 60 seconds to prevent spam
       const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
       const { data: recentNotifs } = await supabase
@@ -119,8 +124,8 @@ export class NotificationTriggers {
         .limit(1);
 
       if (recentNotifs && recentNotifs.length > 0) {
-         console.log('Skipping message notification (debounced)');
-         return;
+        console.log('Skipping message notification (debounced)');
+        return;
       }
 
       // Get sender's name
@@ -131,9 +136,8 @@ export class NotificationTriggers {
         .single();
 
       if (senderData) {
-        const messagePreview = messageContent.length > 50 
-          ? messageContent.substring(0, 50) + '...' 
-          : messageContent;
+        const messagePreview =
+          messageContent.length > 50 ? messageContent.substring(0, 50) + '...' : messageContent;
 
         console.log('Sender data found:', senderData);
         console.log('Creating notification for user:', toUserId);
@@ -146,11 +150,11 @@ export class NotificationTriggers {
           relatedType: 'conversation',
           title: `New message from ${senderData.name}`,
           message: messagePreview,
-          data: { 
-            fromUserName: senderData.name, 
-            conversationId, 
-            messagePreview 
-          }
+          data: {
+            fromUserName: senderData.name,
+            conversationId,
+            messagePreview,
+          },
         });
       } else {
         console.log('No sender data found for user:', fromUserId);
@@ -189,7 +193,7 @@ export class NotificationTriggers {
             relatedType: 'post',
             title: `${likerData.name} liked your post`,
             message: `${likerData.name} liked your post`,
-            data: { likerName: likerData.name, postId }
+            data: { likerName: likerData.name, postId },
           });
         }
       }
@@ -203,13 +207,17 @@ export class NotificationTriggers {
    */
   static async onPostUnliked(postId: string, userId: string) {
     try {
-      const { data: post } = await supabase.from('posts').select('user_id').eq('id', postId).single();
+      const { data: post } = await supabase
+        .from('posts')
+        .select('user_id')
+        .eq('id', postId)
+        .single();
       if (!post || post.user_id === userId) return;
       await NotificationService.removeNotificationActor({
         userId: post.user_id,
         type: 'post_like',
         senderId: userId,
-        relatedId: postId
+        relatedId: postId,
       });
     } catch (e) {
       console.error('Error removing like notification actor:', e);
@@ -237,9 +245,8 @@ export class NotificationTriggers {
           .single();
 
         if (commenterData) {
-          const commentPreview = commentContent.length > 50 
-            ? commentContent.substring(0, 50) + '...' 
-            : commentContent;
+          const commentPreview =
+            commentContent.length > 50 ? commentContent.substring(0, 50) + '...' : commentContent;
 
           await NotificationService.createNotification({
             userId: postData.user_id,
@@ -249,7 +256,7 @@ export class NotificationTriggers {
             relatedType: 'post',
             title: `${commenterData.name} commented on your post`,
             message: `${commenterData.name} commented: "${commentPreview}"`,
-            data: { commenterName: commenterData.name, postId, commentPreview }
+            data: { commenterName: commenterData.name, postId, commentPreview },
           });
         }
       }
@@ -297,7 +304,12 @@ export class NotificationTriggers {
   /**
    * Trigger notification when a user is mentioned in a post or comment
    */
-  static async onUserMentioned(mentionedUserId: string, mentionerId: string, postId: string, content: string) {
+  static async onUserMentioned(
+    mentionedUserId: string,
+    mentionerId: string,
+    postId: string,
+    content: string
+  ) {
     try {
       // Get mentioner's name
       const { data: mentionerData } = await supabase
@@ -315,7 +327,7 @@ export class NotificationTriggers {
           relatedType: 'post',
           title: 'You were mentioned',
           message: `${mentionerData.name} mentioned you in a post`,
-          data: { mentionerName: mentionerData.name, postId, content }
+          data: { mentionerName: mentionerData.name, postId, content },
         });
       }
     } catch (error) {
@@ -326,7 +338,12 @@ export class NotificationTriggers {
   /**
    * Trigger notification when an event is created and users are invited
    */
-  static async onEventInvite(eventId: string, inviterId: string, inviteeIds: string[], eventTitle: string) {
+  static async onEventInvite(
+    eventId: string,
+    inviterId: string,
+    inviteeIds: string[],
+    eventTitle: string
+  ) {
     try {
       // Get inviter's name
       const { data: inviterData } = await supabase
@@ -337,7 +354,7 @@ export class NotificationTriggers {
 
       if (inviterData) {
         // Create notifications for all invitees
-        const notificationPromises = inviteeIds.map(inviteeId => 
+        const notificationPromises = inviteeIds.map((inviteeId) =>
           NotificationService.createEventInviteNotification(
             inviteeId,
             inviterId,
@@ -368,7 +385,12 @@ export class NotificationTriggers {
   /**
    * Trigger notification when a marketplace item is sold
    */
-  static async onMarketplaceItemSold(itemId: string, sellerId: string, buyerId: string, itemTitle: string) {
+  static async onMarketplaceItemSold(
+    itemId: string,
+    sellerId: string,
+    buyerId: string,
+    itemTitle: string
+  ) {
     try {
       // Get buyer's name
       const { data: buyerData } = await supabase
@@ -386,7 +408,7 @@ export class NotificationTriggers {
           relatedType: 'marketplace_item',
           title: 'Item Sold!',
           message: `${buyerData.name} purchased "${itemTitle}"`,
-          data: { buyerName: buyerData.name, itemId, itemTitle }
+          data: { buyerName: buyerData.name, itemId, itemTitle },
         });
       }
     } catch (error) {
@@ -397,15 +419,20 @@ export class NotificationTriggers {
   /**
    * Trigger notification for community updates
    */
-  static async onCommunityUpdate(userIds: string[], title: string, message: string, data?: Record<string, any>) {
+  static async onCommunityUpdate(
+    userIds: string[],
+    title: string,
+    message: string,
+    data?: Record<string, any>
+  ) {
     try {
-      const notificationPromises = userIds.map(userId =>
+      const notificationPromises = userIds.map((userId) =>
         NotificationService.createNotification({
           userId,
           type: 'community_update',
           title,
           message,
-          data
+          data,
         })
       );
 
@@ -418,15 +445,20 @@ export class NotificationTriggers {
   /**
    * Trigger notification for system announcements
    */
-  static async onSystemAnnouncement(userIds: string[], title: string, message: string, data?: Record<string, any>) {
+  static async onSystemAnnouncement(
+    userIds: string[],
+    title: string,
+    message: string,
+    data?: Record<string, any>
+  ) {
     try {
-      const notificationPromises = userIds.map(userId =>
+      const notificationPromises = userIds.map((userId) =>
         NotificationService.createNotification({
           userId,
           type: 'system_announcement',
           title,
           message,
-          data
+          data,
         })
       );
 

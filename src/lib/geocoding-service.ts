@@ -4,7 +4,7 @@
  * into Nigerian State → LGA. Falls back to manual picker if outside Nigeria or unmatched.
  *
  * NOTE (Optimization): Fetching 8,800 rows client-side is a heavy payload.
- * A server-side PostGIS RPC (`resolve_location`) is planned as a 
+ * A server-side PostGIS RPC (`resolve_location`) is planned as a
  * post-submission optimization to handle normalization and distance matching.
  */
 
@@ -42,27 +42,27 @@ let lgaWardsCache: any[] | null = null;
 
 async function getLgaWards() {
   if (lgaWardsCache && lgaWardsCache.length > 0) return lgaWardsCache;
-  
+
   let allWards: any[] = [];
   let page = 0;
   let hasMore = true;
-  
+
   while (hasMore) {
     const { data, error } = await supabase
       .from('lga_wards')
       .select('state, lga, ward, latitude, longitude')
       .range(page * 1000, (page + 1) * 1000 - 1);
-      
+
     if (error || !data) {
       console.error('Failed to fetch lga_wards', error);
       break;
     }
-    
+
     allWards = allWards.concat(data);
     if (data.length < 1000) hasMore = false;
     page++;
   }
-  
+
   lgaWardsCache = allWards;
   return lgaWardsCache;
 }
@@ -108,7 +108,8 @@ async function nominatimReverseGeocode(lat: number, lng: number) {
 }
 
 export async function detectLocation(): Promise<
-  ResolvedLocation | { status: typeof OUTSIDE_NIGERIA | typeof PERMISSION_DENIED | typeof UNMATCHED_LOCATION }
+  | ResolvedLocation
+  | { status: typeof OUTSIDE_NIGERIA | typeof PERMISSION_DENIED | typeof UNMATCHED_LOCATION }
 > {
   const { status } = await Location.requestForegroundPermissionsAsync();
   if (status !== 'granted') return { status: PERMISSION_DENIED };
@@ -145,4 +146,3 @@ export function getAllStates(): string[] {
 export function getLgasForState(state: string): string[] {
   return LGAS[state] ?? [];
 }
-

@@ -24,7 +24,10 @@ export interface Alert {
   expires_at?: string;
 }
 
-export interface CreateAlertData extends Omit<Alert, 'id' | 'created_at' | 'is_resolved' | 'last_seen_location'> {
+export interface CreateAlertData extends Omit<
+  Alert,
+  'id' | 'created_at' | 'is_resolved' | 'last_seen_location'
+> {
   lat?: number;
   lng?: number;
 }
@@ -77,18 +80,21 @@ export class AlertService {
       }
 
       if (data) {
-        return data.map((alert: any) => ({
-          id: alert.id,
-          type: alert.type,
-          title: alert.title,
-          description: alert.description,
-          severity: alert.severity,
-          area: alert.area_name,
-          source: 'user',
-          is_resolved: false,
-          created_at: alert.created_at,
-          radius_km: 0
-        } as Alert));
+        return data.map(
+          (alert: any) =>
+            ({
+              id: alert.id,
+              type: alert.type,
+              title: alert.title,
+              description: alert.description,
+              severity: alert.severity,
+              area: alert.area_name,
+              source: 'user',
+              is_resolved: false,
+              created_at: alert.created_at,
+              radius_km: 0,
+            }) as Alert
+        );
       }
       return [];
     } catch (error) {
@@ -111,13 +117,12 @@ export class AlertService {
       }
 
       const { lat, lng, ...rest } = alertData;
-      
+
       // Supabase PostGIS geometry format is typically WKT 'POINT(lng lat)'
       // But because last_seen_location is geography, we can pass it as a GeoJSON object or WKT point string if Supabase js client supports it.
       // Usually passing WKT string like `POINT(${lng} ${lat})` works perfectly.
-      const last_seen_location = (lat !== undefined && lng !== undefined) 
-        ? `POINT(${lng} ${lat})` 
-        : null;
+      const last_seen_location =
+        lat !== undefined && lng !== undefined ? `POINT(${lng} ${lat})` : null;
 
       const { data, error } = await supabase
         .from('alerts')
@@ -130,12 +135,14 @@ export class AlertService {
         .single();
 
       if (error) throw error;
-      
+
       // We'll also call the notify-alert edge function manually just in case we don't use DB webhooks
       // Let's invoke it explicitly to be safe and fast for this phase
-      supabase.functions.invoke('notify-alert', {
-        body: { record: data }
-      }).catch(err => console.error('Failed to invoke notify-alert:', err));
+      supabase.functions
+        .invoke('notify-alert', {
+          body: { record: data },
+        })
+        .catch((err) => console.error('Failed to invoke notify-alert:', err));
 
       return { data, error: null };
     } catch (error) {
@@ -143,7 +150,7 @@ export class AlertService {
       return { data: null, error };
     }
   }
-  
+
   /**
    * Resolve an alert (Admin only)
    */
@@ -159,9 +166,9 @@ export class AlertService {
 
       const { error } = await supabase
         .from('alerts')
-        .update({ 
+        .update({
           is_resolved: true,
-          resolved_at: new Date().toISOString()
+          resolved_at: new Date().toISOString(),
         })
         .eq('id', alertId);
 

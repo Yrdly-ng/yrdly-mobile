@@ -14,7 +14,13 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ImagePicker from 'react-native-image-crop-picker';
-import { SceneBg, GlassCard, GlassInput, StepBar, PrimaryBtn } from '@/components/onboarding/primitives';
+import {
+  SceneBg,
+  GlassCard,
+  GlassInput,
+  StepBar,
+  PrimaryBtn,
+} from '@/components/onboarding/primitives';
 import { ONBOARDING_THEME } from '@/constants/onboarding-theme';
 import { AuthService } from '@/lib/auth-service';
 import { StorageService } from '@/lib/storage-service';
@@ -53,8 +59,10 @@ export default function Profile1Screen() {
   React.useEffect(() => {
     const checkAvailability = async () => {
       const clean = handle.replace(/^@/, '').trim();
-      const existing = (profile?.username || user?.user_metadata?.username || '').replace(/^@/, '').trim();
-      
+      const existing = (profile?.username || user?.user_metadata?.username || '')
+        .replace(/^@/, '')
+        .trim();
+
       if (!clean) {
         setUsernameError('');
         return;
@@ -63,15 +71,17 @@ export default function Profile1Screen() {
       // Check username rules
       const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
       if (!usernameRegex.test(clean)) {
-        setUsernameError('Username must be 3-20 characters long and can only contain letters, numbers, and underscores.');
+        setUsernameError(
+          'Username must be 3-20 characters long and can only contain letters, numbers, and underscores.'
+        );
         return;
       }
-      
+
       if (clean.toLowerCase() === existing.toLowerCase()) {
         setUsernameError('');
         return;
       }
-      
+
       const available = await AuthService.checkUsernameAvailability(clean, user?.id);
       if (!available) {
         setUsernameError(`The username @${clean} is already taken. Please choose another.`);
@@ -115,11 +125,15 @@ export default function Profile1Screen() {
     }
 
     const clean = handle.replace(/^@/, '').trim();
-    const existing = (profile?.username || user?.user_metadata?.username || '').replace(/^@/, '').trim();
+    const existing = (profile?.username || user?.user_metadata?.username || '')
+      .replace(/^@/, '')
+      .trim();
 
     const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
     if (!usernameRegex.test(clean)) {
-      setFormError('Username must be 3-20 characters long and can only contain letters, numbers, and underscores.');
+      setFormError(
+        'Username must be 3-20 characters long and can only contain letters, numbers, and underscores.'
+      );
       return;
     }
 
@@ -142,9 +156,9 @@ export default function Profile1Screen() {
           const { url, error } = await StorageService.uploadUserAvatar(user.id, {
             uri: avatarUri,
             name: `avatar-${user.id}.jpg`,
-            type: 'image/jpeg'
+            type: 'image/jpeg',
           });
-          
+
           if (error) {
             setFormError('Failed to upload profile picture. Please try again.');
             setIsSaving(false);
@@ -160,21 +174,23 @@ export default function Profile1Screen() {
           ...(clean ? { username: clean } : {}),
           ...(bio ? { bio } : {}),
           // Only apply immediately if approved
-          ...(finalAvatarUrl && avatarModerationStatus === 'approved' ? { avatar_url: finalAvatarUrl } : {}),
+          ...(finalAvatarUrl && avatarModerationStatus === 'approved'
+            ? { avatar_url: finalAvatarUrl }
+            : {}),
         });
 
         if (avatarModerationStatus === 'pending') {
-            const { supabase } = require('@/lib/supabase'); // importing supabase dynamically if not present or just add it to top
-            await supabase.from('moderation_queue').insert({
-                content_id: user.id,
-                table_name: 'users',
-                user_id: user.id,
-                status: 'pending',
-                reason: avatarModerationReason,
-                image_urls: [finalAvatarUrl],
-            });
-            // We don't want to alert here maybe, we just let them go to the next step,
-            // but their avatar is empty or previous one.
+          const { supabase } = require('@/lib/supabase'); // importing supabase dynamically if not present or just add it to top
+          await supabase.from('moderation_queue').insert({
+            content_id: user.id,
+            table_name: 'users',
+            user_id: user.id,
+            status: 'pending',
+            reason: avatarModerationReason,
+            image_urls: [finalAvatarUrl],
+          });
+          // We don't want to alert here maybe, we just let them go to the next step,
+          // but their avatar is empty or previous one.
         }
       } catch (e) {
         console.error('Error saving profile step 1:', e);
@@ -188,11 +204,7 @@ export default function Profile1Screen() {
 
   return (
     <View style={styles.container}>
-      <SceneBg
-        photoId="1764921587464-f3cdd46fb4c9"
-        pos="center 20%"
-        gradientStart="25%"
-      />
+      <SceneBg photoId="1764921587464-f3cdd46fb4c9" pos="center 20%" gradientStart="25%" />
 
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView
@@ -213,12 +225,22 @@ export default function Profile1Screen() {
             <GlassCard>
               {phoneSkipped === 'true' && (
                 <View style={styles.verificationBanner}>
-                  <Ionicons name="shield-outline" size={18} color={colors.WARNING} style={{ marginTop: 2 }} />
+                  <Ionicons
+                    name="shield-outline"
+                    size={18}
+                    color={colors.WARNING}
+                    style={{ marginTop: 2 }}
+                  />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.verifyBannerTitle}>Verify your phone number</Text>
-                    <Text style={styles.verifyBannerDesc}>Get your Verified Neighbour badge & buy/sell safely.</Text>
+                    <Text style={styles.verifyBannerDesc}>
+                      Get your Verified Neighbour badge & buy/sell safely.
+                    </Text>
                   </View>
-                  <TouchableOpacity onPress={() => router.push('/phone' as any)} style={styles.verifyNowBtn}>
+                  <TouchableOpacity
+                    onPress={() => router.push('/phone' as any)}
+                    style={styles.verifyNowBtn}
+                  >
                     <Text style={styles.verifyNowText}>Verify</Text>
                   </TouchableOpacity>
                 </View>
@@ -231,7 +253,10 @@ export default function Profile1Screen() {
                 <TouchableOpacity
                   activeOpacity={0.8}
                   onPress={handlePickAvatar}
-                  style={[styles.avatarWrapper, avatarUri ? { backgroundColor: 'rgba(130,219,126,0.08)' } : undefined]}
+                  style={[
+                    styles.avatarWrapper,
+                    avatarUri ? { backgroundColor: 'rgba(130,219,126,0.08)' } : undefined,
+                  ]}
                 >
                   <View style={styles.avatarRing}>
                     {avatarUri ? (
@@ -259,11 +284,11 @@ export default function Profile1Screen() {
                   onChange={setName}
                   icon={<Ionicons name="person-outline" size={18} color={colors.LABEL} />}
                 />
-                
+
                 <GlassInput
                   placeholder="username"
                   value={handle}
-                  onChange={v => setHandle(v.replace(/^@/, ''))}
+                  onChange={(v) => setHandle(v.replace(/^@/, ''))}
                   icon={<Ionicons name="at-outline" size={18} color={colors.LABEL} />}
                 />
 
@@ -272,7 +297,7 @@ export default function Profile1Screen() {
                     placeholder="Short bio (optional)"
                     placeholderTextColor={colors.LABEL}
                     value={bio}
-                    onChangeText={v => v.length <= 140 && setBio(v)}
+                    onChangeText={(v) => v.length <= 140 && setBio(v)}
                     multiline
                     numberOfLines={3}
                     style={styles.bioInput}
@@ -281,7 +306,11 @@ export default function Profile1Screen() {
                 </View>
               </View>
 
-              <PrimaryBtn label="Next: Choose Neighbourhood →" onClick={handleNextStep1} loading={isSaving} />
+              <PrimaryBtn
+                label="Next: Choose Neighbourhood →"
+                onClick={handleNextStep1}
+                loading={isSaving}
+              />
             </GlassCard>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -290,7 +319,7 @@ export default function Profile1Screen() {
   );
 }
 
-const stylesheet = createStyleSheet(theme => ({
+const stylesheet = createStyleSheet((theme) => ({
   container: {
     flex: 1,
     backgroundColor: '#0e0e0e',

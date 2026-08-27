@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from "react-native-unistyles";
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Image } from 'expo-image';
@@ -37,9 +37,16 @@ interface CommentItemProps {
   onPressProfile?: (userId: string) => void;
 }
 
-export const CommentItem: React.FC<CommentItemProps> = ({ item, currentUserId, onReply, onLike, onDelete, onPressProfile }) => {
+export const CommentItem: React.FC<CommentItemProps> = ({
+  item,
+  currentUserId,
+  onReply,
+  onLike,
+  onDelete,
+  onPressProfile,
+}) => {
   const { styles, theme } = useStyles(_stylesheet);
-    const router = useRouter();
+  const router = useRouter();
   const [showReplies, setShowReplies] = useState(false);
 
   const hasReplies = item.replies && item.replies.length > 0;
@@ -49,18 +56,14 @@ export const CommentItem: React.FC<CommentItemProps> = ({ item, currentUserId, o
   // Removed unused useMemo
 
   const handleDelete = () => {
-    Alert.alert(
-      "Delete Comment",
-      "Are you sure you want to delete this comment?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Delete", 
-          style: "destructive", 
-          onPress: () => onDelete?.(item) 
-        }
-      ]
-    );
+    Alert.alert('Delete Comment', 'Are you sure you want to delete this comment?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => onDelete?.(item),
+      },
+    ]);
   };
 
   const handleProfilePress = () => {
@@ -74,65 +77,62 @@ export const CommentItem: React.FC<CommentItemProps> = ({ item, currentUserId, o
 
   return (
     <View style={[styles.commentContainer, isReply && styles.replyContainer]}>
-      <TouchableOpacity 
-        style={styles.commentRow} 
+      <TouchableOpacity
+        style={styles.commentRow}
         onLongPress={isOwner ? handleDelete : undefined}
         delayLongPress={500}
         activeOpacity={isOwner ? 0.6 : 1}
       >
-      <TouchableOpacity 
-        style={styles.avatar} 
-        onPress={handleProfilePress}
-      >
-        <Avatar
-          url={item.user?.avatar_url || item.author_image}
-          name={item.user?.name || item.author_name}
-          size={100}
-          style={[styles.avatarImg, isReply && styles.avatarImgSmall]}
-          fallbackTextStyle={isReply ? { fontSize: 12 } : undefined}
-        />
-      </TouchableOpacity>
-      
-      <View style={styles.commentContent}>
-        <View style={styles.authorRow}>
-          <Text 
-            style={[styles.authorName, { color: theme.colors.TEXT_PRIMARY }]}
-            onPress={handleProfilePress}
-          >
-            {item.user?.name || item.author_name}
-          </Text>
-          {(item.user?.phone_verified || item.phone_verified) && (
-            <View style={{ marginRight: 6 }}>
-              <VerifiedBadge size={12} />
-            </View>
-          )}
-          <Text style={[styles.timestamp, { color: '#9CA3AF' }]}>{timeAgo(item.timestamp)}</Text>
-        </View>
+        <TouchableOpacity style={styles.avatar} onPress={handleProfilePress}>
+          <Avatar
+            url={item.user?.avatar_url || item.author_image}
+            name={item.user?.name || item.author_name}
+            size={100}
+            style={[styles.avatarImg, isReply && styles.avatarImgSmall]}
+            fallbackTextStyle={isReply ? { fontSize: 12 } : undefined}
+          />
+        </TouchableOpacity>
 
-        <Text style={[styles.commentText, { color: '#9CA3AF' }]}>
-          {item.text}
-        </Text>
-
-        <View style={styles.commentActionsRow}>
-          <TouchableOpacity onPress={() => onLike?.(item)} style={styles.actionBtn}>
-            <Ionicons 
-              name={item.is_liked ? "heart" : "heart-outline"} 
-              size={13} 
-              color={item.is_liked ? "#EF4444" : '#9CA3AF'} 
-            />
-            {item.like_count > 0 && (
-              <Text style={[styles.likeCountText, { color: item.is_liked ? "#EF4444" : '#9CA3AF' }]}>
-                {item.like_count}
-              </Text>
+        <View style={styles.commentContent}>
+          <View style={styles.authorRow}>
+            <Text
+              style={[styles.authorName, { color: theme.colors.TEXT_PRIMARY }]}
+              onPress={handleProfilePress}
+            >
+              {item.user?.name || item.author_name}
+            </Text>
+            {(item.user?.phone_verified || item.phone_verified) && (
+              <View style={{ marginRight: 6 }}>
+                <VerifiedBadge size={12} />
+              </View>
             )}
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => onReply?.(item)} style={styles.actionBtn}>
-            <Text style={[styles.replyText, { color: '#9CA3AF' }]}>Reply</Text>
-          </TouchableOpacity>
+            <Text style={[styles.timestamp, { color: '#9CA3AF' }]}>{timeAgo(item.timestamp)}</Text>
+          </View>
+
+          <Text style={[styles.commentText, { color: '#9CA3AF' }]}>{item.text}</Text>
+
+          <View style={styles.commentActionsRow}>
+            <TouchableOpacity onPress={() => onLike?.(item)} style={styles.actionBtn}>
+              <Ionicons
+                name={item.is_liked ? 'heart' : 'heart-outline'}
+                size={13}
+                color={item.is_liked ? '#EF4444' : '#9CA3AF'}
+              />
+              {item.like_count > 0 && (
+                <Text
+                  style={[styles.likeCountText, { color: item.is_liked ? '#EF4444' : '#9CA3AF' }]}
+                >
+                  {item.like_count}
+                </Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => onReply?.(item)} style={styles.actionBtn}>
+              <Text style={[styles.replyText, { color: '#9CA3AF' }]}>Reply</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
       </TouchableOpacity>
-      
+
       {hasReplies && !showReplies && (
         <TouchableOpacity style={styles.viewRepliesBtn} onPress={() => setShowReplies(true)}>
           <View style={[styles.viewRepliesLine, { backgroundColor: theme.colors.GLASS_BORDER }]} />
@@ -144,20 +144,24 @@ export const CommentItem: React.FC<CommentItemProps> = ({ item, currentUserId, o
 
       {hasReplies && showReplies && (
         <View style={styles.repliesList}>
-          {item.replies!.map(reply => (
-            <CommentItem 
-              key={reply.id} 
-              item={reply} 
+          {item.replies!.map((reply) => (
+            <CommentItem
+              key={reply.id}
+              item={reply}
               currentUserId={currentUserId}
-              onReply={onReply} 
-              onLike={onLike} 
-              onDelete={onDelete} 
+              onReply={onReply}
+              onLike={onLike}
+              onDelete={onDelete}
               onPressProfile={onPressProfile}
             />
           ))}
           <TouchableOpacity style={styles.viewRepliesBtn} onPress={() => setShowReplies(false)}>
-            <View style={[styles.viewRepliesLine, { backgroundColor: theme.colors.GLASS_BORDER }]} />
-            <Text style={[styles.viewRepliesText, { color: theme.colors.MUTED }]}>Hide replies</Text>
+            <View
+              style={[styles.viewRepliesLine, { backgroundColor: theme.colors.GLASS_BORDER }]}
+            />
+            <Text style={[styles.viewRepliesText, { color: theme.colors.MUTED }]}>
+              Hide replies
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -165,7 +169,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({ item, currentUserId, o
   );
 };
 
-const _stylesheet = createStyleSheet(theme => ({
+const _stylesheet = createStyleSheet((theme) => ({
   commentContainer: {
     marginBottom: 16,
   },

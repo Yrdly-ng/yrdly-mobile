@@ -1,8 +1,6 @@
-import { createStyleSheet, useStyles } from "react-native-unistyles";
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  View, Text, TouchableOpacity, Alert, Vibration, Animated,
-} from 'react-native';
+import { View, Text, TouchableOpacity, Alert, Vibration, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -14,9 +12,9 @@ const RED = '#B71C1C';
 type ScanResult = { success: true; attendee: string } | { success: false; message: string } | null;
 
 export default function ScanTicketScreen() {
-    const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { styles: stylesheet, theme } = useStyles(_stylesheet);
 
-    const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanning, setScanning] = useState(true);
@@ -37,24 +35,26 @@ export default function ScanTicketScreen() {
     cooldownRef.current = true;
     setScanning(false);
 
-      let parsedData: any = null;
-      try {
-        parsedData = JSON.parse(data);
-      } catch (e) {
-        // Fallback if data is just the ticket ID
-        parsedData = { ticket_code: data };
-      }
+    let parsedData: any = null;
+    try {
+      parsedData = JSON.parse(data);
+    } catch (e) {
+      // Fallback if data is just the ticket ID
+      parsedData = { ticket_code: data };
+    }
 
-      const ticketCode = parsedData.ticket_code;
+    const ticketCode = parsedData.ticket_code;
 
-      try {
+    try {
       // Direct Supabase implementation for ticket scanning & check-in
       const { data: ticket, error: ticketError } = await supabase
         .from('tickets')
-        .select(`
+        .select(
+          `
           *,
           user:users(name)
-        `)
+        `
+        )
         .eq('ticket_code', ticketCode)
         .single();
 
@@ -72,11 +72,11 @@ export default function ScanTicketScreen() {
         showFlash(false);
       } else {
         // Ticket is valid (active or confirmed). Update status to 'USED'
-          const { error: updateError } = await supabase
+        const { error: updateError } = await supabase
           .from('tickets')
           .update({ status: 'USED', scanned_at: new Date().toISOString() })
           .eq('id', ticket.id);
-          
+
         if (updateError) {
           setResult({ success: false, message: 'Failed to check in ticket. Please try again.' });
           showFlash(false);
@@ -88,7 +88,7 @@ export default function ScanTicketScreen() {
         }
       }
     } catch (e) {
-      console.error("Scan error", e);
+      console.error('Scan error', e);
       setResult({ success: false, message: 'Network error. Please check your connection.' });
       showFlash(false);
     }
@@ -102,15 +102,24 @@ export default function ScanTicketScreen() {
   };
 
   if (!permission) {
-    return <SafeAreaView style={[stylesheet.center, { backgroundColor: theme.colors.DARK }]}><Text style={{ color: theme.colors.TEXT_PRIMARY }}>Requesting camera permission…</Text></SafeAreaView>;
+    return (
+      <SafeAreaView style={[stylesheet.center, { backgroundColor: theme.colors.DARK }]}>
+        <Text style={{ color: theme.colors.TEXT_PRIMARY }}>Requesting camera permission…</Text>
+      </SafeAreaView>
+    );
   }
 
   if (!permission.granted) {
     return (
       <SafeAreaView style={[stylesheet.center, { backgroundColor: theme.colors.DARK }]}>
         <Feather name="camera" size={60} color={theme.colors.MUTED} />
-        <Text style={[stylesheet.permText, { color: theme.colors.LABEL }]}>Camera access is required to scan tickets.</Text>
-        <TouchableOpacity style={[stylesheet.permBtn, { backgroundColor: theme.colors.G }]} onPress={requestPermission}>
+        <Text style={[stylesheet.permText, { color: theme.colors.LABEL }]}>
+          Camera access is required to scan tickets.
+        </Text>
+        <TouchableOpacity
+          style={[stylesheet.permBtn, { backgroundColor: theme.colors.G }]}
+          onPress={requestPermission}
+        >
           <Text style={[stylesheet.permBtnText, { color: '#000' }]}>Grant Permission</Text>
         </TouchableOpacity>
       </SafeAreaView>
@@ -140,7 +149,9 @@ export default function ScanTicketScreen() {
           <TouchableOpacity onPress={() => router.back()} style={stylesheet.backBtn}>
             <Feather name="x" size={28} color={theme.colors.TEXT_PRIMARY} />
           </TouchableOpacity>
-          <Text style={[stylesheet.headerTitle, { color: theme.colors.TEXT_PRIMARY }]}>Scan Ticket</Text>
+          <Text style={[stylesheet.headerTitle, { color: theme.colors.TEXT_PRIMARY }]}>
+            Scan Ticket
+          </Text>
           <View style={{ width: 48 }} />
         </View>
       </SafeAreaView>
@@ -153,19 +164,31 @@ export default function ScanTicketScreen() {
           <View style={[stylesheet.corner, stylesheet.bottomLeft]} />
           <View style={[stylesheet.corner, stylesheet.bottomRight]} />
         </View>
-        <Text style={stylesheet.scanHint}>Point camera at the QR code on the attendee's ticket</Text>
+        <Text style={stylesheet.scanHint}>
+          Point camera at the QR code on the attendee's ticket
+        </Text>
       </View>
 
       {/* Result overlay */}
       {result && (
-        <View style={[stylesheet.resultBanner, { backgroundColor: result.success ? theme.colors.SURFACE : '#FFEBEE', shadowColor: theme.colors.TEXT_PRIMARY }]}>
+        <View
+          style={[
+            stylesheet.resultBanner,
+            {
+              backgroundColor: result.success ? theme.colors.SURFACE : '#FFEBEE',
+              shadowColor: theme.colors.TEXT_PRIMARY,
+            },
+          ]}
+        >
           <Feather
             name={result.success ? 'check-circle' : 'x-circle'}
             size={36}
             color={result.success ? theme.colors.G : RED}
           />
           <View style={{ flex: 1 }}>
-            <Text style={[stylesheet.resultTitle, { color: result.success ? theme.colors.G : RED }]}>
+            <Text
+              style={[stylesheet.resultTitle, { color: result.success ? theme.colors.G : RED }]}
+            >
               {result.success ? '✓ Valid Ticket' : '✗ Invalid Ticket'}
             </Text>
             <Text style={[stylesheet.resultSub, { color: theme.colors.LABEL }]}>
@@ -181,35 +204,89 @@ export default function ScanTicketScreen() {
 const CORNER_SIZE = 28;
 const CORNER_THICKNESS = 4;
 
-const _stylesheet = createStyleSheet(theme => ({
-      container: { flex: 1 },
-      center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 32 },
-      permText: { fontSize: 15, textAlign: 'center' },
-      permBtn: { paddingHorizontal: 24, paddingVertical: 14, borderRadius: 24 },
-      permBtnText: { fontSize: 16, fontWeight: 'bold' },
-      flashOverlay: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 },
-      headerOverlay: { position: 'absolute', top: 0, left: 0, right: 0 },
-      header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12 },
-      backBtn: { width: 48, height: 48, justifyContent: 'center', alignItems: 'center' },
-      headerTitle: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: 'bold', color: theme.colors.TEXT_PRIMARY },
-      viewfinderContainer: {
-        flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40,
-      },
-      viewfinder: {
-        width: 240, height: 240, position: 'relative', marginBottom: 24,
-      },
-      corner: { position: 'absolute', width: CORNER_SIZE, height: CORNER_SIZE },
-      topLeft: { top: 0, left: 0, borderTopWidth: CORNER_THICKNESS, borderLeftWidth: CORNER_THICKNESS, borderColor: theme.colors.TEXT_PRIMARY, borderTopLeftRadius: 4 },
-      topRight: { top: 0, right: 0, borderTopWidth: CORNER_THICKNESS, borderRightWidth: CORNER_THICKNESS, borderColor: theme.colors.TEXT_PRIMARY, borderTopRightRadius: 4 },
-      bottomLeft: { bottom: 0, left: 0, borderBottomWidth: CORNER_THICKNESS, borderLeftWidth: CORNER_THICKNESS, borderColor: theme.colors.TEXT_PRIMARY, borderBottomLeftRadius: 4 },
-      bottomRight: { bottom: 0, right: 0, borderBottomWidth: CORNER_THICKNESS, borderRightWidth: CORNER_THICKNESS, borderColor: theme.colors.TEXT_PRIMARY, borderBottomRightRadius: 4 },
-      scanHint: { color: 'rgba(255,255,255,0.7)', fontSize: 13, textAlign: 'center' },
-      resultBanner: {
-        position: 'absolute', bottom: 60, left: 20, right: 20,
-        flexDirection: 'row', alignItems: 'center', gap: 14,
-        borderRadius: 16, padding: 18,
-        shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10, elevation: 6,
-      },
-      resultTitle: { fontSize: 17, fontWeight: 'bold', marginBottom: 2 },
-      resultSub: { fontSize: 14 },
-    }));
+const _stylesheet = createStyleSheet((theme) => ({
+  container: { flex: 1 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 32 },
+  permText: { fontSize: 15, textAlign: 'center' },
+  permBtn: { paddingHorizontal: 24, paddingVertical: 14, borderRadius: 24 },
+  permBtnText: { fontSize: 16, fontWeight: 'bold' },
+  flashOverlay: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 },
+  headerOverlay: { position: 'absolute', top: 0, left: 0, right: 0 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  backBtn: { width: 48, height: 48, justifyContent: 'center', alignItems: 'center' },
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.TEXT_PRIMARY,
+  },
+  viewfinderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  viewfinder: {
+    width: 240,
+    height: 240,
+    position: 'relative',
+    marginBottom: 24,
+  },
+  corner: { position: 'absolute', width: CORNER_SIZE, height: CORNER_SIZE },
+  topLeft: {
+    top: 0,
+    left: 0,
+    borderTopWidth: CORNER_THICKNESS,
+    borderLeftWidth: CORNER_THICKNESS,
+    borderColor: theme.colors.TEXT_PRIMARY,
+    borderTopLeftRadius: 4,
+  },
+  topRight: {
+    top: 0,
+    right: 0,
+    borderTopWidth: CORNER_THICKNESS,
+    borderRightWidth: CORNER_THICKNESS,
+    borderColor: theme.colors.TEXT_PRIMARY,
+    borderTopRightRadius: 4,
+  },
+  bottomLeft: {
+    bottom: 0,
+    left: 0,
+    borderBottomWidth: CORNER_THICKNESS,
+    borderLeftWidth: CORNER_THICKNESS,
+    borderColor: theme.colors.TEXT_PRIMARY,
+    borderBottomLeftRadius: 4,
+  },
+  bottomRight: {
+    bottom: 0,
+    right: 0,
+    borderBottomWidth: CORNER_THICKNESS,
+    borderRightWidth: CORNER_THICKNESS,
+    borderColor: theme.colors.TEXT_PRIMARY,
+    borderBottomRightRadius: 4,
+  },
+  scanHint: { color: 'rgba(255,255,255,0.7)', fontSize: 13, textAlign: 'center' },
+  resultBanner: {
+    position: 'absolute',
+    bottom: 60,
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    borderRadius: 16,
+    padding: 18,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  resultTitle: { fontSize: 17, fontWeight: 'bold', marginBottom: 2 },
+  resultSub: { fontSize: 14 },
+}));

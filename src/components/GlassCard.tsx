@@ -7,7 +7,15 @@ interface GlassCardProps {
   children: React.ReactNode;
   style?: ViewStyle;
   intensity?: number;
-  tint?: 'light' | 'dark' | 'default' | 'extraLight' | 'systemChromeMaterial' | 'systemMaterial' | 'systemThickMaterial' | 'systemUltraThinMaterial';
+  tint?:
+    | 'light'
+    | 'dark'
+    | 'default'
+    | 'extraLight'
+    | 'systemChromeMaterial'
+    | 'systemMaterial'
+    | 'systemThickMaterial'
+    | 'systemUltraThinMaterial';
   borderRadius?: number;
 }
 
@@ -22,14 +30,12 @@ export function GlassCard({
     return (
       <LiquidGlassView
         intensity={intensity}
-        tint={(tint === 'light' || tint === 'dark' || tint === 'default') ? tint : 'light'}
+        tint={tint === 'light' || tint === 'dark' || tint === 'default' ? tint : 'light'}
         // Fallback color: Translucent white
         fallbackColor="rgba(255, 255, 255, 0.92)"
         style={[styles.glassIOS, { borderRadius }, style]}
       >
-        <View style={[styles.glassInner, { borderRadius }]}>
-          {children}
-        </View>
+        <View style={[styles.glassInner, { borderRadius }]}>{children}</View>
       </LiquidGlassView>
     );
   }
@@ -41,19 +47,13 @@ export function GlassCard({
         tint={tint}
         style={[styles.glassIOS, { borderRadius }, style]}
       >
-        <View style={[styles.glassInner, { borderRadius }]}>
-          {children}
-        </View>
+        <View style={[styles.glassInner, { borderRadius }]}>{children}</View>
       </BlurView>
     );
   }
 
   // Android fallback — semi-transparent surface
-  return (
-    <View style={[styles.glassAndroid, { borderRadius }, style]}>
-      {children}
-    </View>
-  );
+  return <View style={[styles.glassAndroid, { borderRadius }, style]}>{children}</View>;
 }
 
 const styles = StyleSheet.create({

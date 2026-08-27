@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from "react-native-unistyles";
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, FlatList, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,16 +10,21 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
 
 export default function NetworkScreen() {
-    const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { styles: stylesheet, theme } = useStyles(_stylesheet);
 
   const router = useRouter();
-    const { id, mode = 'followers' } = useLocalSearchParams<{ id: string; mode: 'followers' | 'following' }>();
+  const { id, mode = 'followers' } = useLocalSearchParams<{
+    id: string;
+    mode: 'followers' | 'following';
+  }>();
   const { user: currentUser, profile: currentProfile } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'followers' | 'following'>(mode as 'followers' | 'following');
+  const [activeTab, setActiveTab] = useState<'followers' | 'following'>(
+    mode as 'followers' | 'following'
+  );
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   const [currentUserFollowing, setCurrentUserFollowing] = useState<Set<string>>(new Set());
   const [currentUserFollowers, setCurrentUserFollowers] = useState<Set<string>>(new Set());
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
@@ -39,7 +44,7 @@ export default function NetworkScreen() {
             .select('follower_id')
             .eq('following_id', id);
           if (data) {
-            userIds = data.map(d => d.follower_id);
+            userIds = data.map((d) => d.follower_id);
           }
         } else {
           // Users whom 'id' follows
@@ -48,7 +53,7 @@ export default function NetworkScreen() {
             .select('following_id')
             .eq('follower_id', id);
           if (data) {
-            userIds = data.map(d => d.following_id);
+            userIds = data.map((d) => d.following_id);
           }
         }
 
@@ -57,24 +62,31 @@ export default function NetworkScreen() {
             .from('users')
             .select('id, name, avatar_url, phone_verified')
             .in('id', userIds);
-          
+
           setUsers(usersData || []);
 
           if (currentProfile) {
             // Fetch current user's follow status with these users
             const [{ data: followingData }, { data: followersData }] = await Promise.all([
-              supabase.from('followers').select('following_id').eq('follower_id', currentProfile.id).in('following_id', userIds),
-              supabase.from('followers').select('follower_id').eq('following_id', currentProfile.id).in('follower_id', userIds)
+              supabase
+                .from('followers')
+                .select('following_id')
+                .eq('follower_id', currentProfile.id)
+                .in('following_id', userIds),
+              supabase
+                .from('followers')
+                .select('follower_id')
+                .eq('following_id', currentProfile.id)
+                .in('follower_id', userIds),
             ]);
-            
+
             if (followingData) {
-              setCurrentUserFollowing(new Set(followingData.map(d => d.following_id)));
+              setCurrentUserFollowing(new Set(followingData.map((d) => d.following_id)));
             }
             if (followersData) {
-              setCurrentUserFollowers(new Set(followersData.map(d => d.follower_id)));
+              setCurrentUserFollowers(new Set(followersData.map((d) => d.follower_id)));
             }
           }
-
         } else {
           setUsers([]);
         }
@@ -90,27 +102,29 @@ export default function NetworkScreen() {
 
   const handleToggleFollow = async (targetId: string) => {
     if (!currentUser || !currentProfile) return;
-    setActionLoading(prev => ({ ...prev, [targetId]: true }));
-    
+    setActionLoading((prev) => ({ ...prev, [targetId]: true }));
+
     try {
       const isFollowing = currentUserFollowing.has(targetId);
-      
+
       if (isFollowing) {
-        await supabase.from('followers')
+        await supabase
+          .from('followers')
           .delete()
           .eq('follower_id', currentProfile.id)
           .eq('following_id', targetId);
-          
-        setCurrentUserFollowing(prev => {
+
+        setCurrentUserFollowing((prev) => {
           const next = new Set(prev);
           next.delete(targetId);
           return next;
         });
       } else {
-        await supabase.from('followers')
+        await supabase
+          .from('followers')
           .insert({ follower_id: currentProfile.id, following_id: targetId });
-          
-        setCurrentUserFollowing(prev => {
+
+        setCurrentUserFollowing((prev) => {
           const next = new Set(prev);
           next.add(targetId);
           return next;
@@ -119,21 +133,22 @@ export default function NetworkScreen() {
     } catch (e) {
       console.error('Follow error:', e);
     } finally {
-      setActionLoading(prev => ({ ...prev, [targetId]: false }));
+      setActionLoading((prev) => ({ ...prev, [targetId]: false }));
     }
   };
 
   const handleRemoveFollower = async (targetId: string) => {
     if (!currentUser || !currentProfile) return;
-    setActionLoading(prev => ({ ...prev, [targetId]: true }));
-    
+    setActionLoading((prev) => ({ ...prev, [targetId]: true }));
+
     try {
-      await supabase.from('followers')
+      await supabase
+        .from('followers')
         .delete()
         .eq('follower_id', targetId)
         .eq('following_id', currentProfile.id);
-        
-      setCurrentUserFollowers(prev => {
+
+      setCurrentUserFollowers((prev) => {
         const next = new Set(prev);
         next.delete(targetId);
         return next;
@@ -141,23 +156,24 @@ export default function NetworkScreen() {
     } catch (e) {
       console.error('Remove follower error:', e);
     } finally {
-      setActionLoading(prev => ({ ...prev, [targetId]: false }));
+      setActionLoading((prev) => ({ ...prev, [targetId]: false }));
     }
   };
 
-
   const renderUser = ({ item }: { item: any }) => {
-
     const isCurrentUser = currentProfile?.id === item.id;
     const isFollowing = currentUserFollowing.has(item.id);
     const isFollower = currentUserFollowers.has(item.id);
-    
+
     return (
       <TouchableOpacity
         style={[stylesheet.userRow, { borderBottomColor: theme.colors.GLASS_BORDER }]}
         onPress={() => router.push(`/profile/${item.id}` as any)}
       >
-        <TouchableOpacity onPress={() => router.push(`/profile/${item.id}` as any)} style={{ flexShrink: 0, marginRight: 12 }}>
+        <TouchableOpacity
+          onPress={() => router.push(`/profile/${item.id}` as any)}
+          style={{ flexShrink: 0, marginRight: 12 }}
+        >
           {item.avatar_url ? (
             <Image source={{ uri: item.avatar_url }} style={stylesheet.avatar} />
           ) : (
@@ -168,17 +184,21 @@ export default function NetworkScreen() {
             </View>
           )}
         </TouchableOpacity>
-        
+
         <View style={{ flex: 1, minWidth: 0, marginRight: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={stylesheet.userName} numberOfLines={1}>{item.name}</Text>
+            <Text style={stylesheet.userName} numberOfLines={1}>
+              {item.name}
+            </Text>
             {item.phone_verified && (
               <View style={{ marginLeft: 4 }}>
                 <VerifiedBadge size={14} />
               </View>
             )}
           </View>
-          <Text style={stylesheet.userHandle} numberOfLines={1}>@{item.username || 'user'}</Text>
+          <Text style={stylesheet.userHandle} numberOfLines={1}>
+            @{item.username || 'user'}
+          </Text>
           {isFollower && isFollowing && !isCurrentUser && (
             <Text style={stylesheet.mutualText}>Mutual</Text>
           )}
@@ -188,12 +208,15 @@ export default function NetworkScreen() {
         </View>
 
         {!isCurrentUser && (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[
-              stylesheet.followBtn, 
-              activeTab === 'followers' 
-                ? { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER } 
-                : { backgroundColor: isFollowing ? 'rgba(130,219,126,0.1)' : theme.colors.SURFACE, borderColor: isFollowing ? 'rgba(130,219,126,0.25)' : theme.colors.GLASS_BORDER }
+              stylesheet.followBtn,
+              activeTab === 'followers'
+                ? { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER }
+                : {
+                    backgroundColor: isFollowing ? 'rgba(130,219,126,0.1)' : theme.colors.SURFACE,
+                    borderColor: isFollowing ? 'rgba(130,219,126,0.25)' : theme.colors.GLASS_BORDER,
+                  },
             ]}
             onPress={() => {
               if (activeTab === 'followers') {
@@ -205,10 +228,26 @@ export default function NetworkScreen() {
             disabled={actionLoading[item.id] || (activeTab === 'followers' && !isFollower)}
           >
             {actionLoading[item.id] ? (
-              <ActivityIndicator size="small" color={activeTab === 'followers' ? theme.colors.MUTED : theme.colors.G} />
+              <ActivityIndicator
+                size="small"
+                color={activeTab === 'followers' ? theme.colors.MUTED : theme.colors.G}
+              />
             ) : (
-              <Text style={[stylesheet.followBtnText, activeTab === 'followers' ? { color: theme.colors.MUTED } : { color: isFollowing ? theme.colors.G : theme.colors.TEXT_PRIMARY }]}>
-                {activeTab === 'followers' ? (isFollower ? 'Remove' : 'Removed') : (isFollowing ? 'Following' : 'Follow')}
+              <Text
+                style={[
+                  stylesheet.followBtnText,
+                  activeTab === 'followers'
+                    ? { color: theme.colors.MUTED }
+                    : { color: isFollowing ? theme.colors.G : theme.colors.TEXT_PRIMARY },
+                ]}
+              >
+                {activeTab === 'followers'
+                  ? isFollower
+                    ? 'Remove'
+                    : 'Removed'
+                  : isFollowing
+                    ? 'Following'
+                    : 'Follow'}
               </Text>
             )}
           </TouchableOpacity>
@@ -217,7 +256,7 @@ export default function NetworkScreen() {
     );
   };
 
-  const filteredUsers = users.filter(u => {
+  const filteredUsers = users.filter((u) => {
     const matchName = u.name?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchHandle = u.username?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchName || matchHandle;
@@ -244,27 +283,41 @@ export default function NetworkScreen() {
       </View>
 
       <View style={stylesheet.tabsWrap}>
-        <TouchableOpacity
-          style={[stylesheet.tabBtn]}
-          onPress={() => setActiveTab('followers')}
-        >
-          <Text style={[stylesheet.tabTxt, { 
-            color: activeTab === 'followers' ? '#fff' : theme.colors.LABEL, 
-            fontFamily: activeTab === 'followers' ? 'Outfit-Bold' : 'Outfit-Medium' 
-          }]}>
-            Followers <Text style={{ color: activeTab === 'followers' ? theme.colors.G : theme.colors.LABEL }}>({activeTab === 'followers' ? filteredUsers.length : 0})</Text>
+        <TouchableOpacity style={[stylesheet.tabBtn]} onPress={() => setActiveTab('followers')}>
+          <Text
+            style={[
+              stylesheet.tabTxt,
+              {
+                color: activeTab === 'followers' ? '#fff' : theme.colors.LABEL,
+                fontFamily: activeTab === 'followers' ? 'Outfit-Bold' : 'Outfit-Medium',
+              },
+            ]}
+          >
+            Followers{' '}
+            <Text
+              style={{ color: activeTab === 'followers' ? theme.colors.G : theme.colors.LABEL }}
+            >
+              ({activeTab === 'followers' ? filteredUsers.length : 0})
+            </Text>
           </Text>
           {activeTab === 'followers' && <View style={stylesheet.tabIndicator} />}
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[stylesheet.tabBtn]}
-          onPress={() => setActiveTab('following')}
-        >
-          <Text style={[stylesheet.tabTxt, { 
-            color: activeTab === 'following' ? '#fff' : theme.colors.LABEL, 
-            fontFamily: activeTab === 'following' ? 'Outfit-Bold' : 'Outfit-Medium' 
-          }]}>
-            Following <Text style={{ color: activeTab === 'following' ? theme.colors.G : theme.colors.LABEL }}>({activeTab === 'following' ? filteredUsers.length : 0})</Text>
+        <TouchableOpacity style={[stylesheet.tabBtn]} onPress={() => setActiveTab('following')}>
+          <Text
+            style={[
+              stylesheet.tabTxt,
+              {
+                color: activeTab === 'following' ? '#fff' : theme.colors.LABEL,
+                fontFamily: activeTab === 'following' ? 'Outfit-Bold' : 'Outfit-Medium',
+              },
+            ]}
+          >
+            Following{' '}
+            <Text
+              style={{ color: activeTab === 'following' ? theme.colors.G : theme.colors.LABEL }}
+            >
+              ({activeTab === 'following' ? filteredUsers.length : 0})
+            </Text>
           </Text>
           {activeTab === 'following' && <View style={stylesheet.tabIndicator} />}
         </TouchableOpacity>
@@ -277,13 +330,15 @@ export default function NetworkScreen() {
       ) : (
         <FlatList
           data={filteredUsers}
-          keyExtractor={item => item.id}
+          keyExtractor={(item) => item.id}
           renderItem={renderUser}
           contentContainerStyle={stylesheet.listContent}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={stylesheet.emptyContainer}>
-              <Text style={[stylesheet.emptyText, { color: theme.colors.MUTED, fontFamily: 'Inter' }]}>
+              <Text
+                style={[stylesheet.emptyText, { color: theme.colors.MUTED, fontFamily: 'Inter' }]}
+              >
                 {activeTab === 'followers' ? 'No followers yet.' : 'Not following anyone yet.'}
               </Text>
             </View>
@@ -294,87 +349,128 @@ export default function NetworkScreen() {
   );
 }
 
-const _stylesheet = createStyleSheet(theme => ({
-      container: { flex: 1 },
-      header: {
-        flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 12, paddingTop: 10,
-        borderBottomWidth: 1, borderBottomColor: theme.colors.GLASS_BORDER,
-      },
-      navBtn: { width: 34, height: 34, borderRadius: 11, backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-      headerTitle: { fontSize: 18, fontFamily: 'Outfit-Bold', color: theme.colors.TEXT_PRIMARY },
-      searchContainer: {
-        flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginVertical: 12, paddingHorizontal: 12,
-        backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER, borderWidth: 1, borderRadius: 14, height: 40
-      },
-      searchInput: { flex: 1, fontFamily: 'Inter-Regular', fontSize: 14, color: theme.colors.TEXT_PRIMARY },
-      tabsWrap: { flexDirection: 'row', paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: theme.colors.GLASS_BORDER },
-      tabBtn: { flex: 1, paddingVertical: 12, position: 'relative' },
-      tabTxt: { fontSize: 14, textAlign: 'center', textTransform: 'capitalize' },
-      tabIndicator: { position: 'absolute', bottom: -1, left: 0, right: 0, height: 2, borderRadius: 99, backgroundColor: theme.colors.G },
-      
-      listContent: {
-        paddingHorizontal: 20,
-        paddingVertical: 12,
-        paddingBottom: 40,
-      },
-      userRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-      },
-      avatar: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-      },
-      avatarFallback: {
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: theme.colors.G,
-      },
-      avatarFallbackText: {
-        color: '#000',
-        fontFamily: 'Outfit-Bold',
-        fontSize: 18,
-      },
-      userName: {
-        fontSize: 14,
-        fontFamily: 'Inter-SemiBold',
-        color: theme.colors.TEXT_PRIMARY,
-      },
-      userHandle: {
-        fontSize: 12,
-        fontFamily: 'Inter-Regular',
-        color: theme.colors.LABEL,
-      },
-      mutualText: {
-        fontSize: 11,
-        fontFamily: 'Inter-Regular',
-        color: theme.colors.MUTED,
-        marginTop: 2,
-      },
-      followBtn: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 10,
-        borderWidth: 1,
-        alignItems: 'center',
-      },
-      followBtnText: {
-        fontSize: 12,
-        fontFamily: 'Inter-SemiBold',
-      },
-      centerContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-      },
-      emptyContainer: {
-        paddingVertical: 48,
-        alignItems: 'center',
-      },
-      emptyText: {
-        fontSize: 14,
-      },
-    }));
+const _stylesheet = createStyleSheet((theme) => ({
+  container: { flex: 1 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    paddingTop: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.GLASS_BORDER,
+  },
+  navBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: theme.colors.SURFACE,
+    borderColor: theme.colors.GLASS_BORDER,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: { fontSize: 18, fontFamily: 'Outfit-Bold', color: theme.colors.TEXT_PRIMARY },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: theme.colors.SURFACE,
+    borderColor: theme.colors.GLASS_BORDER,
+    borderWidth: 1,
+    borderRadius: 14,
+    height: 40,
+  },
+  searchInput: {
+    flex: 1,
+    fontFamily: 'Inter-Regular',
+    fontSize: 14,
+    color: theme.colors.TEXT_PRIMARY,
+  },
+  tabsWrap: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.GLASS_BORDER,
+  },
+  tabBtn: { flex: 1, paddingVertical: 12, position: 'relative' },
+  tabTxt: { fontSize: 14, textAlign: 'center', textTransform: 'capitalize' },
+  tabIndicator: {
+    position: 'absolute',
+    bottom: -1,
+    left: 0,
+    right: 0,
+    height: 2,
+    borderRadius: 99,
+    backgroundColor: theme.colors.G,
+  },
+
+  listContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    paddingBottom: 40,
+  },
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  avatarFallback: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.G,
+  },
+  avatarFallbackText: {
+    color: '#000',
+    fontFamily: 'Outfit-Bold',
+    fontSize: 18,
+  },
+  userName: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    color: theme.colors.TEXT_PRIMARY,
+  },
+  userHandle: {
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    color: theme.colors.LABEL,
+  },
+  mutualText: {
+    fontSize: 11,
+    fontFamily: 'Inter-Regular',
+    color: theme.colors.MUTED,
+    marginTop: 2,
+  },
+  followBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  followBtnText: {
+    fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    paddingVertical: 48,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+  },
+}));

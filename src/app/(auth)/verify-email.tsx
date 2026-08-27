@@ -1,6 +1,15 @@
 import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SceneBg, GlassCard, PrimaryBtn, BackBtn } from '@/components/onboarding/primitives';
@@ -21,7 +30,7 @@ export default function VerifyEmailScreen() {
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
   useEffect(() => {
-    const timer = setInterval(() => setCountdown(c => (c > 0 ? c - 1 : 0)), 1000);
+    const timer = setInterval(() => setCountdown((c) => (c > 0 ? c - 1 : 0)), 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -41,7 +50,7 @@ export default function VerifyEmailScreen() {
     }
   };
 
-  const filled = digits.every(d => d !== '');
+  const filled = digits.every((d) => d !== '');
 
   const handleVerifyOtp = async () => {
     const token = digits.join('');
@@ -51,7 +60,7 @@ export default function VerifyEmailScreen() {
     setVerifying(true);
 
     try {
-      const emailStr = (typeof email === 'string' && email) ? email.trim().toLowerCase() : '';
+      const emailStr = typeof email === 'string' && email ? email.trim().toLowerCase() : '';
       const { error: err } = await supabase.auth.verifyOtp({
         email: emailStr,
         token,
@@ -91,12 +100,19 @@ export default function VerifyEmailScreen() {
       <SceneBg photoId="1768244016593-8ca75b15bc92" pos="center 25%" gradientStart="42%" />
 
       <SafeAreaView style={styles.safeArea}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
           <View style={styles.topBar}>
             <BackBtn onClick={() => router.back()} light />
           </View>
 
-          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             <View style={{ flex: 1, minHeight: 40 }} />
 
             <GlassCard>
@@ -120,9 +136,11 @@ export default function VerifyEmailScreen() {
                 {digits.map((d, i) => (
                   <TextInput
                     key={i}
-                    ref={el => { inputRefs.current[i] = el; }}
+                    ref={(el) => {
+                      inputRefs.current[i] = el;
+                    }}
                     value={d}
-                    onChangeText={v => handleDigit(i, v)}
+                    onChangeText={(v) => handleDigit(i, v)}
                     onKeyPress={({ nativeEvent }) => handleKeyPress(i, nativeEvent.key)}
                     keyboardType="number-pad"
                     maxLength={1}
@@ -148,10 +166,15 @@ export default function VerifyEmailScreen() {
                   <Text
                     style={[
                       styles.resendText,
-                      { color: countdown > 0 ? colors.LABEL : colors.G, opacity: countdown > 0 ? 0.6 : 1 },
+                      {
+                        color: countdown > 0 ? colors.LABEL : colors.G,
+                        opacity: countdown > 0 ? 0.6 : 1,
+                      },
                     ]}
                   >
-                    {countdown > 0 ? `Resend email code in ${countdown}s` : 'Resend verification code'}
+                    {countdown > 0
+                      ? `Resend email code in ${countdown}s`
+                      : 'Resend verification code'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -163,7 +186,7 @@ export default function VerifyEmailScreen() {
   );
 }
 
-const stylesheet = createStyleSheet(theme => ({
+const stylesheet = createStyleSheet((theme) => ({
   container: {
     flex: 1,
     backgroundColor: colors.DARK,

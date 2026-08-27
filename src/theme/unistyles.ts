@@ -1,6 +1,22 @@
 import { UnistylesRegistry } from 'react-native-unistyles';
 import { Appearance } from 'react-native';
-import { G, GLOW, GLOW_STRONG, GOLD, BLUE, AMBER, RED, DANGER, WARNING, DIVIDER, SEVERITY, spacing, radii, fonts, glass } from '../constants/tokens';
+import {
+  G,
+  GLOW,
+  GLOW_STRONG,
+  GOLD,
+  BLUE,
+  AMBER,
+  RED,
+  DANGER,
+  WARNING,
+  DIVIDER,
+  SEVERITY,
+  spacing,
+  radii,
+  fonts,
+  glass,
+} from '../constants/tokens';
 
 export const darkTheme = {
   colors: {
@@ -16,13 +32,19 @@ export const darkTheme = {
     MUTED: 'rgba(255,255,255,0.55)',
     TEXT_PRIMARY: '#FFFFFF',
     TEXT_SECONDARY: '#A0A0A0',
-    GOLD, BLUE, AMBER, RED, DANGER, WARNING, DIVIDER,
+    GOLD,
+    BLUE,
+    AMBER,
+    RED,
+    DANGER,
+    WARNING,
+    DIVIDER,
   },
   spacing,
   radii,
   fonts,
   glass,
-  SEVERITY
+  SEVERITY,
 };
 
 export const lightTheme = {
@@ -30,8 +52,8 @@ export const lightTheme = {
     G,
     GLOW,
     GLOW_STRONG,
-    DARK: '#FFFFFF',          // True black -> True white
-    SURFACE_ALT: '#F9F9F9',   // Lifted canvas -> Light gray
+    DARK: '#FFFFFF', // True black -> True white
+    SURFACE_ALT: '#F9F9F9', // Lifted canvas -> Light gray
     GLASS_BG: 'rgba(255,255,255,0.74)',
     GLASS_BORDER: 'rgba(0,0,0,0.09)',
     SURFACE: 'rgba(0,0,0,0.055)',
@@ -39,7 +61,13 @@ export const lightTheme = {
     MUTED: 'rgba(0,0,0,0.6)',
     TEXT_PRIMARY: '#1C1C1C',
     TEXT_SECONDARY: '#757575',
-    GOLD, BLUE, AMBER, RED, DANGER, WARNING, DIVIDER: 'rgba(0,0,0,0.09)',
+    GOLD,
+    BLUE,
+    AMBER,
+    RED,
+    DANGER,
+    WARNING,
+    DIVIDER: 'rgba(0,0,0,0.09)',
   },
   spacing,
   radii,
@@ -50,18 +78,18 @@ export const lightTheme = {
     border: 'rgba(0,0,0,0.09)',
     blurIntensity: 80,
   },
-  SEVERITY
+  SEVERITY,
 };
 
 export const appThemes = {
   light: lightTheme,
-  dark: darkTheme
+  dark: darkTheme,
 };
 
 const breakpoints = {
   phone: 0,
   tablet: 768,
-  large: 1024
+  large: 1024,
 };
 
 type AppThemes = typeof appThemes;
@@ -72,13 +100,12 @@ declare module 'react-native-unistyles' {
   export interface UnistylesBreakpoints extends AppBreakpoints {}
 }
 
-UnistylesRegistry
-  .addBreakpoints(breakpoints)
+UnistylesRegistry.addBreakpoints(breakpoints)
   .addThemes({
     light: lightTheme,
-    dark: darkTheme
+    dark: darkTheme,
   })
   .addConfig({
     adaptiveThemes: false,
-    initialTheme: Appearance.getColorScheme() ?? 'dark'
+    initialTheme: Appearance.getColorScheme() ?? 'dark',
   });

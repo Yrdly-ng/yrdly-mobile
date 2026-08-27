@@ -8,26 +8,21 @@ export function BankLogo({ code, name, size = 24 }: { code: string; name: string
   const { styles: s, theme } = useStyles(stylesheet);
   const { getBankLogo } = useBankLogos();
   const logoUrl = getBankLogo(code);
-  
+
   if (logoUrl) {
     return (
-      <Image 
-        source={{ uri: logoUrl }} 
-        style={[s.image, { width: size, height: size, borderRadius: size / 2 }]} 
+      <Image
+        source={{ uri: logoUrl }}
+        style={[s.image, { width: size, height: size, borderRadius: size / 2 }]}
         contentFit="cover"
       />
     );
   }
-  
+
   // Fallback UI
   const initials = (name || '').substring(0, 2).toUpperCase();
   return (
-    <View 
-      style={[
-        s.fallbackContainer, 
-        { width: size, height: size, borderRadius: size / 2 }
-      ]}
-    >
+    <View style={[s.fallbackContainer, { width: size, height: size, borderRadius: size / 2 }]}>
       <Text style={[s.fallbackText, { fontSize: size * 0.4 }]}>{initials}</Text>
     </View>
   );
@@ -49,5 +44,5 @@ const stylesheet = createStyleSheet((theme) => ({
   fallbackText: {
     fontWeight: 'bold',
     color: theme.colors.G,
-  }
+  },
 }));

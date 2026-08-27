@@ -57,8 +57,6 @@ export const FILE_CONSTANTS = {
   ALLOWED_VIDEO_TYPES: ['video/mp4', 'video/webm', 'video/quicktime'],
 };
 
-
-
 // Error Messages
 export const ERROR_MESSAGES = {
   GENERIC: 'An unexpected error occurred. Please try again.',
@@ -66,7 +64,7 @@ export const ERROR_MESSAGES = {
   AUTH_FAILED: 'Authentication failed. Please check your credentials.',
   TOO_MANY_ATTEMPTS: 'Too many attempts. Please try again later.',
   SESSION_EXPIRED: 'Your session has expired. Please log in again.',
-  UNAUTHORIZED: 'You don\'t have permission to perform this action.',
+  UNAUTHORIZED: "You don't have permission to perform this action.",
   NOT_FOUND: 'The requested resource was not found.',
 };
 
@@ -80,11 +78,11 @@ export const MARKETPLACE_CONSTANTS = {
 
 // Events & Ticketing
 export const EVENT_CONSTANTS = {
-  COMMISSION_RATE: 0.03,  // 3% platform commission on ticket sales
+  COMMISSION_RATE: 0.03, // 3% platform commission on ticket sales
   AUTO_RELEASE_HOURS: 24, // Hours after event ends before payout is released
   CURRENCY: 'NGN',
-  MIN_TICKET_PRICE: 100,  // Minimum paid ticket price in NGN
-  MAX_TICKET_TIERS: 5,    // Maximum number of ticket tiers per event
+  MIN_TICKET_PRICE: 100, // Minimum paid ticket price in NGN
+  MAX_TICKET_TIERS: 5, // Maximum number of ticket tiers per event
   TICKET_CODE_PREFIX: 'YRD',
 };
 
@@ -97,4 +95,3 @@ export const SUCCESS_MESSAGES = {
   POST_CREATED: 'Post created successfully!',
   MESSAGE_SENT: 'Message sent!',
 };
-

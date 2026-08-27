@@ -6,9 +6,9 @@ export class UserActivityService {
     try {
       const { error } = await supabase
         .from('users')
-        .update({ 
+        .update({
           last_seen: new Date().toISOString(),
-          is_online: true
+          is_online: true,
         })
         .eq('id', userId);
 
@@ -25,7 +25,7 @@ export class UserActivityService {
     try {
       const cutoffTime = new Date();
       cutoffTime.setHours(cutoffTime.getHours() - hours);
-      
+
       const { data, error } = await supabase
         .from('users')
         .select('id, last_seen')
@@ -48,7 +48,7 @@ export class UserActivityService {
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0); // Start of today
-      
+
       const { data, error } = await supabase
         .from('users')
         .select('id, last_seen')

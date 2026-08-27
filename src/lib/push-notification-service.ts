@@ -18,7 +18,7 @@ export class PushNotificationService {
     try {
       const { type, ...restPayload } = payload;
       const { data, error } = await supabase.functions.invoke('send-push-notification', {
-        body: { userId, payload: restPayload, type }
+        body: { userId, payload: restPayload, type },
       });
 
       if (error) {
@@ -60,7 +60,7 @@ export class PushNotificationService {
     return this.sendToUser(userId, {
       title: 'Test Notification',
       body: 'This is a test push notification from Yrdly!',
-      url: '/home'
+      url: '/home',
     });
   }
 }

@@ -1,9 +1,16 @@
-import { createStyleSheet, useStyles } from "react-native-unistyles";
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View, Text, FlatList, TextInput,
-  TouchableOpacity, Platform,
-  ActivityIndicator, Keyboard, DeviceEventEmitter, Alert
+  View,
+  Text,
+  FlatList,
+  TextInput,
+  TouchableOpacity,
+  Platform,
+  ActivityIndicator,
+  Keyboard,
+  DeviceEventEmitter,
+  Alert,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
@@ -25,9 +32,9 @@ import { CommentInput, CommentInputRef } from '../../components/CommentInput';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 
 function PostDetailContent() {
-    const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { styles: stylesheet, theme } = useStyles(_stylesheet);
 
-    const router = useRouter();
+  const router = useRouter();
   const { id, focusComments } = useLocalSearchParams<{ id: string; focusComments?: string }>();
   const isFocused = useIsFocused();
   const [hasAutoScrolled, setHasAutoScrolled] = useState(false);
@@ -38,7 +45,7 @@ function PostDetailContent() {
   const [comments, setComments] = useState<CommentType[]>([]);
   const [loading, setLoading] = useState(true);
   const [replyingTo, setReplyingTo] = useState<{ id: string; name: string } | null>(null);
-  
+
   const { deletePost } = usePosts();
 
   const flatListRef = useRef<FlatList>(null);
@@ -47,8 +54,14 @@ function PostDetailContent() {
   // iOS Keyboard Gap Fix
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   useEffect(() => {
-    const showSub = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKeyboardVisible(true));
-    const hideSub = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKeyboardVisible(false));
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKeyboardVisible(true)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardVisible(false)
+    );
     return () => {
       showSub.remove();
       hideSub.remove();
@@ -73,21 +86,24 @@ function PostDetailContent() {
     }
   }, []);
 
-  const handleDeleteComment = useCallback(async (item: CommentType) => {
-    if (!id) return;
-    try {
-      const { error } = await supabase.from('comments').delete().eq('id', item.id);
-      if (error) throw error;
-      setComments(prev => prev.filter(c => c.id !== item.id));
-      if (post) {
-        const newCount = Math.max((post.comment_count || 1) - 1, 0);
-        await supabase.from('posts').update({ comment_count: newCount }).eq('id', id);
-        setPost(prev => prev ? { ...prev, comment_count: newCount } : null);
+  const handleDeleteComment = useCallback(
+    async (item: CommentType) => {
+      if (!id) return;
+      try {
+        const { error } = await supabase.from('comments').delete().eq('id', item.id);
+        if (error) throw error;
+        setComments((prev) => prev.filter((c) => c.id !== item.id));
+        if (post) {
+          const newCount = Math.max((post.comment_count || 1) - 1, 0);
+          await supabase.from('posts').update({ comment_count: newCount }).eq('id', id);
+          setPost((prev) => (prev ? { ...prev, comment_count: newCount } : null));
+        }
+      } catch (e) {
+        console.error('Delete comment error:', e);
       }
-    } catch (e) {
-      console.error('Delete comment error:', e);
-    }
-  }, [post, id]);
+    },
+    [post, id]
+  );
 
   const fetchPost = useCallback(async () => {
     if (!id) return;
@@ -112,14 +128,14 @@ function PostDetailContent() {
 
     if (!error && data) {
       if (user?.id) {
-        const commentIds = data.map(c => c.id);
+        const commentIds = data.map((c) => c.id);
         const { data: likesData } = await supabase
           .from('comment_likes')
           .select('comment_id')
           .eq('user_id', user.id)
           .in('comment_id', commentIds);
-        const likedSet = new Set(likesData?.map(l => l.comment_id) || []);
-        setComments(data.map(c => ({ ...c, is_liked: likedSet.has(c.id) })));
+        const likedSet = new Set(likesData?.map((l) => l.comment_id) || []);
+        setComments(data.map((c) => ({ ...c, is_liked: likedSet.has(c.id) })));
       } else {
         setComments(data);
       }
@@ -134,18 +150,24 @@ function PostDetailContent() {
     // Realtime comments
     const ch = supabase
       .channel(`comments-${id}-${Date.now()}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'comments',
-        filter: `post_id=eq.${id}`,
-      }, (payload) => {
-        setComments((prev) => [...prev, payload.new as CommentType]);
-        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-      })
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'comments',
+          filter: `post_id=eq.${id}`,
+        },
+        (payload) => {
+          setComments((prev) => [...prev, payload.new as CommentType]);
+          setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+        }
+      )
       .subscribe();
 
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      supabase.removeChannel(ch);
+    };
   }, [id, fetchPost, fetchComments]);
 
   useEffect(() => {
@@ -197,7 +219,10 @@ function PostDetailContent() {
         const newCount = (post.comment_count || 0) + 1;
         await supabase.from('posts').update({ comment_count: newCount }).eq('id', id);
         setPost({ ...post, comment_count: newCount });
-        DeviceEventEmitter.emit('post_updated', { postId: id, updates: { comment_count: newCount } });
+        DeviceEventEmitter.emit('post_updated', {
+          postId: id,
+          updates: { comment_count: newCount },
+        });
       }
 
       // Trigger notification
@@ -211,30 +236,36 @@ function PostDetailContent() {
     }
   };
 
-  const handleLikeComment = useCallback(async (item: CommentType) => {
-    if (!user) return;
-    const isLiked = item.is_liked;
-    const newCount = Math.max(0, (item.like_count || 0) + (isLiked ? -1 : 1));
-    setComments(prev => prev.map(c =>
-      c.id === item.id ? { ...c, is_liked: !isLiked, like_count: newCount } : c
-    ));
-    try {
-      if (isLiked) {
-        await supabase.from('comment_likes').delete().match({ comment_id: item.id, user_id: user.id });
-      } else {
-        await supabase.from('comment_likes').insert({ comment_id: item.id, user_id: user.id });
+  const handleLikeComment = useCallback(
+    async (item: CommentType) => {
+      if (!user) return;
+      const isLiked = item.is_liked;
+      const newCount = Math.max(0, (item.like_count || 0) + (isLiked ? -1 : 1));
+      setComments((prev) =>
+        prev.map((c) => (c.id === item.id ? { ...c, is_liked: !isLiked, like_count: newCount } : c))
+      );
+      try {
+        if (isLiked) {
+          await supabase
+            .from('comment_likes')
+            .delete()
+            .match({ comment_id: item.id, user_id: user.id });
+        } else {
+          await supabase.from('comment_likes').insert({ comment_id: item.id, user_id: user.id });
+        }
+        await supabase.from('comments').update({ like_count: newCount }).eq('id', item.id);
+      } catch (e) {
+        console.error('Like comment error:', e);
       }
-      await supabase.from('comments').update({ like_count: newCount }).eq('id', item.id);
-    } catch (e) {
-      console.error('Like comment error:', e);
-    }
-  }, [user]);
+    },
+    [user]
+  );
 
   const commentTree = React.useMemo(() => {
-    const rootComments = comments.filter(c => !c.parent_id);
-    return rootComments.map(root => ({
+    const rootComments = comments.filter((c) => !c.parent_id);
+    return rootComments.map((root) => ({
       ...root,
-      replies: comments.filter(c => c.parent_id === root.id)
+      replies: comments.filter((c) => c.parent_id === root.id),
     }));
   }, [comments]);
 
@@ -244,8 +275,8 @@ function PostDetailContent() {
       'Are you sure you want to delete this post? This action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
+        {
+          text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             if (id) {
@@ -253,36 +284,87 @@ function PostDetailContent() {
               DeviceEventEmitter.emit('post_deleted', id);
               router.back();
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
 
-  const renderComment = useCallback(({ item }: { item: CommentType }) => {
-    return (
-      <CommentItem 
-        item={item} 
-        currentUserId={user?.id}
-        onReply={handleReply}
-        onLike={handleLikeComment}
-        onDelete={handleDeleteComment}
-      />
-    );
-  }, [handleReply, handleLikeComment, handleDeleteComment, user?.id]);
+  const renderComment = useCallback(
+    ({ item }: { item: CommentType }) => {
+      return (
+        <CommentItem
+          item={item}
+          currentUserId={user?.id}
+          onReply={handleReply}
+          onLike={handleLikeComment}
+          onDelete={handleDeleteComment}
+        />
+      );
+    },
+    [handleReply, handleLikeComment, handleDeleteComment, user?.id]
+  );
 
   return (
-    <SafeAreaView style={[stylesheet.container, { backgroundColor: theme.colors.DARK }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView
+      style={[stylesheet.container, { backgroundColor: theme.colors.DARK }]}
+      edges={['top', 'left', 'right']}
+    >
       {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.GLASS_BORDER, backgroundColor: theme.colors.DARK }}>
-        <TouchableOpacity onPress={() => router.back()} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: theme.colors.SURFACE_ALT, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER, justifyContent: 'center', alignItems: 'center' }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: 20,
+          paddingTop: 10,
+          paddingBottom: 12,
+          borderBottomWidth: 1,
+          borderBottomColor: theme.colors.GLASS_BORDER,
+          backgroundColor: theme.colors.DARK,
+        }}
+      >
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 19,
+            backgroundColor: theme.colors.SURFACE_ALT,
+            borderWidth: 1,
+            borderColor: theme.colors.GLASS_BORDER,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
           <Ionicons name="chevron-back" size={20} color={theme.colors.TEXT_PRIMARY} />
         </TouchableOpacity>
 
-        <Text style={{ fontFamily: 'Outfit-Bold', fontWeight: '700', fontSize: 16, color: theme.colors.TEXT_PRIMARY }}>Post</Text>
+        <Text
+          style={{
+            fontFamily: 'Outfit-Bold',
+            fontWeight: '700',
+            fontSize: 16,
+            color: theme.colors.TEXT_PRIMARY,
+          }}
+        >
+          Post
+        </Text>
 
         {post?.user_id === user?.id ? (
-          <TouchableOpacity onPress={handleDeletePost} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: theme.colors.SURFACE_ALT, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER, justifyContent: 'center', alignItems: 'center' }}>
+          <TouchableOpacity
+            onPress={handleDeletePost}
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 19,
+              backgroundColor: theme.colors.SURFACE_ALT,
+              borderWidth: 1,
+              borderColor: theme.colors.GLASS_BORDER,
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
             <Feather name="trash-2" size={18} color="#EF4444" />
           </TouchableOpacity>
         ) : (
@@ -290,10 +372,7 @@ function PostDetailContent() {
         )}
       </View>
 
-      <KeyboardAvoidingView 
-        style={{ flex: 1 }} 
-        behavior="padding"
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         {loading && !post ? (
           <View style={stylesheet.center}>
             <ActivityIndicator size="large" color={theme.colors.G} />
@@ -311,7 +390,14 @@ function PostDetailContent() {
                 ) : (
                   <ActivityIndicator size="small" color={theme.colors.G} style={{ padding: 20 }} />
                 )}
-                <Text style={[stylesheet.commentsTitle, { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Outfit' }]}>Comments ({post?.comment_count || 0})</Text>
+                <Text
+                  style={[
+                    stylesheet.commentsTitle,
+                    { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Outfit' },
+                  ]}
+                >
+                  Comments ({post?.comment_count || 0})
+                </Text>
               </View>
             }
             contentContainerStyle={stylesheet.listContent}
@@ -319,7 +405,11 @@ function PostDetailContent() {
             ListEmptyComponent={
               <View style={stylesheet.emptyContainer}>
                 <Feather name="message-square" size={40} color={theme.colors.LABEL} />
-                <Text style={[stylesheet.emptyText, { color: theme.colors.MUTED, fontFamily: 'Inter' }]}>No comments yet. Be the first!</Text>
+                <Text
+                  style={[stylesheet.emptyText, { color: theme.colors.MUTED, fontFamily: 'Inter' }]}
+                >
+                  No comments yet. Be the first!
+                </Text>
               </View>
             }
           />
@@ -340,26 +430,29 @@ function PostDetailContent() {
   );
 }
 
-const _stylesheet = createStyleSheet(theme => ({
-      container: { flex: 1 },
-      header: {
-        flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12,
-        borderBottomWidth: 1,
-      },
-      backBtn: { width: 40, justifyContent: 'center', alignItems: 'flex-start' },
-      deleteBtn: { width: 40, justifyContent: 'center', alignItems: 'flex-end' },
-      headerTitle: { fontSize: 18, fontWeight: 'bold', flex: 1, textAlign: 'center' },
-      center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-      listContent: { paddingBottom: 20 },
-      listHeader: { paddingBottom: 10 },
-      divider: { height: 8, marginVertical: 10 },
-      commentsTitle: { fontSize: 16, fontWeight: 'bold', paddingHorizontal: 16, marginBottom: 10 },
-      emptyContainer: { alignItems: 'center', marginTop: 40 },
-      emptyText: { fontSize: 14, marginTop: 12 },
-    }));
+const _stylesheet = createStyleSheet((theme) => ({
+  container: { flex: 1 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  backBtn: { width: 40, justifyContent: 'center', alignItems: 'flex-start' },
+  deleteBtn: { width: 40, justifyContent: 'center', alignItems: 'flex-end' },
+  headerTitle: { fontSize: 18, fontWeight: 'bold', flex: 1, textAlign: 'center' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  listContent: { paddingBottom: 20 },
+  listHeader: { paddingBottom: 10 },
+  divider: { height: 8, marginVertical: 10 },
+  commentsTitle: { fontSize: 16, fontWeight: 'bold', paddingHorizontal: 16, marginBottom: 10 },
+  emptyContainer: { alignItems: 'center', marginTop: 40 },
+  emptyText: { fontSize: 14, marginTop: 12 },
+}));
 
 export default function PostDetailScreen() {
-    const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { styles: stylesheet, theme } = useStyles(_stylesheet);
 
   return (
     <ErrorBoundary screenName="PostDetail">

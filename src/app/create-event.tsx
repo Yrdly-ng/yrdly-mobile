@@ -1,6 +1,18 @@
-import { createStyleSheet, useStyles } from "react-native-unistyles";
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Switch, Dimensions } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  Alert,
+  Switch,
+  Dimensions,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -24,7 +36,7 @@ import { ModerationService } from '../lib/moderation-service';
 const STEPS = ['Basic Info', 'Date & Time', 'Location', 'Tickets', 'Photos', 'Review'];
 
 export default function CreateEventScreen() {
-    const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { styles: stylesheet, theme } = useStyles(_stylesheet);
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -36,33 +48,33 @@ export default function CreateEventScreen() {
   const [eventName, setEventName] = useState('');
   const [eventCategory, setEventCategory] = useState('');
   const [desc, setDesc] = useState('');
-  
+
   const [eventDate, setEventDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [startTime, setStartTime] = useState<Date>(new Date());
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [endTime, setEndTime] = useState<Date>(new Date());
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
-  
+
   const [venue, setVenue] = useState('');
   const [area, setArea] = useState('');
   const [isOnline, setIsOnline] = useState(false);
   const [onlineLink, setOnlineLink] = useState('');
-  
+
   const [postState, setPostState] = useState('');
   const [postLga, setPostLga] = useState('');
   const [postWard, setPostWard] = useState('');
   const [postLat, setPostLat] = useState<number | null>(null);
   const [postLng, setPostLng] = useState<number | null>(null);
-  
+
   const [attachedFiles, setAttachedFiles] = useState<MobileFile[]>([]);
   const [coverIndex, setCoverIndex] = useState(0);
   const [posting, setPosting] = useState(false);
-  const [imageDimsMap, setImageDimsMap] = useState<{ [uri: string]: { w: number, h: number } }>({});
-  
-  const [tiers, setTiers] = useState<Array<{ name: string; price: string; isFree: boolean; capacity: string }>>([
-    { name: 'Standard Ticket', price: '0', isFree: true, capacity: '100' }
-  ]);
+  const [imageDimsMap, setImageDimsMap] = useState<{ [uri: string]: { w: number; h: number } }>({});
+
+  const [tiers, setTiers] = useState<
+    Array<{ name: string; price: string; isFree: boolean; capacity: string }>
+  >([{ name: 'Standard Ticket', price: '0', isFree: true, capacity: '100' }]);
 
   const [publishing, setPublishing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -95,7 +107,7 @@ export default function CreateEventScreen() {
     try {
       const isPhoto = type === 'photo';
       const options: any = { mediaType: type };
-      
+
       if (isPhoto) {
         options.multiple = true;
         options.maxFiles = 10;
@@ -104,17 +116,17 @@ export default function CreateEventScreen() {
         options.multiple = true;
         options.maxFiles = 3;
       }
-      
+
       const image = await ImagePicker.openPicker(options);
 
       if (image) {
         let validFiles: MobileFile[] = [];
-        let videoCount = attachedFiles.filter(f => f.type?.startsWith('video/')).length;
-        
+        let videoCount = attachedFiles.filter((f) => f.type?.startsWith('video/')).length;
+
         const assets = Array.isArray(image) ? image : [image];
         for (const asset of assets) {
           const type = asset.mime || (asset.path.endsWith('.mp4') ? 'video/mp4' : 'image/jpeg');
-          
+
           if (type.startsWith('video/')) {
             videoCount++;
             if (videoCount > 3) {
@@ -129,7 +141,7 @@ export default function CreateEventScreen() {
               }
             }
           }
-          
+
           const file: MobileFile = {
             uri: asset.path,
             name: asset.filename || `media_${Date.now()}`,
@@ -138,10 +150,13 @@ export default function CreateEventScreen() {
           validFiles.push(file);
 
           if (type.startsWith('image/') && asset.width && asset.height) {
-            setImageDimsMap(prev => ({ ...prev, [asset.path]: { w: asset.width, h: asset.height } }));
+            setImageDimsMap((prev) => ({
+              ...prev,
+              [asset.path]: { w: asset.width, h: asset.height },
+            }));
           }
         }
-        setAttachedFiles(prev => [...prev, ...validFiles]);
+        setAttachedFiles((prev) => [...prev, ...validFiles]);
       }
     } catch (e: any) {
       if (e.message !== 'User cancelled image selection' && e.message !== 'User cancelled') {
@@ -151,47 +166,48 @@ export default function CreateEventScreen() {
   };
 
   const pickImages = () => {
-    Alert.alert(
-      'Attach Media',
-      'Choose the type of media to upload',
-      [
-        { text: 'Photo', onPress: () => pickMedia('photo') },
-        { text: 'Video', onPress: () => pickMedia('video') },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+    Alert.alert('Attach Media', 'Choose the type of media to upload', [
+      { text: 'Photo', onPress: () => pickMedia('photo') },
+      { text: 'Video', onPress: () => pickMedia('video') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   const addTier = () => {
-    setTiers(prev => [...prev, { name: 'VIP Ticket', price: '1000', isFree: false, capacity: '50' }]);
+    setTiers((prev) => [
+      ...prev,
+      { name: 'VIP Ticket', price: '1000', isFree: false, capacity: '50' },
+    ]);
   };
 
   const removeTier = (index: number) => {
     if (tiers.length <= 1) return;
-    setTiers(prev => prev.filter((_, i) => i !== index));
+    setTiers((prev) => prev.filter((_, i) => i !== index));
   };
 
   const updateTier = (index: number, field: string, value: any) => {
-    setTiers(prev => prev.map((t, i) => {
-      if (i !== index) return t;
-      if (field === 'isFree') return { ...t, isFree: value, price: value ? '0' : t.price };
-      return { ...t, [field]: value };
-    }));
+    setTiers((prev) =>
+      prev.map((t, i) => {
+        if (i !== index) return t;
+        if (field === 'isFree') return { ...t, isFree: value, price: value ? '0' : t.price };
+        return { ...t, [field]: value };
+      })
+    );
   };
 
   const canNext = [
     eventName.trim() && eventCategory,
     true, // date/time always valid due to Date object
-    isOnline ? true : (venue.trim() && area.trim()),
-    tiers.length > 0 && tiers.every(t => t.name.trim()),
-    attachedFiles.some(f => f.type?.startsWith('image/')),
+    isOnline ? true : venue.trim() && area.trim(),
+    tiers.length > 0 && tiers.every((t) => t.name.trim()),
+    attachedFiles.some((f) => f.type?.startsWith('image/')),
     true,
   ][step];
 
   const handleNext = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (step < STEPS.length - 1) {
-      setStep(s => s + 1);
+      setStep((s) => s + 1);
     } else {
       if (!user || !profile) {
         Alert.alert('Authentication required', 'Please sign in to create an event.');
@@ -204,20 +220,22 @@ export default function CreateEventScreen() {
         let videoUrls: string[] = [];
 
         if (attachedFiles.length > 0) {
-          const images = attachedFiles.filter(f => f.type?.startsWith('image/'));
-          const videos = attachedFiles.filter(f => f.type?.startsWith('video/'));
-          
+          const images = attachedFiles.filter((f) => f.type?.startsWith('image/'));
+          const videos = attachedFiles.filter((f) => f.type?.startsWith('video/'));
+
           const hasImages = images.length > 0;
           const hasVideos = videos.length > 0;
-          
-          const imageProgressWeight = (hasImages && hasVideos) ? 0.5 : 1;
-          const videoProgressWeight = (hasImages && hasVideos) ? 0.5 : 1;
-          
+
+          const imageProgressWeight = hasImages && hasVideos ? 0.5 : 1;
+          const videoProgressWeight = hasImages && hasVideos ? 0.5 : 1;
+
           let imageProgress = 0;
           let videoProgress = 0;
 
           const updateOverallProgress = () => {
-              setUploadProgress(imageProgress * imageProgressWeight + videoProgress * videoProgressWeight);
+            setUploadProgress(
+              imageProgress * imageProgressWeight + videoProgress * videoProgressWeight
+            );
           };
 
           if (hasImages) {
@@ -228,56 +246,71 @@ export default function CreateEventScreen() {
             }
             const progressMap = new Map<number, number>();
             const uploadedImages = await Promise.all(
-              filesToUpload.map((file, index) => StorageService.uploadPostImage(user.id, file, (p) => {
+              filesToUpload.map((file, index) =>
+                StorageService.uploadPostImage(user.id, file, (p) => {
                   progressMap.set(index, p);
                   let totalProgress = 0;
-                  progressMap.forEach(v => totalProgress += v);
+                  progressMap.forEach((v) => (totalProgress += v));
                   imageProgress = totalProgress / filesToUpload.length;
                   updateOverallProgress();
-              }))
+                })
+              )
             );
-            const failedImage = uploadedImages.find(res => res.error);
+            const failedImage = uploadedImages.find((res) => res.error);
             if (failedImage) throw new Error('Failed to upload one or more images.');
-            imageUrls = uploadedImages.map(res => res.url).filter(Boolean) as string[];
+            imageUrls = uploadedImages.map((res) => res.url).filter(Boolean) as string[];
           }
 
           if (hasVideos) {
             const progressMap = new Map<number, number>();
             const uploadedVideos = await Promise.all(
-              videos.map((file, index) => StorageService.uploadPostVideo(user.id, file, (p) => {
+              videos.map((file, index) =>
+                StorageService.uploadPostVideo(user.id, file, (p) => {
                   progressMap.set(index, p);
                   let totalProgress = 0;
-                  progressMap.forEach(v => totalProgress += v);
+                  progressMap.forEach((v) => (totalProgress += v));
                   videoProgress = totalProgress / videos.length;
                   updateOverallProgress();
-              }))
+                })
+              )
             );
-            const failedVideo = uploadedVideos.find(res => res.error);
+            const failedVideo = uploadedVideos.find((res) => res.error);
             if (failedVideo) throw new Error('Failed to upload one or more videos.');
-            videoUrls = uploadedVideos.map(res => res.url).filter(Boolean) as string[];
+            videoUrls = uploadedVideos.map((res) => res.url).filter(Boolean) as string[];
           }
         }
-        
+
         const coverUrl = imageUrls.length > 0 ? imageUrls[0] : '';
-        
+
         // Parse start and end time ISOs safely
-        const startISO = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate(), startTime.getHours(), startTime.getMinutes()).toISOString();
-        const endISO = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate(), endTime.getHours(), endTime.getMinutes()).toISOString();
+        const startISO = new Date(
+          eventDate.getFullYear(),
+          eventDate.getMonth(),
+          eventDate.getDate(),
+          startTime.getHours(),
+          startTime.getMinutes()
+        ).toISOString();
+        const endISO = new Date(
+          eventDate.getFullYear(),
+          eventDate.getMonth(),
+          eventDate.getDate(),
+          endTime.getHours(),
+          endTime.getMinutes()
+        ).toISOString();
 
         // 1. Moderate Text Before Uploading Media
         let modStatus = 'approved';
         let modReason = '';
         const textToModerate = [eventName.trim(), desc.trim()].filter(Boolean).join(' ');
         if (textToModerate) {
-           const textMod = await ModerationService.checkText(textToModerate);
-           if (!textMod.isSafe) {
-              modStatus = 'pending';
-              modReason = textMod.reason || 'Flagged text content';
-           }
+          const textMod = await ModerationService.checkText(textToModerate);
+          if (!textMod.isSafe) {
+            modStatus = 'pending';
+            modReason = textMod.reason || 'Flagged text content';
+          }
         }
-        
-        // Moderate uploaded images
 
+        // Moderate uploaded images
 
         const { data: newEvent, error: eventErr } = await supabase
           .from('events')
@@ -295,12 +328,15 @@ export default function CreateEventScreen() {
             location_address: venue.trim() || (isOnline ? 'Online Event' : 'TBA'),
             location_online: isOnline,
             online_link: isOnline ? onlineLink.trim() : null,
-            state: isOnline ? null : (postState || null),
-            lga: isOnline ? null : (postLga || null),
-            ward: isOnline ? null : (postWard || null),
+            state: isOnline ? null : postState || null,
+            lga: isOnline ? null : postLga || null,
+            ward: isOnline ? null : postWard || null,
             lat: isOnline ? null : postLat,
             lng: isOnline ? null : postLng,
-            location_geom: (!isOnline && postLat !== null && postLng !== null) ? `POINT(${postLng} ${postLat})` : null,
+            location_geom:
+              !isOnline && postLat !== null && postLng !== null
+                ? `POINT(${postLng} ${postLat})`
+                : null,
             status: 'PUBLISHED',
           })
           .select()
@@ -311,10 +347,10 @@ export default function CreateEventScreen() {
         }
 
         // Insert ticket tiers
-        const tierInserts = tiers.map(t => ({
+        const tierInserts = tiers.map((t) => ({
           event_id: newEvent.id,
           name: t.name.trim(),
-          price: t.isFree ? 0 : (parseFloat(t.price) || 0),
+          price: t.isFree ? 0 : parseFloat(t.price) || 0,
           capacity: t.capacity ? parseInt(t.capacity) : null,
           sold: 0,
         }));
@@ -330,31 +366,31 @@ export default function CreateEventScreen() {
           title: eventName.trim(),
           text: desc.trim(),
           event_date: startISO,
-          event_time: startTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+          event_time: startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           event_location: { address: venue.trim() },
           event_link: `/events/${newEvent.id}`,
           image_urls: imageUrls,
           video_urls: videoUrls,
-          state: isOnline ? null : (postState || null),
-          lga: isOnline ? null : (postLga || null),
-          ward: isOnline ? null : (postWard || null),
+          state: isOnline ? null : postState || null,
+          lga: isOnline ? null : postLga || null,
+          ward: isOnline ? null : postWard || null,
           visibility: visibility,
           moderation_status: modStatus,
           timestamp: new Date().toISOString(),
           liked_by: [],
           comment_count: 0,
         });
-        
+
         if (modStatus === 'pending') {
-            await supabase.from('moderation_queue').insert({
-                content_id: newEvent.id,
-                table_name: 'events',
-                user_id: user.id,
-                status: 'pending',
-                reason: modReason,
-                text_content: textToModerate,
-                image_urls: imageUrls,
-            });
+          await supabase.from('moderation_queue').insert({
+            content_id: newEvent.id,
+            table_name: 'events',
+            user_id: user.id,
+            status: 'pending',
+            reason: modReason,
+            text_content: textToModerate,
+            image_urls: imageUrls,
+          });
         }
 
         setPublishing(false);
@@ -372,7 +408,7 @@ export default function CreateEventScreen() {
 
   const handleBack = () => {
     if (step > 0) {
-      setStep(s => s - 1);
+      setStep((s) => s - 1);
     } else {
       router.back();
     }
@@ -382,12 +418,23 @@ export default function CreateEventScreen() {
     if (moderationStatus === 'pending') {
       return (
         <View style={[stylesheet.successContainer, { backgroundColor: theme.colors.DARK }]}>
-          <View style={[stylesheet.successIcon, { backgroundColor: 'rgba(255, 165, 0, 0.12)', borderColor: 'rgba(255, 165, 0, 0.25)' }]}>
+          <View
+            style={[
+              stylesheet.successIcon,
+              {
+                backgroundColor: 'rgba(255, 165, 0, 0.12)',
+                borderColor: 'rgba(255, 165, 0, 0.25)',
+              },
+            ]}
+          >
             <Feather name="clock" size={34} color="#FFA500" />
           </View>
           <Text style={stylesheet.successTitle}>Sent for Moderation</Text>
-          <Text style={stylesheet.successDesc}>Your event was flagged and has been sent for admin review. It will appear on the feed once approved.</Text>
-          <TouchableOpacity 
+          <Text style={stylesheet.successDesc}>
+            Your event was flagged and has been sent for admin review. It will appear on the feed
+            once approved.
+          </Text>
+          <TouchableOpacity
             style={stylesheet.btnPrimary}
             onPress={() => {
               router.replace('/(tabs)');
@@ -398,19 +445,21 @@ export default function CreateEventScreen() {
         </View>
       );
     }
-    
+
     return (
       <View style={[stylesheet.successContainer, { backgroundColor: theme.colors.DARK }]}>
         <View style={stylesheet.successIcon}>
           <Feather name="calendar" size={34} color={theme.colors.G} />
         </View>
         <Text style={stylesheet.successTitle}>Event Published!</Text>
-        <Text style={stylesheet.successDesc}>Your event is live and neighbours can now get tickets.</Text>
-        <TouchableOpacity 
+        <Text style={stylesheet.successDesc}>
+          Your event is live and neighbours can now get tickets.
+        </Text>
+        <TouchableOpacity
           style={stylesheet.btnPrimary}
           onPress={() => {
-              router.replace('/(tabs)');
-            }}
+            router.replace('/(tabs)');
+          }}
         >
           <Text style={stylesheet.btnPrimaryText}>Explore Events</Text>
         </TouchableOpacity>
@@ -419,7 +468,7 @@ export default function CreateEventScreen() {
   }
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={[stylesheet.container, { backgroundColor: theme.colors.DARK, paddingTop: insets.top }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
@@ -429,7 +478,9 @@ export default function CreateEventScreen() {
         </TouchableOpacity>
         <View style={stylesheet.headerTextContainer}>
           <Text style={stylesheet.headerTitle}>Create Event</Text>
-          <Text style={stylesheet.headerSubtitle}>Step {step + 1} of {STEPS.length} · {STEPS[step]}</Text>
+          <Text style={stylesheet.headerSubtitle}>
+            Step {step + 1} of {STEPS.length} · {STEPS[step]}
+          </Text>
         </View>
       </View>
 
@@ -437,12 +488,21 @@ export default function CreateEventScreen() {
         <Animated.View style={[stylesheet.progressBarFill, animatedProgressStyle]} />
       </View>
       {publishing && uploadProgress > 0 && (
-          <View style={{ height: 3, backgroundColor: 'rgba(130,219,126,0.2)' }}>
-              <View style={{ height: 3, backgroundColor: theme.colors.G, width: `${Math.round(uploadProgress * 100)}%` }} />
-          </View>
+        <View style={{ height: 3, backgroundColor: 'rgba(130,219,126,0.2)' }}>
+          <View
+            style={{
+              height: 3,
+              backgroundColor: theme.colors.G,
+              width: `${Math.round(uploadProgress * 100)}%`,
+            }}
+          />
+        </View>
       )}
 
-      <ScrollView contentContainerStyle={stylesheet.scrollContent} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={stylesheet.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
         {step === 0 && (
           <View style={stylesheet.formGroup}>
             <Text style={stylesheet.stepTitle}>Basic Info</Text>
@@ -459,16 +519,30 @@ export default function CreateEventScreen() {
 
             <Text style={stylesheet.label}>Category</Text>
             {categoriesLoading ? (
-              <ActivityIndicator color={theme.colors.GOLD} style={{ marginTop: 10, alignSelf: 'flex-start' }} />
+              <ActivityIndicator
+                color={theme.colors.GOLD}
+                style={{ marginTop: 10, alignSelf: 'flex-start' }}
+              />
             ) : (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={stylesheet.chipRow}>
-                {categories.map(cat => (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={stylesheet.chipRow}
+              >
+                {categories.map((cat) => (
                   <TouchableOpacity
                     key={cat.id}
                     style={[stylesheet.chip, eventCategory === cat.name && stylesheet.chipActive]}
                     onPress={() => setEventCategory(cat.name)}
                   >
-                    <Text style={[stylesheet.chipText, eventCategory === cat.name && stylesheet.chipTextActive]}>{cat.name}</Text>
+                    <Text
+                      style={[
+                        stylesheet.chipText,
+                        eventCategory === cat.name && stylesheet.chipTextActive,
+                      ]}
+                    >
+                      {cat.name}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -494,37 +568,57 @@ export default function CreateEventScreen() {
 
             <Text style={stylesheet.label}>Event Date</Text>
             <TouchableOpacity style={stylesheet.input} onPress={() => setShowDatePicker(true)}>
-              <Text style={{ color: theme.colors.TEXT_PRIMARY }}>{eventDate.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</Text>
+              <Text style={{ color: theme.colors.TEXT_PRIMARY }}>
+                {eventDate.toLocaleDateString(undefined, {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })}
+              </Text>
             </TouchableOpacity>
             <DateTimePickerModal
               visible={showDatePicker}
               mode="date"
               value={eventDate}
-              onConfirm={(d) => { setEventDate(d); setShowDatePicker(false); }}
+              onConfirm={(d) => {
+                setEventDate(d);
+                setShowDatePicker(false);
+              }}
               onCancel={() => setShowDatePicker(false)}
             />
 
             <Text style={stylesheet.label}>Start Time</Text>
             <TouchableOpacity style={stylesheet.input} onPress={() => setShowStartTimePicker(true)}>
-              <Text style={{ color: theme.colors.TEXT_PRIMARY }}>{startTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
+              <Text style={{ color: theme.colors.TEXT_PRIMARY }}>
+                {startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </Text>
             </TouchableOpacity>
             <DateTimePickerModal
               visible={showStartTimePicker}
               mode="time"
               value={startTime}
-              onConfirm={(d) => { setStartTime(d); setShowStartTimePicker(false); }}
+              onConfirm={(d) => {
+                setStartTime(d);
+                setShowStartTimePicker(false);
+              }}
               onCancel={() => setShowStartTimePicker(false)}
             />
 
             <Text style={stylesheet.label}>End Time</Text>
             <TouchableOpacity style={stylesheet.input} onPress={() => setShowEndTimePicker(true)}>
-              <Text style={{ color: theme.colors.TEXT_PRIMARY }}>{endTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
+              <Text style={{ color: theme.colors.TEXT_PRIMARY }}>
+                {endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </Text>
             </TouchableOpacity>
             <DateTimePickerModal
               visible={showEndTimePicker}
               mode="time"
               value={endTime}
-              onConfirm={(d) => { setEndTime(d); setShowEndTimePicker(false); }}
+              onConfirm={(d) => {
+                setEndTime(d);
+                setShowEndTimePicker(false);
+              }}
               onCancel={() => setShowEndTimePicker(false)}
             />
           </View>
@@ -536,8 +630,20 @@ export default function CreateEventScreen() {
             <Text style={stylesheet.stepDesc}>Where can attendees find your event?</Text>
 
             <View style={stylesheet.switchRow}>
-              <Text style={{ fontFamily: 'Inter-Medium', color: theme.colors.TEXT_PRIMARY, fontSize: 15 }}>Online Event</Text>
-              <Switch value={isOnline} onValueChange={setIsOnline} trackColor={{ false: theme.colors.SURFACE, true: theme.colors.G }} />
+              <Text
+                style={{
+                  fontFamily: 'Inter-Medium',
+                  color: theme.colors.TEXT_PRIMARY,
+                  fontSize: 15,
+                }}
+              >
+                Online Event
+              </Text>
+              <Switch
+                value={isOnline}
+                onValueChange={setIsOnline}
+                trackColor={{ false: theme.colors.SURFACE, true: theme.colors.G }}
+              />
             </View>
 
             {isOnline ? (
@@ -626,8 +732,22 @@ export default function CreateEventScreen() {
 
             {tiers.map((t, idx) => (
               <View key={idx} style={stylesheet.tierCard}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={{ fontFamily: 'Outfit-Bold', color: theme.colors.TEXT_PRIMARY, fontSize: 16 }}>Ticket Tier {idx + 1}</Text>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: 'Outfit-Bold',
+                      color: theme.colors.TEXT_PRIMARY,
+                      fontSize: 16,
+                    }}
+                  >
+                    Ticket Tier {idx + 1}
+                  </Text>
                   {tiers.length > 1 && (
                     <TouchableOpacity onPress={() => removeTier(idx)} style={{ padding: 4 }}>
                       <Feather name="trash-2" size={18} color="#ef4444" />
@@ -645,8 +765,14 @@ export default function CreateEventScreen() {
                 />
 
                 <View style={stylesheet.switchRow}>
-                  <Text style={{ fontFamily: 'Inter-Medium', color: '#ccc', fontSize: 14 }}>Is this a Free Ticket?</Text>
-                  <Switch value={t.isFree} onValueChange={(val) => updateTier(idx, 'isFree', val)} trackColor={{ false: theme.colors.SURFACE, true: theme.colors.G }} />
+                  <Text style={{ fontFamily: 'Inter-Medium', color: '#ccc', fontSize: 14 }}>
+                    Is this a Free Ticket?
+                  </Text>
+                  <Switch
+                    value={t.isFree}
+                    onValueChange={(val) => updateTier(idx, 'isFree', val)}
+                    trackColor={{ false: theme.colors.SURFACE, true: theme.colors.G }}
+                  />
                 </View>
 
                 {!t.isFree && (
@@ -677,7 +803,9 @@ export default function CreateEventScreen() {
 
             <TouchableOpacity style={stylesheet.addTierBtn} onPress={addTier}>
               <Ionicons name="add" size={20} color={theme.colors.G} />
-              <Text style={{ fontFamily: 'Outfit-Bold', color: theme.colors.G, fontSize: 14 }}>Add Ticket Tier</Text>
+              <Text style={{ fontFamily: 'Outfit-Bold', color: theme.colors.G, fontSize: 14 }}>
+                Add Ticket Tier
+              </Text>
             </TouchableOpacity>
           </View>
         )}
@@ -685,23 +813,51 @@ export default function CreateEventScreen() {
         {step === 4 && (
           <View style={stylesheet.formGroup}>
             <Text style={stylesheet.stepTitle}>Media</Text>
-            <Text style={stylesheet.stepDesc}>Add eye-catching photos/videos for your event. At least one image is required.</Text>
+            <Text style={stylesheet.stepDesc}>
+              Add eye-catching photos/videos for your event. At least one image is required.
+            </Text>
 
             <View style={stylesheet.photosGrid}>
               {attachedFiles.map((f, i) => (
-                <TouchableOpacity 
-                  key={i} 
+                <TouchableOpacity
+                  key={i}
                   onPress={() => setCoverIndex(i)}
-                  style={[stylesheet.photoBox, i === coverIndex && { borderWidth: 2, borderColor: theme.colors.G }]}
+                  style={[
+                    stylesheet.photoBox,
+                    i === coverIndex && { borderWidth: 2, borderColor: theme.colors.G },
+                  ]}
                 >
                   <Image source={{ uri: f.uri }} style={stylesheet.photoImg} />
                   {f.type?.startsWith('video/') && !posting && (
-                    <View style={{position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)'}}>
+                    <View
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        backgroundColor: 'rgba(0,0,0,0.3)',
+                      }}
+                    >
                       <Ionicons name="play-circle" size={32} color={theme.colors.TEXT_PRIMARY} />
                     </View>
                   )}
                   {posting && (
-                    <View style={{position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 12}}>
+                    <View
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        borderRadius: 12,
+                      }}
+                    >
                       <ActivityIndicator size="small" color={theme.colors.TEXT_PRIMARY} />
                     </View>
                   )}
@@ -711,15 +867,17 @@ export default function CreateEventScreen() {
                     </View>
                   )}
                   {!posting && (
-                    <TouchableOpacity 
-                      style={stylesheet.removePhoto} 
+                    <TouchableOpacity
+                      style={stylesheet.removePhoto}
                       onPress={() => {
-                        setAttachedFiles(f => f.filter((_, idx) => idx !== i));
+                        setAttachedFiles((f) => f.filter((_, idx) => idx !== i));
                         if (coverIndex === i) setCoverIndex(0);
-                        else if (coverIndex > i) setCoverIndex(c => c - 1);
+                        else if (coverIndex > i) setCoverIndex((c) => c - 1);
                       }}
                     >
-                      <View style={{ backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12, padding: 4 }}>
+                      <View
+                        style={{ backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12, padding: 4 }}
+                      >
                         <Feather name="x" size={14} color={theme.colors.TEXT_PRIMARY} />
                       </View>
                     </TouchableOpacity>
@@ -729,7 +887,16 @@ export default function CreateEventScreen() {
               {attachedFiles.length < 5 && (
                 <TouchableOpacity style={stylesheet.addPhotoBox} onPress={pickImages}>
                   <Feather name="image" size={24} color={theme.colors.LABEL} />
-                  <Text style={{ color: theme.colors.LABEL, fontSize: 12, marginTop: 4, fontFamily: 'Inter-Regular' }}>Add Media</Text>
+                  <Text
+                    style={{
+                      color: theme.colors.LABEL,
+                      fontSize: 12,
+                      marginTop: 4,
+                      fontFamily: 'Inter-Regular',
+                    }}
+                  >
+                    Add Media
+                  </Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -739,97 +906,329 @@ export default function CreateEventScreen() {
         {step === 5 && (
           <View style={stylesheet.formGroup}>
             <Text style={stylesheet.stepTitle}>Review & Publish</Text>
-            <Text style={stylesheet.stepDesc}>Verify details before publishing live. Here's a preview of how it will look:</Text>
+            <Text style={stylesheet.stepDesc}>
+              Verify details before publishing live. Here's a preview of how it will look:
+            </Text>
 
-            <View style={{ marginTop: 10, borderRadius: 20, overflow: 'hidden', backgroundColor: theme.colors.SURFACE, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER }}>
+            <View
+              style={{
+                marginTop: 10,
+                borderRadius: 20,
+                overflow: 'hidden',
+                backgroundColor: theme.colors.SURFACE,
+                borderWidth: 1,
+                borderColor: theme.colors.GLASS_BORDER,
+              }}
+            >
               {attachedFiles.length > 0 ? (
-                <ImageCarousel 
-                  imageUrls={attachedFiles.map(f => f.uri)} 
-                  height={250} 
-                  autoPlay={false} 
+                <ImageCarousel
+                  imageUrls={attachedFiles.map((f) => f.uri)}
+                  height={250}
+                  autoPlay={false}
                 />
               ) : (
-                <View style={{ backgroundColor: 'rgba(0,0,0,0.2)', height: 250, justifyContent: 'center', alignItems: 'center' }}>
+                <View
+                  style={{
+                    backgroundColor: 'rgba(0,0,0,0.2)',
+                    height: 250,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
                   <Ionicons name="calendar-outline" size={64} color={theme.colors.LABEL} />
                 </View>
               )}
-              
+
               <View style={{ padding: 16 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <Text style={{ fontFamily: 'Outfit-Bold', fontSize: 22, color: theme.colors.TEXT_PRIMARY, flex: 1 }}>{eventName.trim() || 'Untitled Event'}</Text>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: 12,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: 'Outfit-Bold',
+                      fontSize: 22,
+                      color: theme.colors.TEXT_PRIMARY,
+                      flex: 1,
+                    }}
+                  >
+                    {eventName.trim() || 'Untitled Event'}
+                  </Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <TouchableOpacity 
-                      style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, flexDirection: 'row', alignItems: 'center', backgroundColor: visibility === 'private' ? 'rgba(255, 165, 0, 0.15)' : 'rgba(130,219,126,0.15)' }}
-                      onPress={() => setVisibility(v => v === 'public' ? 'private' : 'public')}
+                    <TouchableOpacity
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 12,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        backgroundColor:
+                          visibility === 'private'
+                            ? 'rgba(255, 165, 0, 0.15)'
+                            : 'rgba(130,219,126,0.15)',
+                      }}
+                      onPress={() => setVisibility((v) => (v === 'public' ? 'private' : 'public'))}
                     >
-                      <Ionicons name={visibility === 'public' ? "earth" : "people"} size={12} color={visibility === 'public' ? theme.colors.G : '#FFA500'} style={{ marginRight: 6 }} />
-                      <Text style={{ color: visibility === 'public' ? theme.colors.G : '#FFA500', fontSize: 12, fontFamily: 'Inter-Medium' }}>
+                      <Ionicons
+                        name={visibility === 'public' ? 'earth' : 'people'}
+                        size={12}
+                        color={visibility === 'public' ? theme.colors.G : '#FFA500'}
+                        style={{ marginRight: 6 }}
+                      />
+                      <Text
+                        style={{
+                          color: visibility === 'public' ? theme.colors.G : '#FFA500',
+                          fontSize: 12,
+                          fontFamily: 'Inter-Medium',
+                        }}
+                      >
                         {visibility === 'public' ? 'Public' : 'Friends Only'}
                       </Text>
                     </TouchableOpacity>
-                    <View style={{ backgroundColor: 'rgba(245, 158, 11, 0.2)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
-                      <Text style={{ color: '#F59E0B', fontSize: 10, fontFamily: 'Inter-Bold', textTransform: 'uppercase' }}>Preview</Text>
+                    <View
+                      style={{
+                        backgroundColor: 'rgba(245, 158, 11, 0.2)',
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                        borderRadius: 8,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: '#F59E0B',
+                          fontSize: 10,
+                          fontFamily: 'Inter-Bold',
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        Preview
+                      </Text>
                     </View>
                   </View>
                 </View>
 
                 <View style={{ gap: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: 'rgba(130,219,126,0.15)', justifyContent: 'center', alignItems: 'center' }}>
+                    <View
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 12,
+                        backgroundColor: 'rgba(130,219,126,0.15)',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                    >
                       <Feather name="calendar" size={18} color={theme.colors.G} />
                     </View>
                     <View>
-                      <Text style={{ fontFamily: 'Inter-Medium', color: theme.colors.LABEL, fontSize: 12 }}>Date</Text>
-                      <Text style={{ fontFamily: 'Inter-Medium', color: theme.colors.TEXT_PRIMARY, fontSize: 14 }}>
-                        {eventDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                      <Text
+                        style={{
+                          fontFamily: 'Inter-Medium',
+                          color: theme.colors.LABEL,
+                          fontSize: 12,
+                        }}
+                      >
+                        Date
+                      </Text>
+                      <Text
+                        style={{
+                          fontFamily: 'Inter-Medium',
+                          color: theme.colors.TEXT_PRIMARY,
+                          fontSize: 14,
+                        }}
+                      >
+                        {eventDate.toLocaleDateString('en-US', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                        })}
                       </Text>
                     </View>
                   </View>
 
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: 'rgba(130,219,126,0.15)', justifyContent: 'center', alignItems: 'center' }}>
+                    <View
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 12,
+                        backgroundColor: 'rgba(130,219,126,0.15)',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                    >
                       <Feather name="clock" size={18} color={theme.colors.G} />
                     </View>
                     <View>
-                      <Text style={{ fontFamily: 'Inter-Medium', color: theme.colors.LABEL, fontSize: 12 }}>Time</Text>
-                      <Text style={{ fontFamily: 'Inter-Medium', color: theme.colors.TEXT_PRIMARY, fontSize: 14 }}>
-                        {startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                      <Text
+                        style={{
+                          fontFamily: 'Inter-Medium',
+                          color: theme.colors.LABEL,
+                          fontSize: 12,
+                        }}
+                      >
+                        Time
+                      </Text>
+                      <Text
+                        style={{
+                          fontFamily: 'Inter-Medium',
+                          color: theme.colors.TEXT_PRIMARY,
+                          fontSize: 14,
+                        }}
+                      >
+                        {startTime.toLocaleTimeString('en-US', {
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        })}
                       </Text>
                     </View>
                   </View>
 
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: 'rgba(130,219,126,0.15)', justifyContent: 'center', alignItems: 'center' }}>
-                      <Feather name={isOnline ? "video" : "map-pin"} size={18} color={theme.colors.G} />
+                    <View
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 12,
+                        backgroundColor: 'rgba(130,219,126,0.15)',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Feather
+                        name={isOnline ? 'video' : 'map-pin'}
+                        size={18}
+                        color={theme.colors.G}
+                      />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontFamily: 'Inter-Medium', color: theme.colors.LABEL, fontSize: 12 }}>{isOnline ? 'Platform' : 'Location'}</Text>
-                      <Text style={{ fontFamily: 'Inter-Medium', color: theme.colors.TEXT_PRIMARY, fontSize: 14 }} numberOfLines={2}>
-                        {isOnline ? 'Online Event' : (venue.trim() ? `${venue.trim()}\n${postLga || 'TBA'}, ${postState || 'TBA'}` : 'Location TBA')}
+                      <Text
+                        style={{
+                          fontFamily: 'Inter-Medium',
+                          color: theme.colors.LABEL,
+                          fontSize: 12,
+                        }}
+                      >
+                        {isOnline ? 'Platform' : 'Location'}
+                      </Text>
+                      <Text
+                        style={{
+                          fontFamily: 'Inter-Medium',
+                          color: theme.colors.TEXT_PRIMARY,
+                          fontSize: 14,
+                        }}
+                        numberOfLines={2}
+                      >
+                        {isOnline
+                          ? 'Online Event'
+                          : venue.trim()
+                            ? `${venue.trim()}\n${postLga || 'TBA'}, ${postState || 'TBA'}`
+                            : 'Location TBA'}
                       </Text>
                     </View>
                   </View>
                 </View>
 
                 {desc.trim().length > 0 && (
-                  <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: theme.colors.SURFACE }}>
-                    <Text style={{ fontFamily: 'Outfit-SemiBold', fontSize: 16, color: theme.colors.TEXT_PRIMARY, marginBottom: 8 }}>About this event</Text>
-                    <Text style={{ fontFamily: 'Inter-Regular', fontSize: 14, color: theme.colors.LABEL, lineHeight: 22 }}>
+                  <View
+                    style={{
+                      marginTop: 16,
+                      paddingTop: 16,
+                      borderTopWidth: 1,
+                      borderTopColor: theme.colors.SURFACE,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: 'Outfit-SemiBold',
+                        fontSize: 16,
+                        color: theme.colors.TEXT_PRIMARY,
+                        marginBottom: 8,
+                      }}
+                    >
+                      About this event
+                    </Text>
+                    <Text
+                      style={{
+                        fontFamily: 'Inter-Regular',
+                        fontSize: 14,
+                        color: theme.colors.LABEL,
+                        lineHeight: 22,
+                      }}
+                    >
                       {desc.trim()}
                     </Text>
                   </View>
                 )}
 
                 {tiers.length > 0 && (
-                  <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: theme.colors.SURFACE }}>
-                    <Text style={{ fontFamily: 'Outfit-SemiBold', fontSize: 16, color: theme.colors.TEXT_PRIMARY, marginBottom: 8 }}>Tickets</Text>
+                  <View
+                    style={{
+                      marginTop: 16,
+                      paddingTop: 16,
+                      borderTopWidth: 1,
+                      borderTopColor: theme.colors.SURFACE,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: 'Outfit-SemiBold',
+                        fontSize: 16,
+                        color: theme.colors.TEXT_PRIMARY,
+                        marginBottom: 8,
+                      }}
+                    >
+                      Tickets
+                    </Text>
                     {tiers.map((t, idx) => (
-                      <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: theme.colors.SURFACE, padding: 12, borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: t.isFree ? theme.colors.G : theme.colors.GLASS_BORDER }}>
+                      <View
+                        key={idx}
+                        style={{
+                          flexDirection: 'row',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          backgroundColor: theme.colors.SURFACE,
+                          padding: 12,
+                          borderRadius: 12,
+                          marginBottom: 8,
+                          borderWidth: 1,
+                          borderColor: t.isFree ? theme.colors.G : theme.colors.GLASS_BORDER,
+                        }}
+                      >
                         <View>
-                          <Text style={{ fontFamily: 'Inter-SemiBold', color: theme.colors.TEXT_PRIMARY, fontSize: 14 }}>{t.name || `Tier ${idx + 1}`}</Text>
-                          <Text style={{ fontFamily: 'Inter-Regular', color: theme.colors.LABEL, fontSize: 12, marginTop: 2 }}>{t.capacity || 0} Available</Text>
+                          <Text
+                            style={{
+                              fontFamily: 'Inter-SemiBold',
+                              color: theme.colors.TEXT_PRIMARY,
+                              fontSize: 14,
+                            }}
+                          >
+                            {t.name || `Tier ${idx + 1}`}
+                          </Text>
+                          <Text
+                            style={{
+                              fontFamily: 'Inter-Regular',
+                              color: theme.colors.LABEL,
+                              fontSize: 12,
+                              marginTop: 2,
+                            }}
+                          >
+                            {t.capacity || 0} Available
+                          </Text>
                         </View>
-                        <Text style={{ fontFamily: 'Outfit-Bold', color: t.isFree ? theme.colors.G : theme.colors.TEXT_PRIMARY, fontSize: 16 }}>
+                        <Text
+                          style={{
+                            fontFamily: 'Outfit-Bold',
+                            color: t.isFree ? theme.colors.G : theme.colors.TEXT_PRIMARY,
+                            fontSize: 16,
+                          }}
+                        >
                           {t.isFree ? 'FREE' : formatPrice(Number(t.price))}
                         </Text>
                       </View>
@@ -851,7 +1250,11 @@ export default function CreateEventScreen() {
           {publishing ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <ActivityIndicator size="small" color="#000" />
-              {uploadProgress > 0 && <Text style={[stylesheet.btnPrimaryText, { fontSize: 12 }]}>{Math.round(uploadProgress * 100)}%</Text>}
+              {uploadProgress > 0 && (
+                <Text style={[stylesheet.btnPrimaryText, { fontSize: 12 }]}>
+                  {Math.round(uploadProgress * 100)}%
+                </Text>
+              )}
             </View>
           ) : (
             <Text style={stylesheet.btnPrimaryText}>
@@ -864,228 +1267,255 @@ export default function CreateEventScreen() {
   );
 }
 
-const _stylesheet = createStyleSheet(theme => ({
-      container: { flex: 1 },
-      header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        gap: 12,
-      },
-      backBtn: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: theme.colors.SURFACE,
-        justifyContent: 'center',
-        alignItems: 'center',
-      },
-      headerTextContainer: { flex: 1 },
-      headerTitle: { fontFamily: 'Outfit-Bold', fontSize: 18, color: theme.colors.TEXT_PRIMARY },
-      headerSubtitle: { fontFamily: 'Inter-Regular', fontSize: 12, color: theme.colors.MUTED },
-      progressBarBg: {
-        height: 3,
-        backgroundColor: theme.colors.GLASS_BORDER,
-        width: '100%',
-      },
-      progressBarFill: {
-        height: '100%',
-        backgroundColor: theme.colors.G,
-      },
-      scrollContent: {
-        padding: 20,
-        paddingBottom: 40,
-      },
-      stepTitle: { fontFamily: 'Outfit-Bold', fontSize: 22, color: theme.colors.TEXT_PRIMARY, marginBottom: 4 },
-      stepDesc: { fontFamily: 'Inter-Regular', fontSize: 14, color: theme.colors.MUTED, marginBottom: 20 },
-      formGroup: { gap: 12 },
-      label: { fontFamily: 'Inter-Medium', fontSize: 13, color: '#ccc', marginTop: 8 },
-      input: {
-        backgroundColor: theme.colors.SURFACE,
-        borderWidth: 1,
-        borderColor: theme.colors.GLASS_BORDER,
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        fontFamily: 'Inter-Regular',
-        fontSize: 15,
-        color: theme.colors.TEXT_PRIMARY,
-      },
-      textArea: {
-        height: 100,
-        textAlignVertical: 'top',
-      },
-      chipRow: {
-        flexDirection: 'row',
-        marginBottom: 8,
-      },
-      chip: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 20,
-        backgroundColor: theme.colors.SURFACE,
-        borderWidth: 1,
-        borderColor: theme.colors.GLASS_BORDER,
-        marginRight: 8,
-      },
-      chipActive: {
-        backgroundColor: theme.colors.G + '20',
-        borderColor: theme.colors.G,
-      },
-      chipText: { fontFamily: 'Inter-Medium', fontSize: 13, color: theme.colors.MUTED },
-      chipTextActive: { color: theme.colors.G },
-      switchRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingVertical: 8,
-      },
-      tierCard: {
-        backgroundColor: theme.colors.SURFACE,
-        borderWidth: 1,
-        borderColor: theme.colors.GLASS_BORDER,
-        borderRadius: 16,
-        padding: 16,
-        gap: 10,
-        marginBottom: 8,
-      },
-      tierLabel: { fontFamily: 'Inter-Medium', fontSize: 13, color: '#ccc', marginTop: 12, marginBottom: 8 },
-      addTierBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 14,
-        borderRadius: 14,
-        backgroundColor: theme.colors.SURFACE,
-        borderWidth: 1,
-        borderColor: theme.colors.GLASS_BORDER,
-        gap: 8,
-      },
-      photosGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-      },
-      photoBox: {
-        width: (Dimensions.get('window').width - 40 - 16) / 3,
-        aspectRatio: 1,
-        borderRadius: 16,
-        overflow: 'hidden',
-        position: 'relative',
-        borderWidth: 2,
-        borderColor: 'transparent',
-      },
-      photoImg: { width: '100%', height: '100%' },
-      coverBadge: {
-        position: 'absolute',
-        bottom: 5,
-        alignSelf: 'center',
-        paddingVertical: 2,
-        paddingHorizontal: 8,
-        borderRadius: 6,
-        backgroundColor: theme.colors.G,
-      },
-      coverBadgeText: { fontFamily: 'Outfit-Bold', fontSize: 9, color: '#000' },
-      removePhoto: {
-        position: 'absolute',
-        top: 6,
-        right: 6,
-      },
-      addPhotoBox: {
-        width: (Dimensions.get('window').width - 40 - 16) / 3,
-        aspectRatio: 1,
-        borderRadius: 16,
-        backgroundColor: theme.colors.SURFACE,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.2)',
-        borderStyle: 'dashed',
-        justifyContent: 'center',
-        alignItems: 'center',
-      },
-      reviewCard: {
-        backgroundColor: theme.colors.SURFACE,
-        borderWidth: 1,
-        borderColor: theme.colors.GLASS_BORDER,
-        borderRadius: 20,
-        overflow: 'hidden',
-        marginBottom: 20,
-      },
-      reviewImageScroll: {
-        width: '100%',
-        height: 200,
-      },
-      reviewImage: {
-        width: Dimensions.get('window').width - 40,
-        height: 200,
-      },
-      reviewContent: {
-        padding: 16,
-        gap: 8,
-      },
-      reviewTitle: { fontFamily: 'Outfit-Bold', fontSize: 20, color: theme.colors.TEXT_PRIMARY },
-      reviewMetaRow: {
-        flexDirection: 'row',
-        gap: 8,
-        marginTop: 4,
-      },
-      reviewBadge: {
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 8,
-        backgroundColor: theme.colors.SURFACE,
-        borderWidth: 1,
-        borderColor: theme.colors.GLASS_BORDER,
-      },
-      reviewBadgeText: {
-        fontFamily: 'Inter-Medium',
-        fontSize: 12,
-        color: '#ccc',
-      },
-      reviewLocationRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        marginTop: 4,
-      },
-      reviewLocationText: {
-        fontFamily: 'Inter-Regular',
-        fontSize: 14,
-        color: theme.colors.MUTED,
-      },
-      footer: {
-        paddingHorizontal: 20,
-        paddingTop: 12,
-        borderTopWidth: 1,
-        borderTopColor: theme.colors.GLASS_BORDER,
-        backgroundColor: theme.colors.DARK,
-      },
-      btnPrimary: {
-        backgroundColor: theme.colors.G,
-        paddingVertical: 14,
-        borderRadius: 14,
-        alignItems: 'center',
-        justifyContent: 'center',
-      },
-      btnDisabled: { opacity: 0.4 },
-      btnPrimaryText: { fontFamily: 'Outfit-Bold', fontSize: 16, color: '#000' },
-      successContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 32,
-        gap: 16,
-      },
-      successIcon: {
-        width: 72,
-        height: 72,
-        borderRadius: 24,
-        backgroundColor: 'rgba(130,219,126,0.12)',
-        borderWidth: 1,
-        borderColor: 'rgba(130,219,126,0.25)',
-        justifyContent: 'center',
-        alignItems: 'center',
-      },
-      successTitle: { fontFamily: 'Outfit-Bold', fontSize: 24, color: theme.colors.TEXT_PRIMARY, textAlign: 'center' },
-      successDesc: { fontFamily: 'Inter-Regular', fontSize: 14, color: theme.colors.MUTED, textAlign: 'center', lineHeight: 22 },
-    }));
+const _stylesheet = createStyleSheet((theme) => ({
+  container: { flex: 1 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.SURFACE,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTextContainer: { flex: 1 },
+  headerTitle: { fontFamily: 'Outfit-Bold', fontSize: 18, color: theme.colors.TEXT_PRIMARY },
+  headerSubtitle: { fontFamily: 'Inter-Regular', fontSize: 12, color: theme.colors.MUTED },
+  progressBarBg: {
+    height: 3,
+    backgroundColor: theme.colors.GLASS_BORDER,
+    width: '100%',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: theme.colors.G,
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  stepTitle: {
+    fontFamily: 'Outfit-Bold',
+    fontSize: 22,
+    color: theme.colors.TEXT_PRIMARY,
+    marginBottom: 4,
+  },
+  stepDesc: {
+    fontFamily: 'Inter-Regular',
+    fontSize: 14,
+    color: theme.colors.MUTED,
+    marginBottom: 20,
+  },
+  formGroup: { gap: 12 },
+  label: { fontFamily: 'Inter-Medium', fontSize: 13, color: '#ccc', marginTop: 8 },
+  input: {
+    backgroundColor: theme.colors.SURFACE,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontFamily: 'Inter-Regular',
+    fontSize: 15,
+    color: theme.colors.TEXT_PRIMARY,
+  },
+  textArea: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  chipRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  chip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: theme.colors.SURFACE,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    marginRight: 8,
+  },
+  chipActive: {
+    backgroundColor: theme.colors.G + '20',
+    borderColor: theme.colors.G,
+  },
+  chipText: { fontFamily: 'Inter-Medium', fontSize: 13, color: theme.colors.MUTED },
+  chipTextActive: { color: theme.colors.G },
+  switchRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  tierCard: {
+    backgroundColor: theme.colors.SURFACE,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    borderRadius: 16,
+    padding: 16,
+    gap: 10,
+    marginBottom: 8,
+  },
+  tierLabel: {
+    fontFamily: 'Inter-Medium',
+    fontSize: 13,
+    color: '#ccc',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  addTierBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: theme.colors.SURFACE,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    gap: 8,
+  },
+  photosGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  photoBox: {
+    width: (Dimensions.get('window').width - 40 - 16) / 3,
+    aspectRatio: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+    position: 'relative',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  photoImg: { width: '100%', height: '100%' },
+  coverBadge: {
+    position: 'absolute',
+    bottom: 5,
+    alignSelf: 'center',
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: theme.colors.G,
+  },
+  coverBadgeText: { fontFamily: 'Outfit-Bold', fontSize: 9, color: '#000' },
+  removePhoto: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+  },
+  addPhotoBox: {
+    width: (Dimensions.get('window').width - 40 - 16) / 3,
+    aspectRatio: 1,
+    borderRadius: 16,
+    backgroundColor: theme.colors.SURFACE,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reviewCard: {
+    backgroundColor: theme.colors.SURFACE,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginBottom: 20,
+  },
+  reviewImageScroll: {
+    width: '100%',
+    height: 200,
+  },
+  reviewImage: {
+    width: Dimensions.get('window').width - 40,
+    height: 200,
+  },
+  reviewContent: {
+    padding: 16,
+    gap: 8,
+  },
+  reviewTitle: { fontFamily: 'Outfit-Bold', fontSize: 20, color: theme.colors.TEXT_PRIMARY },
+  reviewMetaRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  reviewBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: theme.colors.SURFACE,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+  },
+  reviewBadgeText: {
+    fontFamily: 'Inter-Medium',
+    fontSize: 12,
+    color: '#ccc',
+  },
+  reviewLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  reviewLocationText: {
+    fontFamily: 'Inter-Regular',
+    fontSize: 14,
+    color: theme.colors.MUTED,
+  },
+  footer: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.GLASS_BORDER,
+    backgroundColor: theme.colors.DARK,
+  },
+  btnPrimary: {
+    backgroundColor: theme.colors.G,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnDisabled: { opacity: 0.4 },
+  btnPrimaryText: { fontFamily: 'Outfit-Bold', fontSize: 16, color: '#000' },
+  successContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+    gap: 16,
+  },
+  successIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    backgroundColor: 'rgba(130,219,126,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(130,219,126,0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  successTitle: {
+    fontFamily: 'Outfit-Bold',
+    fontSize: 24,
+    color: theme.colors.TEXT_PRIMARY,
+    textAlign: 'center',
+  },
+  successDesc: {
+    fontFamily: 'Inter-Regular',
+    fontSize: 14,
+    color: theme.colors.MUTED,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+}));

@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from "react-native-unistyles";
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React from 'react';
 import Svg, { Path } from 'react-native-svg';
 

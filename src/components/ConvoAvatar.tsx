@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from "react-native-unistyles";
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React from 'react';
 import { View, Image } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
@@ -11,9 +11,8 @@ interface Props {
   size?: number;
 }
 
-
 function TagIcon() {
-    const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { styles: stylesheet, theme } = useStyles(_stylesheet);
 
   return (
     <Svg width={8} height={8} viewBox="0 0 24 24" fill="none">
@@ -29,12 +28,18 @@ function TagIcon() {
 }
 
 function ShopIcon() {
-    const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { styles: stylesheet, theme } = useStyles(_stylesheet);
 
   return (
     <Svg width={8} height={8} viewBox="0 0 24 24" fill="none">
       <Rect x="3" y="10" width="18" height="11" rx="1" stroke="#050505" strokeWidth="2.5" />
-      <Path d="M3 10l2-7h14l2 7" stroke="#050505" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <Path
+        d="M3 10l2-7h14l2 7"
+        stroke="#050505"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </Svg>
   );
 }
@@ -45,11 +50,14 @@ function ShopIcon() {
  * Matches Figma Make's ConvoAvatar({ convo }) component.
  */
 export function ConvoAvatar({ avatarId, type, online = false, size = 48 }: Props) {
-    const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { styles: stylesheet, theme } = useStyles(_stylesheet);
 
-  const BADGE_ICONS: Record<Exclude<ConvoType, 'friends'>, { color: string; icon: React.ReactNode }> = {
+  const BADGE_ICONS: Record<
+    Exclude<ConvoType, 'friends'>,
+    { color: string; icon: React.ReactNode }
+  > = {
     marketplace: { color: theme.colors.GOLD, icon: <TagIcon /> },
-    business:    { color: theme.colors.G,    icon: <ShopIcon /> },
+    business: { color: theme.colors.G, icon: <ShopIcon /> },
   };
 
   const badgeInfo = type !== 'friends' ? BADGE_ICONS[type] : null;
@@ -85,35 +93,30 @@ export function ConvoAvatar({ avatarId, type, online = false, size = 48 }: Props
       )}
 
       {online && (
-        <View
-          style={[
-            stylesheet.onlineDot,
-            { bottom: badgeInfo ? badgeSize - 4 : 2, right: 2 },
-          ]}
-        />
+        <View style={[stylesheet.onlineDot, { bottom: badgeInfo ? badgeSize - 4 : 2, right: 2 }]} />
       )}
     </View>
   );
 }
 
-const _stylesheet = createStyleSheet(theme => ({
-      avatar: {
-        backgroundColor: theme.colors.GLASS_BORDER,
-      },
-      badge: {
-        position: 'absolute',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1.5,
-        borderColor: theme.colors.DARK,
-      },
-      onlineDot: {
-        position: 'absolute',
-        width: 10,
-        height: 10,
-        borderRadius: 5,
-        backgroundColor: '#22c55e',
-        borderWidth: 1.5,
-        borderColor: theme.colors.DARK,
-      },
-    }));
+const _stylesheet = createStyleSheet((theme) => ({
+  avatar: {
+    backgroundColor: theme.colors.GLASS_BORDER,
+  },
+  badge: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: theme.colors.DARK,
+  },
+  onlineDot: {
+    position: 'absolute',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#22c55e',
+    borderWidth: 1.5,
+    borderColor: theme.colors.DARK,
+  },
+}));

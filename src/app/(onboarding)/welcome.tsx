@@ -35,13 +35,14 @@ export default function WelcomeScreen() {
 
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.centerContent}>
-          <Animated.View style={[styles.floatContainer, { transform: [{ translateY: floatAnim }] }]}>
+          <Animated.View
+            style={[styles.floatContainer, { transform: [{ translateY: floatAnim }] }]}
+          >
             <Logo size={88} />
             <Text style={styles.logoText}>YRDLY</Text>
             <Text style={styles.tagline}>Your Neighbourhood, Connected.</Text>
           </Animated.View>
         </View>
-
 
         <View style={styles.bottomActions}>
           <PrimaryBtn
@@ -49,7 +50,10 @@ export default function WelcomeScreen() {
             onClick={() => router.push('/(onboarding)/tour')}
             icon={<Ionicons name="arrow-forward" size={18} color="#000" />}
           />
-          <SecondaryBtn label="Already have an account? Sign in" onClick={() => router.push('/(auth)/login')} />
+          <SecondaryBtn
+            label="Already have an account? Sign in"
+            onClick={() => router.push('/(auth)/login')}
+          />
         </View>
       </SafeAreaView>
     </View>

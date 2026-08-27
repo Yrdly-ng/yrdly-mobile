@@ -1,6 +1,14 @@
 import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -51,7 +59,10 @@ export default function LoginScreen() {
     setError('');
     const { error: err } = await signIn(cleanEmail, password);
     if (err) {
-      if (err.message.toLowerCase().includes('email not confirmed') || err.message.toLowerCase().includes('unconfirmed')) {
+      if (
+        err.message.toLowerCase().includes('email not confirmed') ||
+        err.message.toLowerCase().includes('unconfirmed')
+      ) {
         try {
           await supabase.auth.resend({ type: 'signup', email: cleanEmail });
         } catch {}
@@ -66,10 +77,7 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <SceneBg
-        photoId="1707011017057-e80acf66ddeb"
-        gradientStart="40%"
-      />
+      <SceneBg photoId="1707011017057-e80acf66ddeb" gradientStart="40%" />
 
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView
@@ -80,7 +88,10 @@ export default function LoginScreen() {
             <Logo size={36} />
           </View>
 
-          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
             <View style={styles.flexSpacer} />
 
             <GlassCard>
@@ -126,11 +137,7 @@ export default function LoginScreen() {
                 </TouchableOpacity>
               </View>
 
-              <PrimaryBtn
-                label="Sign In"
-                onClick={handleSignIn}
-                disabled={loading}
-              />
+              <PrimaryBtn label="Sign In" onClick={handleSignIn} disabled={loading} />
 
               <Divider label="or continue with" />
 
@@ -138,7 +145,11 @@ export default function LoginScreen() {
 
               <View style={styles.crossLinkRow}>
                 <Text style={styles.crossLinkText}>Don't have an account? </Text>
-                <TouchableOpacity onPress={() => { router.push('/(auth)/signup' as any); }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    router.push('/(auth)/signup' as any);
+                  }}
+                >
                   <Text style={styles.crossLinkAction}>Sign up</Text>
                 </TouchableOpacity>
               </View>
@@ -150,7 +161,7 @@ export default function LoginScreen() {
   );
 }
 
-const stylesheet = createStyleSheet(theme => ({
+const stylesheet = createStyleSheet((theme) => ({
   container: {
     flex: 1,
     backgroundColor: colors.DARK,

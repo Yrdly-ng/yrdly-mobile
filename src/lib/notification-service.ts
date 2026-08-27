@@ -17,7 +17,7 @@ export interface NotificationData {
   updated_at: string;
 }
 
-export type NotificationType = 
+export type NotificationType =
   | 'friend_request'
   | 'friend_request_accepted'
   | 'friend_request_declined'
@@ -70,12 +70,17 @@ export class NotificationService {
   /**
    * Remove an actor from a notification (e.g. on unlike)
    */
-  static async removeNotificationActor(params: { userId: string, type: string, senderId: string, relatedId: string }) {
+  static async removeNotificationActor(params: {
+    userId: string;
+    type: string;
+    senderId: string;
+    relatedId: string;
+  }) {
     await supabase.rpc('remove_notification_actor', {
       p_user_id: params.userId,
       p_type: params.type,
       p_sender_id: params.senderId,
-      p_related_id: params.relatedId
+      p_related_id: params.relatedId,
     });
   }
 
@@ -85,7 +90,7 @@ export class NotificationService {
   static async createNotification(params: CreateNotificationParams): Promise<string> {
     try {
       console.log('Creating notification:', params);
-      
+
       // Try using the RPC function first
       const { data, error } = await supabase.rpc('create_notification', {
         p_user_id: params.userId,
@@ -95,7 +100,7 @@ export class NotificationService {
         p_sender_id: params.senderId || null,
         p_related_id: params.relatedId || null,
         p_related_type: params.relatedType || null,
-        p_data: params.data || {}
+        p_data: params.data || {},
       });
 
       if (error) {
@@ -106,7 +111,7 @@ export class NotificationService {
       let notificationId = '';
       let shouldPush = true;
       let pushMessage = params.message;
-      
+
       if (typeof data === 'object' && data !== null) {
         notificationId = (data as any).id;
         shouldPush = (data as any).should_push ?? true;
@@ -125,7 +130,7 @@ export class NotificationService {
             body: pushMessage,
             data: params.data,
             url: getNotificationUrl(params.type, params.relatedId),
-            type: params.type
+            type: params.type,
           });
         } catch (pushError) {
           console.error('Error sending push notification:', pushError);
@@ -136,7 +141,7 @@ export class NotificationService {
       return notificationId;
     } catch (rpcError) {
       console.log('RPC function failed, falling back to direct insert:', rpcError);
-      
+
       // Fallback to direct insert if RPC function doesn't exist
       const { data, error } = await supabase
         .from('notifications')
@@ -148,7 +153,7 @@ export class NotificationService {
           related_type: params.relatedType || null,
           title: params.title,
           message: params.message,
-          data: params.data || {}
+          data: params.data || {},
         })
         .select('id')
         .single();
@@ -167,7 +172,7 @@ export class NotificationService {
           body: params.message,
           data: params.data,
           url: getNotificationUrl(params.type, params.relatedId),
-          type: params.type
+          type: params.type,
         });
       } catch (pushError) {
         console.error('Error sending push notification:', pushError);
@@ -181,7 +186,11 @@ export class NotificationService {
   /**
    * Get notifications for a user
    */
-  static async getNotifications(userId: string, limit = 50, offset = 0): Promise<NotificationData[]> {
+  static async getNotifications(
+    userId: string,
+    limit = 50,
+    offset = 0
+  ): Promise<NotificationData[]> {
     const { data, error } = await supabase
       .from('notifications')
       .select('*')
@@ -223,7 +232,7 @@ export class NotificationService {
       // Try using the RPC function first
       const { data, error } = await supabase.rpc('mark_notification_read', {
         p_notification_id: notificationId,
-        p_user_id: userId
+        p_user_id: userId,
       });
 
       if (error) {
@@ -233,13 +242,12 @@ export class NotificationService {
 
       return data;
     } catch (rpcError) {
-      
       // Fallback to direct update
       const { error } = await supabase
         .from('notifications')
-        .update({ 
-          is_read: true, 
-          read_at: new Date().toISOString() 
+        .update({
+          is_read: true,
+          read_at: new Date().toISOString(),
         })
         .eq('id', notificationId)
         .eq('user_id', userId);
@@ -260,7 +268,7 @@ export class NotificationService {
     try {
       // Try using the RPC function first
       const { data, error } = await supabase.rpc('mark_all_notifications_read', {
-        p_user_id: userId
+        p_user_id: userId,
       });
 
       if (error) {
@@ -270,13 +278,12 @@ export class NotificationService {
 
       return data;
     } catch (rpcError) {
-      
       // Fallback to direct update
       const { error } = await supabase
         .from('notifications')
-        .update({ 
-          is_read: true, 
-          read_at: new Date().toISOString() 
+        .update({
+          is_read: true,
+          read_at: new Date().toISOString(),
         })
         .eq('user_id', userId)
         .eq('is_read', false);
@@ -297,7 +304,7 @@ export class NotificationService {
     try {
       // Try using the RPC function first
       const { data, error } = await supabase.rpc('clear_all_notifications', {
-        p_user_id: userId
+        p_user_id: userId,
       });
 
       if (error) {
@@ -307,12 +314,8 @@ export class NotificationService {
 
       return data;
     } catch (rpcError) {
-      
       // Fallback to direct delete
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('user_id', userId);
+      const { error } = await supabase.from('notifications').delete().eq('user_id', userId);
 
       if (error) {
         console.error('Error clearing all notifications via direct delete:', error);
@@ -362,7 +365,11 @@ export class NotificationService {
   /**
    * Create notification for friend request
    */
-  static async createFriendRequestNotification(fromUserId: string, toUserId: string, fromUserName: string): Promise<string> {
+  static async createFriendRequestNotification(
+    fromUserId: string,
+    toUserId: string,
+    fromUserName: string
+  ): Promise<string> {
     return this.createNotification({
       userId: toUserId,
       type: 'friend_request',
@@ -371,14 +378,18 @@ export class NotificationService {
       relatedType: 'user',
       title: 'New Friend Request',
       message: `${fromUserName} sent you a friend request`,
-      data: { fromUserName }
+      data: { fromUserName },
     });
   }
 
   /**
    * Create notification for friend request accepted
    */
-  static async createFriendRequestAcceptedNotification(fromUserId: string, toUserId: string, toUserName: string): Promise<string> {
+  static async createFriendRequestAcceptedNotification(
+    fromUserId: string,
+    toUserId: string,
+    toUserName: string
+  ): Promise<string> {
     return this.createNotification({
       userId: fromUserId,
       type: 'friend_request_accepted',
@@ -387,7 +398,7 @@ export class NotificationService {
       relatedType: 'user',
       title: 'Friend Request Accepted',
       message: `${toUserName} accepted your friend request`,
-      data: { toUserName }
+      data: { toUserName },
     });
   }
 
@@ -395,10 +406,10 @@ export class NotificationService {
    * Create notification for new message
    */
   static async createMessageNotification(
-    toUserId: string, 
-    fromUserId: string, 
-    fromUserName: string, 
-    conversationId: string, 
+    toUserId: string,
+    fromUserId: string,
+    fromUserName: string,
+    conversationId: string,
     messagePreview: string
   ): Promise<string> {
     return this.createNotification({
@@ -409,7 +420,7 @@ export class NotificationService {
       relatedType: 'conversation',
       title: `New message from ${fromUserName}`,
       message: messagePreview,
-      data: { fromUserName, conversationId, messagePreview }
+      data: { fromUserName, conversationId, messagePreview },
     });
   }
 
@@ -417,9 +428,9 @@ export class NotificationService {
    * Create notification for post like
    */
   static async createPostLikeNotification(
-    postOwnerId: string, 
-    likerId: string, 
-    likerName: string, 
+    postOwnerId: string,
+    likerId: string,
+    likerName: string,
     postId: string
   ): Promise<string> {
     return this.createNotification({
@@ -430,7 +441,7 @@ export class NotificationService {
       relatedType: 'post',
       title: `${likerName} liked your post`,
       message: `${likerName} liked your post`,
-      data: { likerName, postId }
+      data: { likerName, postId },
     });
   }
 
@@ -438,10 +449,10 @@ export class NotificationService {
    * Create notification for post comment
    */
   static async createPostCommentNotification(
-    postOwnerId: string, 
-    commenterId: string, 
-    commenterName: string, 
-    postId: string, 
+    postOwnerId: string,
+    commenterId: string,
+    commenterName: string,
+    postId: string,
     commentPreview: string
   ): Promise<string> {
     return this.createNotification({
@@ -452,7 +463,7 @@ export class NotificationService {
       relatedType: 'post',
       title: 'New comment on your post',
       message: `${commenterName} commented: "${commentPreview}"`,
-      data: { commenterName, postId, commentPreview }
+      data: { commenterName, postId, commentPreview },
     });
   }
 
@@ -460,10 +471,10 @@ export class NotificationService {
    * Create notification for event invite
    */
   static async createEventInviteNotification(
-    inviteeId: string, 
-    inviterId: string, 
-    inviterName: string, 
-    eventId: string, 
+    inviteeId: string,
+    inviterId: string,
+    inviterName: string,
+    eventId: string,
     eventTitle: string
   ): Promise<string> {
     return this.createNotification({
@@ -474,7 +485,7 @@ export class NotificationService {
       relatedType: 'event',
       title: 'Event Invitation',
       message: `${inviterName} invited you to "${eventTitle}"`,
-      data: { inviterName, eventId, eventTitle }
+      data: { inviterName, eventId, eventTitle },
     });
   }
 
@@ -482,10 +493,10 @@ export class NotificationService {
    * Create notification for marketplace item interest
    */
   static async createMarketplaceInterestNotification(
-    sellerId: string, 
-    buyerId: string, 
-    buyerName: string, 
-    itemId: string, 
+    sellerId: string,
+    buyerId: string,
+    buyerName: string,
+    itemId: string,
     itemTitle: string
   ): Promise<string> {
     return this.createNotification({
@@ -496,7 +507,7 @@ export class NotificationService {
       relatedType: 'marketplace_item',
       title: 'Interest in your item',
       message: `${buyerName} is interested in "${itemTitle}"`,
-      data: { buyerName, itemId, itemTitle }
+      data: { buyerName, itemId, itemTitle },
     });
   }
 
@@ -509,7 +520,7 @@ export class NotificationService {
       type: 'welcome',
       title: 'Welcome to Yrdly!',
       message: `Welcome ${userName}! Start by exploring your neighborhood and connecting with neighbors.`,
-      data: { userName }
+      data: { userName },
     });
   }
 
@@ -517,9 +528,9 @@ export class NotificationService {
    * Create system announcement notification
    */
   static async createSystemAnnouncementNotification(
-    userId: string, 
-    title: string, 
-    message: string, 
+    userId: string,
+    title: string,
+    message: string,
     data?: Record<string, any>
   ): Promise<string> {
     return this.createNotification({
@@ -527,7 +538,7 @@ export class NotificationService {
       type: 'system_announcement',
       title,
       message,
-      data
+      data,
     });
   }
 

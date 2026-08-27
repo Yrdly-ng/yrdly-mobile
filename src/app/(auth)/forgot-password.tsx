@@ -1,6 +1,14 @@
 import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -46,12 +54,18 @@ export default function ForgotPasswordScreen() {
       <SceneBg photoId="1707011017057-e80acf66ddeb" pos="center 60%" gradientStart="30%" />
 
       <SafeAreaView style={styles.safeArea}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
           <View style={styles.topBar}>
             <BackBtn onClick={() => router.back()} light />
           </View>
 
-          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
             <View style={{ flex: 1 }} />
 
             <GlassCard>
@@ -89,12 +103,21 @@ export default function ForgotPasswordScreen() {
                     <Ionicons name="checkmark" size={24} color={colors.G} />
                   </View>
                   <Text style={styles.sentText}>
-                    Reset link sent to <Text style={{ color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-SemiBold' }}>{email || 'your email'}</Text>. Check your inbox.
+                    Reset link sent to{' '}
+                    <Text
+                      style={{ color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-SemiBold' }}
+                    >
+                      {email || 'your email'}
+                    </Text>
+                    . Check your inbox.
                   </Text>
                 </View>
               )}
 
-              <TouchableOpacity onPress={() => router.push('/(auth)/login')} style={styles.backLink}>
+              <TouchableOpacity
+                onPress={() => router.push('/(auth)/login')}
+                style={styles.backLink}
+              >
                 <Text style={styles.backLinkText}>← Back to Sign In</Text>
               </TouchableOpacity>
             </GlassCard>
@@ -105,7 +128,7 @@ export default function ForgotPasswordScreen() {
   );
 }
 
-const stylesheet = createStyleSheet(theme => ({
+const stylesheet = createStyleSheet((theme) => ({
   container: {
     flex: 1,
     backgroundColor: colors.DARK,

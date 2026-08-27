@@ -10,9 +10,7 @@ import {
   LogBox,
 } from 'react-native';
 
-LogBox.ignoreLogs([
-  'VirtualizedLists should never be nested inside plain ScrollViews',
-]);
+LogBox.ignoreLogs(['VirtualizedLists should never be nested inside plain ScrollViews']);
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SceneBg, GlassCard, StepBar, PrimaryBtn } from '@/components/onboarding/primitives';
@@ -72,11 +70,7 @@ export default function Profile2Screen() {
 
   return (
     <View style={styles.container}>
-      <SceneBg
-        photoId="1594538756542-8c88bda491c5"
-        pos="center 50%"
-        gradientStart="30%"
-      />
+      <SceneBg photoId="1594538756542-8c88bda491c5" pos="center 50%" gradientStart="30%" />
 
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView
@@ -118,12 +112,12 @@ export default function Profile2Screen() {
                       const lng = details.geometry.location.lng;
                       setPostLat(lat);
                       setPostLng(lng);
-                      
+
                       let gState = '';
                       let gLga = '';
-                      
+
                       if (details.address_components) {
-                        details.address_components.forEach(c => {
+                        details.address_components.forEach((c) => {
                           if (c.types.includes('administrative_area_level_1')) {
                             gState = c.long_name.replace(' State', '').replace(' state', '').trim();
                           }
@@ -148,7 +142,9 @@ export default function Profile2Screen() {
                           setPostLga(match.lga);
                           setPostWard(match.ward);
                         } else {
-                          setFormError('Location is outside our supported neighbourhoods. Please try a different area.');
+                          setFormError(
+                            'Location is outside our supported neighbourhoods. Please try a different area.'
+                          );
                           setPostState('');
                           setPostLga('');
                           setPostWard('');
@@ -185,9 +181,15 @@ export default function Profile2Screen() {
 
               {/* Privacy Note */}
               <View style={styles.privacyCard}>
-                <Ionicons name="lock-closed-outline" size={16} color={colors.G} style={{ marginTop: 1 }} />
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={16}
+                  color={colors.G}
+                  style={{ marginTop: 1 }}
+                />
                 <Text style={styles.privacyText}>
-                  Exact house numbers are kept private. Neighbours only see your general neighbourhood area.
+                  Exact house numbers are kept private. Neighbours only see your general
+                  neighbourhood area.
                 </Text>
               </View>
 
@@ -207,7 +209,7 @@ export default function Profile2Screen() {
   );
 }
 
-const stylesheet = createStyleSheet(theme => ({
+const stylesheet = createStyleSheet((theme) => ({
   container: {
     flex: 1,
     backgroundColor: '#0e0e0e',

@@ -70,9 +70,9 @@ export class StorageService {
 
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token || supabaseAnonKey;
-      
+
       const url = `${supabaseUrl}/storage/v1/object/${bucket}/${path}`;
-      
+
       const uploadTask = FileSystem.createUploadTask(
         url,
         file.uri,
@@ -82,7 +82,7 @@ export class StorageService {
             apikey: supabaseAnonKey,
             'Content-Type': mimeType,
             'x-upsert': 'false',
-            'cache-control': options?.cacheControl || '3600'
+            'cache-control': options?.cacheControl || '3600',
           },
           httpMethod: 'POST',
           uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
@@ -96,7 +96,7 @@ export class StorageService {
       );
 
       const response = await uploadTask.uploadAsync();
-      
+
       if (!response) {
         return { data: null, error: new Error('No response from upload task') };
       }
@@ -110,7 +110,7 @@ export class StorageService {
         console.error('[StorageService] Upload error:', errorMsg);
         return { data: null, error: new Error(errorMsg) };
       }
-      
+
       let data = null;
       try {
         data = JSON.parse(response.body);
@@ -135,9 +135,13 @@ export class StorageService {
    * Transforms a raw Supabase storage URL into an optimized edge-cached URL.
    * This drastically reduces cached egress bandwidth by serving resized WebP images.
    */
-  static getOptimizedImageUrl(url: string | null, width: number = 800, height?: number): string | null {
-    // We are temporarily bypassing the /render/image/ transformation 
-    // because it causes HTTP 400 errors if the project does not have 
+  static getOptimizedImageUrl(
+    url: string | null,
+    width: number = 800,
+    height?: number
+  ): string | null {
+    // We are temporarily bypassing the /render/image/ transformation
+    // because it causes HTTP 400 errors if the project does not have
     // Image Transformations enabled (or if limits are exceeded on the free tier).
     return url;
   }
@@ -149,9 +153,7 @@ export class StorageService {
     expiresIn = 3600
   ): Promise<{ data: any; error: any }> {
     try {
-      const { data, error } = await supabase.storage
-        .from(bucket)
-        .createSignedUrl(path, expiresIn);
+      const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, expiresIn);
 
       if (error) return { data: null, error };
       return { data, error: null };
@@ -161,10 +163,7 @@ export class StorageService {
   }
 
   /** Delete a stored file */
-  static async deleteFile(
-    bucket: string,
-    path: string
-  ): Promise<{ data: any; error: any }> {
+  static async deleteFile(bucket: string, path: string): Promise<{ data: any; error: any }> {
     try {
       const { data, error } = await supabase.storage.from(bucket).remove([path]);
       if (error) return { data: null, error };
@@ -183,9 +182,15 @@ export class StorageService {
     const ext = file.name.split('.').pop() ?? 'jpg';
     const path = `posts/${postId}/${Date.now()}.${ext}`;
 
-    const { data, error } = await this.uploadFile('post-images', path, file, {
-      cacheControl: '604800',
-    }, onProgress);
+    const { data, error } = await this.uploadFile(
+      'post-images',
+      path,
+      file,
+      {
+        cacheControl: '604800',
+      },
+      onProgress
+    );
     if (error || !data) return { url: null, error };
 
     return { url: this.getPublicUrl('post-images', path), error: null };
@@ -224,10 +229,14 @@ export class StorageService {
       // Retry with upsert
       const base64Retry = await FileSystem.readAsStringAsync(file.uri, { encoding: 'base64' });
       const arrayBufferRetry = decode(base64Retry);
-      
+
       const { data: d2, error: e2 } = await supabase.storage
         .from('user-avatars')
-        .upload(path, arrayBufferRetry, { cacheControl: '3600', upsert: true, contentType: mimeType });
+        .upload(path, arrayBufferRetry, {
+          cacheControl: '3600',
+          upsert: true,
+          contentType: mimeType,
+        });
 
       if (e2) return { url: null, error: e2 };
       return { url: this.getPublicUrl('user-avatars', d2?.path ?? path), error: null };
@@ -262,10 +271,16 @@ export class StorageService {
     const path = `${userId}/${Date.now()}.${ext}`;
     const mimeType = this.getMimeType(file.name, file.type);
 
-    const { data, error } = await this.uploadFile('post-videos', path, file, {
-      contentType: mimeType,
-      cacheControl: '604800',
-    }, onProgress);
+    const { data, error } = await this.uploadFile(
+      'post-videos',
+      path,
+      file,
+      {
+        contentType: mimeType,
+        cacheControl: '604800',
+      },
+      onProgress
+    );
 
     if (error || !data) return { url: null, error };
     return { url: this.getPublicUrl('post-videos', path), error: null };
@@ -311,7 +326,11 @@ export class StorageService {
         const arrayBuffer = decode(base64);
         const { data: d2, error: e2 } = await supabase.storage
           .from('post-images')
-          .upload(path, arrayBuffer, { cacheControl: '604800', upsert: true, contentType: mimeType });
+          .upload(path, arrayBuffer, {
+            cacheControl: '604800',
+            upsert: true,
+            contentType: mimeType,
+          });
         if (e2) return { url: null, error: e2 };
         return { url: this.getPublicUrl('post-images', d2?.path ?? path), error: null };
       } catch (err) {
@@ -345,7 +364,11 @@ export class StorageService {
         const arrayBuffer = decode(base64);
         const { data: d2, error: e2 } = await supabase.storage
           .from('post-images')
-          .upload(path, arrayBuffer, { cacheControl: '604800', upsert: true, contentType: mimeType });
+          .upload(path, arrayBuffer, {
+            cacheControl: '604800',
+            upsert: true,
+            contentType: mimeType,
+          });
         if (e2) return { url: null, error: e2 };
         return { url: this.getPublicUrl('post-images', d2?.path ?? path), error: null };
       } catch (err) {

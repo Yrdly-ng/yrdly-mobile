@@ -1,11 +1,11 @@
-import { createStyleSheet, useStyles } from "react-native-unistyles";
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import { Redirect } from 'expo-router';
-import { View, ActivityIndicator} from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../hooks/use-supabase-auth';
 
 export default function Index() {
-    const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { styles: stylesheet, theme } = useStyles(_stylesheet);
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -23,10 +23,10 @@ export default function Index() {
   return <Redirect href="/(tabs)" />;
 }
 
-const _stylesheet = createStyleSheet(theme => ({
-      container: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-      },
-    }));
+const _stylesheet = createStyleSheet((theme) => ({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+}));

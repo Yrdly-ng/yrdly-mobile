@@ -95,7 +95,8 @@ export class ItemTrackingService {
     try {
       const { data, error } = await supabase
         .from('posts')
-        .select(`
+        .select(
+          `
           id,
           title,
           text,
@@ -110,7 +111,8 @@ export class ItemTrackingService {
             name,
             avatar_url
           )
-        `)
+        `
+        )
         .eq('sold_to_user_id', userId)
         .eq('is_sold', true)
         .order('sold_at', { ascending: false });
@@ -155,7 +157,8 @@ export class ItemTrackingService {
     try {
       const { data, error } = await supabase
         .from('posts')
-        .select(`
+        .select(
+          `
           id,
           title,
           text,
@@ -166,7 +169,8 @@ export class ItemTrackingService {
           sold_at,
           transaction_id,
           sold_to_user_id
-        `)
+        `
+        )
         .eq('user_id', userId)
         .eq('is_sold', true)
         .order('sold_at', { ascending: false });
@@ -242,12 +246,14 @@ export class ItemTrackingService {
     try {
       const { data, error } = await supabase
         .from('posts')
-        .select(`
+        .select(
+          `
           transaction_id,
           sold_to_user_id,
           sold_at,
           is_sold
-        `)
+        `
+        )
         .eq('id', itemId)
         .single();
 

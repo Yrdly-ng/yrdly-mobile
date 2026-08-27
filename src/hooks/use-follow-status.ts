@@ -58,12 +58,10 @@ export function useFollowStatus(targetUserId: string, refreshKey?: number) {
         setIsFollowing(false);
       } else {
         // Follow
-        await supabase
-          .from('followers')
-          .insert({
-            follower_id: user.id,
-            following_id: targetUserId,
-          });
+        await supabase.from('followers').insert({
+          follower_id: user.id,
+          following_id: targetUserId,
+        });
         setIsFollowing(true);
       }
     } catch (e) {

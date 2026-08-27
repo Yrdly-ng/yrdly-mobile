@@ -14,13 +14,12 @@ export function SectionHeader({ title, emoji, count }: SectionHeaderProps) {
   return (
     <View style={styles.container}>
       <Text style={[styles.title, { color: theme.colors.TEXT_PRIMARY }]}>
-        {emoji ? `${emoji} ` : ''}{title}
+        {emoji ? `${emoji} ` : ''}
+        {title}
       </Text>
       {count !== undefined && (
         <View style={[styles.badge, { backgroundColor: theme.colors.GLASS_BORDER }]}>
-          <Text style={[styles.badgeText, { color: theme.colors.TEXT_SECONDARY }]}>
-            {count}
-          </Text>
+          <Text style={[styles.badgeText, { color: theme.colors.TEXT_SECONDARY }]}>{count}</Text>
         </View>
       )}
     </View>

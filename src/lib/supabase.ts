@@ -96,7 +96,9 @@ export const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 export const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('🚨 [Yrdly] Missing Supabase environment variables! 🚨\nIf you built this on EAS, make sure you uploaded your secrets using `eas secret:push`.');
+  console.error(
+    '🚨 [Yrdly] Missing Supabase environment variables! 🚨\nIf you built this on EAS, make sure you uploaded your secrets using `eas secret:push`.'
+  );
 }
 
 export const supabase = createClient(
@@ -104,9 +106,12 @@ export const supabase = createClient(
   supabaseAnonKey || 'placeholder',
   {
     auth: {
-      storage: Platform.OS === 'web'
-        ? typeof window !== 'undefined' ? window.localStorage : undefined
-        : SecureStoreAdapter,
+      storage:
+        Platform.OS === 'web'
+          ? typeof window !== 'undefined'
+            ? window.localStorage
+            : undefined
+          : SecureStoreAdapter,
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,

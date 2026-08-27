@@ -18,14 +18,7 @@
     "Umuahia North",
     "Umuahia South"
   ],
-  "Federal Capital Territory": [
-    "Abaji",
-    "Bwari",
-    "Gwagwalada",
-    "Kuje",
-    "Kwali",
-    "Municipal"
-  ],
+  "Federal Capital Territory": ["Abaji", "Bwari", "Gwagwalada", "Kuje", "Kwali", "Municipal"],
   "Adamawa": [
     "Demsa",
     "Fufore",

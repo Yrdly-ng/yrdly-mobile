@@ -1,6 +1,14 @@
-import { createStyleSheet, useStyles } from "react-native-unistyles";
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, FlatList, ActivityIndicator, Text, Alert, RefreshControl } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  FlatList,
+  ActivityIndicator,
+  Text,
+  Alert,
+  RefreshControl,
+} from 'react-native';
 import { MarketplaceItemCard } from './MarketplaceItemCard';
 import { Skeleton } from './Skeleton';
 import { supabase } from '../lib/supabase';
@@ -15,9 +23,9 @@ interface MarketplaceGridProps {
 }
 
 export function MarketplaceGrid({ searchQuery = '', sortOption = 'newest' }: MarketplaceGridProps) {
-    const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { styles: stylesheet, theme } = useStyles(_stylesheet);
 
-    const router = useRouter();
+  const router = useRouter();
   const { user } = useAuth();
   const { activeFilter } = useLocation();
   const [items, setItems] = useState<Post[]>([]);
@@ -25,96 +33,102 @@ export function MarketplaceGrid({ searchQuery = '', sortOption = 'newest' }: Mar
   const [refreshing, setRefreshing] = useState(false);
   const [messagingItem, setMessagingItem] = useState<string | null>(null);
 
-  const handleMessageSeller = useCallback(async (item: Post) => {
-    if (!user) {
-      Alert.alert('Sign in required', 'Please sign in to message the seller.');
-      return;
-    }
-    if (user.id === item.user_id) {
-      Alert.alert("That's your own listing!");
-      return;
-    }
-
-    setMessagingItem(item.id);
-    try {
-      // 1. Look for existing marketplace conversation for this item between these two users
-      const { data: existing } = await supabase
-        .from('conversations')
-        .select('id')
-        .eq('type', 'marketplace')
-        .contains('participant_ids', [user.id, item.user_id])
-        .eq('item_id', item.id)
-        .limit(1);
-
-      if (existing && existing.length > 0) {
-        router.push('/', { params: { id: existing[0].id } });
+  const handleMessageSeller = useCallback(
+    async (item: Post) => {
+      if (!user) {
+        Alert.alert('Sign in required', 'Please sign in to message the seller.');
+        return;
+      }
+      if (user.id === item.user_id) {
+        Alert.alert("That's your own listing!");
         return;
       }
 
-      // 2. Create a new marketplace conversation
-      const imageUrl = item.image_urls?.[0] || item.image_url || null;
-      const { data: created, error } = await supabase
-        .from('conversations')
-        .insert({
-          type: 'marketplace',
-          participant_ids: [user.id, item.user_id],
-          item_id: item.id,
-          item_title: item.title || item.text || 'Listing',
-          item_image: imageUrl,
-          item_price: item.price ?? null,
-          last_message_text: '',
-          updated_at: new Date().toISOString(),
-        })
-        .select('id')
-        .single();
+      setMessagingItem(item.id);
+      try {
+        // 1. Look for existing marketplace conversation for this item between these two users
+        const { data: existing } = await supabase
+          .from('conversations')
+          .select('id')
+          .eq('type', 'marketplace')
+          .contains('participant_ids', [user.id, item.user_id])
+          .eq('item_id', item.id)
+          .limit(1);
 
-      if (error || !created) throw error ?? new Error('Failed to create conversation');
+        if (existing && existing.length > 0) {
+          router.push('/', { params: { id: existing[0].id } });
+          return;
+        }
 
-      router.push('/', { params: { id: created.id } });
-    } catch (e) {
-      console.error('Message seller error:', e);
-      Alert.alert('Error', 'Could not open chat. Please try again.');
-    } finally {
-      setMessagingItem(null);
-    }
-  }, [user, router]);
+        // 2. Create a new marketplace conversation
+        const imageUrl = item.image_urls?.[0] || item.image_url || null;
+        const { data: created, error } = await supabase
+          .from('conversations')
+          .insert({
+            type: 'marketplace',
+            participant_ids: [user.id, item.user_id],
+            item_id: item.id,
+            item_title: item.title || item.text || 'Listing',
+            item_image: imageUrl,
+            item_price: item.price ?? null,
+            last_message_text: '',
+            updated_at: new Date().toISOString(),
+          })
+          .select('id')
+          .single();
 
-  const fetchItems = useCallback(async (isRefresh = false) => {
-    if (!isRefresh) setLoading(true);
-    try {
-      let query = supabase
-        .from('posts')
-        .select(`*, user:users!posts_user_id_fkey(id, name, avatar_url)`)
-        .eq('category', 'For Sale')
-        .eq('is_sold', false);
+        if (error || !created) throw error ?? new Error('Failed to create conversation');
 
-      if (activeFilter?.state) query = query.eq('state', activeFilter.state);
-      if (activeFilter?.lga) query = query.eq('lga', activeFilter.lga);
-      if (activeFilter?.ward) query = query.eq('ward', activeFilter.ward);
-
-      if (searchQuery) {
-        // Simple search on title or description
-        query = query.or(`title.ilike.%${searchQuery}%,text.ilike.%${searchQuery}%`);
+        router.push('/', { params: { id: created.id } });
+      } catch (e) {
+        console.error('Message seller error:', e);
+        Alert.alert('Error', 'Could not open chat. Please try again.');
+      } finally {
+        setMessagingItem(null);
       }
+    },
+    [user, router]
+  );
 
-      if (sortOption === 'price_asc') {
-        query = query.order('price', { ascending: true });
-      } else if (sortOption === 'price_desc') {
-        query = query.order('price', { ascending: false });
-      } else {
-        query = query.order('timestamp', { ascending: false });
+  const fetchItems = useCallback(
+    async (isRefresh = false) => {
+      if (!isRefresh) setLoading(true);
+      try {
+        let query = supabase
+          .from('posts')
+          .select(`*, user:users!posts_user_id_fkey(id, name, avatar_url)`)
+          .eq('category', 'For Sale')
+          .eq('is_sold', false);
+
+        if (activeFilter?.state) query = query.eq('state', activeFilter.state);
+        if (activeFilter?.lga) query = query.eq('lga', activeFilter.lga);
+        if (activeFilter?.ward) query = query.eq('ward', activeFilter.ward);
+
+        if (searchQuery) {
+          // Simple search on title or description
+          query = query.or(`title.ilike.%${searchQuery}%,text.ilike.%${searchQuery}%`);
+        }
+
+        if (sortOption === 'price_asc') {
+          query = query.order('price', { ascending: true });
+        } else if (sortOption === 'price_desc') {
+          query = query.order('price', { ascending: false });
+        } else {
+          query = query.order('timestamp', { ascending: false });
+        }
+
+        const { data, error } = await query.limit(40);
+
+        if (error) throw error;
+        setItems(data as Post[]);
+      } catch (error) {
+        console.error('Error fetching marketplace items:', error);
+      } finally {
+        if (!isRefresh) setLoading(false);
       }
-
-      const { data, error } = await query.limit(40);
-
-      if (error) throw error;
-      setItems(data as Post[]);
-    } catch (error) {
-      console.error('Error fetching marketplace items:', error);
-    } finally {
-      if (!isRefresh) setLoading(false);
-    }
-  }, [searchQuery, sortOption, activeFilter]);
+    },
+    [searchQuery, sortOption, activeFilter]
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -131,17 +145,23 @@ export function MarketplaceGrid({ searchQuery = '', sortOption = 'newest' }: Mar
   if (loading) {
     return (
       <View style={stylesheet.skeletonGrid}>
-        {[1, 2, 3, 4, 5, 6].map(key => {
-        return (
-                  <View key={key} style={[stylesheet.skeletonCard, { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER }]}>
-                    <Skeleton width="100%" height={160} />
-                    <View style={{ padding: 12 }}>
-                      <Skeleton width="80%" height={14} style={{ marginBottom: 6 }} />
-                      <Skeleton width="60%" height={14} style={{ marginBottom: 12 }} />
-                      <Skeleton width="40%" height={18} />
-                    </View>
-                  </View>
-                );
+        {[1, 2, 3, 4, 5, 6].map((key) => {
+          return (
+            <View
+              key={key}
+              style={[
+                stylesheet.skeletonCard,
+                { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER },
+              ]}
+            >
+              <Skeleton width="100%" height={160} />
+              <View style={{ padding: 12 }}>
+                <Skeleton width="80%" height={14} style={{ marginBottom: 6 }} />
+                <Skeleton width="60%" height={14} style={{ marginBottom: 12 }} />
+                <Skeleton width="40%" height={18} />
+              </View>
+            </View>
+          );
         })}
       </View>
     );
@@ -151,7 +171,7 @@ export function MarketplaceGrid({ searchQuery = '', sortOption = 'newest' }: Mar
     return (
       <View style={stylesheet.centerContainer}>
         <Text style={[stylesheet.emptyText, { color: theme.colors.MUTED }]}>
-          {searchQuery ? `No results for "${searchQuery}"` : "Marketplace is empty"}
+          {searchQuery ? `No results for "${searchQuery}"` : 'Marketplace is empty'}
         </Text>
       </View>
     );
@@ -162,10 +182,12 @@ export function MarketplaceGrid({ searchQuery = '', sortOption = 'newest' }: Mar
       data={items}
       keyExtractor={(item) => item.id}
       numColumns={2}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.G} />}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.G} />
+      }
       renderItem={({ item }) => (
-        <MarketplaceItemCard 
-          item={item} 
+        <MarketplaceItemCard
+          item={item}
           onPress={() => router.push(`/marketplace/${item.id}`)}
           onMessageSeller={handleMessageSeller}
           onBuyNow={(item) => router.push('/', { params: { id: item.id, type: 'marketplace' } })}
@@ -178,35 +200,35 @@ export function MarketplaceGrid({ searchQuery = '', sortOption = 'newest' }: Mar
   );
 }
 
-const _stylesheet = createStyleSheet(theme => ({
-      listContent: {
-        padding: 16,
-        paddingBottom: 100, // padding for the FAB later
-      },
-      columnWrapper: {
-        justifyContent: 'space-between',
-      },
-      centerContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-      },
-      emptyText: {
-        fontSize: 16,
-        textAlign: 'center',
-      },
-      skeletonGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        padding: 16,
-        justifyContent: 'space-between',
-      },
-      skeletonCard: {
-        width: '48%',
-        marginBottom: 16,
-        borderRadius: 8,
-        borderWidth: StyleSheet.hairlineWidth,
-        overflow: 'hidden',
-      },
-    }));
+const _stylesheet = createStyleSheet((theme) => ({
+  listContent: {
+    padding: 16,
+    paddingBottom: 100, // padding for the FAB later
+  },
+  columnWrapper: {
+    justifyContent: 'space-between',
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  skeletonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 16,
+    justifyContent: 'space-between',
+  },
+  skeletonCard: {
+    width: '48%',
+    marginBottom: 16,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+  },
+}));

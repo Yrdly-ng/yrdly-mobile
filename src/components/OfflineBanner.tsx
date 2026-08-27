@@ -12,7 +12,7 @@ export function OfflineBanner() {
     const unsubscribe = NetInfo.addEventListener((state) => {
       // Treat null as connected so we don't show the banner unnecessarily
       const connected = state.isConnected ?? true;
-      
+
       setIsConnected(connected);
 
       Animated.timing(animation, {
@@ -35,7 +35,13 @@ export function OfflineBanner() {
   });
 
   return (
-    <Animated.View style={[styles.container, { paddingTop: Math.max(insets.top, 20) }, { transform: [{ translateY }] }]}>
+    <Animated.View
+      style={[
+        styles.container,
+        { paddingTop: Math.max(insets.top, 20) },
+        { transform: [{ translateY }] },
+      ]}
+    >
       <Text style={styles.text}>No Internet Connection</Text>
     </Animated.View>
   );

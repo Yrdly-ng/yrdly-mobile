@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from "react-native-unistyles";
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React from 'react';
 import { View, Text } from 'react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
@@ -14,9 +14,9 @@ interface Props {
 
 const getPinColors = (theme: any): Record<PinType, string> => ({
   marketplace: theme.colors.GOLD,
-  event:       theme.colors.BLUE,
-  business:    theme.colors.G,
-  post:        theme.colors.SURFACE,
+  event: theme.colors.BLUE,
+  business: theme.colors.G,
+  post: theme.colors.SURFACE,
 });
 
 const PIN_SIZE = 36;
@@ -27,7 +27,7 @@ const PIN_SIZE = 36;
  * Matches Figma Make's MapPinIcon({ type, price?, badge? }) component.
  */
 export function MapPinIcon({ type, price, badge }: Props) {
-    const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { styles: stylesheet, theme } = useStyles(_stylesheet);
 
   const color = getPinColors(theme)[type];
 
@@ -46,7 +46,11 @@ export function MapPinIcon({ type, price, badge }: Props) {
         ) : (
           <CommunityMini color={theme.colors.TEXT_PRIMARY} />
         )}
-        {badge ? <View style={stylesheet.badge}><Text style={stylesheet.badgeText}>{badge}</Text></View> : null}
+        {badge ? (
+          <View style={stylesheet.badge}>
+            <Text style={stylesheet.badgeText}>{badge}</Text>
+          </View>
+        ) : null}
       </View>
       {/* Tail */}
       <View style={[stylesheet.tail, { borderTopColor: color }]} />
@@ -57,7 +61,7 @@ export function MapPinIcon({ type, price, badge }: Props) {
 // ─── Micro icons ──────────────────────────────────────────────────────────────
 
 function CalendarMini({ color }: { color: string }) {
-    const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { styles: stylesheet, theme } = useStyles(_stylesheet);
 
   return (
     <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
@@ -68,7 +72,7 @@ function CalendarMini({ color }: { color: string }) {
 }
 
 function StorefrontMini({ color }: { color: string }) {
-    const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { styles: stylesheet, theme } = useStyles(_stylesheet);
 
   return (
     <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
@@ -84,67 +88,62 @@ function StorefrontMini({ color }: { color: string }) {
 }
 
 function CommunityMini({ color }: { color: string }) {
-    const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { styles: stylesheet, theme } = useStyles(_stylesheet);
 
   return (
     <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
       <Circle cx="12" cy="8" r="4" stroke={color} strokeWidth="2" />
-      <Path
-        d="M4 20c0-4 3.6-7 8-7s8 3 8 7"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
+      <Path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke={color} strokeWidth="2" strokeLinecap="round" />
     </Svg>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const _stylesheet = createStyleSheet(theme => ({
-      wrapper: {
-        alignItems: 'center',
-      },
-      pin: {
-        width: PIN_SIZE,
-        height: PIN_SIZE,
-        borderRadius: PIN_SIZE / 2,
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.35,
-        shadowRadius: 4,
-        elevation: 5,
-      },
-      tail: {
-        width: 0,
-        height: 0,
-        borderLeftWidth: 6,
-        borderRightWidth: 6,
-        borderTopWidth: 8,
-        borderLeftColor: 'transparent',
-        borderRightColor: 'transparent',
-        marginTop: -1,
-      },
-      priceLabel: {
-        color: '#000',
-        fontFamily: 'Outfit',
-        fontSize: 8,
-        fontWeight: '800',
-      },
-      badge: {
-        position: 'absolute',
-        top: -4,
-        right: -4,
-        backgroundColor: '#EF4444',
-        borderRadius: 6,
-        paddingHorizontal: 3,
-        paddingVertical: 1,
-      },
-      badgeText: {
-        color: theme.colors.TEXT_PRIMARY,
-        fontSize: 7,
-        fontWeight: '700',
-      },
-    }));
+const _stylesheet = createStyleSheet((theme) => ({
+  wrapper: {
+    alignItems: 'center',
+  },
+  pin: {
+    width: PIN_SIZE,
+    height: PIN_SIZE,
+    borderRadius: PIN_SIZE / 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  tail: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 8,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    marginTop: -1,
+  },
+  priceLabel: {
+    color: '#000',
+    fontFamily: 'Outfit',
+    fontSize: 8,
+    fontWeight: '800',
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#EF4444',
+    borderRadius: 6,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
+  },
+  badgeText: {
+    color: theme.colors.TEXT_PRIMARY,
+    fontSize: 7,
+    fontWeight: '700',
+  },
+}));

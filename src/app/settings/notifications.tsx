@@ -1,6 +1,14 @@
-import { createStyleSheet, useStyles } from "react-native-unistyles";
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Switch, ActivityIndicator, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  Switch,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -49,9 +57,7 @@ export default function NotificationSettingsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={s.content}>
-        <Text style={s.desc}>
-          Select what alerts you want to receive on your device.
-        </Text>
+        <Text style={s.desc}>Select what alerts you want to receive on your device.</Text>
 
         <View style={s.card}>
           {/* Direct Messages */}
@@ -189,19 +195,69 @@ export default function NotificationSettingsScreen() {
   );
 }
 
-const sStylesheet = createStyleSheet(theme => ({
-      root: { flex: 1, backgroundColor: theme.colors.DARK },
-      header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.GLASS_BORDER },
-      backBtn: { width: 34, height: 34, borderRadius: 11, backgroundColor: theme.colors.SURFACE, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER, alignItems: 'center', justifyContent: 'center' },
-      headerTitle: { fontFamily: 'Outfit-Bold', fontSize: 18, color: theme.colors.TEXT_PRIMARY },
-      content: { padding: 20 },
-      desc: { fontFamily: 'Inter', fontSize: 14, color: theme.colors.MUTED, lineHeight: 22, marginBottom: 24 },
-      card: { backgroundColor: theme.colors.SURFACE, borderRadius: 16, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER, paddingHorizontal: 16, overflow: 'hidden' },
-      row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16 },
-      rowLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 16 },
-      iconBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: theme.colors.SURFACE, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-      rowText: { flex: 1 },
-      rowLabel: { fontFamily: 'Inter-SemiBold', fontSize: 15, color: theme.colors.TEXT_PRIMARY, marginBottom: 2 },
-      rowSub: { fontFamily: 'Inter', fontSize: 12, color: theme.colors.MUTED, lineHeight: 16 },
-      divider: { height: 1, backgroundColor: theme.colors.GLASS_BORDER },
-    }));
+const sStylesheet = createStyleSheet((theme) => ({
+  root: { flex: 1, backgroundColor: theme.colors.DARK },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.GLASS_BORDER,
+  },
+  backBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: theme.colors.SURFACE,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: { fontFamily: 'Outfit-Bold', fontSize: 18, color: theme.colors.TEXT_PRIMARY },
+  content: { padding: 20 },
+  desc: {
+    fontFamily: 'Inter',
+    fontSize: 14,
+    color: theme.colors.MUTED,
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  card: {
+    backgroundColor: theme.colors.SURFACE,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    paddingHorizontal: 16,
+    overflow: 'hidden',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+  },
+  rowLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 16 },
+  iconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: theme.colors.SURFACE,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  rowText: { flex: 1 },
+  rowLabel: {
+    fontFamily: 'Inter-SemiBold',
+    fontSize: 15,
+    color: theme.colors.TEXT_PRIMARY,
+    marginBottom: 2,
+  },
+  rowSub: { fontFamily: 'Inter', fontSize: 12, color: theme.colors.MUTED, lineHeight: 16 },
+  divider: { height: 1, backgroundColor: theme.colors.GLASS_BORDER },
+}));

@@ -88,7 +88,10 @@ export interface Ticket {
   updated_at: string;
   is_archived: boolean;
   // Joined fields
-  event?: Pick<Event, 'id' | 'title' | 'cover_image_url' | 'start_time' | 'location_address' | 'state'>;
+  event?: Pick<
+    Event,
+    'id' | 'title' | 'cover_image_url' | 'start_time' | 'location_address' | 'state'
+  >;
   tier?: Pick<TicketTier, 'id' | 'name' | 'price'>;
 }
 

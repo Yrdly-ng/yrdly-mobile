@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from "react-native-unistyles";
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -74,7 +74,7 @@ export default function HelpScreen() {
 
       <ScrollView contentContainerStyle={s.content}>
         <Text style={s.title}>Frequently Asked Questions</Text>
-        
+
         <View style={s.faqCard}>
           {FAQS.map((faq, idx) => {
             return (
@@ -101,24 +101,90 @@ export default function HelpScreen() {
   );
 }
 
-const sStylesheet = createStyleSheet(theme => ({
-      root: { flex: 1, backgroundColor: theme.colors.DARK },
-      header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.GLASS_BORDER },
-      backBtn: { width: 34, height: 34, borderRadius: 11, backgroundColor: theme.colors.SURFACE, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER, alignItems: 'center', justifyContent: 'center' },
-      headerTitle: { fontFamily: 'Outfit-Bold', fontSize: 18, color: theme.colors.TEXT_PRIMARY },
-      content: { padding: 20 },
-      title: { fontFamily: 'Outfit-Bold', fontSize: 18, color: theme.colors.TEXT_PRIMARY, marginBottom: 16 },
-      faqCard: { backgroundColor: theme.colors.SURFACE, borderRadius: 16, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER, overflow: 'hidden', marginBottom: 24 },
-      faqItem: { width: '100%' },
-      faqHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
-      faqQuestion: { flex: 1, fontFamily: 'Inter-SemiBold', fontSize: 14, color: theme.colors.TEXT_PRIMARY, marginRight: 16 },
-      faqBody: { paddingHorizontal: 16, paddingBottom: 16 },
-      faqAnswer: { fontFamily: 'Inter', fontSize: 13, color: theme.colors.LABEL, lineHeight: 20 },
-      divider: { height: 1, backgroundColor: theme.colors.GLASS_BORDER },
-      
-      supportCard: { backgroundColor: theme.colors.SURFACE, borderRadius: 16, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER, padding: 20, alignItems: 'center' },
-      supportTitle: { fontFamily: 'Outfit-Bold', fontSize: 16, color: theme.colors.TEXT_PRIMARY, marginBottom: 4 },
-      supportDesc: { fontFamily: 'Inter', fontSize: 13, color: theme.colors.MUTED, textAlign: 'center', lineHeight: 20, marginBottom: 16 },
-      supportBtn: { height: 44, paddingHorizontal: 24, borderRadius: 22, backgroundColor: theme.colors.G, justifyContent: 'center', alignItems: 'center' },
-      supportBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: theme.colors.TEXT_PRIMARY },
-    }));
+const sStylesheet = createStyleSheet((theme) => ({
+  root: { flex: 1, backgroundColor: theme.colors.DARK },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.GLASS_BORDER,
+  },
+  backBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: theme.colors.SURFACE,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: { fontFamily: 'Outfit-Bold', fontSize: 18, color: theme.colors.TEXT_PRIMARY },
+  content: { padding: 20 },
+  title: {
+    fontFamily: 'Outfit-Bold',
+    fontSize: 18,
+    color: theme.colors.TEXT_PRIMARY,
+    marginBottom: 16,
+  },
+  faqCard: {
+    backgroundColor: theme.colors.SURFACE,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    overflow: 'hidden',
+    marginBottom: 24,
+  },
+  faqItem: { width: '100%' },
+  faqHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  faqQuestion: {
+    flex: 1,
+    fontFamily: 'Inter-SemiBold',
+    fontSize: 14,
+    color: theme.colors.TEXT_PRIMARY,
+    marginRight: 16,
+  },
+  faqBody: { paddingHorizontal: 16, paddingBottom: 16 },
+  faqAnswer: { fontFamily: 'Inter', fontSize: 13, color: theme.colors.LABEL, lineHeight: 20 },
+  divider: { height: 1, backgroundColor: theme.colors.GLASS_BORDER },
+
+  supportCard: {
+    backgroundColor: theme.colors.SURFACE,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    padding: 20,
+    alignItems: 'center',
+  },
+  supportTitle: {
+    fontFamily: 'Outfit-Bold',
+    fontSize: 16,
+    color: theme.colors.TEXT_PRIMARY,
+    marginBottom: 4,
+  },
+  supportDesc: {
+    fontFamily: 'Inter',
+    fontSize: 13,
+    color: theme.colors.MUTED,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  supportBtn: {
+    height: 44,
+    paddingHorizontal: 24,
+    borderRadius: 22,
+    backgroundColor: theme.colors.G,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  supportBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: theme.colors.TEXT_PRIMARY },
+}));
