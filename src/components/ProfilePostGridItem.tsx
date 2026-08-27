@@ -18,8 +18,11 @@ const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 export function ProfilePostGridItem({ post, onPress, width }: ProfilePostGridItemProps) {
   const { styles, theme } = useStyles(sStylesheet);
   
-  const hasImages = post.image_urls && post.image_urls.length > 0;
-  const imageUrl = hasImages ? post.image_urls![0] : post.image_url || post.video_thumbnail_url;
+  const parsedUrls = Array.isArray(post.image_urls)
+    ? post.image_urls
+    : (typeof post.image_urls === 'string' ? JSON.parse(post.image_urls || '[]') : []);
+  const hasImages = parsedUrls.length > 0;
+  const imageUrl = hasImages ? parsedUrls[0] : post.image_url || post.video_thumbnail_url;
   const hasVideo = !!post.video_urls?.[0];
   
   const scale = useSharedValue(1);

@@ -56,7 +56,10 @@ export function MarketplaceItemCard({ item, onPress, onMessageSeller, onBuyNow }
     setSaved(user ? (item.liked_by || []).includes(user.id) : false);
   }, [item.liked_by, user]);
 
-  const imageUrl = item.image_urls?.[0] || item.image_url || item.video_thumbnail_url;
+  const parsedUrls = Array.isArray(item.image_urls)
+    ? item.image_urls
+    : (typeof item.image_urls === 'string' ? JSON.parse(item.image_urls || '[]') : []);
+  const imageUrl = parsedUrls.length > 0 ? parsedUrls[0] : item.image_url || item.video_thumbnail_url;
   const sellerName = item.user?.name || item.author_name || 'Seller';
   const badge = getBadge(item);
 

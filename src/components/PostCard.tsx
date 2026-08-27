@@ -89,7 +89,7 @@ const PostVideo = React.memo(function PostVideo({ post, isVisible, isVideoMuted,
       <VideoView
         player={player}
         style={{ width: '100%', height: '100%' }}
-        contentFit="cover"
+        contentFit="contain"
         nativeControls={false}
         onFirstFrameRender={() => setIsReady(true)}
       />
@@ -97,7 +97,7 @@ const PostVideo = React.memo(function PostVideo({ post, isVisible, isVideoMuted,
         <Image 
           source={{ uri: post.video_thumbnail_url }} 
           style={{ position: 'absolute', width: '100%', height: '100%', zIndex: 1 }} 
-          contentFit="cover" 
+          contentFit="contain" 
         />
       )}
       <TouchableOpacity 
