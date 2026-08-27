@@ -33,7 +33,7 @@ export default function VerifyPhoneScreen() {
     setError('');
     try {
       const pinId = await sendPhoneOtp(phone);
-      router.push('/verify-phone-otp', { params: { phone, initialPinId: pinId } });
+      router.push({ pathname: '/verify-phone-otp', params: { phone, initialPinId: pinId } });
     } catch (e: any) {
       setError(e.message || 'Failed to send verification code.');
     } finally {

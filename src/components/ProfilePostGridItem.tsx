@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { Post } from '../types';
 import { StorageService } from '../lib/storage-service';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -14,6 +15,14 @@ interface ProfilePostGridItemProps {
 }
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
+
+const GridVideoThumbnail = ({ source }: { source: string }) => {
+  const player = useVideoPlayer(source, p => {
+    p.muted = true;
+    p.pause();
+  });
+  return <VideoView player={player} style={{ width: '100%', height: '100%' }} contentFit="cover" nativeControls={false} />;
+};
 
 export function ProfilePostGridItem({ post, onPress, width }: ProfilePostGridItemProps) {
   const { styles, theme } = useStyles(sStylesheet);
@@ -57,9 +66,7 @@ export function ProfilePostGridItem({ post, onPress, width }: ProfilePostGridIte
           )}
         </>
       ) : hasVideo ? (
-        <View style={[styles.placeholder, { backgroundColor: theme.colors.SURFACE_ALT }]}>
-          <Feather name="video" size={32} color={theme.colors.MUTED} />
-        </View>
+        <GridVideoThumbnail source={post.video_urls![0]} />
       ) : (
         <View style={[styles.placeholder, { backgroundColor: theme.colors.SURFACE_ALT }]}>
           <Text style={styles.textSnippet} numberOfLines={3}>
