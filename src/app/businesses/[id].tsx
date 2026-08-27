@@ -114,13 +114,18 @@ export default function BusinessProfileScreen() {
     ]);
   }, [id]);
 
-  const handleMessage = useCallback(async () => {
+  const handleMessage = useCallback(async (item?: CatalogItem) => {
     if (!business || !user || user.id === business.owner_id) return;
     try {
       const { data: convs } = await supabase.from('conversations').select('id, type, participant_ids, item_id').eq('item_id', business.id).order('created_at', { ascending: true });
       const existing = convs?.find(c => c.type === 'briefcase' && c.item_id === business.id && c.participant_ids?.includes(user.id) && c.participant_ids?.includes(business.owner_id));
-      if (existing?.id) return router.push('/', { params: { id: existing.id } });
-      router.push('/', { params: { id: 'new', type: 'briefcase', participant_id: business.owner_id, item_id: business.id, item_title: business.name, item_image: business.cover_image || business.logo || '' } });
+      if (existing?.id) {
+        router.push(`/chat/${existing.id}` as any);
+        return;
+      }
+      const itemImg = encodeURIComponent(business.cover_image || (business as any).logo_url || business.logo || '');
+      const itemTitle = encodeURIComponent(item ? `${item.title} @ ${business.name}` : business.name);
+      router.push(`/chat/new?type=briefcase&participant_id=${business.owner_id}&item_id=${business.id}&item_title=${itemTitle}&item_image=${itemImg}` as any);
     } catch (e) { console.error(e); }
   }, [business, user, router]);
 
@@ -175,7 +180,7 @@ export default function BusinessProfileScreen() {
   }
 
   const coverImg = business.cover_image || business.image_urls?.[0] || 'https://via.placeholder.com/600x300';
-  const logoImg = business.logo || business.owner_avatar || 'https://via.placeholder.com/150';
+  const logoImg = (business as any).logo_url || business.logo || business.owner_avatar || 'https://via.placeholder.com/150';
 
   return (
     <View style={sStylesheet.root}>
@@ -201,11 +206,19 @@ export default function BusinessProfileScreen() {
                 
                 {viewAsCustomer ? (
                   <>
-                    <TouchableOpacity style={sStylesheet.sheetActionItem} onPress={() => { setCatalogSheet(null); handleMessage(); }}>
+                    {catalogSheet.in_stock && (
+                      <TouchableOpacity style={sStylesheet.sheetActionItem} onPress={() => { setCatalogSheet(null); router.push(`/checkout/${catalogSheet.id}?type=catalog_item` as any); }}>
+                        <View style={[sStylesheet.sheetActionIconBox, { backgroundColor: 'rgba(130,219,126,0.15)' }]}>
+                          <Ionicons name="bag-handle-outline" size={16} color={theme.colors.G} />
+                        </View>
+                        <Text style={[sStylesheet.sheetActionTxt, { color: theme.colors.G, fontFamily: 'Inter-SemiBold' }]}>Order / Buy Now</Text>
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity style={sStylesheet.sheetActionItem} onPress={() => { setCatalogSheet(null); handleMessage(catalogSheet); }}>
                       <View style={[sStylesheet.sheetActionIconBox, { backgroundColor: 'rgba(130,219,126,0.1)' }]}>
                         <Ionicons name="chatbubbles-outline" size={16} color={theme.colors.G} />
                       </View>
-                      <Text style={[sStylesheet.sheetActionTxt, { color: theme.colors.G }]}>Inquire / Order via Chat</Text>
+                      <Text style={[sStylesheet.sheetActionTxt, { color: theme.colors.G }]}>Inquire via Chat</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={[sStylesheet.sheetActionItem, { borderBottomWidth: 0 }]} onPress={() => { setCatalogSheet(null); handleShareItem(catalogSheet); }}>
                       <View style={[sStylesheet.sheetActionIconBox, { backgroundColor: theme.colors.SURFACE }]}>

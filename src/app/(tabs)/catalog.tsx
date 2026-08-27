@@ -753,7 +753,7 @@ function PlacesSection({ currentLoc, search }: { currentLoc: Location.LocationOb
           return (
                       <TouchableOpacity style={sStylesheet.placeRow} onPress={() => router.push(`/businesses/${item.id}` as any)} activeOpacity={0.9}>
                         <View style={sStylesheet.placePhotoWrap}>
-                          <Image source={(item.cover_image || item.logo) ? { uri: item.cover_image || item.logo } : undefined} style={sStylesheet.placePhoto} contentFit="cover" />
+                          <Image source={(item.cover_image || (item as any).logo_url || item.logo) ? { uri: item.cover_image || (item as any).logo_url || item.logo } : undefined} style={sStylesheet.placePhoto} contentFit="cover" />
                         </View>
                         <View style={sStylesheet.placeInfo}>
                           <View style={sStylesheet.placeTitleRow}>

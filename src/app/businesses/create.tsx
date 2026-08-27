@@ -171,16 +171,20 @@ export default function BusinessEditScreen() {
         if (error) throw error;
       }
 
-      if (businessId && coverUri && coverUri.startsWith('file://')) {
-        const { url } = await StorageService.uploadBusinessImage(businessId, { uri: coverUri, name: 'cover.jpg', type: 'image/jpeg' });
+      // Helper: is this a local device URI (not yet uploaded)?
+      const isLocalUri = (uri: string | null) =>
+        !!uri && !uri.startsWith('http');
+
+      if (businessId && isLocalUri(coverUri)) {
+        const { url } = await StorageService.uploadBusinessImage(businessId, { uri: coverUri!, name: 'cover.jpg', type: 'image/jpeg' });
         if (url) {
           finalCover = url;
           await supabase.from('businesses').update({ cover_image: url }).eq('id', businessId);
         }
       }
 
-      if (businessId && logoUri && logoUri.startsWith('file://')) {
-        const { url } = await StorageService.uploadBusinessImage(businessId, { uri: logoUri, name: 'logo.jpg', type: 'image/jpeg' });
+      if (businessId && isLocalUri(logoUri)) {
+        const { url } = await StorageService.uploadBusinessImage(businessId, { uri: logoUri!, name: 'logo.jpg', type: 'image/jpeg' });
         if (url) {
           finalLogo = url;
           await supabase.from('businesses').update({ logo_url: url }).eq('id', businessId);

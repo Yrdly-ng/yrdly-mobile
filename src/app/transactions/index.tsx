@@ -8,9 +8,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { formatPrice } from '../../lib/utils';
-type EscrowStatus = 'pending' | 'paid' | 'shipped' | 'delivered' | 'completed' | 'disputed' | 'cancelled';
+type EscrowStatus = 'pending' | 'paid' | 'shipped' | 'delivered' | 'completed' | 'disputed' | 'cancelled' | 'failed';
 type Tab = 'purchases' | 'sales';
-type Filter = 'all' | 'active' | 'completed' | 'disputed';
+type Filter = 'all' | 'active' | 'completed' | 'disputed' | 'cancelled';
 
 interface Transaction {
   id: string;
@@ -31,8 +31,9 @@ const STATUS_ICONS: Record<EscrowStatus, string> = {
   shipped: '📦',
   delivered: '✅',
   completed: '✅',
-  disputed: '↩️',
-  cancelled: '↩️',
+  disputed: '⚠️',
+  cancelled: '✖️',
+  failed: '✖️',
 };
 
 
@@ -41,13 +42,14 @@ export default function TransactionsScreen() {
     const { styles: s, theme } = useStyles(sStylesheet);
 
   const STATUS_MAP: Record<EscrowStatus, { label: string; color: string }> = {
-    pending:   { label: 'In Escrow', color: '#FFB648' },
-    paid:      { label: 'In Escrow', color: '#FFB648' },
-    shipped:   { label: 'Shipped',   color: '#64B5F6' },
-    delivered: { label: 'Delivered', color: theme.colors.G },
-    completed: { label: 'Completed', color: theme.colors.G },
-    disputed:  { label: 'Refunded',  color: '#ef4444' },
-    cancelled: { label: 'Refunded',  color: '#ef4444' },
+    pending:   { label: 'In Escrow',  color: '#FFB648' },
+    paid:      { label: 'In Escrow',  color: '#FFB648' },
+    shipped:   { label: 'Shipped',    color: '#64B5F6' },
+    delivered: { label: 'Delivered',  color: theme.colors.G },
+    completed: { label: 'Completed',  color: theme.colors.G },
+    disputed:  { label: 'Disputed',   color: '#f59e0b' },
+    cancelled: { label: 'Cancelled',  color: '#ef4444' },
+    failed:    { label: 'Failed',     color: '#ef4444' },
   };
 
   const router = useRouter();
@@ -122,16 +124,14 @@ export default function TransactionsScreen() {
 
   const filteredData = transactions.filter(tx => {
     if (filter === 'all') return true;
-    const s = STATUS_MAP[tx.status].label;
-    if (filter === 'active') return s === 'In Escrow' || s === 'Shipped';
-    if (filter === 'completed') return s === 'Completed' || s === 'Delivered';
-    if (filter === 'disputed') return s === 'Refunded';
+    if (filter === 'active') return tx.status === 'pending' || tx.status === 'paid' || tx.status === 'shipped';
+    if (filter === 'completed') return tx.status === 'completed' || tx.status === 'delivered';
+    if (filter === 'disputed') return tx.status === 'disputed';
+    if (filter === 'cancelled') return tx.status === 'cancelled' || tx.status === 'failed';
     return true;
   });
 
   const renderItem = ({ item: tx }: { item: Transaction }) => {
-      const { styles: s } = useStyles(sStylesheet);
-
     const meta = STATUS_MAP[tx.status];
     const icon = STATUS_ICONS[tx.status];
     const counterparty = tab === 'purchases' ? tx.seller : tx.buyer;
@@ -165,10 +165,11 @@ export default function TransactionsScreen() {
   };
 
   const FILTERS: { key: Filter, label: string }[] = [
-    { key: 'all', label: 'All' },
-    { key: 'active', label: 'Active' },
+    { key: 'all',       label: 'All' },
+    { key: 'active',    label: 'Active' },
     { key: 'completed', label: 'Completed' },
-    { key: 'disputed', label: 'Disputed' },
+    { key: 'disputed',  label: 'Disputed' },
+    { key: 'cancelled', label: 'Cancelled' },
   ];
 
   return (

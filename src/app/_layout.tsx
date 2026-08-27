@@ -1,7 +1,7 @@
 import '../theme/unistyles';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useRouter, useSegments, usePathname, useGlobalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { usePushNotifications } from '../hooks/use-push-notifications';
 import { AuthProvider, useAuth } from '../hooks/use-supabase-auth';
@@ -9,7 +9,7 @@ import { ThemeProvider } from '../context/ThemeContext';
 import { LocationProvider } from '../context/LocationContext';
 import { NotificationBadgeProvider } from '../context/NotificationBadgeContext';
 import * as SplashScreen from 'expo-splash-screen';
-import { PostHogProvider } from 'posthog-react-native';
+import { PostHogProvider, usePostHog } from 'posthog-react-native';
 import { setAudioModeAsync } from 'expo-audio';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -36,6 +36,20 @@ SplashScreen.preventAutoHideAsync().catch(() => {
   // already hidden, ignore
 });
 
+
+function AnalyticsTracker() {
+  const posthog = usePostHog();
+  const pathname = usePathname();
+  const params = useGlobalSearchParams();
+
+  useEffect(() => {
+    if (pathname && posthog) {
+      posthog.screen(pathname, { params });
+    }
+  }, [pathname, params, posthog]);
+
+  return null;
+}
 
 function NotificationsHandler() {
   usePushNotifications();
@@ -193,6 +207,7 @@ export default function Layout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       {process.env.EXPO_PUBLIC_POSTHOG_KEY ? (
         <PostHogProvider apiKey={process.env.EXPO_PUBLIC_POSTHOG_KEY} options={{ host: process.env.EXPO_PUBLIC_POSTHOG_HOST }}>
+          <AnalyticsTracker />
           <KeyboardProvider>
             <ThemeProvider>
               <BottomSheetModalProvider>

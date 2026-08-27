@@ -37,6 +37,7 @@ export interface Business {
   owner_avatar?: string;
   cover_image?: string;
   logo?: string;
+  logo_url?: string;
   distance?: string;
   catalog?: CatalogItem[];
 }
