@@ -22,6 +22,10 @@ GoogleService-Info.plist
 upload-key.jks
 upload_cert.pem
 .env.keystore
+credentials.json
+credentials/
+*-firebase-adminsdk-*.json
+client_secret_*.json
 
 # Debug / build artifacts
 ts-errors.txt
