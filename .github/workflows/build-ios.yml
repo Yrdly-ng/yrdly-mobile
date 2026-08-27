@@ -57,6 +57,7 @@ jobs:
       - name: Build app archive (unsigned)
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SKIP_SENTRY_UPLOAD: 'true'
         run: |
           set -o pipefail
           cd ios
@@ -69,6 +70,7 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             DEVELOPMENT_TEAM="" \
+            SKIP_SENTRY_UPLOAD=true \
             archive | xcpretty --color
 
       - name: Package IPA from archive
