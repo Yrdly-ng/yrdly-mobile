@@ -31,13 +31,15 @@ interface PostCardProps {
 import { AppState } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 
-const PostVideo = React.memo(function PostVideo({ post, isVisible, isVideoMuted, setIsVideoMuted }: { post: Post, isVisible?: boolean, isVideoMuted: boolean, setIsVideoMuted: (muted: boolean) => void }) {
+const PostVideo = React.memo(function PostVideo({ post, videoUrl, isVisible, isVideoMuted, setIsVideoMuted }: { post: Post, videoUrl?: string, isVisible?: boolean, isVideoMuted: boolean, setIsVideoMuted: (muted: boolean) => void }) {
   const { styles: stylesheet, theme } = useStyles(_stylesheet);
   const [isReady, setIsReady] = useState(false);
   const [progress, setProgress] = useState(0);
   const isFocused = useIsFocused();
   
-  const player = useVideoPlayer(post.video_urls?.[0] || '', player => {
+  const targetUrl = videoUrl || post.video_urls?.[0] || (post as any).video_url || '';
+
+  const player = useVideoPlayer(targetUrl, player => {
     player.loop = true;
     player.muted = isVideoMuted;
     player.timeUpdateEventInterval = 0.05;
@@ -204,6 +206,25 @@ export const PostCard = React.memo(function PostCard({ post, onPress, onLike, on
     ? post.image_urls
     : (typeof post.image_urls === 'string' ? JSON.parse(post.image_urls || '[]') : []);
   const urls = parsedUrls.length > 0 ? parsedUrls : post.image_url ? [post.image_url] : [];
+
+  const mediaItems = React.useMemo(() => {
+    const items: Array<{ type: 'video' | 'image'; url: string }> = [];
+
+    const parsedVideoUrls = Array.isArray(post.video_urls)
+      ? post.video_urls
+      : (typeof post.video_urls === 'string' ? JSON.parse(post.video_urls || '[]') : []);
+    const videoUrls = parsedVideoUrls.length > 0 ? parsedVideoUrls : ((post as any).video_url ? [(post as any).video_url] : []);
+
+    videoUrls.forEach((url: string) => {
+      if (url) items.push({ type: 'video', url });
+    });
+
+    urls.forEach((url: string) => {
+      if (url) items.push({ type: 'image', url });
+    });
+
+    return items;
+  }, [post.video_urls, (post as any).video_url, urls]);
 
   useEffect(() => {
     if (isVisible === false) {
@@ -592,49 +613,83 @@ export const PostCard = React.memo(function PostCard({ post, onPress, onLike, on
         })()}
       </TouchableOpacity>
 
-      {/* Video */}
-      {post.video_urls?.[0] && (
-        <View style={{ marginHorizontal: 20, borderRadius: 16, overflow: 'hidden', aspectRatio: effectiveVideoAspect, backgroundColor: theme.colors.DARK, marginBottom: 12 }}>
-          <PostVideo 
-            post={post} 
-            isVisible={isVisible} 
-            isVideoMuted={isVideoMuted} 
-            setIsVideoMuted={setIsVideoMuted} 
-          />
-        </View>
-      )}
-
-      {/* Images Carousel */}
-      {urls.length > 0 && (
+      {/* Media Carousel (Unified Images & Videos) */}
+      {mediaItems.length > 0 && (
         <View style={{ position: 'relative', marginHorizontal: 20, marginBottom: 12 }}>
           <FlatList
-            data={urls}
+            data={mediaItems}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
-            keyExtractor={(item, index) => index.toString()}
+            keyExtractor={(item, index) => `${item.type}-${index}-${item.url}`}
             onMomentumScrollEnd={(e) => {
               const slide = Math.round(e.nativeEvent.contentOffset.x / (width - 40));
               if (slide !== activeImageIndex) setActiveImageIndex(slide);
             }}
-            renderItem={({ item, index }) => (
-              <TouchableOpacity 
-                activeOpacity={0.95}
-                onPress={() => handleImageTap(index)}
-              style={{ width: width - 40, height: getImageHeight(item), borderRadius: 16, overflow: 'hidden', backgroundColor: theme.colors.SURFACE_ALT }}
-            >
-              <Image source={{ uri: StorageService.getOptimizedImageUrl(item, 800) || item }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
-                
-                <Animated.View style={[stylesheet.heartOverlay, heartAnimatedStyle]}>
-                  <Ionicons name="heart" size={100} color={theme.colors.G} style={stylesheet.heartShadow} />
-                </Animated.View>
-              </TouchableOpacity>
-            )}
+            renderItem={({ item, index }) => {
+              const containerHeight = item.type === 'video'
+                ? (width - 40) / effectiveVideoAspect
+                : getImageHeight(item.url);
+
+              if (item.type === 'video') {
+                return (
+                  <View
+                    style={{
+                      width: width - 40,
+                      height: containerHeight,
+                      borderRadius: 16,
+                      overflow: 'hidden',
+                      backgroundColor: theme.colors.DARK,
+                    }}
+                  >
+                    <PostVideo
+                      post={post}
+                      videoUrl={item.url}
+                      isVisible={isVisible !== false && activeImageIndex === index}
+                      isVideoMuted={isVideoMuted}
+                      setIsVideoMuted={setIsVideoMuted}
+                    />
+                  </View>
+                );
+              }
+
+              const imageIndex = mediaItems.slice(0, index).filter(m => m.type === 'image').length;
+
+              return (
+                <TouchableOpacity
+                  activeOpacity={0.95}
+                  onPress={() => handleImageTap(imageIndex)}
+                  style={{
+                    width: width - 40,
+                    height: containerHeight,
+                    borderRadius: 16,
+                    overflow: 'hidden',
+                    backgroundColor: theme.colors.SURFACE_ALT,
+                  }}
+                >
+                  <Image
+                    source={{ uri: StorageService.getOptimizedImageUrl(item.url, 800) || item.url }}
+                    style={{ width: '100%', height: '100%' }}
+                    contentFit="cover"
+                  />
+
+                  <Animated.View style={[stylesheet.heartOverlay, heartAnimatedStyle]}>
+                    <Ionicons name="heart" size={100} color={theme.colors.G} style={stylesheet.heartShadow} />
+                  </Animated.View>
+                </TouchableOpacity>
+              );
+            }}
           />
-          {urls.length > 1 && (
+          {mediaItems.length > 1 && (
             <View style={stylesheet.paginationDots}>
-              {urls.map((_: any, i: number) => (
-                <View key={i} style={[stylesheet.carouselDot, activeImageIndex === i ? [stylesheet.activeDot, { backgroundColor: theme.colors.G }] : stylesheet.inactiveDot]} />
+              {mediaItems.map((_: any, i: number) => (
+                <View
+                  key={i}
+                  style={[
+                    stylesheet.carouselDot,
+                    activeImageIndex === i ? [stylesheet.activeDot, { backgroundColor: theme.colors.G }] : stylesheet.inactiveDot,
+                  ]}
+                />
               ))}
             </View>
           )}

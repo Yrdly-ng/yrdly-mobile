@@ -121,7 +121,7 @@ export function EventList({ searchQuery = '', sortOption = 'newest' }: EventList
         text: e.description || '',
         description: e.description || '',
         title: e.title,
-        image_urls: e.cover_image_url ? [e.cover_image_url] : [],
+        image_urls: (e as any).image_urls && (e as any).image_urls.length > 0 ? (e as any).image_urls : (e.cover_image_url ? [e.cover_image_url] : []),
         image_url: e.cover_image_url || undefined,
         timestamp: e.created_at,
         created_at: e.created_at,

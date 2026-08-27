@@ -153,7 +153,7 @@ export default function ProfileTab() {
           return {
             id: ev.id,
             title: ev.title,
-            image_urls: ev.cover_image_url ? [ev.cover_image_url] : [],
+            image_urls: ev.image_urls && ev.image_urls.length > 0 ? ev.image_urls : (ev.cover_image_url ? [ev.cover_image_url] : []),
             category: 'Event',
             event_link: `/events/${ev.id}`,
             bookmark_created_at: item.created_at,

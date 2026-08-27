@@ -88,9 +88,12 @@ export default function CreateForSaleScreen() {
       const options: any = { mediaType: type };
       
       if (isPhoto) {
-        options.cropping = true;
-        options.freeStyleCropEnabled = true;
-        options.compressImageQuality = 1;
+        options.multiple = true;
+        options.maxFiles = 10;
+        options.compressImageQuality = 0.9;
+      } else {
+        options.multiple = true;
+        options.maxFiles = 3;
       }
       
       const image = await ImagePicker.openPicker(options);

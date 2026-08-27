@@ -157,7 +157,7 @@ export const usePosts = (filter?: LocationFilter | null) => {
         author_image: event.organizer?.avatar_url || '',
         text: event.description || '',
         description: event.description || '',
-        image_urls: event.cover_image_url ? [event.cover_image_url] : [],
+        image_urls: event.image_urls && event.image_urls.length > 0 ? event.image_urls : (event.cover_image_url ? [event.cover_image_url] : []),
         image_url: event.cover_image_url || undefined,
         timestamp: event.created_at,
         comment_count: 0,
@@ -385,7 +385,7 @@ export const usePosts = (filter?: LocationFilter | null) => {
               author_image: '',
               text: newEvent.description || '',
               description: newEvent.description || '',
-              image_urls: newEvent.cover_image_url ? [newEvent.cover_image_url] : [],
+              image_urls: newEvent.image_urls && newEvent.image_urls.length > 0 ? newEvent.image_urls : (newEvent.cover_image_url ? [newEvent.cover_image_url] : []),
               image_url: newEvent.cover_image_url || undefined,
               timestamp: newEvent.created_at,
               comment_count: 0,
@@ -442,7 +442,7 @@ export const usePosts = (filter?: LocationFilter | null) => {
                 ...p,
                 text: updatedEvent.description || '',
                 description: updatedEvent.description || '',
-                image_urls: updatedEvent.cover_image_url ? [updatedEvent.cover_image_url] : [],
+                image_urls: updatedEvent.image_urls && updatedEvent.image_urls.length > 0 ? updatedEvent.image_urls : (updatedEvent.cover_image_url ? [updatedEvent.cover_image_url] : []),
                 image_url: updatedEvent.cover_image_url || undefined,
                 title: updatedEvent.title,
                 event_date: updatedEvent.start_time,
@@ -906,7 +906,7 @@ export const usePosts = (filter?: LocationFilter | null) => {
                 // Might be an event
                 const { data: eventData, error: eventError } = await supabase
                     .from('events')
-                    .select('cover_image_url')
+                    .select('cover_image_url, image_urls')
                     .eq('id', postId)
                     .single();
                     
@@ -916,7 +916,7 @@ export const usePosts = (filter?: LocationFilter | null) => {
                 
                 table = 'events';
                 postData = {
-                    image_urls: eventData.cover_image_url ? [eventData.cover_image_url] : [],
+                    image_urls: (eventData as any).image_urls && (eventData as any).image_urls.length > 0 ? (eventData as any).image_urls : (eventData.cover_image_url ? [eventData.cover_image_url] : []),
                     video_url: null
                 } as any;
             }

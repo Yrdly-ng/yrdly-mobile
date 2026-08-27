@@ -442,7 +442,9 @@ export default function EventDetailScreen() {
     );
   }
 
-  const imageUrls = event.cover_image_url ? [event.cover_image_url] : []; // Add any other media here later
+  const imageUrls = (event as any).image_urls && (event as any).image_urls.length > 0
+    ? (event as any).image_urls
+    : (event.cover_image_url ? [event.cover_image_url] : []);
   const isOwner = user?.id === event.organizer_id;
   const statusObj = getEventStatus(event);
   const isExpired = statusObj.label === 'Ended' || statusObj.label === 'Cancelled';
@@ -502,7 +504,7 @@ export default function EventDetailScreen() {
                 setCurrentImageIndex(index);
               }}
             >
-              {imageUrls.map((uri, idx) => {
+              {imageUrls.map((uri: string, idx: number) => {
               return (
                               <TouchableOpacity key={idx} activeOpacity={0.9} onPress={() => { setCurrentImageIndex(idx); setIsGalleryVisible(true); }}>
                                 <Image source={{ uri }} style={stylesheet.mainImage} contentFit="cover" />
@@ -522,7 +524,7 @@ export default function EventDetailScreen() {
           )}
           {imageUrls.length > 1 && (
             <View style={stylesheet.dotsContainer}>
-              {imageUrls.map((_, idx) => (
+              {imageUrls.map((_: string, idx: number) => (
                 <View key={idx} style={[stylesheet.dot, { backgroundColor: idx === currentImageIndex ? theme.colors.TEXT_PRIMARY : theme.colors.LABEL }]} />
               ))}
             </View>
@@ -921,7 +923,7 @@ export default function EventDetailScreen() {
 
       {isGalleryVisible && imageUrls.length > 0 && (
         <ImageViewing
-          images={imageUrls.map(uri => ({ uri }))}
+          images={imageUrls.map((uri: string) => ({ uri }))}
           imageIndex={currentImageIndex}
           visible={isGalleryVisible}
           onRequestClose={() => setIsGalleryVisible(false)}
