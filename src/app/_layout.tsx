@@ -1,4 +1,13 @@
 import '../theme/unistyles';
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+  tracesSampleRate: 1.0,
+  integrations: [
+    Sentry.expoRouterIntegration(),
+  ],
+});
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Stack, useRouter, useSegments, usePathname, useGlobalSearchParams } from 'expo-router';
@@ -194,7 +203,7 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { UnistylesRuntime } from 'react-native-unistyles';
 import { getStoredThemePreference } from '../lib/theme-preference';
 
-export default function Layout() {
+function Layout() {
   useEffect(() => {
     oneSignalService.initialize();
 
@@ -300,3 +309,5 @@ export default function Layout() {
     </GestureHandlerRootView>
   );
 }
+
+export default Sentry.wrap(Layout);
