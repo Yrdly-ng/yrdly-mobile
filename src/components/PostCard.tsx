@@ -89,7 +89,7 @@ const PostVideo = React.memo(function PostVideo({ post, isVisible, isVideoMuted,
       <VideoView
         player={player}
         style={{ width: '100%', height: '100%' }}
-        contentFit="contain"
+        contentFit="cover"
         nativeControls={false}
         onFirstFrameRender={() => setIsReady(true)}
       />
@@ -97,7 +97,7 @@ const PostVideo = React.memo(function PostVideo({ post, isVisible, isVideoMuted,
         <Image 
           source={{ uri: post.video_thumbnail_url }} 
           style={{ position: 'absolute', width: '100%', height: '100%', zIndex: 1 }} 
-          contentFit="contain" 
+          contentFit="cover" 
         />
       )}
       <TouchableOpacity 
@@ -165,8 +165,34 @@ export const PostCard = React.memo(function PostCard({ post, onPress, onLike, on
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isVideoMuted, setIsVideoMuted] = useState(true);
+  const [videoAspectRatio, setVideoAspectRatio] = useState<number | null>(null);
 
-  // Removed viewabilityConfig as we use ScrollView onScroll instead
+  useEffect(() => {
+    if (!post.video_urls?.[0]) return;
+
+    if (post.image_width && post.image_height) {
+      setVideoAspectRatio(post.image_width / post.image_height);
+      return;
+    }
+
+    if (post.video_thumbnail_url) {
+      RNImage.getSize(
+        post.video_thumbnail_url,
+        (w, h) => {
+          if (w && h) {
+            setVideoAspectRatio(w / h);
+          }
+        },
+        () => {}
+      );
+    }
+  }, [post.video_urls, post.video_thumbnail_url, post.image_width, post.image_height]);
+
+  const MIN_VIDEO_ASPECT = 4 / 5;   // 0.8 portrait (tallest allowed in feed)
+  const MAX_VIDEO_ASPECT = 16 / 9;  // 1.777 landscape (widest allowed in feed)
+  const effectiveVideoAspect = videoAspectRatio && !isNaN(videoAspectRatio) && isFinite(videoAspectRatio) && videoAspectRatio > 0
+    ? Math.min(Math.max(videoAspectRatio, MIN_VIDEO_ASPECT), MAX_VIDEO_ASPECT)
+    : 4 / 5;
 
   const lastTapRef = useRef(0);
   const singleTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -568,7 +594,7 @@ export const PostCard = React.memo(function PostCard({ post, onPress, onLike, on
 
       {/* Video */}
       {post.video_urls?.[0] && (
-        <View style={{ marginHorizontal: 20, borderRadius: 16, overflow: 'hidden', aspectRatio: 4/3, backgroundColor: theme.colors.DARK, marginBottom: 12 }}>
+        <View style={{ marginHorizontal: 20, borderRadius: 16, overflow: 'hidden', aspectRatio: effectiveVideoAspect, backgroundColor: theme.colors.DARK, marginBottom: 12 }}>
           <PostVideo 
             post={post} 
             isVisible={isVisible} 
