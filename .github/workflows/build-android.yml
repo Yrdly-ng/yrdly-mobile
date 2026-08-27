@@ -37,6 +37,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Ensure Sentry CLI is executable
+        run: |
+          if [ -f node_modules/@sentry/cli/bin/sentry-cli ]; then
+            chmod +x node_modules/@sentry/cli/bin/sentry-cli
+            echo "✓ Sentry CLI permissions updated"
+          else
+            echo "⚠ Sentry CLI not found, will be used from prebuild"
+          fi
+
       - name: Write .env file from secrets
         run: |
           cat <<EOF > .env
