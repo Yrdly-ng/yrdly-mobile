@@ -19,7 +19,6 @@ import { LocationProvider } from '../context/LocationContext';
 import { NotificationBadgeProvider } from '../context/NotificationBadgeContext';
 import * as SplashScreen from 'expo-splash-screen';
 import { PostHogProvider, usePostHog, PostHogErrorBoundary } from 'posthog-react-native';
-import { PostHogSurveyProvider } from 'posthog-react-native/surveys';
 import { setAudioModeAsync } from 'expo-audio';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -267,25 +266,23 @@ function Layout() {
             fallback={ErrorFallback}
             additionalProperties={{ app_section: 'root' }}
           >
-            <PostHogSurveyProvider>
-              <AnalyticsTracker />
-              <KeyboardProvider>
-                <ThemeProvider>
-                  <BottomSheetModalProvider>
-                    <AuthProvider>
-                      <LocationProvider>
-                        <NotificationBadgeProvider>
-                          <AudioSettingsHandler />
-                          <NotificationsHandler />
-                          <OneSignalVerificationDialog />
-                          <RootNavigationGuard />
-                        </NotificationBadgeProvider>
-                      </LocationProvider>
-                    </AuthProvider>
-                  </BottomSheetModalProvider>
-                </ThemeProvider>
-              </KeyboardProvider>
-            </PostHogSurveyProvider>
+            <AnalyticsTracker />
+            <KeyboardProvider>
+              <ThemeProvider>
+                <BottomSheetModalProvider>
+                  <AuthProvider>
+                    <LocationProvider>
+                      <NotificationBadgeProvider>
+                        <AudioSettingsHandler />
+                        <NotificationsHandler />
+                        <OneSignalVerificationDialog />
+                        <RootNavigationGuard />
+                      </NotificationBadgeProvider>
+                    </LocationProvider>
+                  </AuthProvider>
+                </BottomSheetModalProvider>
+              </ThemeProvider>
+            </KeyboardProvider>
           </PostHogErrorBoundary>
         </PostHogProvider>
       ) : (
