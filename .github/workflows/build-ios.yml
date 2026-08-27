@@ -40,6 +40,10 @@ jobs:
           EXPO_PUBLIC_WEB_APP_URL=${{ secrets.EXPO_PUBLIC_WEB_APP_URL }}
           EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=${{ secrets.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY }}
           EXPO_PUBLIC_VEXO_API_KEY=${{ secrets.EXPO_PUBLIC_VEXO_API_KEY }}
+          EXPO_PUBLIC_TERMII_API_KEY=${{ secrets.EXPO_PUBLIC_TERMII_API_KEY }}
+          EXPO_PUBLIC_SENTRY_DSN=${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
+          EXPO_PUBLIC_POSTHOG_KEY=${{ secrets.EXPO_PUBLIC_POSTHOG_KEY }}
+          EXPO_PUBLIC_POSTHOG_HOST=${{ secrets.EXPO_PUBLIC_POSTHOG_HOST }}
           EOF
 
       - name: Run Expo prebuild
@@ -51,6 +55,8 @@ jobs:
           pod install --repo-update
 
       - name: Build app archive (unsigned)
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: |
           set -o pipefail
           cd ios
