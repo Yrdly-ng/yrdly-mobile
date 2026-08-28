@@ -1,7 +1,6 @@
 const { getDefaultConfig } = require('expo/metro-config');
-const { getSentryExpoConfig } = require('@sentry/react-native/metro');
 
 // eslint-disable-next-line no-undef
-const config = getSentryExpoConfig(__dirname);
+const config = getDefaultConfig(__dirname);
 
 module.exports = config;

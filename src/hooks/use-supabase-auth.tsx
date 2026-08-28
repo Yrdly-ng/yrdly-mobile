@@ -8,7 +8,7 @@ import { oneSignalService } from '@/lib/onesignal';
 import { usePostHog } from 'posthog-react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import NetInfo from '@react-native-community/netinfo';
-import * as Sentry from '@sentry/react-native';
+
 
 const PROFILE_CACHE_FILE = `${FileSystem.documentDirectory}user_profile_cache.json`;
 
@@ -219,7 +219,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             posthog.capture('user_signed_out_forcefully');
             posthog.reset();
           }
-          Sentry.setUser(null);
+
           oneSignalService.logout();
           setUser(null);
           setProfile(null);
@@ -257,7 +257,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (posthog) {
             posthog.identify(user.id);
           }
-          Sentry.setUser({ id: user.id, email: user.email });
+
           oneSignalService.login(user.id);
 
           try {
@@ -431,7 +431,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         posthog.capture('user_signed_out');
         posthog.reset();
       }
-      Sentry.setUser(null);
+
       oneSignalService.logout();
       FileSystem.deleteAsync(PROFILE_CACHE_FILE, { idempotent: true }).catch(() => {});
       const result = await AuthService.signOut();

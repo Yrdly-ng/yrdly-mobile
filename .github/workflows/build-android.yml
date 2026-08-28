@@ -37,14 +37,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Ensure Sentry CLI is executable
-        run: |
-          if [ -f node_modules/@sentry/cli/bin/sentry-cli ]; then
-            chmod +x node_modules/@sentry/cli/bin/sentry-cli
-            echo "✓ Sentry CLI permissions updated"
-          else
-            echo "⚠ Sentry CLI not found, will be used from prebuild"
-          fi
 
       - name: Write .env file from secrets
         run: |
@@ -56,7 +48,6 @@ jobs:
           EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=${{ secrets.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY }}
           EXPO_PUBLIC_VEXO_API_KEY=${{ secrets.EXPO_PUBLIC_VEXO_API_KEY }}
           EXPO_PUBLIC_TERMII_API_KEY=${{ secrets.EXPO_PUBLIC_TERMII_API_KEY }}
-          EXPO_PUBLIC_SENTRY_DSN=${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
           EXPO_PUBLIC_POSTHOG_KEY=${{ secrets.EXPO_PUBLIC_POSTHOG_KEY }}
           EXPO_PUBLIC_POSTHOG_HOST=${{ secrets.EXPO_PUBLIC_POSTHOG_HOST }}
           EOF
@@ -103,8 +94,6 @@ jobs:
         run: npx expo prebuild --platform android --clean
 
       - name: Build Android APK
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: |
           cd android
           chmod +x gradlew

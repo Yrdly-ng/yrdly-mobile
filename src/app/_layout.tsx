@@ -1,13 +1,4 @@
 import '../theme/unistyles';
-import * as Sentry from '@sentry/react-native';
-
-Sentry.init({
-  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
-  tracesSampleRate: 1.0,
-  integrations: [
-    Sentry.expoRouterIntegration(),
-  ],
-});
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Stack, useRouter, useSegments, usePathname, useGlobalSearchParams } from 'expo-router';
@@ -307,4 +298,4 @@ function Layout() {
   );
 }
 
-export default Sentry.wrap(Layout);
+export default Layout;

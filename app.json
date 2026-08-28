@@ -140,8 +140,7 @@
           }
         }
       ],
-      "@sentry/react-native/expo",
-      "@sentry/react-native"
+
     ],
     "newArchEnabled": true,
     "experiments": {
