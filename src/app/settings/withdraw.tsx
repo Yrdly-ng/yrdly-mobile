@@ -77,7 +77,7 @@ export default function WithdrawScreen() {
   const handleWithdraw = async () => {
     setConfirming(true);
     try {
-      await api.post('/api/seller/payout', { amount: numAmount });
+      await api.post('/api/seller/payouts/request', { amount: numAmount });
       router.replace({
         pathname: '/settings/withdraw-success',
         params: { amount: numAmount },

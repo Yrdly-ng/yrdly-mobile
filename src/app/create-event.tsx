@@ -32,6 +32,7 @@ import { EventCard } from '../components/EventCard';
 import { ImageCarousel } from '../components/ImageCarousel';
 import { useCategories } from '../hooks/use-categories';
 import { ModerationService } from '../lib/moderation-service';
+import { api } from '../lib/api';
 
 const STEPS = ['Basic Info', 'Date & Time', 'Location', 'Tickets', 'Photos', 'Review'];
 
@@ -312,78 +313,43 @@ export default function CreateEventScreen() {
 
         // Moderate uploaded images
 
-        const { data: newEvent, error: eventErr } = await supabase
-          .from('events')
-          .insert({
-            organizer_id: user.id,
-            title: eventName.trim(),
-            category: eventCategory,
-            description: desc.trim(),
-            cover_image_url: coverUrl,
-            video_urls: videoUrls,
-            image_urls: imageUrls,
-            moderation_status: modStatus,
-            start_time: startISO,
-            end_time: endISO,
-            location_address: venue.trim() || (isOnline ? 'Online Event' : 'TBA'),
-            location_online: isOnline,
-            online_link: isOnline ? onlineLink.trim() : null,
-            state: isOnline ? null : postState || null,
-            lga: isOnline ? null : postLga || null,
-            ward: isOnline ? null : postWard || null,
-            lat: isOnline ? null : postLat,
-            lng: isOnline ? null : postLng,
-            location_geom:
-              !isOnline && postLat !== null && postLng !== null
-                ? `POINT(${postLng} ${postLat})`
-                : null,
-            status: 'PUBLISHED',
-          })
-          .select()
-          .single();
-
-        if (eventErr || !newEvent) {
-          throw new Error(eventErr?.message || 'Failed to create event.');
-        }
-
-        // Insert ticket tiers
-        const tierInserts = tiers.map((t) => ({
-          event_id: newEvent.id,
+        // Call backend API to create event, validate payout account for paid tiers, and cross-post to community feed
+        const formattedTicketTiers = tiers.map((t) => ({
           name: t.name.trim(),
+          description: null,
           price: t.isFree ? 0 : parseFloat(t.price) || 0,
-          capacity: t.capacity ? parseInt(t.capacity) : null,
-          sold: 0,
+          capacity: t.capacity ? parseInt(t.capacity, 10) : null,
         }));
 
-        await supabase.from('ticket_tiers').insert(tierInserts);
-
-        // Create feed post for the event
-        await supabase.from('posts').insert({
-          user_id: user.id,
-          author_name: profile.name || 'Organizer',
-          author_image: profile.avatar_url || '',
-          category: 'Event',
+        const res = await api.post<any>('/api/events/create', {
           title: eventName.trim(),
-          text: desc.trim(),
-          event_date: startISO,
-          event_time: startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          event_location: { address: venue.trim() },
-          event_link: `/events/${newEvent.id}`,
-          image_urls: imageUrls,
-          video_urls: videoUrls,
-          state: isOnline ? null : postState || null,
-          lga: isOnline ? null : postLga || null,
+          description: desc.trim(),
+          category: eventCategory,
+          coverImageUrl: coverUrl,
+          imageUrls,
+          videoUrls,
+          locationAddress: venue.trim() || (isOnline ? 'Online Event' : 'TBA'),
+          locationOnline: isOnline,
+          onlineLink: isOnline ? onlineLink.trim() : null,
+          lat: isOnline ? null : postLat,
+          lng: isOnline ? null : postLng,
           ward: isOnline ? null : postWard || null,
-          visibility: visibility,
-          moderation_status: modStatus,
-          timestamp: new Date().toISOString(),
-          liked_by: [],
-          comment_count: 0,
+          lga: isOnline ? null : postLga || null,
+          state: isOnline ? null : postState || null,
+          startTime: startISO,
+          endTime: endISO,
+          visibility: visibility || 'PUBLIC',
+          publish: true,
+          ticketTiers: formattedTicketTiers,
         });
 
-        if (modStatus === 'pending') {
+        if (!res?.success) {
+          throw new Error(res?.error || res?.message || 'Failed to create event.');
+        }
+
+        if (modStatus === 'pending' && res.eventId) {
           await supabase.from('moderation_queue').insert({
-            content_id: newEvent.id,
+            content_id: res.eventId,
             table_name: 'events',
             user_id: user.id,
             status: 'pending',
@@ -401,7 +367,19 @@ export default function CreateEventScreen() {
       } catch (err: any) {
         setPublishing(false);
         setUploadProgress(0);
-        Alert.alert('Error', err?.message || 'Failed to create event. Please check inputs.');
+        const errMsg = err?.response?.data?.error || err?.response?.data?.message || err?.message;
+        if (errMsg === 'PAYOUT_ACCOUNT_REQUIRED') {
+          Alert.alert(
+            'Payout Account Required',
+            'To sell paid tickets, please link your bank account in Settings → Payout Settings.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Go to Settings', onPress: () => router.push('/(tabs)/settings' as any) },
+            ]
+          );
+        } else {
+          Alert.alert('Error', errMsg || 'Failed to create event. Please check inputs.');
+        }
       }
     }
   };

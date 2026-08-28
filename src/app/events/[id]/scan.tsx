@@ -6,6 +6,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../../../lib/supabase';
+import { api } from '../../../lib/api';
 
 const RED = '#B71C1C';
 
@@ -46,50 +47,26 @@ export default function ScanTicketScreen() {
     const ticketCode = parsedData.ticket_code;
 
     try {
-      // Direct Supabase implementation for ticket scanning & check-in
-      const { data: ticket, error: ticketError } = await supabase
-        .from('tickets')
-        .select(
-          `
-          *,
-          user:users(name)
-        `
-        )
-        .eq('ticket_code', ticketCode)
-        .single();
+      // Secure server-side check-in via backend API (validates organizer ownership & ticket state)
+      const res = await api.post<any>('/api/events/checkin', {
+        ticket_code: ticketCode,
+        event_id: id,
+      });
 
-      if (ticketError || !ticket) {
-        setResult({ success: false, message: 'Invalid or unrecognized ticket QR code.' });
-        showFlash(false);
-      } else if (ticket.event_id !== id) {
-        setResult({ success: false, message: 'This ticket is for a different event.' });
-        showFlash(false);
-      } else if (ticket.status === 'USED') {
-        setResult({ success: false, message: 'This ticket has already been used.' });
-        showFlash(false);
-      } else if (ticket.status === 'CANCELLED' || ticket.status === 'REFUNDED') {
-        setResult({ success: false, message: `This ticket was ${ticket.status}.` });
-        showFlash(false);
+      if (res?.valid) {
+        setResult({ success: true, attendee: res.attendee_name || 'Attendee' });
+        showFlash(true);
       } else {
-        // Ticket is valid (active or confirmed). Update status to 'USED'
-        const { error: updateError } = await supabase
-          .from('tickets')
-          .update({ status: 'USED', scanned_at: new Date().toISOString() })
-          .eq('id', ticket.id);
-
-        if (updateError) {
-          setResult({ success: false, message: 'Failed to check in ticket. Please try again.' });
-          showFlash(false);
-        } else {
-          // @ts-ignore - The user property is joined from the users table
-          const attendeeName = ticket.attendee_name || ticket.user?.name || 'Attendee';
-          setResult({ success: true, attendee: attendeeName });
-          showFlash(true);
-        }
+        setResult({
+          success: false,
+          message: res?.message || res?.error || 'Check-in failed.',
+        });
+        showFlash(false);
       }
-    } catch (e) {
-      console.error('Scan error', e);
-      setResult({ success: false, message: 'Network error. Please check your connection.' });
+    } catch (e: any) {
+      const errMsg =
+        e?.response?.data?.message || e?.response?.data?.error || e?.message || 'Check-in failed.';
+      setResult({ success: false, message: errMsg });
       showFlash(false);
     }
 

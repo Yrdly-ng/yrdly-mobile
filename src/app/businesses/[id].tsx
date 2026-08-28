@@ -137,13 +137,7 @@ export default function BusinessProfileScreen() {
 
     // Increment view count if not owner
     if (business && user && business.owner_id !== user.id) {
-      supabase.rpc('increment_business_view', { business_id: id }).then(({ error }) => {
-        if (error) {
-          // Fallback if RPC doesn't exist
-          const newCount = ((business as any).view_count || 0) + 1;
-          supabase.from('businesses').update({ view_count: newCount }).eq('id', id).then();
-        }
-      });
+      supabase.rpc('increment_business_view', { business_id: id }).then();
     }
 
     return () => {
@@ -626,7 +620,7 @@ export default function BusinessProfileScreen() {
               </>
             ) : (
               <TouchableOpacity
-                onPress={handleMessage}
+                onPress={() => handleMessage()}
                 style={[sStylesheet.actionBtn, sStylesheet.actionBtnPrimary, { flex: 1 }]}
               >
                 <Ionicons
