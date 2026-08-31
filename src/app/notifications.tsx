@@ -195,7 +195,21 @@ export default function NotificationsScreen() {
           'post_comment',
         ].includes(t);
       if (activeFilter === 'Marketplace')
-        return t.includes('marketplace') || t.includes('escrow') || t.includes('transaction');
+        return (
+          t.includes('marketplace') ||
+          t.includes('escrow') ||
+          t.includes('transaction') ||
+          [
+            'payment_successful',
+            'item_shipped',
+            'delivery_confirmed',
+            'funds_released',
+            'dispute_opened',
+            'dispute_resolved',
+            'payout_processed',
+            'payout_failed',
+          ].includes(t)
+        );
       if (activeFilter === 'Events') return t.includes('event') || t.includes('ticket');
       return true;
     });

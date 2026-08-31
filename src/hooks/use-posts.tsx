@@ -94,21 +94,21 @@ export const usePosts = (filter?: LocationFilter | null) => {
           .eq('status', 'PUBLISHED')
           .eq('moderation_status', 'approved')
           .or(
-            `end_time.gte.${new Date().toISOString()},and(end_time.is.null,start_time.gte.${new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString()})`
+            `end_time.gte.${new Date().toISOString()},and(end_time.is.null,start_time.gte.${new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()})`
           );
 
         // Apply location filters
         if (filterState) {
           query = query.eq('state', filterState);
-          eventsQuery = eventsQuery.eq('state', filterState);
+          eventsQuery = eventsQuery.or(`state.eq.${filterState},is_online.eq.true`);
         }
         if (filterLga) {
           query = query.eq('lga', filterLga);
-          eventsQuery = eventsQuery.eq('lga', filterLga);
+          eventsQuery = eventsQuery.or(`lga.eq.${filterLga},is_online.eq.true`);
         }
         if (filterWard) {
           query = query.eq('ward', filterWard);
-          eventsQuery = eventsQuery.eq('ward', filterWard);
+          eventsQuery = eventsQuery.or(`ward.eq.${filterWard},is_online.eq.true`);
         }
 
         // Hide sold marketplace items from the feed

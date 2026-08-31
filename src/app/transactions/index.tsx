@@ -153,7 +153,11 @@ export default function TransactionsScreen() {
           })
         )) as Transaction[];
 
-        setTransactions(normalised);
+        const seen = new Map<string, Transaction>();
+        for (const tx of normalised) {
+          if (!seen.has(tx.id)) seen.set(tx.id, tx);
+        }
+        setTransactions(Array.from(seen.values()));
       } catch (e) {
         console.error('fetchTransactions error:', e);
       } finally {
