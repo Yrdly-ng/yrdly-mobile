@@ -1127,7 +1127,7 @@ function ChatContent() {
         </TouchableOpacity>
       )}
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + (meta ? 130 : 61) : 0}>
         {/* Messages */}
         {loading ? (
           <View style={stylesheet.center}>

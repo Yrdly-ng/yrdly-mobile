@@ -372,7 +372,7 @@ function PostDetailContent() {
         )}
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 61 : 0}>
         {loading && !post ? (
           <View style={stylesheet.center}>
             <ActivityIndicator size="large" color={theme.colors.G} />
