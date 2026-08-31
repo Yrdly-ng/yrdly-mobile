@@ -47,6 +47,8 @@ export default function DisputeScreen() {
         cropping: true,
         freeStyleCropEnabled: true,
         compressImageQuality: 1,
+        compressImageMaxWidth: 4096,
+        compressImageMaxHeight: 4096,
       });
 
       if (image) {

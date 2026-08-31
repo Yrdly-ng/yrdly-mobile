@@ -53,7 +53,9 @@ export default function CreatePostScreen() {
       if (isPhoto) {
         options.multiple = true;
         options.maxFiles = 10;
-        options.compressImageQuality = 0.9;
+        options.compressImageQuality = 1;
+        options.compressImageMaxWidth = 4096;
+        options.compressImageMaxHeight = 4096;
       } else {
         options.multiple = true;
         options.maxFiles = 3;

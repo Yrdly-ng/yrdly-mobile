@@ -46,9 +46,11 @@ export default function EditProfileScreen() {
       const image = await ImagePicker.openPicker({
         mediaType: 'photo',
         cropping: true,
-        width: 500,
-        height: 500,
+        width: 1000,
+        height: 1000,
         compressImageQuality: 1,
+        compressImageMaxWidth: 2000,
+        compressImageMaxHeight: 2000,
       });
 
       if (image && image.path) {

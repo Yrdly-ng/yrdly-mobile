@@ -505,6 +505,8 @@ function ChatContent() {
         options.cropping = true;
         options.freeStyleCropEnabled = true;
         options.compressImageQuality = 1;
+        options.compressImageMaxWidth = 4096;
+        options.compressImageMaxHeight = 4096;
       }
 
       const image = await ImagePicker.openPicker(options);

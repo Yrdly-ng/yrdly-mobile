@@ -98,6 +98,8 @@ export default function EditMarketplaceItemScreen() {
         cropping: true,
         freeStyleCropEnabled: true,
         compressImageQuality: 1,
+        compressImageMaxWidth: 4096,
+        compressImageMaxHeight: 4096,
       });
       if (image) {
         setNewImages((prev) => [...prev, image.path]);
