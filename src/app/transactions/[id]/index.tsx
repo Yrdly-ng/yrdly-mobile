@@ -458,7 +458,7 @@ export default function TransactionDetailScreen() {
         (c) => c.participant_ids?.includes(user.id) && c.participant_ids?.includes(counterparty.id)
       );
       if (existing?.id) {
-        router.push('/', { params: { id: existing.id } });
+        router.push(`/chat/${existing.id}` as any);
         return;
       }
 
@@ -472,7 +472,7 @@ export default function TransactionDetailScreen() {
         .single();
 
       if (newConv?.id) {
-        router.push('/', { params: { id: newConv.id } });
+        router.push(`/chat/${newConv.id}` as any);
       }
     } catch (e) {
       console.error('Message counterparty error:', e);

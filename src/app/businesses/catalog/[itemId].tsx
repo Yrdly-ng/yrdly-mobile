@@ -145,13 +145,14 @@ export default function CatalogItemScreen() {
       });
 
       if (existing?.id) {
-        router.push('/', { params: { id: existing.id } });
+        router.push(`/chat/${existing.id}` as any);
         return;
       }
 
       const imageUrl =
         (item?.images && item.images[0]) || business.cover_image || business.logo || '';
-      router.push('/chat/[id]', {
+      router.push({
+        pathname: '/chat/[id]',
         params: {
           id: 'new',
           type: 'briefcase',
@@ -160,7 +161,7 @@ export default function CatalogItemScreen() {
           item_title: item ? `${item.title} (${business.name})` : business.name,
           item_image: imageUrl,
         },
-      });
+      } as any);
     } catch (e) {
       console.error('Error starting chat from catalog item:', e);
     }
@@ -172,7 +173,7 @@ export default function CatalogItemScreen() {
       Alert.alert('Sold Out', 'This item is currently out of stock.');
       return;
     }
-    router.push('/', { params: { id: item.id, type: 'catalog_item' } });
+    router.push({ pathname: '/checkout', params: { id: item.id, type: 'catalog_item' } } as any);
   }, [item, router]);
 
   const handleRestock = useCallback(async () => {
