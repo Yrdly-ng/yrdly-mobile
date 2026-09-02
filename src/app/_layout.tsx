@@ -231,11 +231,13 @@ function Layout() {
     return <View style={{ flex: 1, backgroundColor: '#050505' }} />;
   }
 
+  const posthogKey = process.env.EXPO_PUBLIC_POSTHOG_KEY || process.env.EXPO_PUBLIC_POSTHOG_API_KEY;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      {process.env.EXPO_PUBLIC_POSTHOG_KEY ? (
+      {posthogKey ? (
         <PostHogProvider
-          apiKey={process.env.EXPO_PUBLIC_POSTHOG_KEY}
+          apiKey={posthogKey}
           options={{
             host: process.env.EXPO_PUBLIC_POSTHOG_HOST,
             captureAppLifecycleEvents: true,
