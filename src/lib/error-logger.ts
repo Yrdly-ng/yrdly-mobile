@@ -22,15 +22,23 @@ export function logError(
 
   console.error(`[${context}] Error:`, error);
 
-  if (posthog && typeof posthog.capture === 'function') {
+  if (posthog) {
     try {
-      posthog.capture('app_error', {
-        context,
-        error_message: errorMessage,
-        stack,
-        timestamp: new Date().toISOString(),
-        ...extraProps,
-      });
+      if (typeof posthog.captureException === 'function' && error instanceof Error) {
+        posthog.captureException(error, { context, ...extraProps });
+      } else if (typeof posthog.capture === 'function') {
+        posthog.capture('app_error', {
+          context,
+          error_message: errorMessage,
+          stack,
+          timestamp: new Date().toISOString(),
+          ...extraProps,
+        });
+      }
+
+      if (posthog.logger && typeof posthog.logger.error === 'function') {
+        posthog.logger.error(`[${context}] ${errorMessage}`, { stack, ...extraProps });
+      }
     } catch (phErr) {
       console.error('Failed to report error to PostHog:', phErr);
     }

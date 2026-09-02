@@ -242,14 +242,10 @@ function Layout() {
             host: process.env.EXPO_PUBLIC_POSTHOG_HOST,
             captureAppLifecycleEvents: true,
             enableSessionReplay: true,
-            sessionReplay: {
-              maskAllTextInputs: true,
-              maskAllImages: false,
-              captureLog: true,
-            },
             errorTracking: {
               autocapture: {
                 nativeCrashes: true,
+                unhandledRejections: true,
               },
             },
           }}
