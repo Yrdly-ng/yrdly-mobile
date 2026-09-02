@@ -10,6 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { FlashList } from '@shopify/flash-list';
 import { Feather, Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../hooks/use-supabase-auth';
@@ -30,6 +31,27 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
+
+function timeAgo(dateString: string): string {
+  try {
+    const d = new Date(dateString);
+    const diff = Date.now() - d.getTime();
+    const mins = Math.floor(diff / 60_000);
+    const hrs  = Math.floor(mins / 60);
+    const days = Math.floor(hrs / 24);
+    if (mins < 1)   return 'Just now';
+    if (mins < 60)  return `${mins}m ago`;
+    if (hrs  < 24)  return `${hrs}h ago`;
+    if (days === 1) return 'Yesterday';
+    return `${days}d ago`;
+  } catch {
+    return '';
+  }
+}
+
+function isMediaPost(p: Post): boolean {
+  return !!p.image_url || !!(p.image_urls?.length) || !!(p.video_urls?.length);
+}
 
 function PressableCard({ style, onPress, children, activeOpacity = 0.85, ...props }: any) {
   const { styles: stylesheet, theme } = useStyles(_stylesheet);
@@ -73,13 +95,16 @@ export default function ProfileTab() {
   const numColumns = Math.max(3, Math.floor(windowWidth / TARGET_TILE_WIDTH));
   const GRID_ITEM_WIDTH = windowWidth / numColumns;
 
-  const [activeTab, setActiveTab] = useState<'posts' | 'saved'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'texts' | 'saved'>('posts');
   const [posts, setPosts] = useState<Post[]>([]);
   const [savedPosts, setSavedPosts] = useState<Post[]>([]);
 
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [loadingSaved, setLoadingSaved] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  const mediaPosts = useMemo(() => posts.filter(isMediaPost), [posts]);
+  const textPosts  = useMemo(() => posts.filter((p) => !isMediaPost(p)), [posts]);
 
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
@@ -787,6 +812,37 @@ export default function ProfileTab() {
           <TouchableOpacity
             onPress={() => {
               Haptics.selectionAsync();
+              setActiveTab('texts');
+            }}
+            style={{ position: 'relative', paddingBottom: 6 }}
+          >
+            <Text
+              style={{
+                fontFamily: activeTab === 'texts' ? 'Outfit-Bold' : 'Outfit-Medium',
+                fontSize: 14,
+                color: activeTab === 'texts' ? theme.colors.TEXT_PRIMARY : theme.colors.LABEL,
+              }}
+            >
+              Texts
+            </Text>
+            {activeTab === 'texts' && (
+              <View
+                style={{
+                  position: 'absolute',
+                  bottom: -11,
+                  left: 0,
+                  right: 0,
+                  height: 2,
+                  backgroundColor: theme.colors.G,
+                  borderRadius: 1,
+                }}
+              />
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.selectionAsync();
               setActiveTab('saved');
             }}
             style={{ position: 'relative', paddingBottom: 6 }}
@@ -819,73 +875,242 @@ export default function ProfileTab() {
     </View>
   );
 
-  const activeData = activeTab === 'posts' ? posts : savedPosts;
-  const isLoading = activeTab === 'posts' ? loadingPosts : loadingSaved;
+  const activeGridData = activeTab === 'posts' ? mediaPosts : savedPosts;
+  const isLoading      = activeTab === 'saved' ? loadingSaved : loadingPosts;
 
   return (
     <View style={[stylesheet.root, { paddingTop: insets.top }]}>
-      <FlatList
-        key={numColumns}
-        data={activeData}
-        keyExtractor={(item) => item.id}
-        numColumns={numColumns}
-        extraData={theme}
-        ListHeaderComponent={listHeader}
-        renderItem={({ item }) => {
-          return (
-            <Animated.View layout={Layout.springify()} entering={FadeIn} exiting={FadeOut}>
-              <ProfilePostGridItem
-                post={item}
-                width={GRID_ITEM_WIDTH}
-                onPress={() => {
-                  if (item.category === 'For Sale') {
-                    router.push(`/marketplace/${item.id}`);
-                  } else if (item.category === 'Event' && item.event_link) {
-                    const cleanLink = item.event_link.split('?')[0];
-                    const parts = cleanLink.split('/');
-                    const eventId = parts.pop() || parts.pop();
-                    if (eventId) {
-                      router.push(`/events/${eventId}`);
+      {activeTab === 'texts' ? (
+        <FlashList
+          data={textPosts}
+          keyExtractor={(item) => item.id}
+          ListHeaderComponent={listHeader}
+          renderItem={({ item }) => {
+            const locationParts = [item.ward, item.lga].filter(Boolean);
+            const locationStr   = locationParts.length ? locationParts.join(', ') : null;
+            return (
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  paddingHorizontal: 20,
+                  paddingVertical: 14,
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.colors.GLASS_BORDER,
+                  backgroundColor: theme.colors.SURFACE,
+                  gap: 12,
+                }}
+                activeOpacity={0.75}
+                onPress={() => router.push(`/posts/${item.id}`)}
+              >
+                <View style={{ flex: 1 }}>
+                  {!!item.title && (
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        fontFamily: 'Outfit-Bold',
+                        fontSize: 14,
+                        color: theme.colors.TEXT_PRIMARY,
+                        marginBottom: 2,
+                      }}
+                    >
+                      {item.title}
+                    </Text>
+                  )}
+                  <Text
+                    numberOfLines={2}
+                    style={{
+                      fontFamily: 'Inter-Regular',
+                      fontSize: 13,
+                      color: theme.colors.TEXT_SECONDARY,
+                      lineHeight: 18,
+                    }}
+                  >
+                    {item.text}
+                  </Text>
+                  <View
+                    style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 10 }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: 'Inter-Regular',
+                        fontSize: 11,
+                        color: theme.colors.LABEL,
+                      }}
+                    >
+                      {timeAgo(item.timestamp)}
+                    </Text>
+                    {!!locationStr && (
+                      <>
+                        <View
+                          style={{
+                            width: 3,
+                            height: 3,
+                            borderRadius: 1.5,
+                            backgroundColor: theme.colors.LABEL,
+                          }}
+                        />
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                          <Ionicons name="location-outline" size={11} color={theme.colors.LABEL} />
+                          <Text
+                            numberOfLines={1}
+                            style={{
+                              fontFamily: 'Inter-Regular',
+                              fontSize: 11,
+                              color: theme.colors.LABEL,
+                            }}
+                          >
+                            {locationStr}
+                          </Text>
+                        </View>
+                      </>
+                    )}
+                    <View style={{ flex: 1 }} />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                        <Ionicons name="heart-outline" size={12} color={theme.colors.LABEL} />
+                        <Text
+                          style={{
+                            fontFamily: 'Inter-Regular',
+                            fontSize: 11,
+                            color: theme.colors.LABEL,
+                          }}
+                        >
+                          {item.liked_by?.length ?? 0}
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                        <Ionicons name="chatbubble-outline" size={12} color={theme.colors.LABEL} />
+                        <Text
+                          style={{
+                            fontFamily: 'Inter-Regular',
+                            fontSize: 11,
+                            color: theme.colors.LABEL,
+                          }}
+                        >
+                          {item.comment_count}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  onPress={() =>
+                    Alert.alert(item.title || 'Post options', undefined, [
+                      { text: 'View post', onPress: () => router.push(`/posts/${item.id}`) },
+                      { text: 'Cancel', style: 'cancel' },
+                    ])
+                  }
+                >
+                  <Feather name="more-horizontal" size={18} color={theme.colors.LABEL} />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            );
+          }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.colors.G}
+            />
+          }
+          contentContainerStyle={stylesheet.listContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            isLoading && !refreshing ? (
+              <View style={{ padding: 40, alignItems: 'center' }}>
+                <PostSkeleton />
+              </View>
+            ) : (
+              <Animated.View entering={FadeIn} style={stylesheet.emptyContainer}>
+                <Ionicons
+                  name="document-text-outline"
+                  size={56}
+                  color="#333"
+                  style={{ marginBottom: 16 }}
+                />
+                <Text style={stylesheet.emptyHeadline}>No text posts yet</Text>
+                <Text style={stylesheet.emptySub}>Share a thought with your neighbourhood.</Text>
+                <TouchableOpacity
+                  style={stylesheet.createBtn}
+                  onPress={() => router.push('/create-post' as any)}
+                >
+                  <Text style={stylesheet.createBtnText}>Create Post</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            )
+          }
+        />
+      ) : (
+        <FlatList
+          key={numColumns}
+          data={activeGridData}
+          keyExtractor={(item) => item.id}
+          numColumns={numColumns}
+          extraData={theme}
+          ListHeaderComponent={listHeader}
+          renderItem={({ item }) => {
+            return (
+              <Animated.View layout={Layout.springify()} entering={FadeIn} exiting={FadeOut}>
+                <ProfilePostGridItem
+                  post={item}
+                  width={GRID_ITEM_WIDTH}
+                  onPress={() => {
+                    if (item.category === 'For Sale') {
+                      router.push(`/marketplace/${item.id}`);
+                    } else if (item.category === 'Event' && item.event_link) {
+                      const cleanLink = item.event_link.split('?')[0];
+                      const parts = cleanLink.split('/');
+                      const eventId = parts.pop() || parts.pop();
+                      if (eventId) {
+                        router.push(`/events/${eventId}`);
+                      } else {
+                        router.push(`/posts/${item.id}`);
+                      }
                     } else {
                       router.push(`/posts/${item.id}`);
                     }
-                  } else {
-                    router.push(`/posts/${item.id}`);
-                  }
-                }}
-              />
-            </Animated.View>
-          );
-        }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={theme.colors.G}
-          />
-        }
-        contentContainerStyle={stylesheet.listContent}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          isLoading && !refreshing ? (
-            <View style={{ flexDirection: 'row', padding: 8 }}>
-              <PostSkeleton />
-            </View>
-          ) : (
-            <Animated.View entering={FadeIn} style={stylesheet.emptyContainer}>
-              <Ionicons name="images-outline" size={56} color="#333" style={{ marginBottom: 16 }} />
-              <Text style={stylesheet.emptyHeadline}>No posts yet</Text>
-              <Text style={stylesheet.emptySub}>Share something with your neighbourhood.</Text>
-              <TouchableOpacity
-                style={stylesheet.createBtn}
-                onPress={() => router.push('/create-post' as any)}
-              >
-                <Text style={stylesheet.createBtnText}>Create Post</Text>
-              </TouchableOpacity>
-            </Animated.View>
-          )
-        }
-      />
+                  }}
+                />
+              </Animated.View>
+            );
+          }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.colors.G}
+            />
+          }
+          contentContainerStyle={stylesheet.listContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            isLoading && !refreshing ? (
+              <View style={{ flexDirection: 'row', padding: 8 }}>
+                <PostSkeleton />
+              </View>
+            ) : (
+              <Animated.View entering={FadeIn} style={stylesheet.emptyContainer}>
+                <Ionicons
+                  name="images-outline"
+                  size={56}
+                  color="#333"
+                  style={{ marginBottom: 16 }}
+                />
+                <Text style={stylesheet.emptyHeadline}>No posts yet</Text>
+                <Text style={stylesheet.emptySub}>Share something with your neighbourhood.</Text>
+                <TouchableOpacity
+                  style={stylesheet.createBtn}
+                  onPress={() => router.push('/create-post' as any)}
+                >
+                  <Text style={stylesheet.createBtnText}>Create Post</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            )
+          }
+        />
+      )}
     </View>
   );
 }
