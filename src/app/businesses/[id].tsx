@@ -333,9 +333,9 @@ export default function BusinessProfileScreen() {
                 <TouchableOpacity
                   style={sStylesheet.sheetHeader}
                   onPress={() => {
-                    const item = catalogSheet;
+                    const itemId = catalogSheet.id;
                     setCatalogSheet(null);
-                    router.push(`/businesses/catalog/${item.id}` as any);
+                    setTimeout(() => router.push(`/businesses/catalog/${itemId}` as any), 300);
                   }}
                   activeOpacity={0.8}
                 >
@@ -363,9 +363,9 @@ export default function BusinessProfileScreen() {
                 <TouchableOpacity
                   style={sStylesheet.sheetActionItem}
                   onPress={() => {
-                    const item = catalogSheet;
+                    const itemId = catalogSheet.id;
                     setCatalogSheet(null);
-                    router.push(`/businesses/catalog/${item.id}` as any);
+                    setTimeout(() => router.push(`/businesses/catalog/${itemId}` as any), 300);
                   }}
                 >
                   <View
