@@ -1,5 +1,5 @@
 import { createStyleSheet, useStyles } from 'react-native-unistyles';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,27 @@ import { UserReviewService } from '../../lib/user-review-service';
 import { FontAwesome, MaterialIcons } from '@expo/vector-icons';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { Avatar } from '../../components/Avatar';
+
+function timeAgo(dateString: string): string {
+  try {
+    const d = new Date(dateString);
+    const diff = Date.now() - d.getTime();
+    const mins = Math.floor(diff / 60_000);
+    const hrs  = Math.floor(mins / 60);
+    const days = Math.floor(hrs / 24);
+    if (mins < 1)   return 'Just now';
+    if (mins < 60)  return `${mins}m ago`;
+    if (hrs  < 24)  return `${hrs}h ago`;
+    if (days === 1) return 'Yesterday';
+    return `${days}d ago`;
+  } catch {
+    return '';
+  }
+}
+
+function isMediaPost(p: Post): boolean {
+  return !!p.image_url || !!(p.image_urls?.length) || !!(p.video_urls?.length);
+}
 
 interface UserProfile {
   id: string;
@@ -59,10 +80,13 @@ export default function OtherUserProfileScreen() {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [reviews, setReviews] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'posts' | 'reviews'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'texts' | 'reviews'>('posts');
   const [avatarError, setAvatarError] = useState(false);
   const [hasBusiness, setHasBusiness] = useState(false);
   const [hasMarketplace, setHasMarketplace] = useState(false);
+
+  const mediaPosts = useMemo(() => posts.filter(isMediaPost), [posts]);
+  const textPosts  = useMemo(() => posts.filter((p) => !isMediaPost(p)), [posts]);
 
   const fetchProfileAndPosts = useCallback(async () => {
     if (!id) return;
@@ -560,31 +584,29 @@ export default function OtherUserProfileScreen() {
 
         {/* Tabs */}
         <View style={stylesheet.tabsWrap}>
-          {(['posts', 'reviews'] as const).map((t) => {
-            return (
-              <TouchableOpacity key={t} onPress={() => setActiveTab(t)} style={stylesheet.tabBtn}>
-                <Text
-                  style={[
-                    stylesheet.tabTxt,
-                    {
-                      color: activeTab === t ? theme.colors.TEXT_PRIMARY : theme.colors.LABEL,
-                      fontFamily: activeTab === t ? 'Outfit-Bold' : 'Outfit-Medium',
-                    },
-                  ]}
-                >
-                  {t}
-                </Text>
-                {activeTab === t && <View style={stylesheet.tabIndicator} />}
-              </TouchableOpacity>
-            );
-          })}
+          {(['posts', 'texts', 'reviews'] as const).map((t) => (
+            <TouchableOpacity key={t} onPress={() => setActiveTab(t)} style={stylesheet.tabBtn}>
+              <Text
+                style={[
+                  stylesheet.tabTxt,
+                  {
+                    color: activeTab === t ? theme.colors.TEXT_PRIMARY : theme.colors.LABEL,
+                    fontFamily: activeTab === t ? 'Outfit-Bold' : 'Outfit-Medium',
+                  },
+                ]}
+              >
+                {t.charAt(0).toUpperCase() + t.slice(1)}
+              </Text>
+              {activeTab === t && <View style={stylesheet.tabIndicator} />}
+            </TouchableOpacity>
+          ))}
         </View>
 
         <View style={stylesheet.feedSection}>
           {activeTab === 'posts' ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', width: '100%' }}>
-              {posts.length > 0 ? (
-                posts.map((post) => {
+              {mediaPosts.length > 0 ? (
+                mediaPosts.map((post) => {
                   const TARGET_TILE_WIDTH = 120;
                   const numColumns = Math.max(3, Math.floor(windowWidth / TARGET_TILE_WIDTH));
                   return (
@@ -614,6 +636,155 @@ export default function OtherUserProfileScreen() {
                     ]}
                   >
                     {profile.name} hasn't posted anything.
+                  </Text>
+                </View>
+              )}
+            </View>
+          ) : activeTab === 'texts' ? (
+            <View style={{ width: '100%' }}>
+              {textPosts.length > 0 ? (
+                textPosts.map((post) => {
+                  const locationParts = [post.ward, post.lga].filter(Boolean);
+                  const locationStr = locationParts.length ? locationParts.join(', ') : null;
+                  return (
+                    <TouchableOpacity
+                      key={post.id}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'flex-start',
+                        paddingHorizontal: 20,
+                        paddingVertical: 14,
+                        borderBottomWidth: 1,
+                        borderBottomColor: theme.colors.GLASS_BORDER,
+                        backgroundColor: theme.colors.SURFACE,
+                        gap: 12,
+                      }}
+                      activeOpacity={0.75}
+                      onPress={() => router.push(`/posts/${post.id}`)}
+                    >
+                      <View style={{ flex: 1 }}>
+                        {!!post.title && (
+                          <Text
+                            numberOfLines={1}
+                            style={{
+                              fontFamily: 'Outfit-Bold',
+                              fontSize: 14,
+                              color: theme.colors.TEXT_PRIMARY,
+                              marginBottom: 2,
+                            }}
+                          >
+                            {post.title}
+                          </Text>
+                        )}
+                        <Text
+                          numberOfLines={2}
+                          style={{
+                            fontFamily: 'Inter-Regular',
+                            fontSize: 13,
+                            color: theme.colors.TEXT_SECONDARY,
+                            lineHeight: 18,
+                          }}
+                        >
+                          {post.text}
+                        </Text>
+                        <View
+                          style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 10 }}
+                        >
+                          <Text
+                            style={{
+                              fontFamily: 'Inter-Regular',
+                              fontSize: 11,
+                              color: theme.colors.LABEL,
+                            }}
+                          >
+                            {timeAgo(post.timestamp)}
+                          </Text>
+                          {!!locationStr && (
+                            <>
+                              <View
+                                style={{
+                                  width: 3,
+                                  height: 3,
+                                  borderRadius: 1.5,
+                                  backgroundColor: theme.colors.LABEL,
+                                }}
+                              />
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                                <Ionicons name="location-outline" size={11} color={theme.colors.LABEL} />
+                                <Text
+                                  numberOfLines={1}
+                                  style={{
+                                    fontFamily: 'Inter-Regular',
+                                    fontSize: 11,
+                                    color: theme.colors.LABEL,
+                                  }}
+                                >
+                                  {locationStr}
+                                </Text>
+                              </View>
+                            </>
+                          )}
+                          <View style={{ flex: 1 }} />
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                              <Ionicons name="heart-outline" size={12} color={theme.colors.LABEL} />
+                              <Text
+                                style={{
+                                  fontFamily: 'Inter-Regular',
+                                  fontSize: 11,
+                                  color: theme.colors.LABEL,
+                                }}
+                              >
+                                {post.liked_by?.length ?? 0}
+                              </Text>
+                            </View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                              <Ionicons name="chatbubble-outline" size={12} color={theme.colors.LABEL} />
+                              <Text
+                                style={{
+                                  fontFamily: 'Inter-Regular',
+                                  fontSize: 11,
+                                  color: theme.colors.LABEL,
+                                }}
+                              >
+                                {post.comment_count}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      </View>
+                      <TouchableOpacity
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        onPress={() =>
+                          Alert.alert(post.title || 'Post options', undefined, [
+                            { text: 'View post', onPress: () => router.push(`/posts/${post.id}`) },
+                            { text: 'Cancel', style: 'cancel' },
+                          ])
+                        }
+                      >
+                        <Feather name="more-horizontal" size={18} color={theme.colors.LABEL} />
+                      </TouchableOpacity>
+                    </TouchableOpacity>
+                  );
+                })
+              ) : (
+                <View style={[stylesheet.emptyState, { width: '100%' }]}>
+                  <Feather name="file-text" size={40} color={theme.colors.LABEL} />
+                  <Text
+                    style={[
+                      stylesheet.emptyTitle,
+                      { color: theme.colors.MUTED, fontFamily: 'Outfit' },
+                    ]}
+                  >
+                    No text posts yet
+                  </Text>
+                  <Text
+                    style={[
+                      stylesheet.emptySubtitle,
+                      { color: theme.colors.LABEL, fontFamily: 'Inter' },
+                    ]}
+                  >
+                    {profile.name} hasn't written any text posts.
                   </Text>
                 </View>
               )}

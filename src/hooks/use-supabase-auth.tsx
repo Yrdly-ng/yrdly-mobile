@@ -6,6 +6,7 @@ import { AuthService, AuthUser } from '@/lib/auth-service';
 import { supabase } from '@/lib/supabase';
 import { oneSignalService } from '@/lib/onesignal';
 import { usePostHog } from 'posthog-react-native';
+import { identifyUser } from '@/lib/analytics';
 import * as FileSystem from 'expo-file-system/legacy';
 import NetInfo from '@react-native-community/netinfo';
 
@@ -254,10 +255,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(user);
 
         if (user) {
-          if (posthog) {
-            posthog.identify(user.id);
-          }
-
           oneSignalService.login(user.id);
 
           try {
@@ -330,6 +327,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (isMounted) {
               setProfile(userProfile);
+              if (posthog) {
+                identifyUser(posthog, user, userProfile);
+              }
               // Set up real-time subscription for this user's profile
               setupProfileRealtime(user.id);
             }

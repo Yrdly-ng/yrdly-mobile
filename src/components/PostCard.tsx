@@ -15,6 +15,7 @@ import {
   NativeScrollEvent,
   Alert,
   ActionSheetIOS,
+  DeviceEventEmitter,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, {
@@ -513,7 +514,16 @@ export const PostCard = React.memo(
               if (onDelete) {
                 onDelete(post.id);
               } else {
-                await supabase.from('posts').delete().eq('id', post.id);
+                await Promise.allSettled([
+                  supabase.from('comments').delete().eq('post_id', post.id),
+                  supabase.from('post_likes').delete().eq('post_id', post.id),
+                  supabase.from('saved_posts').delete().eq('post_id', post.id),
+                  supabase.from('notifications').delete().eq('post_id', post.id),
+                  supabase.from('moderation_queue').delete().eq('content_id', post.id).eq('table_name', 'posts'),
+                ]);
+                const { error } = await supabase.from('posts').delete().eq('id', post.id);
+                if (error) throw error;
+                DeviceEventEmitter.emit('post_deleted', post.id);
                 Alert.alert('Success', 'Post deleted.');
               }
             } catch (e: any) {

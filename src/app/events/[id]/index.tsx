@@ -372,16 +372,17 @@ export default function EventDetailScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await supabase
+              const { error } = await supabase
                 .from('events')
-                .update({ is_archived: true })
+                .update({ is_archived: true, status: 'CANCELLED' })
                 .eq('id', event!.id)
                 .eq('organizer_id', user!.id);
+              if (error) throw error;
               DeviceEventEmitter.emit('post_deleted', event!.id);
               router.back();
-            } catch (e) {
+            } catch (e: any) {
               console.error('Delete event error:', e);
-              Alert.alert('Error', 'Could not delete event.');
+              Alert.alert('Error', e.message || 'Could not delete event.');
             }
           },
         },

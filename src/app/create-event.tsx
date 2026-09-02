@@ -1,5 +1,5 @@
 import { createStyleSheet, useStyles } from 'react-native-unistyles';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -30,6 +30,11 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { formatPrice } from '../lib/utils';
 import { usePostHog } from 'posthog-react-native';
 import { logError } from '../lib/error-logger';
+import {
+  trackPostCreationStarted,
+  trackPostMediaAttached,
+  trackPostCreatedSuccess,
+} from '../lib/analytics';
 import { EventCard } from '../components/EventCard';
 import { ImageCarousel } from '../components/ImageCarousel';
 import { useCategories } from '../hooks/use-categories';
@@ -47,6 +52,12 @@ export default function CreateEventScreen() {
   const posthog = usePostHog();
   const { categories, loading: categoriesLoading } = useCategories('event');
   const [step, setStep] = useState(0);
+
+  // Track screen open
+  useEffect(() => {
+    trackPostCreationStarted(posthog, 'event');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Form State
   const [eventName, setEventName] = useState('');
@@ -160,7 +171,13 @@ export default function CreateEventScreen() {
             }));
           }
         }
-        setAttachedFiles((prev) => [...prev, ...validFiles]);
+        setAttachedFiles((prev) => {
+          const next = [...prev, ...validFiles];
+          if (validFiles.length > 0) {
+            trackPostMediaAttached(posthog, 'event', next.length);
+          }
+          return next;
+        });
       }
     } catch (e: any) {
       if (e.message !== 'User cancelled image selection' && e.message !== 'User cancelled') {
@@ -392,6 +409,7 @@ export default function CreateEventScreen() {
         setUploadProgress(0);
         setModerationStatus(modStatus as any);
         setPublished(true);
+        trackPostCreatedSuccess(posthog, 'event', res.eventId);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch (err: any) {
         setPublishing(false);

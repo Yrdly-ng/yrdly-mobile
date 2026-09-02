@@ -9,6 +9,7 @@ import {
   Linking,
   Dimensions,
   Alert,
+  DeviceEventEmitter,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
@@ -245,6 +246,7 @@ export default function CatalogItemScreen() {
           try {
             const { error } = await supabase.from('catalog_items').delete().eq('id', item!.id);
             if (error) throw error;
+            DeviceEventEmitter.emit('catalog_item_deleted', item!.id);
             Alert.alert('Deleted', 'The catalog item has been removed.', [
               { text: 'OK', onPress: () => router.back() },
             ]);

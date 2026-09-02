@@ -1,5 +1,5 @@
 import { createStyleSheet, useStyles } from 'react-native-unistyles';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -30,6 +30,11 @@ import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplet
 import LottieView from 'lottie-react-native';
 import { usePostHog } from 'posthog-react-native';
 import { logError } from '../lib/error-logger';
+import {
+  trackPostCreationStarted,
+  trackPostMediaAttached,
+  trackPostCreatedSuccess,
+} from '../lib/analytics';
 import * as FileSystem from 'expo-file-system/legacy';
 import { formatPrice } from '../lib/utils';
 import { useCategories } from '../hooks/use-categories';
@@ -47,6 +52,12 @@ export default function CreateForSaleScreen() {
   const posthog = usePostHog();
   const { categories, loading: categoriesLoading } = useCategories('marketplace');
   const [step, setStep] = useState(0);
+
+  // Track screen open
+  useEffect(() => {
+    trackPostCreationStarted(posthog, 'sale');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [listingType, setListingType] = useState('For Sale');
   const [title, setTitle] = useState('');
@@ -152,7 +163,13 @@ export default function CreateForSaleScreen() {
             }));
           }
         }
-        setAttachedFiles((prev) => [...prev, ...validFiles]);
+        setAttachedFiles((prev) => {
+          const next = [...prev, ...validFiles];
+          if (validFiles.length > 0) {
+            trackPostMediaAttached(posthog, 'sale', next.length);
+          }
+          return next;
+        });
       }
     } catch (e: any) {
       if (e.message !== 'User cancelled image selection' && e.message !== 'User cancelled') {
@@ -325,6 +342,7 @@ export default function CreateForSaleScreen() {
           }
           setModerationStatus(modStatus as any);
           setListed(true);
+          trackPostCreatedSuccess(posthog, 'sale', newPost?.id);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
       } catch (err: any) {

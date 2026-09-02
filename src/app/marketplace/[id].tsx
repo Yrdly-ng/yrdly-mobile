@@ -13,6 +13,7 @@ import {
   ActionSheetIOS,
   Alert,
   AppState,
+  DeviceEventEmitter,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -240,7 +241,16 @@ function MarketplaceDetailContent() {
           onPress: async () => {
             if (!user || !post) return;
             try {
-              await supabase.from('posts').delete().eq('id', post.id);
+              await Promise.allSettled([
+                supabase.from('comments').delete().eq('post_id', post.id),
+                supabase.from('post_likes').delete().eq('post_id', post.id),
+                supabase.from('saved_posts').delete().eq('post_id', post.id),
+                supabase.from('notifications').delete().eq('post_id', post.id),
+                supabase.from('moderation_queue').delete().eq('content_id', post.id).eq('table_name', 'posts'),
+              ]);
+              const { error } = await supabase.from('posts').delete().eq('id', post.id);
+              if (error) throw error;
+              DeviceEventEmitter.emit('post_deleted', post.id);
               Alert.alert('Success', 'Listing deleted.');
               router.back();
             } catch (e: any) {

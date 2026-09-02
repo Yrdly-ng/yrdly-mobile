@@ -1032,7 +1032,7 @@ export const usePosts = (filter?: LocationFilter | null) => {
         // First, get the post to retrieve image and video URLs
         let { data: postData, error: fetchError } = await supabase
           .from('posts')
-          .select('image_urls, video_url')
+          .select('image_urls, video_urls')
           .eq('id', postId)
           .single();
 
@@ -1056,8 +1056,24 @@ export const usePosts = (filter?: LocationFilter | null) => {
                 : eventData.cover_image_url
                   ? [eventData.cover_image_url]
                   : [],
-            video_url: null,
+            video_urls: [],
           } as any;
+        }
+
+        // Clean up child records to satisfy FK constraints if any
+        if (table === 'posts') {
+          await Promise.allSettled([
+            supabase.from('comments').delete().eq('post_id', postId),
+            supabase.from('post_likes').delete().eq('post_id', postId),
+            supabase.from('saved_posts').delete().eq('post_id', postId),
+            supabase.from('notifications').delete().eq('post_id', postId),
+            supabase.from('moderation_queue').delete().eq('content_id', postId).eq('table_name', 'posts'),
+          ]);
+        } else if (table === 'events') {
+          await Promise.allSettled([
+            supabase.from('notifications').delete().eq('event_id', postId),
+            supabase.from('moderation_queue').delete().eq('content_id', postId).eq('table_name', 'events'),
+          ]);
         }
 
         // Delete the item from database
@@ -1069,17 +1085,12 @@ export const usePosts = (filter?: LocationFilter | null) => {
         if (postData?.image_urls && postData.image_urls.length > 0) {
           const deletePromises = postData.image_urls.map(async (imageUrl: string) => {
             try {
-              // Extract the path from the full URL
               const url = new URL(imageUrl);
               const pathParts = url.pathname.split('/');
-              const bucket = pathParts[2]; // post-images
-              const path = pathParts.slice(3).join('/'); // posts/userId/filename
+              const bucket = pathParts[2] || 'post-images';
+              const path = pathParts.slice(3).join('/');
 
-              const { error: deleteError } = await supabase.storage.from(bucket).remove([path]);
-
-              if (deleteError) {
-                // Error deleting image
-              }
+              await supabase.storage.from(bucket).remove([path]);
             } catch (error) {
               // Error processing image deletion
             }
@@ -1088,22 +1099,26 @@ export const usePosts = (filter?: LocationFilter | null) => {
           await Promise.all(deletePromises);
         }
 
-        // Delete associated video from storage
-        if (postData?.video_url) {
-          try {
-            const url = new URL(postData.video_url);
-            const pathParts = url.pathname.split('/');
-            const path = pathParts.slice(3).join('/');
-            await supabase.storage.from('post-videos').remove([path]);
-          } catch {
-            // Non-fatal: video cleanup failed
-          }
+        // Delete associated videos from storage
+        if (postData?.video_urls && postData.video_urls.length > 0) {
+          const deleteVideoPromises = postData.video_urls.map(async (videoUrl: string) => {
+            try {
+              const url = new URL(videoUrl);
+              const pathParts = url.pathname.split('/');
+              const path = pathParts.slice(3).join('/');
+              await supabase.storage.from('post-videos').remove([path]);
+            } catch {
+              // Non-fatal: video cleanup failed
+            }
+          });
+          await Promise.all(deleteVideoPromises);
         }
 
         setPosts((prev) => prev.filter((p) => p.id !== postId));
         toast({ title: 'Success', description: 'Post deleted successfully.' });
-      } catch (error) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete post.' });
+      } catch (error: any) {
+        console.error('deletePost error:', error);
+        toast({ variant: 'destructive', title: 'Error', description: error?.message || 'Failed to delete post.' });
       }
     },
     [user, toast]
