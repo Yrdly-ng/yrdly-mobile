@@ -26,7 +26,7 @@ export function MarketplaceGrid({ searchQuery = '', sortOption = 'newest' }: Mar
   const { styles: stylesheet, theme } = useStyles(_stylesheet);
 
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { activeFilter } = useLocation();
   const [items, setItems] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,14 +120,16 @@ export function MarketplaceGrid({ searchQuery = '', sortOption = 'newest' }: Mar
         const { data, error } = await query.limit(40);
 
         if (error) throw error;
-        setItems(data as Post[]);
+        const blocked = profile?.blocked_users || [];
+        const filtered = (data as any[] || []).filter((p: any) => !blocked.includes(p.user_id));
+        setItems(filtered as Post[]);
       } catch (error) {
         console.error('Error fetching marketplace items:', error);
       } finally {
         if (!isRefresh) setLoading(false);
       }
     },
-    [searchQuery, sortOption, activeFilter]
+    [searchQuery, sortOption, activeFilter, profile?.blocked_users]
   );
 
   const onRefresh = useCallback(async () => {

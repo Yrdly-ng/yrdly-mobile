@@ -45,7 +45,7 @@ export function EventList({ searchQuery = '', sortOption = 'newest' }: EventList
 
   const { activeFilter } = useLocation();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [events, setEvents] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -174,16 +174,20 @@ export function EventList({ searchQuery = '', sortOption = 'newest' }: EventList
               new Date(a.created_at || a.timestamp || 0).getTime()
           );
 
-        setEvents(merged);
+        // Filter blocked users
+        const blocked = profile?.blocked_users || [];
+        const unblockedMerged = merged.filter((ev) => !blocked.includes(ev.user_id));
+
+        setEvents(unblockedMerged);
         try {
-          await FileSystem.writeAsStringAsync(cacheFile, JSON.stringify(merged));
+          await FileSystem.writeAsStringAsync(cacheFile, JSON.stringify(unblockedMerged));
         } catch (_) {}
       } catch (e) {
         console.error('EventList fetchEvents error:', e);
       }
       setLoading(false);
     },
-    [activeFilter, category, searchQuery, sortOption]
+    [activeFilter, category, searchQuery, sortOption, profile?.blocked_users]
   );
 
   const onRefresh = useCallback(async () => {

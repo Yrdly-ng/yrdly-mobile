@@ -340,7 +340,7 @@ export default function TicketsScreen() {
               </Text>
               <TouchableOpacity
                 style={[stylesheet.browseButton, { backgroundColor: theme.colors.G }]}
-                onPress={() => router.push('/catalog')}
+                onPress={() => router.push({ pathname: '/(tabs)/catalog', params: { tab: 'Events' } } as any)}
               >
                 <Text style={stylesheet.browseButtonText}>Browse Events</Text>
               </TouchableOpacity>

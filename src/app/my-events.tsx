@@ -284,7 +284,7 @@ export default function MyEventsScreen() {
               </Text>
               <TouchableOpacity
                 style={[stylesheet.createButton, { backgroundColor: theme.colors.G }]}
-                onPress={() => router.push('/', { params: { category: 'Event' } })}
+                onPress={() => router.push('/create-event' as any)}
               >
                 <Text style={stylesheet.createButtonText}>Create Event</Text>
               </TouchableOpacity>

@@ -773,7 +773,6 @@ export const usePosts = (filter?: LocationFilter | null) => {
                 ward: profile.home_ward || profile.location?.ward || null,
                 lat: profile.home_lat || null,
                 lng: profile.home_lng || null,
-                location_geom: profile.home_location_geom || null,
                 author_location:
                   profile.home_state || profile.home_lga
                     ? { state: profile.home_state, lga: profile.home_lga, ward: profile.home_ward }

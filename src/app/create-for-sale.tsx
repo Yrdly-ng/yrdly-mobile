@@ -299,8 +299,6 @@ export default function CreateForSaleScreen() {
             ward: postWard || null,
             lat: postLat,
             lng: postLng,
-            location_geom:
-              postLat !== null && postLng !== null ? `POINT(${postLng} ${postLat})` : null,
             timestamp: new Date().toISOString(),
             liked_by: [],
             comment_count: 0,
