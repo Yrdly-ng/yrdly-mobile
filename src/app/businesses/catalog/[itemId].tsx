@@ -145,7 +145,7 @@ export default function CatalogItemScreen() {
       });
 
       if (existing?.id) {
-        router.push(`/chat/${existing.id}` as any);
+        router.push({ pathname: '/chat/[id]', params: { id: existing.id } } as any);
         return;
       }
 
@@ -173,7 +173,7 @@ export default function CatalogItemScreen() {
       Alert.alert('Sold Out', 'This item is currently out of stock.');
       return;
     }
-    router.push({ pathname: '/checkout', params: { id: item.id, type: 'catalog_item' } } as any);
+    router.push({ pathname: '/checkout/[id]', params: { id: item.id, type: 'catalog_item' } } as any);
   }, [item, router]);
 
   const handleRestock = useCallback(async () => {
@@ -234,7 +234,7 @@ export default function CatalogItemScreen() {
       );
       return;
     }
-    router.push('/businesses/create-catalog-item', { params: { itemId: item?.id } });
+    router.push({ pathname: '/businesses/create-catalog-item', params: { itemId: item?.id } } as any);
   }, [checkPendingTransaction, item, router]);
 
   const handleDeleteItem = useCallback(async () => {
@@ -604,7 +604,7 @@ export default function CatalogItemScreen() {
                 sStylesheet.bizCard,
                 { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER },
               ]}
-              onPress={() => router.push(`/businesses/${business.id}` as any)}
+              onPress={() => router.push({ pathname: '/businesses/[id]', params: { id: business.id } } as any)}
             >
               {business.logo ? (
                 <Image
