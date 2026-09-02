@@ -97,7 +97,7 @@ export function MarketplaceGrid({ searchQuery = '', sortOption = 'newest' }: Mar
         let query = supabase
           .from('posts')
           .select(`*, user:users!posts_user_id_fkey(id, name, avatar_url)`)
-          .eq('category', 'For Sale')
+          .in('category', ['For Sale', 'Giveaway'])
           .eq('is_sold', false);
 
         if (activeFilter?.state) query = query.eq('state', activeFilter.state);

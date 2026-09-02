@@ -18,7 +18,7 @@ import {
 import { Image } from 'expo-image';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { useLocation } from '../../context/LocationContext';
@@ -197,7 +197,7 @@ function DiscoverSection({
       const { data: postsData } = await supabase
         .from('posts')
         .select('user_id')
-        .eq('category', 'For Sale')
+        .in('category', ['For Sale', 'Giveaway'])
         .limit(100);
 
       if (postsData && postsData.length > 0) {
@@ -536,7 +536,7 @@ function MarketplaceSection({
           q = supabase
             .from('posts')
             .select('*, user:users!posts_user_id_fkey(id,name,avatar_url)')
-            .eq('category', 'For Sale')
+            .in('category', ['For Sale', 'Giveaway'])
             .or('is_sold.eq.false,is_sold.is.null');
           if (category !== 'All') {
             q = q.ilike('sub_category', `%${category}%`);
@@ -1041,7 +1041,9 @@ function CatalogEventCard({ item, router, theme, sStylesheet }: any) {
           </View>
           <View style={sStylesheet.eventCardMetaItem}>
             <Ionicons name="people-outline" size={12} color={theme.colors.LABEL} />
-            <Text style={sStylesheet.eventCardMetaText}>{item.attendees?.length || 0} going</Text>
+            <Text style={sStylesheet.eventCardMetaText}>
+              {(item.attendee_count ?? item.attendees?.length ?? 0)} going
+            </Text>
           </View>
         </View>
       </View>
@@ -1119,6 +1121,37 @@ function EventsSection({
 
         const { data, error } = await q;
         if (data) {
+          if (data.length > 0) {
+            const eventIds = data.map((e) => e.id);
+            try {
+              const { data: ticketsData } = await supabase
+                .from('tickets')
+                .select('event_id, buyer:users(id, name, avatar_url)')
+                .in('event_id', eventIds);
+
+              if (ticketsData) {
+                const countMap: Record<string, number> = {};
+                const attendeesMap: Record<string, any[]> = {};
+                ticketsData.forEach((t: any) => {
+                  if (t.event_id) {
+                    countMap[t.event_id] = (countMap[t.event_id] || 0) + 1;
+                    if (t.buyer) {
+                      if (!attendeesMap[t.event_id]) attendeesMap[t.event_id] = [];
+                      if (!attendeesMap[t.event_id].some((b: any) => b.id === t.buyer.id)) {
+                        attendeesMap[t.event_id].push(t.buyer);
+                      }
+                    }
+                  }
+                });
+                data.forEach((e: any) => {
+                  e.attendee_count = countMap[e.id] || 0;
+                  e.attendees = attendeesMap[e.id] || [];
+                });
+              }
+            } catch (ticketErr) {
+              console.warn('Error fetching event ticket counts:', ticketErr);
+            }
+          }
           setEvents(data);
         } else {
           console.log('Error fetching events:', error);
@@ -1343,9 +1376,21 @@ export default function CatalogTab() {
 
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const params = useLocalSearchParams<{ tab?: string }>();
   const { profile } = useAuth();
   const { unreadCount } = useNotificationBadge();
-  const [activeTab, setActiveTab] = useState<TabType>('Discover');
+  const [activeTab, setActiveTab] = useState<TabType>(
+    params.tab === 'Marketplace' || params.tab === 'Events' || params.tab === 'Businesses'
+      ? (params.tab as TabType)
+      : 'Discover'
+  );
+
+  useEffect(() => {
+    if (params.tab && (params.tab === 'Marketplace' || params.tab === 'Events' || params.tab === 'Businesses' || params.tab === 'Discover')) {
+      setActiveTab(params.tab as TabType);
+    }
+  }, [params.tab]);
+
   const [showSearch, setShowSearch] = useState(false);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');

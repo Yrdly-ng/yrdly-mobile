@@ -28,6 +28,8 @@ import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplet
 import { resolveCoords } from '../lib/geocoding-service';
 import * as FileSystem from 'expo-file-system/legacy';
 import { formatPrice } from '../lib/utils';
+import { usePostHog } from 'posthog-react-native';
+import { logError } from '../lib/error-logger';
 import { EventCard } from '../components/EventCard';
 import { ImageCarousel } from '../components/ImageCarousel';
 import { useCategories } from '../hooks/use-categories';
@@ -42,6 +44,7 @@ export default function CreateEventScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, profile } = useAuth();
+  const posthog = usePostHog();
   const { categories, loading: categoriesLoading } = useCategories('event');
   const [step, setStep] = useState(0);
 
@@ -58,7 +61,6 @@ export default function CreateEventScreen() {
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
   const [venue, setVenue] = useState('');
-  const [area, setArea] = useState('');
   const [isOnline, setIsOnline] = useState(false);
   const [onlineLink, setOnlineLink] = useState('');
 
@@ -94,7 +96,6 @@ export default function CreateEventScreen() {
     const lga = profile?.home_lga || profile?.location?.lga;
     const ward = profile?.home_ward || profile?.location?.ward;
     if (state && lga) {
-      setArea([ward, lga, state].filter(Boolean).join(', '));
       setPostState(state);
       setPostLga(lga);
     }
@@ -201,14 +202,44 @@ export default function CreateEventScreen() {
   const canNext = [
     eventName.trim() && eventCategory,
     true, // date/time always valid due to Date object
-    isOnline ? true : venue.trim() && area.trim(),
+    isOnline ? true : !!venue.trim(),
     tiers.length > 0 && tiers.every((t) => t.name.trim()),
     attachedFiles.some((f) => f.type?.startsWith('image/')),
     true,
   ][step];
 
+  const [hasPayoutAccount, setHasPayoutAccount] = useState<boolean | null>(null);
+
+  React.useEffect(() => {
+    if (!user) return;
+    api.get('/api/seller/setup-account')
+      .then((res: any) => {
+        setHasPayoutAccount(!!res?.account);
+      })
+      .catch(() => {
+        setHasPayoutAccount(false);
+      });
+  }, [user]);
+
   const handleNext = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Enforce payout account check at step 3 (Tickets step) before moving forward
+    if (step === 3) {
+      const hasPaidTicket = tiers.some((t) => !t.isFree && (parseFloat(t.price) || 0) > 0);
+      if (hasPaidTicket && hasPayoutAccount === false) {
+        Alert.alert(
+          'Payout Account Required',
+          'To sell paid tickets, please link your bank account in Settings → Payout Settings.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Go to Settings', onPress: () => router.push('/settings/payout-settings' as any) },
+          ]
+        );
+        return;
+      }
+    }
+
     if (step < STEPS.length - 1) {
       setStep((s) => s + 1);
     } else {
@@ -380,7 +411,8 @@ export default function CreateEventScreen() {
             ]
           );
         } else {
-          Alert.alert('Error', errMsg || 'Failed to create event. Please check inputs.');
+          const userMsg = logError(err, { context: 'create_event_submit', posthog, extraProps: { errMsg } });
+          Alert.alert('Event Creation Failed', userMsg);
         }
       }
     }
@@ -656,7 +688,6 @@ export default function CreateEventScreen() {
                             setPostState(match.state);
                             setPostLga(match.lga);
                             setPostWard(match.ward);
-                            setArea(`${match.lga}, ${match.state}`);
                           }
                         });
                       }
@@ -691,15 +722,6 @@ export default function CreateEventScreen() {
                     }}
                   />
                 </View>
-
-                <Text style={stylesheet.label}>Neighbourhood / Area</Text>
-                <TextInput
-                  style={stylesheet.input}
-                  placeholder="e.g. Ikeja, Lagos"
-                  placeholderTextColor={theme.colors.MUTED}
-                  value={area}
-                  onChangeText={setArea}
-                />
               </>
             )}
           </View>

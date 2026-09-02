@@ -49,16 +49,40 @@ export default function ReviewScreen() {
         const { data, error } = await supabase
           .from('escrow_transactions')
           .select(
-            'id, seller_id, seller:users!escrow_transactions_seller_id_fkey(id, name, avatar_url), item:posts(id, title, image_urls)'
+            `
+            id, seller_id,
+            seller:users!escrow_transactions_seller_id_fkey(id, name, avatar_url),
+            post_item:posts(id, title, image_urls, image_url),
+            catalog_item:catalog_items(id, title, images)
+          `
           )
           .eq('id', id)
           .single();
         if (error) throw error;
-        const normalised = {
-          ...data,
-          seller: Array.isArray(data.seller) ? (data.seller[0] ?? null) : data.seller,
-          item: Array.isArray(data.item) ? (data.item[0] ?? null) : data.item,
-        } as TxInfo;
+
+        const sellerObj = Array.isArray(data.seller) ? (data.seller[0] ?? null) : data.seller;
+        const postItem = Array.isArray(data.post_item) ? data.post_item[0] : data.post_item;
+        const catalogItem = Array.isArray(data.catalog_item) ? data.catalog_item[0] : data.catalog_item;
+
+        const itemTitle = postItem?.title || catalogItem?.title || 'Item';
+        const itemImgs = postItem
+          ? Array.isArray(postItem.image_urls) && postItem.image_urls.length > 0
+            ? postItem.image_urls
+            : postItem.image_url
+            ? [postItem.image_url]
+            : null
+          : catalogItem?.images || null;
+
+        const normalised: TxInfo = {
+          id: data.id,
+          seller_id: data.seller_id,
+          seller: sellerObj,
+          item: {
+            id: postItem?.id || catalogItem?.id || '',
+            title: itemTitle,
+            image_urls: itemImgs,
+          },
+        };
         setTx(normalised);
 
         const { data: biz } = await supabase

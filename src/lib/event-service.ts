@@ -137,6 +137,11 @@ export async function getEventById(id: string): Promise<Event | null> {
   const event = enrichEventTiers(data);
   if (event) {
     event.attendees = await getEventAttendees(id, 5);
+    const { count } = await supabase
+      .from('tickets')
+      .select('id', { count: 'exact', head: true })
+      .eq('event_id', id);
+    event.attendee_count = count ?? event.attendees?.length ?? 0;
   }
   return event;
 }

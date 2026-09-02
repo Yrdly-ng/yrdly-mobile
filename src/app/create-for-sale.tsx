@@ -27,6 +27,9 @@ import { StorageService, MobileFile } from '../lib/storage-service';
 import { MarketplaceItemCard } from '../components/MarketplaceItemCard';
 import { ImageCarousel } from '../components/ImageCarousel';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
+import LottieView from 'lottie-react-native';
+import { usePostHog } from 'posthog-react-native';
+import { logError } from '../lib/error-logger';
 import * as FileSystem from 'expo-file-system/legacy';
 import { formatPrice } from '../lib/utils';
 import { useCategories } from '../hooks/use-categories';
@@ -41,6 +44,7 @@ export default function CreateForSaleScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, profile } = useAuth();
+  const posthog = usePostHog();
   const { categories, loading: categoriesLoading } = useCategories('marketplace');
   const [step, setStep] = useState(0);
 
@@ -307,7 +311,8 @@ export default function CreateForSaleScreen() {
         setListing(false);
         setUploadProgress(0);
         if (error) {
-          Alert.alert('Error', error.message || 'Failed to publish listing.');
+          const userMsg = logError(error, { context: 'create_for_sale_db_insert', posthog });
+          Alert.alert('Listing Failed', userMsg);
         } else {
           if (modStatus === 'pending' && newPost) {
             await supabase.from('moderation_queue').insert({
@@ -327,7 +332,8 @@ export default function CreateForSaleScreen() {
       } catch (err: any) {
         setListing(false);
         setUploadProgress(0);
-        Alert.alert('Error', err?.message || 'Failed to create listing.');
+        const userMsg = logError(err, { context: 'create_for_sale_submit', posthog });
+        Alert.alert('Upload Failed', userMsg);
       }
     }
   };
@@ -361,9 +367,9 @@ export default function CreateForSaleScreen() {
             once approved.
           </Text>
           <TouchableOpacity
-            style={stylesheet.btnPrimary}
+            style={[stylesheet.btnPrimary, { width: '100%', marginTop: 24 }]}
             onPress={() => {
-              router.replace('/(tabs)/catalog');
+              router.replace({ pathname: '/(tabs)/catalog', params: { tab: 'Marketplace' } });
             }}
           >
             <Text style={stylesheet.btnPrimaryText}>View Marketplace</Text>
@@ -381,17 +387,20 @@ export default function CreateForSaleScreen() {
 
     return (
       <View style={[stylesheet.successContainer, { backgroundColor: theme.colors.DARK }]}>
-        <View style={stylesheet.successIcon}>
-          <Feather name="check" size={34} color={theme.colors.G} />
-        </View>
+        <LottieView
+          source={require('../../assets/success.json')}
+          autoPlay
+          loop={false}
+          style={{ width: 140, height: 140, marginBottom: 8 }}
+        />
         <Text style={stylesheet.successTitle}>Item Listed!</Text>
         <Text style={stylesheet.successDesc}>
           Your listing is now live in the neighbourhood marketplace.
         </Text>
         <TouchableOpacity
-          style={stylesheet.btnPrimary}
+          style={[stylesheet.btnPrimary, { width: '100%', marginTop: 24 }]}
           onPress={() => {
-            router.replace('/(tabs)/catalog');
+            router.replace({ pathname: '/(tabs)/catalog', params: { tab: 'Marketplace' } });
           }}
         >
           <Text style={stylesheet.btnPrimaryText}>View Marketplace</Text>

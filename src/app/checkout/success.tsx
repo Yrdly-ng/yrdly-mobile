@@ -59,7 +59,9 @@ export default function CheckoutSuccessScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={stylesheet.secondaryBtn}
-            onPress={() => router.replace('/(tabs)/explore' as any)}
+            onPress={() =>
+              router.replace({ pathname: '/(tabs)/catalog', params: { tab: 'Marketplace' } } as any)
+            }
             activeOpacity={0.7}
           >
             <Text style={stylesheet.secondaryBtnText}>Continue Shopping</Text>

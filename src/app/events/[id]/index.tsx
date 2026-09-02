@@ -1402,7 +1402,7 @@ export default function EventDetailScreen() {
           <Animated.View
             style={[
               stylesheet.successSheet,
-              { backgroundColor: theme.colors.SURFACE },
+              { backgroundColor: theme.colors.DARK },
               successSheetStyle,
             ]}
           >
@@ -1706,7 +1706,7 @@ const _stylesheet = createStyleSheet((theme) => ({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: 'rgba(0,0,0,0.88)',
   },
   successSheet: {
     borderTopLeftRadius: 32,

@@ -8,6 +8,9 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -273,60 +276,71 @@ export default function PayoutSettingsScreen() {
       )}
 
       {(step === 'account' || step === 'verifying' || step === 'confirmed') && (
-        <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 20 }}>
-          <Text style={s.acctLabel}>10-DIGIT ACCOUNT NUMBER (NUBAN)</Text>
-          <View
-            style={[
-              s.acctInputBox,
-              step === 'confirmed' && { borderColor: 'rgba(130,219,126,0.4)' },
-            ]}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 }}
+            keyboardShouldPersistTaps="handled"
           >
-            <Feather name="hash" size={18} color={theme.colors.LABEL} />
-            <TextInput
-              style={s.acctInput}
-              value={accountNumber}
-              onChangeText={handleAcctChange}
-              placeholder="0000000000"
-              placeholderTextColor={theme.colors.LABEL}
-              keyboardType="number-pad"
-              maxLength={10}
-            />
-            {step === 'verifying' && <ActivityIndicator size="small" color={theme.colors.G} />}
-            {step === 'confirmed' && <Feather name="check" size={20} color={theme.colors.G} />}
-          </View>
-          <Text style={s.acctCount}>{accountNumber.length}/10 digits</Text>
-
-          {step === 'verifying' && (
-            <View style={s.verifyingBox}>
-              <Text style={s.verifyingTxt}>Verifying account with Paystack…</Text>
+            <Text style={s.acctLabel}>10-DIGIT ACCOUNT NUMBER (NUBAN)</Text>
+            <View
+              style={[
+                s.acctInputBox,
+                step === 'confirmed' && { borderColor: 'rgba(130,219,126,0.4)' },
+              ]}
+            >
+              <Feather name="hash" size={18} color={theme.colors.LABEL} />
+              <TextInput
+                style={s.acctInput}
+                value={accountNumber}
+                onChangeText={handleAcctChange}
+                placeholder="0000000000"
+                placeholderTextColor={theme.colors.LABEL}
+                keyboardType="number-pad"
+                maxLength={10}
+              />
+              {step === 'verifying' && <ActivityIndicator size="small" color={theme.colors.G} />}
+              {step === 'confirmed' && <Feather name="check" size={20} color={theme.colors.G} />}
             </View>
-          )}
+            <Text style={s.acctCount}>{accountNumber.length}/10 digits</Text>
 
-          {step === 'confirmed' && (
-            <View style={s.confirmedBox}>
-              <View style={s.confirmedIconBox}>
-                <Feather name="check" size={18} color={theme.colors.G} />
+            {step === 'verifying' && (
+              <View style={s.verifyingBox}>
+                <Text style={s.verifyingTxt}>Verifying account with Paystack…</Text>
               </View>
-              <View>
-                <Text style={s.confirmedLabel}>ACCOUNT HOLDER</Text>
-                <Text style={s.confirmedName}>{resolvedName}</Text>
-                <Text style={s.confirmedSub}>Verified by Paystack ✓</Text>
-              </View>
-            </View>
-          )}
+            )}
 
-          {step === 'confirmed' && (
-            <View style={s.footerBtnWrap}>
-              <TouchableOpacity style={s.saveFinalBtn} onPress={handleSave} disabled={saving}>
-                {saving ? (
-                  <ActivityIndicator color="#000" />
-                ) : (
-                  <Text style={s.saveFinalBtnTxt}>Save Bank Account</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
+            {step === 'confirmed' && (
+              <View style={s.confirmedBox}>
+                <View style={s.confirmedIconBox}>
+                  <Feather name="check" size={18} color={theme.colors.G} />
+                </View>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={s.confirmedLabel}>ACCOUNT HOLDER</Text>
+                  <Text style={s.confirmedName} numberOfLines={1} ellipsizeMode="tail">
+                    {resolvedName}
+                  </Text>
+                  <Text style={s.confirmedSub}>Verified by Paystack ✓</Text>
+                </View>
+              </View>
+            )}
+
+            {step === 'confirmed' && (
+              <View style={s.footerBtnWrap}>
+                <TouchableOpacity style={s.saveFinalBtn} onPress={handleSave} disabled={saving}>
+                  {saving ? (
+                    <ActivityIndicator color="#000" />
+                  ) : (
+                    <Text style={s.saveFinalBtnTxt}>Save Bank Account</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+          </ScrollView>
+        </KeyboardAvoidingView>
       )}
     </SafeAreaView>
   );

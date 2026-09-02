@@ -220,7 +220,11 @@ export default function CreateCatalogItemScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {/* Photo Picker */}
-          <View style={sStylesheet.photoGrid}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={sStylesheet.photoScrollContainer}
+          >
             {combinedImages.map((img, i) => {
               return (
                 <View
@@ -255,7 +259,7 @@ export default function CreateCatalogItemScreen() {
             <TouchableOpacity style={sStylesheet.addPhotoBtn} onPress={pickImage}>
               <Ionicons name="images-outline" size={22} color={theme.colors.LABEL} />
             </TouchableOpacity>
-          </View>
+          </ScrollView>
 
           {/* Title */}
           <View style={sStylesheet.fieldBlock}>
@@ -412,10 +416,10 @@ const stylesheet = createStyleSheet((theme) => ({
 
   contentPad: { paddingHorizontal: 20, paddingVertical: 20, gap: 20 },
 
-  photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  photoScrollContainer: { flexDirection: 'row', gap: 12, paddingVertical: 4 },
   photoBox: {
-    width: '31%',
-    aspectRatio: 1,
+    width: 100,
+    height: 100,
     borderRadius: 14,
     overflow: 'hidden',
     position: 'relative',
@@ -432,8 +436,8 @@ const stylesheet = createStyleSheet((theme) => ({
     justifyContent: 'center',
   },
   addPhotoBtn: {
-    width: '31%',
-    aspectRatio: 1,
+    width: 100,
+    height: 100,
     borderRadius: 14,
     backgroundColor: theme.colors.SURFACE,
     borderWidth: 1,

@@ -121,7 +121,7 @@ function MarketplaceDetailContent() {
           .from('posts')
           .select('id', { count: 'exact', head: true })
           .eq('user_id', data.user_id)
-          .eq('category', 'For Sale')
+          .in('category', ['For Sale', 'Giveaway'])
           .eq('is_sold', true);
 
         if (count !== null) setItemsSold(count);

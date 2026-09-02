@@ -13,7 +13,7 @@ import {
   Pressable,
   Share,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -50,6 +50,22 @@ export default function BusinessProfileScreen() {
   const isOwner = user?.id === business?.owner_id;
   const viewAsCustomer = !isOwner || isCustomerView;
 
+  const fetchCatalog = useCallback(async () => {
+    if (!id) return;
+    const { data } = await supabase
+      .from('catalog_items')
+      .select('*')
+      .eq('business_id', id)
+      .order('created_at', { ascending: false });
+    if (data) setCatalogItems(data);
+  }, [id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchCatalog();
+    }, [fetchCatalog])
+  );
+
   useEffect(() => {
     if (!id) return;
     const fetchBusiness = async () => {
@@ -84,14 +100,6 @@ export default function BusinessProfileScreen() {
         setLoading(false);
       }
     };
-    const fetchCatalog = async () => {
-      const { data } = await supabase
-        .from('catalog_items')
-        .select('*')
-        .eq('business_id', id)
-        .order('created_at', { ascending: false });
-      if (data) setCatalogItems(data);
-    };
     const fetchReviews = async () => {
       const { data } = await supabase
         .from('business_reviews')
@@ -107,17 +115,11 @@ export default function BusinessProfileScreen() {
         .eq('item_id', id);
       if (count !== null) setInquiriesCount(count);
     };
-    const trackView = async () => {
-      if (user && business?.owner_id && user.id !== business.owner_id) {
-        // Run RPC if it exists, otherwise we'd need to fetch and update but let's do a simple update for now
-        // Assuming we fetched it, we increment the local copy and update the db
-      }
-    };
     fetchBusiness();
     fetchCatalog();
     fetchReviews();
     fetchInquiries();
-  }, [id]);
+  }, [id, fetchCatalog]);
 
   useEffect(() => {
     if (!id) return;
@@ -328,7 +330,15 @@ export default function BusinessProfileScreen() {
             <View style={sStylesheet.sheetHandle} />
             {catalogSheet && (
               <>
-                <View style={sStylesheet.sheetHeader}>
+                <TouchableOpacity
+                  style={sStylesheet.sheetHeader}
+                  onPress={() => {
+                    const item = catalogSheet;
+                    setCatalogSheet(null);
+                    router.push(`/businesses/catalog/${item.id}` as any);
+                  }}
+                  activeOpacity={0.8}
+                >
                   <Image
                     source={{ uri: catalogSheet.images?.[0] || 'https://via.placeholder.com/150' }}
                     style={sStylesheet.sheetImg}
@@ -339,13 +349,39 @@ export default function BusinessProfileScreen() {
                     <Text style={sStylesheet.sheetPrice}>
                       ₦{catalogSheet.price.toLocaleString()}
                     </Text>
+                    <Text style={{ fontFamily: 'Inter', fontSize: 12, color: theme.colors.G, marginTop: 2 }}>
+                      View details & photos →
+                    </Text>
                   </View>
                   {!catalogSheet.in_stock && (
                     <View style={sStylesheet.sheetOutOfStock}>
                       <Text style={sStylesheet.sheetOutOfStockTxt}>OUT OF STOCK</Text>
                     </View>
                   )}
-                </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={sStylesheet.sheetActionItem}
+                  onPress={() => {
+                    const item = catalogSheet;
+                    setCatalogSheet(null);
+                    router.push(`/businesses/catalog/${item.id}` as any);
+                  }}
+                >
+                  <View
+                    style={[
+                      sStylesheet.sheetActionIconBox,
+                      { backgroundColor: theme.colors.SURFACE },
+                    ]}
+                  >
+                    <Ionicons name="eye-outline" size={16} color={theme.colors.MUTED} />
+                  </View>
+                  <Text
+                    style={[sStylesheet.sheetActionTxt, { color: theme.colors.TEXT_PRIMARY }]}
+                  >
+                    View Item Details
+                  </Text>
+                </TouchableOpacity>
 
                 {viewAsCustomer ? (
                   <>
