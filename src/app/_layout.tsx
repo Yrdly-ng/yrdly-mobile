@@ -190,18 +190,11 @@ function RootNavigationGuard() {
 }
 
 import { KeyboardProvider } from 'react-native-keyboard-controller';
-import { UnistylesRuntime } from 'react-native-unistyles';
-import { getStoredThemePreference } from '../lib/theme-preference';
 
 function Layout() {
   useEffect(() => {
+    // The saved theme is resolved before first paint in src/theme/unistyles.ts.
     oneSignalService.initialize();
-
-    getStoredThemePreference().then((theme) => {
-      if (theme) {
-        UnistylesRuntime.setTheme(theme);
-      }
-    });
   }, []);
 
   const [fontsLoaded] = useFonts({
