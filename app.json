@@ -135,6 +135,9 @@
       [
         "expo-build-properties",
         {
+          "android": {
+            "enableMultiDex": true
+          },
           "ios": {
             "swiftVersion": "5.9"
           }
