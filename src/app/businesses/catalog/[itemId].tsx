@@ -145,23 +145,13 @@ export default function CatalogItemScreen() {
       });
 
       if (existing?.id) {
-        router.push({ pathname: '/chat/[id]', params: { id: existing.id } } as any);
+        router.push(`/chat/${existing.id}` as any);
         return;
       }
 
       const imageUrl =
         (item?.images && item.images[0]) || business.cover_image || business.logo || '';
-      router.push({
-        pathname: '/chat/[id]',
-        params: {
-          id: 'new',
-          type: 'briefcase',
-          participant_id: business.owner_id,
-          item_id: business.id,
-          item_title: item ? `${item.title} (${business.name})` : business.name,
-          item_image: imageUrl,
-        },
-      } as any);
+      router.push(`/chat/new?type=briefcase&participant_id=${business.owner_id}&item_id=${business.id}&item_title=${encodeURIComponent(item ? `${item.title} (${business.name})` : business.name)}&item_image=${encodeURIComponent(imageUrl)}` as any);
     } catch (e) {
       console.error('Error starting chat from catalog item:', e);
     }
@@ -173,7 +163,7 @@ export default function CatalogItemScreen() {
       Alert.alert('Sold Out', 'This item is currently out of stock.');
       return;
     }
-    router.push({ pathname: '/checkout/[id]', params: { id: item.id, type: 'catalog_item' } } as any);
+    router.push(`/checkout/${item.id}?type=catalog_item` as any);
   }, [item, router]);
 
   const handleRestock = useCallback(async () => {
@@ -229,12 +219,12 @@ export default function CatalogItemScreen() {
     const hasPending = await checkPendingTransaction();
     if (hasPending) {
       Alert.alert(
-        'Cannot Edit',
-        'This item has a pending transaction. Please wait until it is completed or cancelled before making changes.'
+        'Action Required',
+        'You have unconfirmed transfers for this item. Please confirm or dispute them before editing.'
       );
       return;
     }
-    router.push({ pathname: '/businesses/create-catalog-item', params: { itemId: item?.id } } as any);
+    router.push(`/businesses/create-catalog-item?itemId=${item?.id}` as any);
   }, [checkPendingTransaction, item, router]);
 
   const handleDeleteItem = useCallback(async () => {
@@ -604,7 +594,7 @@ export default function CatalogItemScreen() {
                 sStylesheet.bizCard,
                 { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER },
               ]}
-              onPress={() => router.push({ pathname: '/businesses/[id]', params: { id: business.id } } as any)}
+              onPress={() => router.push(`/businesses/${business.id}` as any)}
             >
               {business.logo ? (
                 <Image
