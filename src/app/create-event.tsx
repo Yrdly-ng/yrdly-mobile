@@ -278,21 +278,17 @@ export default function CreateEventScreen() {
               const cover = filesToUpload.splice(coverIndex, 1)[0];
               filesToUpload.unshift(cover);
             }
-            const progressMap = new Map<number, number>();
-            const uploadedImages = await Promise.all(
-              filesToUpload.map((file, index) =>
-                StorageService.uploadPostImage(user.id, file, (p) => {
-                  progressMap.set(index, p);
-                  let totalProgress = 0;
-                  progressMap.forEach((v) => (totalProgress += v));
-                  imageProgress = totalProgress / filesToUpload.length;
-                  updateOverallProgress();
-                })
-              )
-            );
-            const failedImage = uploadedImages.find((res) => res.error);
-            if (failedImage) throw new Error('Failed to upload one or more images.');
-            imageUrls = uploadedImages.map((res) => res.url).filter(Boolean) as string[];
+            // Upload sequentially to avoid rate-limit issues with multiple images
+            for (let index = 0; index < filesToUpload.length; index++) {
+              const file = filesToUpload[index];
+              const res = await StorageService.uploadEventImage(user.id, file, (p) => {
+                const perFile = 1 / filesToUpload.length;
+                imageProgress = index * perFile + p * perFile;
+                updateOverallProgress();
+              });
+              if (res.error) throw new Error('Failed to upload one or more images.');
+              if (res.url) imageUrls.push(res.url);
+            }
           }
 
           if (hasVideos) {
@@ -449,7 +445,7 @@ export default function CreateEventScreen() {
           <TouchableOpacity
             style={stylesheet.btnPrimary}
             onPress={() => {
-              router.replace('/(tabs)');
+              router.replace('/my-events' as any);
             }}
           >
             <Text style={stylesheet.btnPrimaryText}>Explore Events</Text>
@@ -470,7 +466,7 @@ export default function CreateEventScreen() {
         <TouchableOpacity
           style={stylesheet.btnPrimary}
           onPress={() => {
-            router.replace('/(tabs)');
+            router.replace('/my-events' as any);
           }}
         >
           <Text style={stylesheet.btnPrimaryText}>Explore Events</Text>

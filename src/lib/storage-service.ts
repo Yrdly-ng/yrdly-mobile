@@ -196,6 +196,27 @@ export class StorageService {
     return { url: this.getPublicUrl('post-images', path), error: null };
   }
 
+  /** Upload an event image. Uses the post-images bucket under an events/ prefix. */
+  static async uploadEventImage(
+    userId: string,
+    file: MobileFile,
+    onProgress?: (progress: number) => void
+  ): Promise<{ url: string | null; error: any }> {
+    const ext = file.name.split('.').pop() ?? 'jpg';
+    const path = `events/${userId}/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
+
+    const { data, error } = await this.uploadFile(
+      'post-images',
+      path,
+      file,
+      { cacheControl: '604800' },
+      onProgress
+    );
+    if (error || !data) return { url: null, error };
+
+    return { url: this.getPublicUrl('post-images', path), error: null };
+  }
+
   /** Upload a chat image */
   static async uploadChatImage(
     conversationId: string,

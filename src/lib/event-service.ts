@@ -28,6 +28,7 @@ export async function getPublishedEvents(opts?: {
     `
     )
     .eq('status', 'PUBLISHED')
+    .eq('is_archived', false)
     .or(`end_time.gte.${new Date().toISOString()},start_time.gte.${new Date().toISOString()}`)
     .order('start_time', { ascending: true });
 
@@ -151,6 +152,7 @@ export async function getOrganizerEvents(organizerId: string): Promise<Event[]> 
     .from('events')
     .select(`*, ticket_tiers(*)`)
     .eq('organizer_id', organizerId)
+    .eq('is_archived', false)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
