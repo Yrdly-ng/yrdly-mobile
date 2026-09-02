@@ -9,6 +9,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  DeviceEventEmitter,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -113,6 +114,7 @@ export function EventList({ searchQuery = '', sortOption = 'newest' }: EventList
           .from('events')
           .select(`*, organizer:users!events_organizer_id_fkey(id, name, avatar_url)`)
           .eq('status', 'PUBLISHED')
+          .eq('is_archived', false)
           .or(`end_time.gte.${isoNow},start_time.gte.${isoYesterday}`)
           .order('created_at', { ascending: false })
           .limit(30);
@@ -161,11 +163,16 @@ export function EventList({ searchQuery = '', sortOption = 'newest' }: EventList
         }));
 
         // Merge & deduplicate by id, sort newest first
+        const nowMs = Date.now();
         const seen = new Set<string>();
         const merged = [...legacyEvents, ...newEvents]
           .filter((ev) => {
             if (seen.has(ev.id)) return false;
             seen.add(ev.id);
+            if ((ev as any).is_archived || (ev as any).status === 'CANCELLED') return false;
+            // Expiration filter
+            const startTime = ev.event_date ? new Date(ev.event_date).getTime() : null;
+            if (startTime && startTime < nowMs - 24 * 60 * 60 * 1000) return false;
             return true;
           })
           .sort(
@@ -183,12 +190,20 @@ export function EventList({ searchQuery = '', sortOption = 'newest' }: EventList
           await FileSystem.writeAsStringAsync(cacheFile, JSON.stringify(unblockedMerged));
         } catch (_) {}
       } catch (e) {
-        console.error('EventList fetchEvents error:', e);
+        console.error('Fetch events error:', e);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     },
     [activeFilter, category, searchQuery, sortOption, profile?.blocked_users]
   );
+
+  React.useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('post_deleted', (deletedId: string) => {
+      setEvents((prev) => prev.filter((e) => e.id !== deletedId));
+    });
+    return () => sub.remove();
+  }, []);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

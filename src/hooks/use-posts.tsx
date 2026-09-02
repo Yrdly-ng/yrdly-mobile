@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { DeviceEventEmitter } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 // Removed Firebase imports - now using Supabase
 import { useAuth } from '@/hooks/use-supabase-auth';
@@ -92,9 +93,10 @@ export const usePosts = (filter?: LocationFilter | null) => {
         `
           )
           .eq('status', 'PUBLISHED')
+          .eq('is_archived', false)
           .eq('moderation_status', 'approved')
           .or(
-            `end_time.gte.${new Date().toISOString()},and(end_time.is.null,start_time.gte.${new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()})`
+            `end_time.gte.${new Date().toISOString()},and(end_time.is.null,start_time.gte.${new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()})`
           );
 
         // Apply location filters
@@ -582,6 +584,13 @@ export const usePosts = (filter?: LocationFilter | null) => {
     return () => {
       supabase.removeChannel(userChannel);
     };
+  }, []);
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('post_deleted', (deletedId: string) => {
+      setPosts((prev) => prev.filter((p) => p.id !== deletedId));
+    });
+    return () => sub.remove();
   }, []);
 
   const uploadImages = useCallback(
