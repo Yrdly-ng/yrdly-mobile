@@ -435,6 +435,7 @@ function ChatContent() {
           .select('id')
           .single();
         if (newError) throw newError;
+        if (!newConv) throw new Error('Conversation was not created — server returned no data.');
         currentConvId = newConv.id;
       }
 
@@ -487,8 +488,9 @@ function ChatContent() {
         });
       }
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-    } catch (e) {
+    } catch (e: any) {
       console.error('Send message error:', e);
+      Alert.alert('Message failed', e?.message || 'Could not send message. Please try again.');
       setInputText(body); // restore on failure
     } finally {
       setSending(false);

@@ -344,6 +344,7 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
                 replyingTo={replyingTo}
                 onClearReply={() => setReplyingTo(null)}
                 onSubmit={handleSendComment}
+                InputComponent={BottomSheetTextInput}
               />
             </View>
           </BottomSheetFooter>
@@ -362,7 +363,7 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
         footerComponent={renderFooter}
         backgroundStyle={{ backgroundColor: theme.colors.DARK }}
         handleIndicatorStyle={{ backgroundColor: theme.colors.GLASS_BORDER }}
-        keyboardBehavior="interactive"
+        keyboardBehavior="extend"
         keyboardBlurBehavior="restore"
       >
         <LiquidGlassView

@@ -78,7 +78,6 @@ function MarketplaceDetailContent() {
 
   const [post, setPost] = useState<Post | null>(null);
   const [postUser, setPostUser] = useState<User | null>(null);
-  const [businessId, setBusinessId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Gallery state
@@ -115,17 +114,6 @@ function MarketplaceDetailContent() {
           if (data.user.created_at) {
             const date = new Date(data.user.created_at);
             setJoinedDate(date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
-          }
-          // If this is a business user, fetch the business id for correct navigation
-          if ((data.user as any).is_business) {
-            supabase
-              .from('businesses')
-              .select('id')
-              .eq('owner_id', data.user_id)
-              .maybeSingle()
-              .then(({ data: biz }) => {
-                if (biz?.id) setBusinessId(biz.id);
-              });
           }
         }
 
@@ -210,6 +198,42 @@ function MarketplaceDetailContent() {
       console.error('Error starting chat', e);
     }
   };
+
+  const handleNavigateToSeller = useCallback(async () => {
+    if (!post) return;
+    const isBusiness = (postUser as any)?.is_business;
+    if (!isBusiness) {
+      router.push(`/profile/${post.user_id}` as any);
+      return;
+    }
+    // Look up the business record by owner_id to get the correct business id
+    try {
+      const { data: biz } = await supabase
+        .from('businesses')
+        .select('id')
+        .eq('owner_id', post.user_id)
+        .maybeSingle();
+      if (biz?.id) {
+        router.push(`/businesses/${biz.id}` as any);
+      } else {
+        // Fallback: try user_id column
+        const { data: biz2 } = await supabase
+          .from('businesses')
+          .select('id')
+          .eq('user_id', post.user_id)
+          .maybeSingle();
+        if (biz2?.id) {
+          router.push(`/businesses/${biz2.id}` as any);
+        } else {
+          router.push(`/profile/${post.user_id}` as any);
+        }
+      }
+    } catch (e) {
+      console.error('Error navigating to business profile:', e);
+      router.push(`/profile/${post.user_id}` as any);
+    }
+  }, [post, postUser, router]);
+
 
   const handleShare = async () => {
     if (!post) return;
@@ -757,7 +781,7 @@ function MarketplaceDetailContent() {
                 borderRadius: 20,
               }}
             >
-              <TouchableOpacity onPress={() => router.push((postUser as any)?.is_business ? `/businesses/${businessId || post.user_id}` : `/profile/${post.user_id}` as any)}>
+              <TouchableOpacity onPress={handleNavigateToSeller}>
                 <View
                   style={{
                     width: 48,
@@ -782,7 +806,7 @@ function MarketplaceDetailContent() {
                 </View>
               </TouchableOpacity>
               <View style={{ flex: 1 }}>
-                <TouchableOpacity onPress={() => router.push((postUser as any)?.is_business ? `/businesses/${businessId || post.user_id}` : `/profile/${post.user_id}` as any)}>
+                <TouchableOpacity onPress={handleNavigateToSeller}>
                   <Text
                     style={{
                       fontFamily: 'Outfit-Bold',
@@ -831,7 +855,7 @@ function MarketplaceDetailContent() {
                 </View>
               </View>
               <TouchableOpacity
-                onPress={() => router.push((postUser as any)?.is_business ? `/businesses/${businessId || post.user_id}` : `/profile/${post.user_id}` as any)}
+                onPress={handleNavigateToSeller}
                 style={{
                   height: 32,
                   paddingHorizontal: 14,
