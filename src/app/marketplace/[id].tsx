@@ -78,6 +78,7 @@ function MarketplaceDetailContent() {
 
   const [post, setPost] = useState<Post | null>(null);
   const [postUser, setPostUser] = useState<User | null>(null);
+  const [businessId, setBusinessId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Gallery state
@@ -114,6 +115,17 @@ function MarketplaceDetailContent() {
           if (data.user.created_at) {
             const date = new Date(data.user.created_at);
             setJoinedDate(date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
+          }
+          // If this is a business user, fetch the business id for correct navigation
+          if ((data.user as any).is_business) {
+            supabase
+              .from('businesses')
+              .select('id')
+              .eq('owner_id', data.user_id)
+              .maybeSingle()
+              .then(({ data: biz }) => {
+                if (biz?.id) setBusinessId(biz.id);
+              });
           }
         }
 
@@ -745,7 +757,7 @@ function MarketplaceDetailContent() {
                 borderRadius: 20,
               }}
             >
-              <TouchableOpacity onPress={() => router.push((postUser as any)?.is_business ? `/businesses/${post.user_id}` : `/profile/${post.user_id}` as any)}>
+              <TouchableOpacity onPress={() => router.push((postUser as any)?.is_business ? `/businesses/${businessId || post.user_id}` : `/profile/${post.user_id}` as any)}>
                 <View
                   style={{
                     width: 48,
@@ -770,7 +782,7 @@ function MarketplaceDetailContent() {
                 </View>
               </TouchableOpacity>
               <View style={{ flex: 1 }}>
-                <TouchableOpacity onPress={() => router.push((postUser as any)?.is_business ? `/businesses/${post.user_id}` : `/profile/${post.user_id}` as any)}>
+                <TouchableOpacity onPress={() => router.push((postUser as any)?.is_business ? `/businesses/${businessId || post.user_id}` : `/profile/${post.user_id}` as any)}>
                   <Text
                     style={{
                       fontFamily: 'Outfit-Bold',
@@ -819,7 +831,7 @@ function MarketplaceDetailContent() {
                 </View>
               </View>
               <TouchableOpacity
-                onPress={() => router.push((postUser as any)?.is_business ? `/businesses/${post.user_id}` : `/profile/${post.user_id}` as any)}
+                onPress={() => router.push((postUser as any)?.is_business ? `/businesses/${businessId || post.user_id}` : `/profile/${post.user_id}` as any)}
                 style={{
                   height: 32,
                   paddingHorizontal: 14,

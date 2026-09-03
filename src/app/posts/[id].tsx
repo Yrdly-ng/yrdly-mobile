@@ -309,6 +309,7 @@ function PostDetailContent() {
     <KeyboardAvoidingView
       style={[stylesheet.container, { backgroundColor: theme.colors.DARK, paddingTop: insets.top }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 60 : 0}
     >
       {/* Header */}
       <View

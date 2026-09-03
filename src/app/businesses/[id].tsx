@@ -488,15 +488,21 @@ export default function BusinessProfileScreen() {
         );
 
         if (existing) {
-          router.push(`/chat/${existing.id}` as any);
+          router.push({ pathname: '/chat/[id]', params: { id: existing.id } } as any);
         } else {
-          const itemTitle = encodeURIComponent(item ? `${item.title} (${business.name})` : business.name);
-          const itemImg = encodeURIComponent(
-            item?.images?.[0] || business.image_urls?.[0] || business.cover_image || ''
-          );
-          router.push(
-            `/chat/new?type=business&participant_id=${business.owner_id}&item_id=${business.id}&item_title=${itemTitle}&item_image=${itemImg}` as any
-          );
+          const itemTitle = item ? `${item.title} (${business.name})` : business.name;
+          const itemImg = item?.images?.[0] || business.image_urls?.[0] || business.cover_image || '';
+          router.push({
+            pathname: '/chat/[id]',
+            params: {
+              id: 'new',
+              type: 'briefcase',
+              participant_id: business.owner_id,
+              item_id: business.id,
+              item_title: itemTitle,
+              item_image: itemImg,
+            },
+          } as any);
         }
       } catch (err) {
         console.error('Error finding existing conversation:', err);
