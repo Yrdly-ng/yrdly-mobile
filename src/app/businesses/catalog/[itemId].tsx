@@ -138,13 +138,11 @@ export default function CatalogItemScreen() {
       const { data: convs } = await supabase
         .from('conversations')
         .select('id, type, participant_ids, item_id')
-        .eq('item_id', business.id)
         .order('created_at', { ascending: true });
 
       const existing = convs?.find((c) => {
         if (
           (c.type === 'briefcase' || c.type === 'business') &&
-          c.item_id === business.id &&
           c.participant_ids?.includes(user.id) &&
           c.participant_ids?.includes(business.owner_id)
         )
@@ -157,7 +155,7 @@ export default function CatalogItemScreen() {
       } else {
         const imageUrl = item?.images?.[0] || business.image_urls?.[0] || business.cover_image || '';
         router.push(
-          `/chat/new?type=business&participant_id=${business.owner_id}&item_id=${business.id}&item_title=${encodeURIComponent(item ? `${item.title} (${business.name})` : business.name)}&item_image=${encodeURIComponent(imageUrl)}` as any
+          `/chat/new?type=business&participant_id=${business.owner_id}&item_title=${encodeURIComponent(item ? `${item.title} (${business.name})` : business.name)}&item_image=${encodeURIComponent(imageUrl)}` as any
         );
       }
     } catch (e) {
