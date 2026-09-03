@@ -327,7 +327,7 @@ export default function MyListingsScreen() {
               </Text>
               <TouchableOpacity
                 style={[stylesheet.createButton, { backgroundColor: theme.colors.G }]}
-                onPress={() => router.push('/marketplace/create' as any)}
+                onPress={() => router.push('/create-for-sale' as any)}
               >
                 <Text style={stylesheet.createButtonText}>Create Listing</Text>
               </TouchableOpacity>
