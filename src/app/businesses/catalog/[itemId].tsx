@@ -596,74 +596,7 @@ export default function CatalogItemScreen() {
             </Text>
           )}
 
-          {/* Business Info Card */}
-          {business && (
-            <TouchableOpacity
-              style={[
-                sStylesheet.bizCard,
-                { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER },
-              ]}
-              onPress={() => router.push(`/businesses/${business.id}` as any)}
-            >
-              {business.logo ? (
-                <Image
-                  source={{ uri: business.logo }}
-                  style={sStylesheet.bizLogo}
-                  contentFit="cover"
-                />
-              ) : (
-                <View
-                  style={[
-                    sStylesheet.bizLogo,
-                    {
-                      backgroundColor: theme.colors.SURFACE,
-                      borderColor: theme.colors.GLASS_BORDER,
-                      borderWidth: 1,
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                    },
-                  ]}
-                >
-                  <Ionicons name="storefront" size={24} color={theme.colors.LABEL} />
-                </View>
-              )}
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={[
-                    sStylesheet.bizName,
-                    { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Outfit' },
-                  ]}
-                >
-                  {business.name}
-                </Text>
-                <View style={sStylesheet.bizMetaRow}>
-                  <Ionicons name="star" size={14} color="#FBBF24" />
-                  <Text
-                    style={{
-                      color: theme.colors.TEXT_PRIMARY,
-                      fontWeight: '700',
-                      fontSize: 13,
-                      marginLeft: 4,
-                      fontFamily: 'Inter',
-                    }}
-                  >
-                    {business.rating?.toFixed(1) || '0.0'}
-                  </Text>
-                  <Text
-                    style={{
-                      color: theme.colors.LABEL,
-                      fontSize: 13,
-                      marginLeft: 6,
-                      fontFamily: 'Inter',
-                    }}
-                  >
-                    • {business.category}
-                  </Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={theme.colors.LABEL} />
-            </TouchableOpacity>
-          )}
+
 
           {/* Action Buttons */}
           {(!isOwner || business?.phone) && (

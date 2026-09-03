@@ -497,6 +497,7 @@ export default function BusinessProfileScreen() {
               id: 'new',
               type: 'briefcase',
               participant_id: business.owner_id,
+              item_id: business.id,
               item_title: itemTitle,
               item_image: itemImg,
             },
