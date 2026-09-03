@@ -476,7 +476,6 @@ export default function BusinessProfileScreen() {
         const { data: convs } = await supabase
           .from('conversations')
           .select('id, type, participant_ids, item_id')
-          .eq('item_id', business.id)
           .order('created_at', { ascending: true });
 
         const existing = convs?.find(
@@ -497,7 +496,6 @@ export default function BusinessProfileScreen() {
               id: 'new',
               type: 'briefcase',
               participant_id: business.owner_id,
-              item_id: business.id,
               item_title: itemTitle,
               item_image: itemImg,
             },
