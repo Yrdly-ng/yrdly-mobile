@@ -244,8 +244,9 @@ function Layout() {
             enableSessionReplay: true,
             errorTracking: {
               autocapture: {
-                nativeCrashes: true,
+                uncaughtExceptions: true,
                 unhandledRejections: true,
+                nativeCrashes: true,
               },
             },
           }}
