@@ -482,7 +482,6 @@ export default function BusinessProfileScreen() {
         const existing = convs?.find(
           (c) =>
             (c.type === 'briefcase' || c.type === 'business') &&
-            c.item_id === business.id &&
             c.participant_ids?.includes(user.id) &&
             c.participant_ids?.includes(business.owner_id)
         );
@@ -498,7 +497,6 @@ export default function BusinessProfileScreen() {
               id: 'new',
               type: 'briefcase',
               participant_id: business.owner_id,
-              item_id: business.id,
               item_title: itemTitle,
               item_image: itemImg,
             },

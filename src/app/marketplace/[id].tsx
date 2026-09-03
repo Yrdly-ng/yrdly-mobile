@@ -201,13 +201,8 @@ function MarketplaceDetailContent() {
 
   const handleNavigateToSeller = useCallback(async () => {
     if (!post) return;
-    const isBusiness = (postUser as any)?.is_business;
-    if (!isBusiness) {
-      router.push(`/profile/${post.user_id}` as any);
-      return;
-    }
-    // Look up the business record by owner_id to get the correct business id
     try {
+      // Query businesses table directly — if owner_id matches, this user owns a business
       const { data: biz } = await supabase
         .from('businesses')
         .select('id')
@@ -216,23 +211,13 @@ function MarketplaceDetailContent() {
       if (biz?.id) {
         router.push(`/businesses/${biz.id}` as any);
       } else {
-        // Fallback: try user_id column
-        const { data: biz2 } = await supabase
-          .from('businesses')
-          .select('id')
-          .eq('user_id', post.user_id)
-          .maybeSingle();
-        if (biz2?.id) {
-          router.push(`/businesses/${biz2.id}` as any);
-        } else {
-          router.push(`/profile/${post.user_id}` as any);
-        }
+        router.push(`/profile/${post.user_id}` as any);
       }
     } catch (e) {
-      console.error('Error navigating to business profile:', e);
+      console.error('Error navigating to seller:', e);
       router.push(`/profile/${post.user_id}` as any);
     }
-  }, [post, postUser, router]);
+  }, [post, router]);
 
 
   const handleShare = async () => {
