@@ -354,7 +354,7 @@ export default function MapScreen() {
     // Events from posts table (legacy)
     let qPostEvts = supabase
       .from('posts')
-      .select('id,title,event_location,lat,lng')
+      .select('id,title,event_location,image_urls,lat,lng')
       .eq('category', 'Event')
       .gte('event_date', new Date().toISOString());
     if (activeFilter?.lga) qPostEvts = qPostEvts.eq('lga', activeFilter.lga);
@@ -376,12 +376,13 @@ export default function MapScreen() {
           title: e.title || 'Event',
           subtitle: e.event_location?.address || '',
           targetId: e.id,
+          avatar_url: e.image_urls?.[0],
         });
     });
     // Events from events table (new system)
     let qNewEvts = supabase
       .from('events')
-      .select('id,title,location_address,lat,lng')
+      .select('id,title,location_address,cover_image_url,lat,lng')
       .eq('status', 'PUBLISHED')
       .neq('is_archived', true)
       .gte('start_time', new Date().toISOString())
@@ -402,6 +403,7 @@ export default function MapScreen() {
           title: e.title || 'Event',
           subtitle: e.location_address || '',
           targetId: e.id,
+          avatar_url: e.cover_image_url,
         });
     });
 
@@ -425,6 +427,7 @@ export default function MapScreen() {
           title: b.name || 'Business',
           subtitle: b.location?.address || '',
           targetId: b.id,
+          avatar_url: b.image_urls?.[0],
         });
     });
 
