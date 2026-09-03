@@ -767,6 +767,47 @@ export default function ProfileTab() {
               Business presence
             </Text>
           </PressableCard>
+
+          <PressableCard
+            style={{
+              width: '48%',
+              backgroundColor: theme.colors.SURFACE_ALT,
+              borderWidth: 1,
+              borderColor: theme.colors.GLASS_BORDER,
+              borderRadius: 16,
+              padding: 14,
+            }}
+            onPress={() => router.push('/my-listings' as any)}
+          >
+            <View
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 12,
+                backgroundColor: theme.colors.G + '15',
+                borderWidth: 1,
+                borderColor: theme.colors.G + '25',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginBottom: 8,
+              }}
+            >
+              <Feather name="shopping-bag" size={18} color={theme.colors.G} />
+            </View>
+            <Text
+              style={{
+                fontFamily: 'Outfit-Bold',
+                fontSize: 14,
+                color: theme.colors.TEXT_PRIMARY,
+                marginBottom: 2,
+              }}
+            >
+              My Listings
+            </Text>
+            <Text style={{ fontFamily: 'Inter-Regular', fontSize: 11, color: theme.colors.LABEL }}>
+              Manage items
+            </Text>
+          </PressableCard>
         </View>
       </View>
 

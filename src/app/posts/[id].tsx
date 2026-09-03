@@ -11,8 +11,8 @@ import {
   Keyboard,
   DeviceEventEmitter,
   Alert,
+  KeyboardAvoidingView,
 } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { ModerationService } from '../../lib/moderation-service';

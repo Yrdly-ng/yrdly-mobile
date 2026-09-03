@@ -155,6 +155,8 @@ function MarketplaceDetailContent() {
     if (!post || !user || user.id === post.user_id) return;
 
     try {
+      const participantId = (postUser as any)?.owner_id || post.user_id;
+
       const { data: convs, error: fetchError } = await supabase
         .from('conversations')
         .select('id, type, participant_ids, item_id')
@@ -168,7 +170,7 @@ function MarketplaceDetailContent() {
           c.type === 'marketplace' &&
           c.item_id === post.id &&
           c.participant_ids?.includes(user.id) &&
-          c.participant_ids?.includes(post.user_id)
+          c.participant_ids?.includes(participantId)
         )
           return true;
         return false;
@@ -185,7 +187,7 @@ function MarketplaceDetailContent() {
         params: {
           id: 'new',
           type: 'marketplace',
-          participant_id: post.user_id,
+          participant_id: participantId,
           item_id: post.id,
           item_title: post.title || post.text || 'Listing',
           item_image: imageUrl,
@@ -743,7 +745,7 @@ function MarketplaceDetailContent() {
                 borderRadius: 20,
               }}
             >
-              <TouchableOpacity onPress={() => router.push(`/profile/${post.user_id}` as any)}>
+              <TouchableOpacity onPress={() => router.push((postUser as any)?.is_business ? `/businesses/${post.user_id}` : `/profile/${post.user_id}` as any)}>
                 <View
                   style={{
                     width: 48,
@@ -768,7 +770,7 @@ function MarketplaceDetailContent() {
                 </View>
               </TouchableOpacity>
               <View style={{ flex: 1 }}>
-                <TouchableOpacity onPress={() => router.push(`/profile/${post.user_id}` as any)}>
+                <TouchableOpacity onPress={() => router.push((postUser as any)?.is_business ? `/businesses/${post.user_id}` : `/profile/${post.user_id}` as any)}>
                   <Text
                     style={{
                       fontFamily: 'Outfit-Bold',
@@ -817,7 +819,7 @@ function MarketplaceDetailContent() {
                 </View>
               </View>
               <TouchableOpacity
-                onPress={() => router.push(`/profile/${post.user_id}` as any)}
+                onPress={() => router.push((postUser as any)?.is_business ? `/businesses/${post.user_id}` : `/profile/${post.user_id}` as any)}
                 style={{
                   height: 32,
                   paddingHorizontal: 14,
