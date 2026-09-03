@@ -25,10 +25,7 @@
       },
       "associatedDomains": [
         "applinks:app.yrdly.ng"
-      ],
-      "config": {
-        "googleMapsApiKey": "AIzaSyCSUtJeCc921FRynSWaCyfs1vQ9uVlfiPo"
-      }
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -79,6 +76,12 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      [
+        "react-native-maps",
+        {
+          "iosGoogleMapsApiKey": "AIzaSyCSUtJeCc921FRynSWaCyfs1vQ9uVlfiPo"
+        }
+      ],
       [
         "onesignal-expo-plugin",
         {

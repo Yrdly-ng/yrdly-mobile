@@ -305,10 +305,12 @@ function PostDetailContent() {
     [handleReply, handleLikeComment, handleDeleteComment, user?.id]
   );
 
+  const insets = useSafeAreaInsets();
+
   return (
-    <SafeAreaView
-      style={[stylesheet.container, { backgroundColor: theme.colors.DARK }]}
-      edges={['top', 'left', 'right']}
+    <KeyboardAvoidingView
+      style={[stylesheet.container, { backgroundColor: theme.colors.DARK, paddingTop: insets.top }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* Header */}
       <View
@@ -372,8 +374,7 @@ function PostDetailContent() {
         )}
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 61 : 0}>
-        {loading && !post ? (
+      <View style={{ flex: 1 }}>  {loading && !post ? (
           <View style={stylesheet.center}>
             <ActivityIndicator size="large" color={theme.colors.G} />
           </View>
@@ -425,8 +426,8 @@ function PostDetailContent() {
           onSubmit={handleSendComment}
           InputComponent={TextInput}
         />
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 

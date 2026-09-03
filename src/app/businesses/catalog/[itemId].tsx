@@ -127,6 +127,13 @@ export default function CatalogItemScreen() {
 
   const handleMessage = useCallback(async () => {
     if (!business || !user) return;
+    if (user.id === business.owner_id) return;
+    
+    if (!business.owner_id) {
+      Alert.alert('Cannot Message', 'This business does not have an owner associated with it.');
+      return;
+    }
+
     try {
       const { data: convs } = await supabase
         .from('conversations')
@@ -145,18 +152,18 @@ export default function CatalogItemScreen() {
         return false;
       });
 
-      if (existing?.id) {
+      if (existing) {
         router.push(`/chat/${existing.id}` as any);
-        return;
+      } else {
+        const imageUrl = item?.images?.[0] || business.image_urls?.[0] || business.cover_image || '';
+        router.push(
+          `/chat/new?type=business&participant_id=${business.owner_id}&item_id=${business.id}&item_title=${encodeURIComponent(item ? `${item.title} (${business.name})` : business.name)}&item_image=${encodeURIComponent(imageUrl)}` as any
+        );
       }
-
-      const imageUrl =
-        (item?.images && item.images[0]) || business.cover_image || business.logo || '';
-      router.push(`/chat/new?type=briefcase&participant_id=${business.owner_id}&item_id=${business.id}&item_title=${encodeURIComponent(item ? `${item.title} (${business.name})` : business.name)}&item_image=${encodeURIComponent(imageUrl)}` as any);
     } catch (e) {
-      console.error('Error starting chat from catalog item:', e);
+      console.error(e);
     }
-  }, [business, item, user, router]);
+  }, [business, user, item, router]);
 
   const handleBuy = useCallback(() => {
     if (!item) return;

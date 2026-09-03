@@ -910,12 +910,14 @@ function ChatContent() {
   };
 
   const title =
-    meta?.type === 'briefcase' ? meta?.business_name || 'Business' : otherUser?.name || 'Chat';
+    meta?.type === 'briefcase' || meta?.type === 'business'
+      ? meta?.business_name || 'Business'
+      : otherUser?.name || 'Chat';
 
   return (
-    <SafeAreaView
-      style={[stylesheet.container, { backgroundColor: theme.colors.DARK }]}
-      edges={['top', 'left', 'right']}
+    <KeyboardAvoidingView
+      style={[stylesheet.container, { backgroundColor: theme.colors.DARK, paddingTop: insets.top }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* Header */}
       <View
@@ -1127,7 +1129,7 @@ function ChatContent() {
         </TouchableOpacity>
       )}
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + (meta ? 130 : 61) : 0}>
+      <View style={{ flex: 1 }}>
         {/* Messages */}
         {loading ? (
           <View style={stylesheet.center}>
@@ -1286,7 +1288,7 @@ function ChatContent() {
             )}
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </View>
 
       <ImageViewing
         images={viewerImages}
@@ -1294,7 +1296,7 @@ function ChatContent() {
         visible={viewerVisible}
         onRequestClose={() => setViewerVisible(false)}
       />
-    </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
