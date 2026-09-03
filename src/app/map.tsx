@@ -30,6 +30,7 @@ import { supabase } from '../lib/supabase';
 import { useAppTheme } from '../context/ThemeContext';
 import { useAuth } from '../hooks/use-supabase-auth';
 import { useLocation } from '../context/LocationContext';
+import { api } from '../lib/api';
 
 const { width, height } = Dimensions.get('window');
 const SHEET_H = height * 0.62;
@@ -46,6 +47,11 @@ type MapMarker = {
   targetId: string;
   avatar_url?: string;
 };
+interface ETAResponse {
+  duration_seconds: number;
+  duration_in_traffic_seconds: number;
+  distance_meters: number;
+}
 type ActivityItem = {
   id: string;
   kind: 'post' | 'market' | 'event' | 'biz';
@@ -182,6 +188,8 @@ export default function MapScreen() {
   const [filter, setFilter] = useState<FilterType>('all');
   const [showsTraffic, setShowsTraffic] = useState(false);
   const [selectedPin, setSelectedPin] = useState<MapMarker | null>(null);
+  const [eta, setEta] = useState<ETAResponse | null>(null);
+  const [etaLoading, setEtaLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const regionTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -214,6 +222,33 @@ export default function MapScreen() {
       }),
     []
   );
+
+  useEffect(() => {
+    if (!selectedPin || !loc) {
+      setEta(null);
+      return;
+    }
+    
+    let active = true;
+    const fetchEta = async () => {
+      setEtaLoading(true);
+      setEta(null);
+      try {
+        const res = await api.post<ETAResponse>('/api/directions/eta', {
+          origin: { lat: loc.coords.latitude, lng: loc.coords.longitude },
+          destination: { lat: selectedPin.lat, lng: selectedPin.lng },
+        });
+        if (active) setEta(res);
+      } catch (err) {
+        console.warn('Failed to fetch ETA:', err);
+      } finally {
+        if (active) setEtaLoading(false);
+      }
+    };
+    
+    fetchEta();
+    return () => { active = false; };
+  }, [selectedPin, loc]);
 
   const getDirections = (destLat: number, destLng: number, _label?: string) => {
     const appleMapsUrl = `maps://?saddr=${loc?.coords.latitude ?? ''},${loc?.coords.longitude ?? ''}&daddr=${destLat},${destLng}&dirflg=d`;
@@ -766,6 +801,23 @@ export default function MapScreen() {
               <Text style={s.previewSub} numberOfLines={1}>
                 {selectedPin.subtitle}
               </Text>
+
+              {/* ETA Display */}
+              {(etaLoading || eta) && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 4 }}>
+                  <Ionicons name="car-outline" size={14} color={theme.colors.MUTED} />
+                  {etaLoading ? (
+                    <Text style={[s.previewSub, { color: theme.colors.MUTED }]}>Calculating ETA...</Text>
+                  ) : (
+                    <Text style={[s.previewSub, { color: theme.colors.TEXT_PRIMARY, fontWeight: '600' }]}>
+                      {Math.ceil((eta?.duration_in_traffic_seconds ?? 0) / 60)} min drive
+                      <Text style={{ color: theme.colors.MUTED, fontWeight: '400' }}>
+                        {' · '}{((eta?.distance_meters ?? 0) / 1000).toFixed(1)} km
+                      </Text>
+                    </Text>
+                  )}
+                </View>
+              )}
             </View>
           </View>
           <TouchableOpacity
