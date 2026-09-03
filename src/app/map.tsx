@@ -21,9 +21,10 @@ import {
   Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Marker, Region, PROVIDER_GOOGLE } from 'react-native-maps';
+import { Marker, Region, PROVIDER_GOOGLE, Polyline } from 'react-native-maps';
 import MapView from 'react-native-map-clustering';
 import * as Location from 'expo-location';
+import polyline from '@mapbox/polyline';
 import { useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
@@ -51,6 +52,7 @@ interface ETAResponse {
   duration_seconds: number;
   duration_in_traffic_seconds: number;
   distance_meters: number;
+  overview_polyline?: string;
 }
 type ActivityItem = {
   id: string;
@@ -189,6 +191,7 @@ export default function MapScreen() {
   const [showsTraffic, setShowsTraffic] = useState(false);
   const [selectedPin, setSelectedPin] = useState<MapMarker | null>(null);
   const [eta, setEta] = useState<ETAResponse | null>(null);
+  const [routePoints, setRoutePoints] = useState<{latitude: number, longitude: number}[]>([]);
   const [etaLoading, setEtaLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [showSearch, setShowSearch] = useState(false);
@@ -226,6 +229,7 @@ export default function MapScreen() {
   useEffect(() => {
     if (!selectedPin || !loc) {
       setEta(null);
+      setRoutePoints([]);
       return;
     }
     
@@ -238,7 +242,15 @@ export default function MapScreen() {
           origin: { lat: loc.coords.latitude, lng: loc.coords.longitude },
           destination: { lat: selectedPin.lat, lng: selectedPin.lng },
         });
-        if (active) setEta(res);
+        if (active) {
+          setEta(res);
+          if (res.overview_polyline) {
+            const decoded = polyline.decode(res.overview_polyline);
+            setRoutePoints(decoded.map(p => ({ latitude: p[0], longitude: p[1] })));
+          } else {
+            setRoutePoints([]);
+          }
+        }
       } catch (err) {
         console.warn('Failed to fetch ETA:', err);
       } finally {
@@ -669,6 +681,13 @@ export default function MapScreen() {
             )}
           </Marker>
         ))}
+        {routePoints.length > 0 && (
+          <Polyline
+            coordinates={routePoints}
+            strokeColor="#82DB7E"
+            strokeWidth={4}
+          />
+        )}
       </MapView>
 
       {/* ── Top overlays ── */}
