@@ -18,9 +18,10 @@ import {
   DeviceEventEmitter,
   FlatList,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Marker, Region } from 'react-native-maps';
+import { Marker, Region, PROVIDER_GOOGLE } from 'react-native-maps';
 import MapView from 'react-native-map-clustering';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
@@ -179,6 +180,7 @@ export default function MapScreen() {
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterType>('all');
+  const [showsTraffic, setShowsTraffic] = useState(false);
   const [selectedPin, setSelectedPin] = useState<MapMarker | null>(null);
   const [search, setSearch] = useState('');
   const [showSearch, setShowSearch] = useState(false);
@@ -603,6 +605,8 @@ export default function MapScreen() {
         showsUserLocation
         showsMyLocationButton={false}
         showsBuildings={false}
+        showsTraffic={showsTraffic}
+        provider={PROVIDER_GOOGLE}
         pitchEnabled={false}
         moveOnMarkerPress={false}
         userInterfaceStyle={isDarkMode ? 'dark' : 'light'}
@@ -704,6 +708,17 @@ export default function MapScreen() {
       >
         <Ionicons name="locate" size={20} color="rgba(255,255,255,0.8)" />
       </TouchableOpacity>
+
+      {/* ── Traffic Toggle ── */}
+      <View style={[s.trafficWrap, { bottom: selectedPin ? 282 : 152 }]}>
+        <Ionicons name="car-outline" size={18} color="rgba(255,255,255,0.8)" />
+        <Switch
+          value={showsTraffic}
+          onValueChange={setShowsTraffic}
+          trackColor={{ false: 'rgba(255,255,255,0.1)', true: theme.colors.G }}
+          thumbColor="#fff"
+        />
+      </View>
 
       {/* ── Pin preview bottom sheet ── */}
       {selectedPin && (
@@ -855,6 +870,21 @@ const sStylesheet = createStyleSheet((theme) => ({
     borderColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 10,
+  },
+  trafficWrap: {
+    position: 'absolute',
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: theme.colors.SURFACE,
+    borderRadius: 24,
+    paddingLeft: 12,
+    paddingRight: 8,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
     zIndex: 10,
   },
   previewSheet: {
