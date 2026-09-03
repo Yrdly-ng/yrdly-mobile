@@ -305,8 +305,6 @@ function PostDetailContent() {
     [handleReply, handleLikeComment, handleDeleteComment, user?.id]
   );
 
-  const insets = useSafeAreaInsets();
-
   return (
     <KeyboardAvoidingView
       style={[stylesheet.container, { backgroundColor: theme.colors.DARK, paddingTop: insets.top }]}
