@@ -27,7 +27,7 @@
         "applinks:app.yrdly.ng"
       ],
       "config": {
-        "googleMapsApiKey": "AIzaSyCSUtJeCc921FRynSWaCyfs1vQ9uVlfiPo"
+        "googleMapsApiKey": "AIzaSyD44VatOQXnLq0VJEkonAIXVZ-b6O5vN-E"
       }
     },
     "android": {
@@ -39,7 +39,7 @@
       "googleServicesFile": "./google-services.json",
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyARxIyqxipli2RtGuzRP_iWgk39z7GSXpU"
+          "apiKey": "AIzaSyDFjrUIsUvCcl1mrW6h-tO-BU003UxiYZw"
         }
       },
       "intentFilters": [
