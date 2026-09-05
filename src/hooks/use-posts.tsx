@@ -9,13 +9,13 @@ import { UserActivityService } from '@/lib/user-activity-service';
 import { ModerationService } from '@/lib/moderation-service';
 
 import { Post, Business } from '@/types';
-import { useToast } from './use-toast';
+import { useToast } from '@/components/toast';
 
 import { LocationFilter } from '@/context/LocationContext';
 
 export const usePosts = (filter?: LocationFilter | null) => {
   const { user, profile } = useAuth();
-  const { toast } = useToast();
+  const { showToast } = useToast();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
@@ -655,7 +655,7 @@ export const usePosts = (filter?: LocationFilter | null) => {
       onProgress?: (progress: number) => void
     ) => {
       if (!user || !profile) {
-        toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in.' });
+        showToast({ message: 'You must be logged in.' });
         return;
       }
 
@@ -671,10 +671,8 @@ export const usePosts = (filter?: LocationFilter | null) => {
               existingPost.created_at || existingPost.timestamp || Date.now()
             ).getTime();
             if (Date.now() - postTime > 15 * 60 * 1000) {
-              toast({
-                variant: 'destructive',
-                title: 'Edit expired',
-                description: 'Posts can only be edited within 15 minutes of creation.',
+              showToast({
+                message: 'Posts can only be edited within 15 minutes of creation.',
               });
               return;
             }
@@ -827,12 +825,11 @@ export const usePosts = (filter?: LocationFilter | null) => {
             }
           }
           if (moderationStatus === 'pending') {
-            toast({
-              title: 'Pending Review',
-              description: 'Your post was flagged and is pending admin review.',
+            showToast({
+              message: 'Your post was flagged and is pending admin review.',
             });
           } else {
-            toast({ title: 'Success', description: 'Post updated successfully.' });
+            showToast({ message: 'Post updated successfully.' });
           }
         } else {
           const { data: newPost, error } = await supabase
@@ -868,12 +865,11 @@ export const usePosts = (filter?: LocationFilter | null) => {
           }
 
           if (moderationStatus === 'pending') {
-            toast({
-              title: 'Pending Review',
-              description: 'Your post was flagged and is pending admin review.',
+            showToast({
+              message: 'Your post was flagged and is pending admin review.',
             });
           } else {
-            toast({ title: 'Success', description: 'Post created successfully.' });
+            showToast({ message: 'Post created successfully.' });
           }
         }
 
@@ -884,11 +880,11 @@ export const usePosts = (filter?: LocationFilter | null) => {
 
         return { moderationStatus };
       } catch (error) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Failed to save post.' });
+        showToast({ message: 'Failed to save post.' });
         throw error;
       }
     },
-    [user, profile, toast, uploadImages]
+    [user, profile, showToast, uploadImages]
   );
 
   const createBusiness = useCallback(
@@ -898,7 +894,7 @@ export const usePosts = (filter?: LocationFilter | null) => {
       imageFiles?: MobileFile[]
     ) => {
       if (!user) {
-        toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in.' });
+        showToast({ message: 'You must be logged in.' });
         return;
       }
 
@@ -970,12 +966,11 @@ export const usePosts = (filter?: LocationFilter | null) => {
               text_content: textToModerate,
               image_urls: imageUrls,
             });
-            toast({
-              title: 'Pending Review',
-              description: 'Business update was flagged and is pending admin review.',
+            showToast({
+              message: 'Business update was flagged and is pending admin review.',
             });
           } else {
-            toast({ title: 'Success', description: 'Business updated successfully.' });
+            showToast({ message: 'Business updated successfully.' });
           }
         } else {
           const { data: newBiz, error } = await supabase
@@ -999,12 +994,11 @@ export const usePosts = (filter?: LocationFilter | null) => {
               text_content: textToModerate,
               image_urls: imageUrls,
             });
-            toast({
-              title: 'Pending Review',
-              description: 'Business creation was flagged and is pending admin review.',
+            showToast({
+              message: 'Business creation was flagged and is pending admin review.',
             });
           } else {
-            toast({ title: 'Success', description: 'Business added successfully.' });
+            showToast({ message: 'Business added successfully.' });
           }
         }
 
@@ -1015,20 +1009,18 @@ export const usePosts = (filter?: LocationFilter | null) => {
 
         return { moderationStatus };
       } catch (error) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Failed to save business.' });
+        showToast({ message: 'Failed to save business.' });
         throw error;
       }
     },
-    [user, profile, toast, uploadImages]
+    [user, profile, showToast, uploadImages]
   );
 
   const deletePost = useCallback(
     async (postId: string) => {
       if (!user) {
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'You must be logged in to delete a post.',
+        showToast({
+          message: 'You must be logged in to delete a post.',
         });
         return;
       }
@@ -1124,22 +1116,20 @@ export const usePosts = (filter?: LocationFilter | null) => {
         }
 
         setPosts((prev) => prev.filter((p) => p.id !== postId));
-        toast({ title: 'Success', description: 'Post deleted successfully.' });
+        showToast({ message: 'Post deleted successfully.' });
       } catch (error: any) {
         console.error('deletePost error:', error);
-        toast({ variant: 'destructive', title: 'Error', description: error?.message || 'Failed to delete post.' });
+        showToast({ message: error?.message || 'Failed to delete post.' });
       }
     },
-    [user, toast]
+    [user, showToast]
   );
 
   const deleteBusiness = useCallback(
     async (businessId: string) => {
       if (!user) {
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'You must be logged in to delete a business.',
+        showToast({
+          message: 'You must be logged in to delete a business.',
         });
         return;
       }
@@ -1182,16 +1172,14 @@ export const usePosts = (filter?: LocationFilter | null) => {
           await Promise.all(deletePromises);
         }
 
-        toast({ title: 'Success', description: 'Business deleted successfully.' });
+        showToast({ message: 'Business deleted successfully.' });
       } catch (error) {
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'Failed to delete business.',
+        showToast({
+          message: 'Failed to delete business.',
         });
       }
     },
-    [user, toast]
+    [user, showToast]
   );
 
   const fetchMore = useCallback(async () => {

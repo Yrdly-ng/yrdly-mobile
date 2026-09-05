@@ -1,5 +1,7 @@
 import '../theme/unistyles';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ToastProvider } from '@/components/toast';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Stack, useRouter, useSegments, usePathname, useGlobalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -235,27 +237,48 @@ function Layout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      {posthogKey ? (
-        <PostHogProvider
-          apiKey={posthogKey}
-          options={{
-            host: process.env.EXPO_PUBLIC_POSTHOG_HOST,
-            captureAppLifecycleEvents: true,
-            enableSessionReplay: true,
-            errorTracking: {
-              autocapture: {
-                nativeCrashes: true,
-                unhandledRejections: true,
-              },
-            },
-          }}
-          autocapture={{ captureTouches: true }}
-        >
-          <PostHogErrorBoundary
-            fallback={ErrorFallback}
-            additionalProperties={{ app_section: 'root' }}
-          >
-            <AnalyticsTracker />
+      <SafeAreaProvider>
+        <ToastProvider position="bottom">
+          {posthogKey ? (
+            <PostHogProvider
+              apiKey={posthogKey}
+              options={{
+                host: process.env.EXPO_PUBLIC_POSTHOG_HOST,
+                captureAppLifecycleEvents: true,
+                enableSessionReplay: true,
+                errorTracking: {
+                  autocapture: {
+                    nativeCrashes: true,
+                    unhandledRejections: true,
+                  },
+                },
+              }}
+              autocapture={{ captureTouches: true }}
+            >
+              <PostHogErrorBoundary
+                fallback={ErrorFallback}
+                additionalProperties={{ app_section: 'root' }}
+              >
+                <AnalyticsTracker />
+                <KeyboardProvider>
+                  <ThemeProvider>
+                    <BottomSheetModalProvider>
+                      <AuthProvider>
+                        <LocationProvider>
+                          <NotificationBadgeProvider>
+                            <AudioSettingsHandler />
+                            <NotificationsHandler />
+                            <OneSignalVerificationDialog />
+                            <RootNavigationGuard />
+                          </NotificationBadgeProvider>
+                        </LocationProvider>
+                      </AuthProvider>
+                    </BottomSheetModalProvider>
+                  </ThemeProvider>
+                </KeyboardProvider>
+              </PostHogErrorBoundary>
+            </PostHogProvider>
+          ) : (
             <KeyboardProvider>
               <ThemeProvider>
                 <BottomSheetModalProvider>
@@ -272,26 +295,9 @@ function Layout() {
                 </BottomSheetModalProvider>
               </ThemeProvider>
             </KeyboardProvider>
-          </PostHogErrorBoundary>
-        </PostHogProvider>
-      ) : (
-        <KeyboardProvider>
-          <ThemeProvider>
-            <BottomSheetModalProvider>
-              <AuthProvider>
-                <LocationProvider>
-                  <NotificationBadgeProvider>
-                    <AudioSettingsHandler />
-                    <NotificationsHandler />
-                    <OneSignalVerificationDialog />
-                    <RootNavigationGuard />
-                  </NotificationBadgeProvider>
-                </LocationProvider>
-              </AuthProvider>
-            </BottomSheetModalProvider>
-          </ThemeProvider>
-        </KeyboardProvider>
-      )}
+          )}
+        </ToastProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
