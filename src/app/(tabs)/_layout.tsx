@@ -1,6 +1,6 @@
 import { createStyleSheet, useStyles, UnistylesRuntime } from 'react-native-unistyles';
 import { Tabs, useRouter } from 'expo-router';
-import { View, Platform, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, Platform, Text, TouchableOpacity, Alert, AppState } from 'react-native';
 import { Plus } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '../../context/ThemeContext';
@@ -257,6 +257,17 @@ export default function TabLayout() {
     fetchUnreadRef.current = fetchUnread;
     fetchUnread();
   }, [user, blockedUsersKey]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        fetchUnreadRef.current();
+      }
+    });
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   // Separate effect: subscribe once per user, call via ref to avoid re-subscribing
   useEffect(() => {

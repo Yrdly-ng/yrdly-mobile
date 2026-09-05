@@ -15,7 +15,7 @@ import { PostHogProvider, usePostHog, PostHogErrorBoundary } from 'posthog-react
 import { setAudioModeAsync } from 'expo-audio';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { ErrorBoundary } from '../components/ErrorBoundary';
-import { oneSignalService, OneSignalVerificationDialog } from '../lib/onesignal';
+import { oneSignalService } from '../lib/onesignal';
 import { useFonts } from 'expo-font';
 import {
   Outfit_300Light,
@@ -268,7 +268,6 @@ function Layout() {
                           <NotificationBadgeProvider>
                             <AudioSettingsHandler />
                             <NotificationsHandler />
-                            <OneSignalVerificationDialog />
                             <RootNavigationGuard />
                           </NotificationBadgeProvider>
                         </LocationProvider>
@@ -287,7 +286,6 @@ function Layout() {
                       <NotificationBadgeProvider>
                         <AudioSettingsHandler />
                         <NotificationsHandler />
-                        <OneSignalVerificationDialog />
                         <RootNavigationGuard />
                       </NotificationBadgeProvider>
                     </LocationProvider>

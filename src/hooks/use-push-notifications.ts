@@ -42,18 +42,19 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
     Notifications.setNotificationHandler({
       handleNotification: async (notification) => {
         const type = notification.request.content.data?.type as string | undefined;
-        // Suppress OS push banner for escrow events that already show in-app toasts
-        // Note: Add 'message' to this list if/when chat push notifications are implemented
-        const isEscrowToastEvent = type
+        // Suppress OS push banner for events that already show in-app toasts
+        // (escrow status changes and chat messages)
+        const isToastCoveredEvent = type
           ? [
               'payment_successful',
               'item_shipped',
               'delivery_confirmed',
               'funds_released',
+              'message',
             ].includes(type)
           : false;
 
-        if (isEscrowToastEvent) {
+        if (isToastCoveredEvent) {
           return {
             shouldShowAlert: false,
             shouldPlaySound: false,

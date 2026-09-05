@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { AppState } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/use-supabase-auth';
 import { NotificationService } from '@/lib/notification-service';
@@ -53,6 +54,17 @@ export function NotificationBadgeProvider({ children }: { children: React.ReactN
 
     return () => {
       supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active' && user) {
+        refreshUnreadCount();
+      }
+    });
+    return () => {
+      subscription.remove();
     };
   }, [user]);
 
