@@ -171,6 +171,7 @@ function RootNavigationGuard() {
 
   return (
     <ErrorBoundary>
+      <AnalyticsTracker />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
@@ -253,13 +254,12 @@ function Layout() {
                   },
                 },
               }}
-              autocapture={{ captureTouches: true }}
+              autocapture={{ captureTouches: true, captureScreens: false }}
             >
               <PostHogErrorBoundary
                 fallback={ErrorFallback}
                 additionalProperties={{ app_section: 'root' }}
               >
-                <AnalyticsTracker />
                 <KeyboardProvider>
                   <ThemeProvider>
                     <BottomSheetModalProvider>
