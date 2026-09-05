@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { FlashList } from '@shopify/flash-list';
-import { Feather, Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { supabase } from '../../lib/supabase';
@@ -22,6 +22,7 @@ import { Post } from '../../types';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ProfilePostGridItem } from '../../components/ProfilePostGridItem';
+import ProfileQuickAccess from '../../components/ProfileQuickAccess';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { Avatar } from '../../components/Avatar';
 import Animated, {
@@ -592,8 +593,8 @@ export default function ProfileTab() {
         </TouchableOpacity>
       </View>
 
-      {/* ── Quick Access 2x2 Grid (Figma 1:1) ── */}
-      <View style={{ paddingHorizontal: 20, marginBottom: 20 }}>
+      {/* ── Quick Access ── */}
+      <View style={{ marginBottom: 20 }}>
         <Text
           style={{
             fontFamily: 'Inter-Bold',
@@ -602,213 +603,12 @@ export default function ProfileTab() {
             letterSpacing: 1,
             textTransform: 'uppercase',
             marginBottom: 10,
+            paddingHorizontal: 20,
           }}
         >
           QUICK ACCESS
         </Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-          <PressableCard
-            style={{
-              width: '48%',
-              backgroundColor: theme.colors.SURFACE_ALT,
-              borderWidth: 1,
-              borderColor: theme.colors.GLASS_BORDER,
-              borderRadius: 16,
-              padding: 14,
-            }}
-            onPress={() => router.push('/community')}
-          >
-            <View
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 12,
-                backgroundColor: theme.colors.G + '15',
-                borderWidth: 1,
-                borderColor: theme.colors.G + '25',
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginBottom: 8,
-              }}
-            >
-              <Ionicons name="people-outline" size={18} color={theme.colors.G} />
-            </View>
-            <Text
-              style={{
-                fontFamily: 'Outfit-Bold',
-                fontSize: 14,
-                color: theme.colors.TEXT_PRIMARY,
-                marginBottom: 2,
-              }}
-            >
-              Community
-            </Text>
-            <Text style={{ fontFamily: 'Inter-Regular', fontSize: 11, color: theme.colors.LABEL }}>
-              Connections & people
-            </Text>
-          </PressableCard>
-
-          <PressableCard
-            style={{
-              width: '48%',
-              backgroundColor: theme.colors.SURFACE_ALT,
-              borderWidth: 1,
-              borderColor: theme.colors.GLASS_BORDER,
-              borderRadius: 16,
-              padding: 14,
-            }}
-            onPress={() => router.push('/tickets')}
-          >
-            <View
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 12,
-                backgroundColor: theme.colors.G + '15',
-                borderWidth: 1,
-                borderColor: theme.colors.G + '25',
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginBottom: 8,
-              }}
-            >
-              <MaterialCommunityIcons name="ticket-outline" size={18} color={theme.colors.G} />
-            </View>
-            <Text
-              style={{
-                fontFamily: 'Outfit-Bold',
-                fontSize: 14,
-                color: theme.colors.TEXT_PRIMARY,
-                marginBottom: 2,
-              }}
-            >
-              Tickets
-            </Text>
-          </PressableCard>
-
-          <PressableCard
-            style={{
-              width: '48%',
-              backgroundColor: theme.colors.SURFACE_ALT,
-              borderWidth: 1,
-              borderColor: theme.colors.GLASS_BORDER,
-              borderRadius: 16,
-              padding: 14,
-            }}
-            onPress={() => router.push('/my-events' as any)}
-          >
-            <View
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 12,
-                backgroundColor: theme.colors.G + '15',
-                borderWidth: 1,
-                borderColor: theme.colors.G + '25',
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginBottom: 8,
-              }}
-            >
-              <Ionicons name="calendar-outline" size={18} color={theme.colors.G} />
-            </View>
-            <Text
-              style={{
-                fontFamily: 'Outfit-Bold',
-                fontSize: 14,
-                color: theme.colors.TEXT_PRIMARY,
-                marginBottom: 2,
-              }}
-            >
-              My Events
-            </Text>
-            <Text style={{ fontFamily: 'Inter-Regular', fontSize: 11, color: theme.colors.LABEL }}>
-              Events you run
-            </Text>
-          </PressableCard>
-
-          <PressableCard
-            style={{
-              width: '48%',
-              backgroundColor: theme.colors.SURFACE_ALT,
-              borderWidth: 1,
-              borderColor: theme.colors.GLASS_BORDER,
-              borderRadius: 16,
-              padding: 14,
-            }}
-            onPress={handleManageStore}
-          >
-            <View
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 12,
-                backgroundColor: theme.colors.G + '15',
-                borderWidth: 1,
-                borderColor: theme.colors.G + '25',
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginBottom: 8,
-              }}
-            >
-              <Ionicons name="storefront-outline" size={18} color={theme.colors.G} />
-            </View>
-            <Text
-              style={{
-                fontFamily: 'Outfit-Bold',
-                fontSize: 14,
-                color: theme.colors.TEXT_PRIMARY,
-                marginBottom: 2,
-              }}
-            >
-              My Business
-            </Text>
-            <Text style={{ fontFamily: 'Inter-Regular', fontSize: 11, color: theme.colors.LABEL }}>
-              Business presence
-            </Text>
-          </PressableCard>
-
-          <PressableCard
-            style={{
-              width: '48%',
-              backgroundColor: theme.colors.SURFACE_ALT,
-              borderWidth: 1,
-              borderColor: theme.colors.GLASS_BORDER,
-              borderRadius: 16,
-              padding: 14,
-            }}
-            onPress={() => router.push('/my-listings' as any)}
-          >
-            <View
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 12,
-                backgroundColor: theme.colors.G + '15',
-                borderWidth: 1,
-                borderColor: theme.colors.G + '25',
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginBottom: 8,
-              }}
-            >
-              <Feather name="shopping-bag" size={18} color={theme.colors.G} />
-            </View>
-            <Text
-              style={{
-                fontFamily: 'Outfit-Bold',
-                fontSize: 14,
-                color: theme.colors.TEXT_PRIMARY,
-                marginBottom: 2,
-              }}
-            >
-              My Listings
-            </Text>
-            <Text style={{ fontFamily: 'Inter-Regular', fontSize: 11, color: theme.colors.LABEL }}>
-              Manage items
-            </Text>
-          </PressableCard>
-        </View>
+        <ProfileQuickAccess onManageStore={handleManageStore} />
       </View>
 
       {/* ── Subtly underlined Posts / Saved Tabs (Figma 1:1) ── */}

@@ -17,6 +17,7 @@
   "exclude": [
     "node_modules",
     "supabase",
-    "YRDLY NEW DESIGNS"
+    "YRDLY NEW DESIGNS",
+    "Redesign Profile Screen Layout"
   ]
 }
