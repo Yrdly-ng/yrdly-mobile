@@ -98,7 +98,8 @@
     "lint": "eslint . --ext .ts,.tsx --ignore-path .gitignore",
     "lint:fix": "eslint . --ext .ts,.tsx --ignore-path .gitignore --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,md}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,json,md}\""
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,json,md}\"",
+    "postinstall": "node -e \"const fs=require('fs'),path=require('path');['node_modules/expo-modules-core/android/src/main/kotlin','node_modules/expo-modules-core/android/src/release/java'].forEach(d=>fs.existsSync(path.dirname(d))&&fs.mkdirSync(d,{recursive:true}))\""
   },
   "private": true,
   "pnpm": {
