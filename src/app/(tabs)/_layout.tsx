@@ -20,6 +20,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
+import { useToast } from '../../components/toast';
+import { getActiveConversationId } from '../../lib/active-chat-tracker';
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 /** Wraps any tab icon with a spring scale animation on focus */
@@ -203,6 +205,7 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { isDarkMode } = useAppTheme();
   const { user, profile } = useAuth();
+  const { showToast } = useToast();
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
 
@@ -261,13 +264,88 @@ export default function TabLayout() {
 
     const channel = supabase
       .channel(`messages_badge_${user.id}_${Math.random().toString(36).substring(7)}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, async (payload: any) => {
         fetchUnreadRef.current();
+
+        if (payload.eventType === 'INSERT' && payload.new) {
+          const msg = payload.new;
+          if (msg.sender_id === user.id) return;
+          if (msg.conversation_id === getActiveConversationId()) return;
+
+          let senderName = 'Someone';
+          if (msg.sender_id) {
+            const { data: senderData } = await supabase
+              .from('users')
+              .select('name')
+              .eq('id', msg.sender_id)
+              .maybeSingle();
+            if (senderData?.name) {
+              senderName = senderData.name;
+            }
+          }
+
+          showToast({
+            message: `New message from ${senderName}`,
+            actionText: 'View',
+            onActionPress: () => {
+              router.push(`/chat/${msg.conversation_id}` as any);
+            },
+          });
+        }
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  // Escrow status realtime notifications
+  const notifiedEscrowStatusRef = useRef(new Map<string, string>());
+
+  useEffect(() => {
+    if (!user) return;
+
+    const escrowChannel = supabase
+      .channel(`escrow_status_${user.id}_${Math.random().toString(36).substring(7)}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'escrow_transactions' },
+        (payload: any) => {
+          const newTx = payload.new;
+
+          if (!newTx?.id || !newTx?.status) return;
+
+          if (notifiedEscrowStatusRef.current.get(newTx.id) === newTx.status) return;
+          notifiedEscrowStatusRef.current.set(newTx.id, newTx.status);
+
+          let toastMessage: string | null = null;
+
+          if (newTx.status === 'paid' && user.id === newTx.seller_id) {
+            toastMessage = 'Payment received — you can now ship the item';
+          } else if (newTx.status === 'shipped' && user.id === newTx.buyer_id) {
+            toastMessage = 'Your item is on its way';
+          } else if (newTx.status === 'delivered' && user.id === newTx.seller_id) {
+            toastMessage = 'Buyer confirmed delivery';
+          } else if (newTx.status === 'completed' && user.id === newTx.seller_id) {
+            toastMessage = 'Funds released to your account';
+          }
+
+          if (toastMessage) {
+            showToast({
+              message: toastMessage,
+              actionText: 'View',
+              onActionPress: () => {
+                router.push(`/transactions/${newTx.id}` as any);
+              },
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(escrowChannel);
     };
   }, [user]);
 

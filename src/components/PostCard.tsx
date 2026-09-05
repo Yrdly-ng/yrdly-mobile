@@ -38,6 +38,7 @@ import { useAuth } from '../hooks/use-supabase-auth';
 import { supabase } from '../lib/supabase';
 import { StorageService } from '../lib/storage-service';
 import { Avatar } from './Avatar';
+import { useToast } from './toast';
 const { width } = Dimensions.get('window');
 
 interface PostCardProps {
@@ -187,6 +188,7 @@ export const PostCard = React.memo(
   }: PostCardProps) {
     const router = useRouter();
     const { user: currentUser, profile, updateProfile } = useAuth();
+    const { showToast } = useToast();
 
     const [imageHeights, setImageHeights] = useState<Record<string, number>>({});
     const imageDisplayWidth = width - 64;
@@ -452,6 +454,7 @@ export const PostCard = React.memo(
       setIsBookmarked(newBookmarked);
 
       if (newBookmarked) {
+        showToast({ message: 'Saved' });
         const { error } = await supabase
           .from('post_bookmarks')
           .insert({ post_id: post.id, user_id: currentUser.id });

@@ -37,6 +37,7 @@ import { Post, User } from '../../types';
 import { formatPrice, timeAgo } from '../../lib/utils';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { Avatar } from '../../components/Avatar';
+import { useToast } from '../../components/toast';
 import * as Location from 'expo-location';
 import { api } from '../../lib/api';
 
@@ -83,6 +84,7 @@ function MarketplaceDetailContent() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user, profile, updateProfile } = useAuth();
+  const { showToast } = useToast();
   const isFocused = useIsFocused();
 
   const [post, setPost] = useState<Post | null>(null);
@@ -279,6 +281,7 @@ function MarketplaceDetailContent() {
     setIsBookmarked(newBookmarked);
 
     if (newBookmarked) {
+      showToast({ message: 'Saved' });
       const { error } = await supabase
         .from('post_bookmarks')
         .insert({ post_id: post.id, user_id: user.id });
