@@ -27,8 +27,6 @@ import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { Avatar } from '../../components/Avatar';
 import Animated, {
   FadeIn,
-  FadeOut,
-  Layout,
   useSharedValue,
   useAnimatedStyle,
   withSpring,
@@ -899,7 +897,7 @@ export default function ProfileTab() {
           ListHeaderComponent={listHeader}
           renderItem={({ item }) => {
             return (
-              <Animated.View layout={Layout.springify()} entering={FadeIn} exiting={FadeOut}>
+              <Animated.View entering={FadeIn}>
                 <ProfilePostGridItem
                   post={item}
                   width={GRID_ITEM_WIDTH}
