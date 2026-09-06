@@ -11,6 +11,7 @@ import { ThemeProvider } from '../context/ThemeContext';
 import { LocationProvider } from '../context/LocationContext';
 import { NotificationBadgeProvider } from '../context/NotificationBadgeContext';
 import * as SplashScreen from 'expo-splash-screen';
+import AnimatedSplashScreen from '../components/AnimatedSplashScreen';
 import { PostHogProvider, usePostHog, PostHogErrorBoundary } from 'posthog-react-native';
 import { setAudioModeAsync } from 'expo-audio';
 import { OfflineBanner } from '../components/OfflineBanner';
@@ -94,12 +95,20 @@ function AudioSettingsHandler() {
   return null;
 }
 
-function RootNavigationGuard() {
+function RootNavigationGuard({
+  onAuthLoadingChange,
+}: {
+  onAuthLoadingChange: (loading: boolean) => void;
+}) {
   const { user, profile, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
   const [profileWaitTime, setProfileWaitTime] = useState(0);
+
+  useEffect(() => {
+    onAuthLoadingChange(loading);
+  }, [loading, onAuthLoadingChange]);
 
   useEffect(() => {
     if (user && !profile) {
@@ -112,9 +121,6 @@ function RootNavigationGuard() {
 
   useEffect(() => {
     if (loading) return;
-
-    // Auth state resolved — dismiss the splash screen
-    SplashScreen.hideAsync().catch(() => {});
 
     const inAuth = segments[0] === '(auth)' || (segments[0] as string) === 'auth';
     const inOnboarding = segments[0] === '(onboarding)';
@@ -198,6 +204,10 @@ import { getStoredThemePreference } from '../lib/theme-preference';
 
 function Layout() {
   useEffect(() => {
+    SplashScreen.hideAsync().catch(() => {});
+  }, []);
+
+  useEffect(() => {
     oneSignalService.initialize();
 
     getStoredThemePreference().then((theme) => {
@@ -206,6 +216,9 @@ function Layout() {
       }
     });
   }, []);
+
+  const [authLoading, setAuthLoading] = useState(true);
+  const [appFullyTransitioned, setAppFullyTransitioned] = useState(false);
 
   const [fontsLoaded] = useFonts({
     Outfit: Outfit_400Regular,
@@ -223,21 +236,16 @@ function Layout() {
     'Inter-Bold': Inter_700Bold,
   });
 
-  // Keep splash screen visible until fonts are ready
-  useEffect(() => {
-    if (fontsLoaded) {
-      SplashScreen.hideAsync().catch(() => {});
-    }
-  }, [fontsLoaded]);
-
-  if (!fontsLoaded) {
-    return <View style={{ flex: 1, backgroundColor: '#050505' }} />;
-  }
-
   const posthogKey = process.env.EXPO_PUBLIC_POSTHOG_KEY || process.env.EXPO_PUBLIC_POSTHOG_API_KEY;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      {!appFullyTransitioned && (
+        <AnimatedSplashScreen
+          ready={fontsLoaded && !authLoading}
+          onFinished={() => setAppFullyTransitioned(true)}
+        />
+      )}
       <SafeAreaProvider>
         <ToastProvider position="bottom">
           {posthogKey ? (
@@ -268,7 +276,7 @@ function Layout() {
                           <NotificationBadgeProvider>
                             <AudioSettingsHandler />
                             <NotificationsHandler />
-                            <RootNavigationGuard />
+                            <RootNavigationGuard onAuthLoadingChange={setAuthLoading} />
                           </NotificationBadgeProvider>
                         </LocationProvider>
                       </AuthProvider>
@@ -286,7 +294,7 @@ function Layout() {
                       <NotificationBadgeProvider>
                         <AudioSettingsHandler />
                         <NotificationsHandler />
-                        <RootNavigationGuard />
+                        <RootNavigationGuard onAuthLoadingChange={setAuthLoading} />
                       </NotificationBadgeProvider>
                     </LocationProvider>
                   </AuthProvider>
