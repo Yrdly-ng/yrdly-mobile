@@ -342,7 +342,7 @@ export default function NotificationsScreen() {
                   ) {
                     const profileId = item.from_user_id || item.related_id;
                     if (profileId) router.push(`/profile/${profileId}` as any);
-                    else router.push('/community' as any);
+                    else router.push('/catalog?tab=Discover&circleMode=circle' as any);
                   } else if (t.includes('alert') || t.includes('safety')) {
                     if (item.related_id) router.push(`/alert/${item.related_id}` as any);
                     else router.push('/alerts' as any);

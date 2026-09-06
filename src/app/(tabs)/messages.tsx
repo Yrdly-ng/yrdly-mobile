@@ -323,7 +323,7 @@ export default function MessagesTab() {
                   stylesheet.headerIconBtn,
                   { backgroundColor: theme.colors.G, borderWidth: 0 },
                 ]}
-                onPress={() => router.push('/community')}
+                onPress={() => router.push('/catalog?tab=Discover&circleMode=circle' as any)}
               >
                 <Ionicons name="create-outline" size={18} color="#000" />
               </TouchableOpacity>
@@ -372,7 +372,7 @@ export default function MessagesTab() {
           </View>
           <Text style={stylesheet.emptyTitle}>No messages yet</Text>
           <Text style={stylesheet.emptySubtitle}>Say hello to someone in your neighbourhood.</Text>
-          <TouchableOpacity style={stylesheet.startBtn} onPress={() => router.push('/community')}>
+          <TouchableOpacity style={stylesheet.startBtn} onPress={() => router.push('/catalog?tab=Discover&circleMode=circle' as any)}>
             <Text style={stylesheet.startBtnText}>Start a Conversation</Text>
           </TouchableOpacity>
         </View>
