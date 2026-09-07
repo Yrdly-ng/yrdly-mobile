@@ -30,6 +30,28 @@ export default function NetworkScreen() {
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
 
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+
+  useEffect(() => {
+    const fetchCounts = async () => {
+      if (!id) return;
+      const [{ count: fers }, { count: fing }] = await Promise.all([
+        supabase
+          .from('followers')
+          .select('*', { count: 'exact', head: true })
+          .eq('following_id', id),
+        supabase
+          .from('followers')
+          .select('*', { count: 'exact', head: true })
+          .eq('follower_id', id),
+      ]);
+      setFollowersCount(fers || 0);
+      setFollowingCount(fing || 0);
+    };
+    fetchCounts();
+  }, [id]);
+
   useEffect(() => {
     const fetchUsers = async () => {
       if (!id) return;
@@ -119,6 +141,9 @@ export default function NetworkScreen() {
           next.delete(targetId);
           return next;
         });
+        if (currentProfile?.id === id) {
+          setFollowingCount((prev) => Math.max(0, prev - 1));
+        }
       } else {
         await supabase
           .from('followers')
@@ -129,6 +154,9 @@ export default function NetworkScreen() {
           next.add(targetId);
           return next;
         });
+        if (currentProfile?.id === id) {
+          setFollowingCount((prev) => prev + 1);
+        }
       }
     } catch (e) {
       console.error('Follow error:', e);
@@ -153,6 +181,9 @@ export default function NetworkScreen() {
         next.delete(targetId);
         return next;
       });
+      if (currentProfile?.id === id) {
+        setFollowersCount((prev) => Math.max(0, prev - 1));
+      }
     } catch (e) {
       console.error('Remove follower error:', e);
     } finally {
@@ -297,7 +328,7 @@ export default function NetworkScreen() {
             <Text
               style={{ color: activeTab === 'followers' ? theme.colors.G : theme.colors.LABEL }}
             >
-              ({activeTab === 'followers' ? filteredUsers.length : 0})
+              ({activeTab === 'followers' && searchQuery ? filteredUsers.length : followersCount})
             </Text>
           </Text>
           {activeTab === 'followers' && <View style={stylesheet.tabIndicator} />}
@@ -316,7 +347,7 @@ export default function NetworkScreen() {
             <Text
               style={{ color: activeTab === 'following' ? theme.colors.G : theme.colors.LABEL }}
             >
-              ({activeTab === 'following' ? filteredUsers.length : 0})
+              ({activeTab === 'following' && searchQuery ? filteredUsers.length : followingCount})
             </Text>
           </Text>
           {activeTab === 'following' && <View style={stylesheet.tabIndicator} />}
