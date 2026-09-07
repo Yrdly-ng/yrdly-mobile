@@ -87,7 +87,7 @@
     "babel-preset-expo": "~54.0.10",
     "eslint": "^8.56.0",
     "eslint-config-expo": "^7.0.0",
-    "posthog-cli": "^0.5.2",
+    "posthog-cli": "^0.2.4",
     "prettier": "^3.1.1",
     "ts-morph": "^28.0.0",
     "typescript": "~5.9.2"
