@@ -285,31 +285,35 @@ export default function MapScreen() {
 
   useEffect(() => {
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setLoading(false);
-        return;
+      let l: Location.LocationObject | null = null;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          l = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          setLoc(l);
+          setRegion({
+            latitude: l.coords.latitude,
+            longitude: l.coords.longitude,
+            latitudeDelta: 0.0922,
+            longitudeDelta: 0.0421,
+          });
+          if (l && user?.id) {
+            supabase
+              .from('users')
+              .update({
+                current_location: { lat: l.coords.latitude, lng: l.coords.longitude },
+                lat: l.coords.latitude,
+                lng: l.coords.longitude,
+              })
+              .eq('id', user.id)
+              .then();
+          }
+        }
+      } catch (err) {
+        console.warn('Location fetch error:', err);
+      } finally {
+        await Promise.all([fetchMarkers(), fetchActivity(l || undefined)]);
       }
-      const l = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      setLoc(l);
-      setRegion({
-        latitude: l.coords.latitude,
-        longitude: l.coords.longitude,
-        latitudeDelta: 0.0922,
-        longitudeDelta: 0.0421,
-      });
-      if (l && user?.id) {
-        supabase
-          .from('users')
-          .update({
-            current_location: { lat: l.coords.latitude, lng: l.coords.longitude },
-            lat: l.coords.latitude,
-            lng: l.coords.longitude,
-          })
-          .eq('id', user.id)
-          .then();
-      }
-      await Promise.all([fetchMarkers(), fetchActivity(l || undefined)]);
     })();
 
     const delSub = DeviceEventEmitter.addListener('postDeleted', (postId) => {
@@ -397,7 +401,6 @@ export default function MapScreen() {
       .select('id,title,location_address,cover_image_url,lat,lng')
       .eq('status', 'PUBLISHED')
       .neq('is_archived', true)
-      .gte('start_time', new Date().toISOString())
       .not('lat', 'is', null)
       .not('lng', 'is', null);
     if (activeFilter?.lga) qNewEvts = qNewEvts.eq('lga', activeFilter.lga);
@@ -660,7 +663,7 @@ export default function MapScreen() {
         pitchEnabled={false}
         moveOnMarkerPress={false}
         userInterfaceStyle={isDarkMode ? 'dark' : 'light'}
-        customMapStyle={Platform.OS === 'android' ? (isDarkMode ? DARK_STYLE : []) : undefined}
+        customMapStyle={isDarkMode ? DARK_STYLE : []}
         clusterColor="#82DB7E"
         clusterTextColor="#0B0D0B"
       >
