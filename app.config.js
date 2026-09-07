@@ -149,7 +149,7 @@ module.exports = {
       [
         "posthog-react-native/expo",
         {
-          uploadNativeSymbols: true,
+          uploadNativeSymbols: false,
           skipOnConflict: true
         }
       ]
