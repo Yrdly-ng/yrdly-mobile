@@ -114,7 +114,7 @@ export default function MessagesTab() {
       if (otherUserIds.length > 0) {
         const { data: usersData } = await supabase
           .from('users')
-          .select('id, name, avatar_url')
+          .select('id, name, username, avatar_url')
           .in('id', otherUserIds);
 
         if (usersData) {

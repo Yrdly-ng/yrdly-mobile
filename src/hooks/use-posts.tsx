@@ -324,7 +324,7 @@ export const usePosts = (filter?: LocationFilter | null) => {
               try {
                 const { data: userData, error: userError } = await supabase
                   .from('users')
-                  .select('id, name, avatar_url, location, created_at')
+                  .select('id, name, username, avatar_url, location, created_at')
                   .eq('id', newPost.user_id)
                   .single();
 
@@ -362,7 +362,7 @@ export const usePosts = (filter?: LocationFilter | null) => {
               try {
                 const { data: userData, error: userError } = await supabase
                   .from('users')
-                  .select('id, name, avatar_url, location, created_at')
+                  .select('id, name, username, avatar_url, location, created_at')
                   .eq('id', updatedPost.user_id)
                   .single();
 
@@ -456,7 +456,7 @@ export const usePosts = (filter?: LocationFilter | null) => {
               try {
                 const { data: userData, error: userError } = await supabase
                   .from('users')
-                  .select('id, name, avatar_url, location, created_at')
+                  .select('id, name, username, avatar_url, location, created_at')
                   .eq('id', newEvent.organizer_id)
                   .single();
 
