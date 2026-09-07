@@ -199,8 +199,6 @@ function RootNavigationGuard({
 }
 
 import { KeyboardProvider } from 'react-native-keyboard-controller';
-import { UnistylesRuntime } from 'react-native-unistyles';
-import { getStoredThemePreference } from '../lib/theme-preference';
 
 function Layout() {
   useEffect(() => {
@@ -209,12 +207,6 @@ function Layout() {
 
   useEffect(() => {
     oneSignalService.initialize();
-
-    getStoredThemePreference().then((theme) => {
-      if (theme) {
-        UnistylesRuntime.setTheme(theme);
-      }
-    });
   }, []);
 
   const [authLoading, setAuthLoading] = useState(true);

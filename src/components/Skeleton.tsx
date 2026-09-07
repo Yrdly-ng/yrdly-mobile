@@ -18,11 +18,11 @@ interface SkeletonProps {
 
 export function Skeleton({ width = '100%', height = 20, borderRadius = 4, style }: SkeletonProps) {
   const { theme } = useStyles(createStyleSheet(() => ({})));
-  const opacity = useSharedValue(0.3);
+  const opacity = useSharedValue(0.5);
 
   useEffect(() => {
     opacity.value = withRepeat(
-      withSequence(withTiming(0.7, { duration: 800 }), withTiming(0.3, { duration: 800 })),
+      withSequence(withTiming(1, { duration: 800 }), withTiming(0.5, { duration: 800 })),
       -1,
       true
     );
@@ -39,7 +39,7 @@ export function Skeleton({ width = '100%', height = 20, borderRadius = 4, style 
           width,
           height,
           borderRadius,
-          backgroundColor: theme.colors.GLASS_BORDER,
+          backgroundColor: theme.colors.SKELETON,
         },
         animatedStyle,
         style,
