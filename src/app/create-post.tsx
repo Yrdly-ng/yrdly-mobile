@@ -53,9 +53,12 @@ export default function CreatePostScreen() {
       if (isPhoto) {
         options.multiple = true;
         options.maxFiles = 10;
-        options.compressImageQuality = 1;
-        options.compressImageMaxWidth = 4096;
-        options.compressImageMaxHeight = 4096;
+        // Bound picker output to keep media selection responsive. 4096px / quality 1
+        // made the picker re-encode and the previews decode ten oversized images on
+        // return, freezing the screen. 2048px / 0.85 stays high quality for the feed.
+        options.compressImageQuality = 0.85;
+        options.compressImageMaxWidth = 2048;
+        options.compressImageMaxHeight = 2048;
       } else {
         options.multiple = true;
         options.maxFiles = 3;
@@ -326,7 +329,12 @@ export default function CreatePostScreen() {
             {attachedFiles.map((file, i) => {
               return (
                 <View key={i} style={stylesheet.photoWrapper}>
-                  <Image source={{ uri: file.uri }} style={stylesheet.attachedImage} />
+                  <Image
+                    source={{ uri: file.uri }}
+                    style={stylesheet.attachedImage}
+                    contentFit="cover"
+                    recyclingKey={file.uri}
+                  />
                   {file.type?.startsWith('video/') && !posting && (
                     <View
                       style={{

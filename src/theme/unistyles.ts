@@ -1,5 +1,6 @@
 import { UnistylesRegistry } from 'react-native-unistyles';
 import { Appearance } from 'react-native';
+import { getStoredThemePreferenceSync } from '../lib/theme-preference';
 import {
   G,
   GLOW,
@@ -30,6 +31,7 @@ export const darkTheme = {
     SURFACE: 'rgba(255,255,255,0.055)',
     LABEL: 'rgba(255,255,255,0.38)',
     MUTED: 'rgba(255,255,255,0.55)',
+    SKELETON: 'rgba(255,255,255,0.14)',
     TEXT_PRIMARY: '#FFFFFF',
     TEXT_SECONDARY: '#A0A0A0',
     GOLD,
@@ -59,6 +61,7 @@ export const lightTheme = {
     SURFACE: 'rgba(0,0,0,0.055)',
     LABEL: 'rgba(0,0,0,0.45)',
     MUTED: 'rgba(0,0,0,0.6)',
+    SKELETON: 'rgba(0,0,0,0.09)',
     TEXT_PRIMARY: '#1C1C1C',
     TEXT_SECONDARY: '#757575',
     GOLD,
@@ -107,5 +110,7 @@ UnistylesRegistry.addBreakpoints(breakpoints)
   })
   .addConfig({
     adaptiveThemes: false,
-    initialTheme: Appearance.getColorScheme() ?? 'dark',
+    // Resolve the saved theme before the first paint so every screen renders
+    // in one theme from the start, instead of flashing the system theme first.
+    initialTheme: getStoredThemePreferenceSync() ?? Appearance.getColorScheme() ?? 'dark',
   });

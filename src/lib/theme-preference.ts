@@ -12,6 +12,17 @@ export async function getStoredThemePreference(): Promise<'light' | 'dark' | nul
   }
 }
 
+// Synchronous read used to resolve the theme before the first paint.
+export function getStoredThemePreferenceSync(): 'light' | 'dark' | null {
+  try {
+    const value = SecureStore.getItem(THEME_PREFERENCE_KEY);
+    return value === 'light' || value === 'dark' ? value : null;
+  } catch (e) {
+    console.warn('[theme-preference] Failed to read stored theme', e);
+    return null;
+  }
+}
+
 export async function setStoredThemePreference(theme: 'light' | 'dark'): Promise<void> {
   try {
     await SecureStore.setItemAsync(THEME_PREFERENCE_KEY, theme);

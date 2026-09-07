@@ -1,7 +1,7 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
-import { useColorScheme as useColorSchemeCore } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
+import React, { createContext, useContext } from 'react';
+import { createStyleSheet, useStyles, UnistylesRuntime } from 'react-native-unistyles';
 import Colors from '../constants/Colors';
+import { setStoredThemePreference } from '../lib/theme-preference';
 
 export type ActiveTheme = 'light' | 'dark';
 
@@ -14,41 +14,23 @@ interface ThemeContextType {
 
 export const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-const THEME_KEY = 'yrdly_dark_mode_enabled';
+// Empty sheet so the provider subscribes to Unistyles and re-renders on theme change.
+const themeSubscription = createStyleSheet(() => ({}));
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const systemScheme = useColorSchemeCore() || 'light';
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(systemScheme === 'dark');
+  // Subscribe to Unistyles so the context updates whenever the theme switches.
+  useStyles(themeSubscription);
 
-  // Load saved preference on mount
-  useEffect(() => {
-    async function loadTheme() {
-      try {
-        const saved = await SecureStore.getItemAsync(THEME_KEY);
-        if (saved !== null) {
-          setIsDarkMode(saved === 'true');
-        } else {
-          setIsDarkMode(systemScheme === 'dark');
-        }
-      } catch (e) {
-        console.error('Failed to load theme preference', e);
-      }
-    }
-    loadTheme();
-  }, [systemScheme]);
+  const activeTheme: ActiveTheme = UnistylesRuntime.themeName === 'light' ? 'light' : 'dark';
+  const isDarkMode = activeTheme === 'dark';
 
   const toggleTheme = async () => {
-    const newVal = !isDarkMode;
-    setIsDarkMode(newVal);
-    try {
-      await SecureStore.setItemAsync(THEME_KEY, String(newVal));
-    } catch (e) {
-      console.error('Failed to save theme preference', e);
-    }
+    const nextTheme: ActiveTheme = isDarkMode ? 'light' : 'dark';
+    UnistylesRuntime.setTheme(nextTheme);
+    await setStoredThemePreference(nextTheme);
   };
 
-  const activeTheme: ActiveTheme = isDarkMode ? 'dark' : 'light';
-  const colors = Colors[isDarkMode ? 'dark' : 'light'];
+  const colors = Colors[activeTheme];
 
   return (
     <ThemeContext.Provider value={{ isDarkMode, toggleTheme, activeTheme, colors }}>
