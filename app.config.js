@@ -19,7 +19,7 @@ module.exports = {
     userInterfaceStyle: "automatic",
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.feranmi.dev.yrdlymobile",
+      bundleIdentifier: "com.yrdly",
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false
       },
@@ -35,7 +35,7 @@ module.exports = {
         foregroundImage: "./assets/images/logo.png",
         backgroundColor: "#E6F4FE"
       },
-      package: "com.feranmi.dev.yrdlymobile",
+      package: "com.yrdly",
       googleServicesFile: "./google-services.json",
       config: {
         googleMaps: {
@@ -160,10 +160,10 @@ module.exports = {
               appExtensions: [
                 {
                   targetName: "OneSignalNotificationServiceExtension",
-                  bundleIdentifier: "com.feranmi.dev.yrdlymobile.OneSignalNotificationServiceExtension",
+                  bundleIdentifier: "com.yrdly.OneSignalNotificationServiceExtension",
                   entitlements: {
                     "com.apple.security.application-groups": [
-                      "group.com.feranmi.dev.yrdlymobile.onesignal"
+                      "group.com.yrdly.onesignal"
                     ]
                   }
                 }
