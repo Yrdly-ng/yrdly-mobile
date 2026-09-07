@@ -145,7 +145,7 @@ module.exports = {
             swiftVersion: "5.9"
           }
         }
-
+      ]
     ],
     newArchEnabled: true,
     experiments: {
