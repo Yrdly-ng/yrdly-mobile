@@ -1,6 +1,4 @@
 import { createStyleSheet, useStyles } from 'react-native-unistyles';
-import { usePostHog } from 'posthog-react-native';
-import { trackProfileTabSwitch, trackProfileEditStarted } from '../../lib/analytics';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
@@ -90,7 +88,6 @@ export default function ProfileTab() {
 
   const insets = useSafeAreaInsets();
   const { user, profile } = useAuth();
-  const posthog = usePostHog();
   const router = useRouter();
   const { width: windowWidth } = useWindowDimensions();
   const TARGET_TILE_WIDTH = 120;
@@ -410,7 +407,7 @@ export default function ProfileTab() {
               </View>
             </View>
             <TouchableOpacity
-              onPress={() => { trackProfileEditStarted(posthog); router.push('/profile/edit'); }}
+              onPress={() => { router.push('/profile/edit'); }}
               style={{
                 position: 'absolute',
                 bottom: 0,
@@ -497,7 +494,7 @@ export default function ProfileTab() {
             alignItems: 'center',
             alignSelf: 'flex-start',
           }}
-          onPress={() => { trackProfileEditStarted(posthog); router.push('/profile/edit'); }}
+          onPress={() => { router.push('/profile/edit'); }}
           activeOpacity={0.8}
         >
           <Text style={{ color: theme.colors.MUTED, fontSize: 13, fontFamily: 'Inter-Medium' }}>
@@ -624,7 +621,6 @@ export default function ProfileTab() {
             onPress={() => {
               Haptics.selectionAsync();
               setActiveTab('posts');
-              trackProfileTabSwitch(posthog, 'posts');
             }}
             style={{ position: 'relative', paddingBottom: 6 }}
           >
@@ -656,7 +652,6 @@ export default function ProfileTab() {
             onPress={() => {
               Haptics.selectionAsync();
               setActiveTab('texts');
-              trackProfileTabSwitch(posthog, 'texts');
             }}
             style={{ position: 'relative', paddingBottom: 6 }}
           >
@@ -688,7 +683,6 @@ export default function ProfileTab() {
             onPress={() => {
               Haptics.selectionAsync();
               setActiveTab('saved');
-              trackProfileTabSwitch(posthog, 'saved');
             }}
             style={{ position: 'relative', paddingBottom: 6 }}
           >

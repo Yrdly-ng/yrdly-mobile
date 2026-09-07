@@ -9,7 +9,6 @@
     "@expo/vector-icons": "^15.0.3",
     "@gorhom/bottom-sheet": "^5.2.14",
     "@mapbox/polyline": "^1.2.1",
-    "@posthog/react-native-plugin": "^2.5.0",
     "@react-native-community/datetimepicker": "8.4.4",
     "@react-native-community/netinfo": "11.4.1",
     "@react-navigation/elements": "^2.9.30",
@@ -52,7 +51,6 @@
     "lottie-react-native": "~7.3.1",
     "onesignal-expo-plugin": "^2.7.1",
     "phosphor-react-native": "^3.0.6",
-    "posthog-react-native": "^4.67.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",
@@ -87,7 +85,6 @@
     "babel-preset-expo": "~54.0.10",
     "eslint": "^8.56.0",
     "eslint-config-expo": "^7.0.0",
-    "posthog-cli": "^0.2.4",
     "prettier": "^3.1.1",
     "ts-morph": "^28.0.0",
     "typescript": "~5.9.2"

@@ -31,11 +31,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Install posthog-cli
-        run: |
-          npm install -g posthog-cli
-          sudo ln -s $(npm root -g)/posthog-cli/bin/posthog /usr/local/bin/posthog-cli || true
-          sudo ln -s $(which posthog-cli) /usr/local/bin/posthog-cli || true
+
 
       - name: Write .env file from secrets
         run: |
@@ -47,8 +43,6 @@ jobs:
           EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=${{ secrets.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY }}
           EXPO_PUBLIC_VEXO_API_KEY=${{ secrets.EXPO_PUBLIC_VEXO_API_KEY }}
           EXPO_PUBLIC_TERMII_API_KEY=${{ secrets.EXPO_PUBLIC_TERMII_API_KEY }}
-          EXPO_PUBLIC_POSTHOG_KEY=${{ secrets.EXPO_PUBLIC_POSTHOG_KEY }}
-          EXPO_PUBLIC_POSTHOG_HOST=${{ secrets.EXPO_PUBLIC_POSTHOG_HOST }}
           EOF
 
       - name: Run Expo prebuild

@@ -12,7 +12,7 @@ import { LocationProvider } from '../context/LocationContext';
 import { NotificationBadgeProvider } from '../context/NotificationBadgeContext';
 import * as SplashScreen from 'expo-splash-screen';
 import AnimatedSplashScreen from '../components/AnimatedSplashScreen';
-import { PostHogProvider, usePostHog, PostHogErrorBoundary } from 'posthog-react-native';
+
 import { setAudioModeAsync } from 'expo-audio';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -58,19 +58,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {
   // already hidden, ignore
 });
 
-function AnalyticsTracker() {
-  const posthog = usePostHog();
-  const pathname = usePathname();
-  const params = useGlobalSearchParams();
 
-  useEffect(() => {
-    if (pathname && posthog) {
-      posthog.screen(pathname, { params });
-    }
-  }, [pathname, params, posthog]);
-
-  return null;
-}
 
 function NotificationsHandler() {
   usePushNotifications();
@@ -177,7 +165,7 @@ function RootNavigationGuard({
 
   return (
     <ErrorBoundary>
-      <AnalyticsTracker />
+
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
@@ -228,8 +216,6 @@ function Layout() {
     'Inter-Bold': Inter_700Bold,
   });
 
-  const posthogKey = process.env.EXPO_PUBLIC_POSTHOG_KEY || process.env.EXPO_PUBLIC_POSTHOG_API_KEY;
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       {!appFullyTransitioned && (
@@ -240,44 +226,6 @@ function Layout() {
       )}
       <SafeAreaProvider>
         <ToastProvider position="bottom">
-          {posthogKey ? (
-            <PostHogProvider
-              apiKey={posthogKey}
-              options={{
-                host: process.env.EXPO_PUBLIC_POSTHOG_HOST,
-                captureAppLifecycleEvents: true,
-                enableSessionReplay: true,
-                errorTracking: {
-                  autocapture: {
-                    nativeCrashes: true,
-                    unhandledRejections: true,
-                  },
-                },
-              }}
-              autocapture={{ captureTouches: true, captureScreens: false }}
-            >
-              <PostHogErrorBoundary
-                fallback={ErrorFallback}
-                additionalProperties={{ app_section: 'root' }}
-              >
-                <KeyboardProvider>
-                  <ThemeProvider>
-                    <BottomSheetModalProvider>
-                      <AuthProvider>
-                        <LocationProvider>
-                          <NotificationBadgeProvider>
-                            <AudioSettingsHandler />
-                            <NotificationsHandler />
-                            <RootNavigationGuard onAuthLoadingChange={setAuthLoading} />
-                          </NotificationBadgeProvider>
-                        </LocationProvider>
-                      </AuthProvider>
-                    </BottomSheetModalProvider>
-                  </ThemeProvider>
-                </KeyboardProvider>
-              </PostHogErrorBoundary>
-            </PostHogProvider>
-          ) : (
             <KeyboardProvider>
               <ThemeProvider>
                 <BottomSheetModalProvider>
@@ -293,7 +241,6 @@ function Layout() {
                 </BottomSheetModalProvider>
               </ThemeProvider>
             </KeyboardProvider>
-          )}
         </ToastProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

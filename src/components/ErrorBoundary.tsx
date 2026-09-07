@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { usePostHog, type PostHog } from 'posthog-react-native';
 
 interface Props {
   children: React.ReactNode;
@@ -12,18 +11,14 @@ interface Props {
   screenName?: string;
 }
 
-interface InnerProps extends Props {
-  posthog?: PostHog | null;
-}
-
 interface State {
   hasError: boolean;
   error: Error | null;
   resetKey: number;
 }
 
-class ErrorBoundaryInner extends React.Component<InnerProps, State> {
-  constructor(props: InnerProps) {
+export class ErrorBoundary extends React.Component<Props, State> {
+  constructor(props: Props) {
     super(props);
     this.state = { hasError: false, error: null, resetKey: 0 };
   }
@@ -43,20 +38,12 @@ class ErrorBoundaryInner extends React.Component<InnerProps, State> {
     );
     console.error(`${prefix} Component Stack:\n`, info.componentStack);
 
-    // Report the render crash to PostHog error tracking. This boundary is the
-    // innermost one around every screen, so without an explicit capture the
-    // crash never reaches the outer PostHogErrorBoundary and stays invisible.
-    this.props.posthog?.captureException?.(error, {
-      screen_name: this.props.screenName ?? null,
-      component_stack: info.componentStack ?? null,
-      error_boundary: true,
-    });
   }
 
   handleRestart = () => {
     // Increment resetKey to force full remount of children tree
     this.setState(
-      (prev) => ({ hasError: false, error: null, resetKey: prev.resetKey + 1 }),
+      (prev: State) => ({ hasError: false, error: null, resetKey: prev.resetKey + 1 }),
       () => {
         // Navigate to root to reset the navigator stack cleanly
         try {
@@ -112,14 +99,6 @@ class ErrorBoundaryInner extends React.Component<InnerProps, State> {
   }
 }
 
-/**
- * Public error boundary. Injects the PostHog client so caught render crashes
- * are reported to error tracking, not only logged to the console.
- */
-export function ErrorBoundary(props: Props) {
-  const posthog = usePostHog();
-  return <ErrorBoundaryInner {...props} posthog={posthog} />;
-}
 
 const styles = StyleSheet.create({
   container: {

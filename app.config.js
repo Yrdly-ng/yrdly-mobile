@@ -145,14 +145,7 @@ module.exports = {
             swiftVersion: "5.9"
           }
         }
-      ],
-      [
-        "posthog-react-native/expo",
-        {
-          uploadNativeSymbols: false,
-          skipOnConflict: true
-        }
-      ]
+
     ],
     newArchEnabled: true,
     experiments: {

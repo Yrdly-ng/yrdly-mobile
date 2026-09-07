@@ -5,8 +5,6 @@ import { User, Session } from '@supabase/supabase-js';
 import { AuthService, AuthUser } from '@/lib/auth-service';
 import { supabase } from '@/lib/supabase';
 import { oneSignalService } from '@/lib/onesignal';
-import { usePostHog } from 'posthog-react-native';
-import { identifyUser } from '@/lib/analytics';
 import * as FileSystem from 'expo-file-system/legacy';
 import NetInfo from '@react-native-community/netinfo';
 
@@ -41,7 +39,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const profileCreationInProgress = React.useRef(false);
-  const posthog = usePostHog();
 
   useEffect(() => {
     let isMounted = true;
@@ -216,10 +213,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (netInfo.isConnected) {
           console.warn('[Yrdly Auth] Token refresh failed while online. Logging out.');
           FileSystem.deleteAsync(PROFILE_CACHE_FILE, { idempotent: true }).catch(() => {});
-          if (posthog) {
-            posthog.capture('user_signed_out_forcefully');
-            posthog.reset();
-          }
+
 
           oneSignalService.logout();
           setUser(null);
@@ -327,9 +321,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (isMounted) {
               setProfile(userProfile);
-              if (posthog) {
-                identifyUser(posthog, user, userProfile);
-              }
+
               // Set up real-time subscription for this user's profile
               setupProfileRealtime(user.id);
             }
@@ -427,10 +419,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     setLoading(true);
     try {
-      if (posthog) {
-        posthog.capture('user_signed_out');
-        posthog.reset();
-      }
+
 
       if (user) {
         await AuthService.updateUserProfile(user.id, { push_token: null as any }).catch(console.error);

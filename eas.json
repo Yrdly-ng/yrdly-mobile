@@ -8,19 +8,13 @@
       "developmentClient": true,
       "distribution": "internal",
       "node": "22.15.0",
-      "env": {
-        "POSTHOG_CLI_PROJECT_ID": "590527"
-      },
+
       "ios": {
         "image": "macos-sequoia-15.6-xcode-26.2"
       }
     },
     "preview": {
-      "distribution": "internal",
-      "node": "22.15.0",
-      "env": {
-        "POSTHOG_CLI_PROJECT_ID": "590527"
-      }
+      "distribution": "internal"
     },
     "apk": {
       "extends": "production",
@@ -30,9 +24,7 @@
     },
     "production": {
       "node": "22.15.0",
-      "env": {
-        "POSTHOG_CLI_PROJECT_ID": "590527"
-      },
+
       "ios": {
         "image": "macos-sequoia-15.6-xcode-26.2"
       }

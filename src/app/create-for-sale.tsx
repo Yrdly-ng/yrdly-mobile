@@ -28,13 +28,7 @@ import { MarketplaceItemCard } from '../components/MarketplaceItemCard';
 import { ImageCarousel } from '../components/ImageCarousel';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import LottieView from 'lottie-react-native';
-import { usePostHog } from 'posthog-react-native';
 import { logError } from '../lib/error-logger';
-import {
-  trackPostCreationStarted,
-  trackPostMediaAttached,
-  trackPostCreatedSuccess,
-} from '../lib/analytics';
 import * as FileSystem from 'expo-file-system/legacy';
 import { formatPrice } from '../lib/utils';
 import { useCategories } from '../hooks/use-categories';
@@ -49,15 +43,11 @@ export default function CreateForSaleScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, profile } = useAuth();
-  const posthog = usePostHog();
+
   const { categories, loading: categoriesLoading } = useCategories('marketplace');
   const [step, setStep] = useState(0);
 
-  // Track screen open
-  useEffect(() => {
-    trackPostCreationStarted(posthog, 'sale');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
 
   const [listingType, setListingType] = useState('For Sale');
   const [title, setTitle] = useState('');
@@ -165,9 +155,7 @@ export default function CreateForSaleScreen() {
         }
         setAttachedFiles((prev) => {
           const next = [...prev, ...validFiles];
-          if (validFiles.length > 0) {
-            trackPostMediaAttached(posthog, 'sale', next.length);
-          }
+
           return next;
         });
       }
@@ -326,7 +314,7 @@ export default function CreateForSaleScreen() {
         setListing(false);
         setUploadProgress(0);
         if (error) {
-          const userMsg = logError(error, { context: 'create_for_sale_db_insert', posthog });
+          const userMsg = logError(error, { context: 'create_for_sale_db_insert' });
           Alert.alert('Listing Failed', userMsg);
         } else {
           if (modStatus === 'pending' && newPost) {
@@ -342,13 +330,13 @@ export default function CreateForSaleScreen() {
           }
           setModerationStatus(modStatus as any);
           setListed(true);
-          trackPostCreatedSuccess(posthog, 'sale', newPost?.id);
+
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
       } catch (err: any) {
         setListing(false);
         setUploadProgress(0);
-        const userMsg = logError(err, { context: 'create_for_sale_submit', posthog });
+        const userMsg = logError(err, { context: 'create_for_sale_submit' });
         Alert.alert('Upload Failed', userMsg);
       }
     }
