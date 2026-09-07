@@ -18,17 +18,20 @@ import {
   DeviceEventEmitter,
   FlatList,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Marker, Region } from 'react-native-maps';
+import { Marker, Region, PROVIDER_GOOGLE, Polyline } from 'react-native-maps';
 import MapView from 'react-native-map-clustering';
 import * as Location from 'expo-location';
+import polyline from '@mapbox/polyline';
 import { useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { useAppTheme } from '../context/ThemeContext';
 import { useAuth } from '../hooks/use-supabase-auth';
 import { useLocation } from '../context/LocationContext';
+import { api } from '../lib/api';
 
 const { width, height } = Dimensions.get('window');
 const SHEET_H = height * 0.62;
@@ -45,6 +48,12 @@ type MapMarker = {
   targetId: string;
   avatar_url?: string;
 };
+interface ETAResponse {
+  duration_seconds: number;
+  duration_in_traffic_seconds: number;
+  distance_meters: number;
+  overview_polyline?: string;
+}
 type ActivityItem = {
   id: string;
   kind: 'post' | 'market' | 'event' | 'biz';
@@ -179,7 +188,11 @@ export default function MapScreen() {
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterType>('all');
+  const [showsTraffic, setShowsTraffic] = useState(false);
   const [selectedPin, setSelectedPin] = useState<MapMarker | null>(null);
+  const [eta, setEta] = useState<ETAResponse | null>(null);
+  const [routePoints, setRoutePoints] = useState<{latitude: number, longitude: number}[]>([]);
+  const [etaLoading, setEtaLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const regionTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -212,6 +225,42 @@ export default function MapScreen() {
       }),
     []
   );
+
+  useEffect(() => {
+    if (!selectedPin || !loc) {
+      setEta(null);
+      setRoutePoints([]);
+      return;
+    }
+    
+    let active = true;
+    const fetchEta = async () => {
+      setEtaLoading(true);
+      setEta(null);
+      try {
+        const res = await api.post<ETAResponse>('/api/directions/eta', {
+          origin: { lat: loc.coords.latitude, lng: loc.coords.longitude },
+          destination: { lat: selectedPin.lat, lng: selectedPin.lng },
+        });
+        if (active) {
+          setEta(res);
+          if (res.overview_polyline) {
+            const decoded = polyline.decode(res.overview_polyline);
+            setRoutePoints(decoded.map(p => ({ latitude: p[0], longitude: p[1] })));
+          } else {
+            setRoutePoints([]);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch ETA:', err);
+      } finally {
+        if (active) setEtaLoading(false);
+      }
+    };
+    
+    fetchEta();
+    return () => { active = false; };
+  }, [selectedPin, loc]);
 
   const getDirections = (destLat: number, destLng: number, _label?: string) => {
     const appleMapsUrl = `maps://?saddr=${loc?.coords.latitude ?? ''},${loc?.coords.longitude ?? ''}&daddr=${destLat},${destLng}&dirflg=d`;
@@ -317,7 +366,7 @@ export default function MapScreen() {
     // Events from posts table (legacy)
     let qPostEvts = supabase
       .from('posts')
-      .select('id,title,event_location,lat,lng')
+      .select('id,title,event_location,image_urls,lat,lng')
       .eq('category', 'Event')
       .gte('event_date', new Date().toISOString());
     if (activeFilter?.lga) qPostEvts = qPostEvts.eq('lga', activeFilter.lga);
@@ -339,12 +388,13 @@ export default function MapScreen() {
           title: e.title || 'Event',
           subtitle: e.event_location?.address || '',
           targetId: e.id,
+          avatar_url: e.image_urls?.[0],
         });
     });
     // Events from events table (new system)
     let qNewEvts = supabase
       .from('events')
-      .select('id,title,location_address,lat,lng')
+      .select('id,title,location_address,cover_image_url,lat,lng')
       .eq('status', 'PUBLISHED')
       .neq('is_archived', true)
       .gte('start_time', new Date().toISOString())
@@ -365,6 +415,7 @@ export default function MapScreen() {
           title: e.title || 'Event',
           subtitle: e.location_address || '',
           targetId: e.id,
+          avatar_url: e.cover_image_url,
         });
     });
 
@@ -388,6 +439,7 @@ export default function MapScreen() {
           title: b.name || 'Business',
           subtitle: b.location?.address || '',
           targetId: b.id,
+          avatar_url: b.image_urls?.[0],
         });
     });
 
@@ -603,6 +655,8 @@ export default function MapScreen() {
         showsUserLocation
         showsMyLocationButton={false}
         showsBuildings={false}
+        showsTraffic={showsTraffic}
+        provider={PROVIDER_GOOGLE}
         pitchEnabled={false}
         moveOnMarkerPress={false}
         userInterfaceStyle={isDarkMode ? 'dark' : 'light'}
@@ -627,6 +681,13 @@ export default function MapScreen() {
             )}
           </Marker>
         ))}
+        {routePoints.length > 0 && (
+          <Polyline
+            coordinates={routePoints}
+            strokeColor="#82DB7E"
+            strokeWidth={4}
+          />
+        )}
       </MapView>
 
       {/* ── Top overlays ── */}
@@ -705,6 +766,17 @@ export default function MapScreen() {
         <Ionicons name="locate" size={20} color="rgba(255,255,255,0.8)" />
       </TouchableOpacity>
 
+      {/* ── Traffic Toggle ── */}
+      <View style={[s.trafficWrap, { bottom: selectedPin ? 282 : 152 }]}>
+        <Ionicons name="car-outline" size={18} color="rgba(255,255,255,0.8)" />
+        <Switch
+          value={showsTraffic}
+          onValueChange={setShowsTraffic}
+          trackColor={{ false: 'rgba(255,255,255,0.1)', true: theme.colors.G }}
+          thumbColor="#fff"
+        />
+      </View>
+
       {/* ── Pin preview bottom sheet ── */}
       {selectedPin && (
         <View style={s.previewSheet}>
@@ -751,6 +823,23 @@ export default function MapScreen() {
               <Text style={s.previewSub} numberOfLines={1}>
                 {selectedPin.subtitle}
               </Text>
+
+              {/* ETA Display */}
+              {(etaLoading || eta) && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 4 }}>
+                  <Ionicons name="car-outline" size={14} color={theme.colors.MUTED} />
+                  {etaLoading ? (
+                    <Text style={[s.previewSub, { color: theme.colors.MUTED }]}>Calculating ETA...</Text>
+                  ) : (
+                    <Text style={[s.previewSub, { color: theme.colors.TEXT_PRIMARY, fontWeight: '600' }]}>
+                      {Math.ceil((eta?.duration_in_traffic_seconds ?? 0) / 60)} min drive
+                      <Text style={{ color: theme.colors.MUTED, fontWeight: '400' }}>
+                        {' · '}{((eta?.distance_meters ?? 0) / 1000).toFixed(1)} km
+                      </Text>
+                    </Text>
+                  )}
+                </View>
+              )}
             </View>
           </View>
           <TouchableOpacity
@@ -855,6 +944,21 @@ const sStylesheet = createStyleSheet((theme) => ({
     borderColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 10,
+  },
+  trafficWrap: {
+    position: 'absolute',
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: theme.colors.SURFACE,
+    borderRadius: 24,
+    paddingLeft: 12,
+    paddingRight: 8,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
     zIndex: 10,
   },
   previewSheet: {

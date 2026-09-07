@@ -127,17 +127,22 @@ export default function CatalogItemScreen() {
 
   const handleMessage = useCallback(async () => {
     if (!business || !user) return;
+    if (user.id === business.owner_id) return;
+    
+    if (!business.owner_id) {
+      Alert.alert('Cannot Message', 'This business does not have an owner associated with it.');
+      return;
+    }
+
     try {
       const { data: convs } = await supabase
         .from('conversations')
         .select('id, type, participant_ids, item_id')
-        .eq('item_id', business.id)
         .order('created_at', { ascending: true });
 
       const existing = convs?.find((c) => {
         if (
           (c.type === 'briefcase' || c.type === 'business') &&
-          c.item_id === business.id &&
           c.participant_ids?.includes(user.id) &&
           c.participant_ids?.includes(business.owner_id)
         )
@@ -145,18 +150,18 @@ export default function CatalogItemScreen() {
         return false;
       });
 
-      if (existing?.id) {
+      if (existing) {
         router.push(`/chat/${existing.id}` as any);
-        return;
+      } else {
+        const imageUrl = item?.images?.[0] || business.image_urls?.[0] || business.cover_image || '';
+        router.push(
+          `/chat/new?type=business&participant_id=${business.owner_id}&item_title=${encodeURIComponent(item ? `${item.title} (${business.name})` : business.name)}&item_image=${encodeURIComponent(imageUrl)}` as any
+        );
       }
-
-      const imageUrl =
-        (item?.images && item.images[0]) || business.cover_image || business.logo || '';
-      router.push(`/chat/new?type=briefcase&participant_id=${business.owner_id}&item_id=${business.id}&item_title=${encodeURIComponent(item ? `${item.title} (${business.name})` : business.name)}&item_image=${encodeURIComponent(imageUrl)}` as any);
     } catch (e) {
-      console.error('Error starting chat from catalog item:', e);
+      console.error(e);
     }
-  }, [business, item, user, router]);
+  }, [business, user, item, router]);
 
   const handleBuy = useCallback(() => {
     if (!item) return;
@@ -589,74 +594,7 @@ export default function CatalogItemScreen() {
             </Text>
           )}
 
-          {/* Business Info Card */}
-          {business && (
-            <TouchableOpacity
-              style={[
-                sStylesheet.bizCard,
-                { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER },
-              ]}
-              onPress={() => router.push(`/businesses/${business.id}` as any)}
-            >
-              {business.logo ? (
-                <Image
-                  source={{ uri: business.logo }}
-                  style={sStylesheet.bizLogo}
-                  contentFit="cover"
-                />
-              ) : (
-                <View
-                  style={[
-                    sStylesheet.bizLogo,
-                    {
-                      backgroundColor: theme.colors.SURFACE,
-                      borderColor: theme.colors.GLASS_BORDER,
-                      borderWidth: 1,
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                    },
-                  ]}
-                >
-                  <Ionicons name="storefront" size={24} color={theme.colors.LABEL} />
-                </View>
-              )}
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={[
-                    sStylesheet.bizName,
-                    { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Outfit' },
-                  ]}
-                >
-                  {business.name}
-                </Text>
-                <View style={sStylesheet.bizMetaRow}>
-                  <Ionicons name="star" size={14} color="#FBBF24" />
-                  <Text
-                    style={{
-                      color: theme.colors.TEXT_PRIMARY,
-                      fontWeight: '700',
-                      fontSize: 13,
-                      marginLeft: 4,
-                      fontFamily: 'Inter',
-                    }}
-                  >
-                    {business.rating?.toFixed(1) || '0.0'}
-                  </Text>
-                  <Text
-                    style={{
-                      color: theme.colors.LABEL,
-                      fontSize: 13,
-                      marginLeft: 6,
-                      fontFamily: 'Inter',
-                    }}
-                  >
-                    • {business.category}
-                  </Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={theme.colors.LABEL} />
-            </TouchableOpacity>
-          )}
+
 
           {/* Action Buttons */}
           {(!isOwner || business?.phone) && (

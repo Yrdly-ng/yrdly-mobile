@@ -432,6 +432,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         posthog.reset();
       }
 
+      if (user) {
+        await AuthService.updateUserProfile(user.id, { push_token: null as any }).catch(console.error);
+      }
+
       oneSignalService.logout();
       FileSystem.deleteAsync(PROFILE_CACHE_FILE, { idempotent: true }).catch(() => {});
       const result = await AuthService.signOut();

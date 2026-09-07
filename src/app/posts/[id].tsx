@@ -11,8 +11,8 @@ import {
   Keyboard,
   DeviceEventEmitter,
   Alert,
+  KeyboardAvoidingView,
 } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { ModerationService } from '../../lib/moderation-service';
@@ -306,9 +306,10 @@ function PostDetailContent() {
   );
 
   return (
-    <SafeAreaView
-      style={[stylesheet.container, { backgroundColor: theme.colors.DARK }]}
-      edges={['top', 'left', 'right']}
+    <KeyboardAvoidingView
+      style={[stylesheet.container, { backgroundColor: theme.colors.DARK, paddingTop: insets.top }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 60 : 0}
     >
       {/* Header */}
       <View
@@ -372,8 +373,7 @@ function PostDetailContent() {
         )}
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 61 : 0}>
-        {loading && !post ? (
+      <View style={{ flex: 1 }}>  {loading && !post ? (
           <View style={stylesheet.center}>
             <ActivityIndicator size="large" color={theme.colors.G} />
           </View>
@@ -425,8 +425,8 @@ function PostDetailContent() {
           onSubmit={handleSendComment}
           InputComponent={TextInput}
         />
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 

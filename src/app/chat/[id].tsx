@@ -10,8 +10,8 @@ import {
   ActivityIndicator,
   Alert,
   Keyboard,
+  KeyboardAvoidingView,
 } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -27,6 +27,7 @@ import { useAuth } from '../../hooks/use-supabase-auth';
 import { useAppTheme } from '../../context/ThemeContext';
 import { formatPrice } from '../../lib/utils';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { setActiveConversationId } from '../../lib/active-chat-tracker';
 
 interface Message {
   id: string;
@@ -121,6 +122,17 @@ function ChatContent() {
   const { user, profile, updateProfile } = useAuth();
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
+
+  useEffect(() => {
+    if (isFocused && id && id !== 'new') {
+      setActiveConversationId(id);
+    } else {
+      setActiveConversationId(null);
+    }
+    return () => {
+      setActiveConversationId(null);
+    };
+  }, [isFocused, id]);
 
   const [meta, setMeta] = useState<ConversationMeta | null>(null);
   const [otherUser, setOtherUser] = useState<{
@@ -435,6 +447,7 @@ function ChatContent() {
           .select('id')
           .single();
         if (newError) throw newError;
+        if (!newConv) throw new Error('Conversation was not created — server returned no data.');
         currentConvId = newConv.id;
       }
 
@@ -487,8 +500,9 @@ function ChatContent() {
         });
       }
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-    } catch (e) {
+    } catch (e: any) {
       console.error('Send message error:', e);
+      Alert.alert('Message failed', e?.message || 'Could not send message. Please try again.');
       setInputText(body); // restore on failure
     } finally {
       setSending(false);
@@ -910,12 +924,15 @@ function ChatContent() {
   };
 
   const title =
-    meta?.type === 'briefcase' ? meta?.business_name || 'Business' : otherUser?.name || 'Chat';
+    meta?.type === 'briefcase' || meta?.type === 'business'
+      ? meta?.business_name || 'Business'
+      : otherUser?.name || 'Chat';
 
   return (
-    <SafeAreaView
-      style={[stylesheet.container, { backgroundColor: theme.colors.DARK }]}
-      edges={['top', 'left', 'right']}
+    <KeyboardAvoidingView
+      style={[stylesheet.container, { backgroundColor: theme.colors.DARK, paddingTop: insets.top }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 60 : 0}
     >
       {/* Header */}
       <View
@@ -1127,7 +1144,7 @@ function ChatContent() {
         </TouchableOpacity>
       )}
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + (meta ? 130 : 61) : 0}>
+      <View style={{ flex: 1 }}>
         {/* Messages */}
         {loading ? (
           <View style={stylesheet.center}>
@@ -1286,7 +1303,7 @@ function ChatContent() {
             )}
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </View>
 
       <ImageViewing
         images={viewerImages}
@@ -1294,7 +1311,7 @@ function ChatContent() {
         visible={viewerVisible}
         onRequestClose={() => setViewerVisible(false)}
       />
-    </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 

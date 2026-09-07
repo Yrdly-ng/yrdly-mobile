@@ -45,6 +45,14 @@ import { api } from '../../../lib/api';
 import { formatPrice } from '../../../lib/utils';
 import { AttendeeAvatars } from '../../../components/AttendeeAvatars';
 import { VerifiedBadge } from '../../../components/VerifiedBadge';
+import * as Location from 'expo-location';
+
+interface ETAResponse {
+  duration_seconds: number;
+  duration_in_traffic_seconds: number;
+  distance_meters: number;
+  overview_polyline?: string;
+}
 
 const DARK_STYLE = [
   { elementType: 'geometry', stylers: [{ color: '#0d1117' }] },
@@ -98,6 +106,9 @@ export default function EventDetailScreen() {
   const [isGalleryVisible, setIsGalleryVisible] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
+  const [loc, setLoc] = useState<Location.LocationObject | null>(null);
+  const [eta, setEta] = useState<ETAResponse | null>(null);
+
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isFollowingOrganizer, setIsFollowingOrganizer] = useState(false);
   const [relatedEvents, setRelatedEvents] = useState<any[]>([]);
@@ -119,6 +130,35 @@ export default function EventDetailScreen() {
   const successOverlayOp = useSharedValue(0);
   const successContentOp = useSharedValue(0);
   const successContentY = useSharedValue(20);
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') return;
+      const l = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      setLoc(l);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!event || !event.lat || !event.lng || !loc) return;
+    
+    let active = true;
+    const fetchEta = async () => {
+      try {
+        const res = await api.post<ETAResponse>('/api/directions/eta', {
+          origin: { lat: loc.coords.latitude, lng: loc.coords.longitude },
+          destination: { lat: event.lat, lng: event.lng },
+        });
+        if (active) setEta(res);
+      } catch (err) {
+        console.warn('Failed to fetch ETA:', err);
+      }
+    };
+    
+    fetchEta();
+    return () => { active = false; };
+  }, [event, loc]);
 
   const successOverlayStyle = useAnimatedStyle(() => ({ opacity: successOverlayOp.value }));
   const successSheetStyle = useAnimatedStyle(() => ({
@@ -754,6 +794,20 @@ export default function EventDetailScreen() {
                 </Text>
               </View>
             </View>
+
+            {eta && (
+              <View style={stylesheet.infoRow}>
+                <View style={[stylesheet.iconBox, { backgroundColor: theme.colors.G + '15' }]}>
+                  <Feather name="navigation" size={20} color={theme.colors.G} />
+                </View>
+                <View style={stylesheet.infoTextContainer}>
+                  <Text style={[stylesheet.infoLabel, { color: theme.colors.LABEL }]}>Drive Time</Text>
+                  <Text style={[stylesheet.infoValue, { color: theme.colors.TEXT_PRIMARY }]}>
+                    {Math.ceil(eta.duration_in_traffic_seconds / 60)} min drive · {(eta.distance_meters / 1000).toFixed(1)} km
+                  </Text>
+                </View>
+              </View>
+            )}
 
             <View style={stylesheet.infoRow}>
               <View style={[stylesheet.iconBox, { backgroundColor: theme.colors.G + '15' }]}>

@@ -180,7 +180,7 @@ export class StorageService {
     onProgress?: (progress: number) => void
   ): Promise<{ url: string | null; error: any }> {
     const ext = file.name.split('.').pop() ?? 'jpg';
-    const path = `posts/${postId}/${Date.now()}.${ext}`;
+    const path = `posts/${postId}/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
 
     const { data, error } = await this.uploadFile(
       'post-images',

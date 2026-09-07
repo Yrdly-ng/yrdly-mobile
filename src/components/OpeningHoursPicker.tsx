@@ -214,9 +214,9 @@ const _stylesheet = createStyleSheet((theme) => ({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'flex-end' },
   modalContent: {
-    backgroundColor: theme.colors.SURFACE,
+    backgroundColor: theme.colors.DARK,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
