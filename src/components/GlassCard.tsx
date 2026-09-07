@@ -6,6 +6,7 @@ import { useStyles } from 'react-native-unistyles';
 interface GlassCardProps {
   children: React.ReactNode;
   style?: ViewStyle | ViewStyle[];
+  contentStyle?: ViewStyle | ViewStyle[];
   intensity?: number;
   tint?:
     | 'light'
@@ -22,6 +23,7 @@ interface GlassCardProps {
 export function GlassCard({
   children,
   style,
+  contentStyle,
   intensity = 55,
   tint = 'systemChromeMaterial',
   borderRadius = 20,
@@ -43,7 +45,13 @@ export function GlassCard({
           style as any,
         ]}
       >
-        <View style={[styles.glassInner, { borderRadius, backgroundColor: theme.colors.GLASS_BG }]}>
+        <View
+          style={[
+            styles.glassInner,
+            { borderRadius, backgroundColor: theme.colors.GLASS_BG },
+            contentStyle as any,
+          ]}
+        >
           {children}
         </View>
       </BlurView>
@@ -61,6 +69,7 @@ export function GlassCard({
           borderColor: theme.colors.GLASS_BORDER,
         },
         style as any,
+        contentStyle as any,
       ]}
     >
       {children}

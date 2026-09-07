@@ -63,6 +63,7 @@ export function DiscoverUserCard({ user, context, mutualCount, onPress }: Discov
       <GlassCard
         intensity={80}
         style={StyleSheet.flatten([stylesheet.card, { borderColor: theme.colors.GLASS_BORDER }])}
+        contentStyle={stylesheet.cardContent}
       >
         <Avatar
           url={user?.avatar_url}
@@ -124,11 +125,13 @@ const _stylesheet = createStyleSheet((theme) => ({
     paddingVertical: 6,
   },
   card: {
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  cardContent: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
-    borderRadius: 16,
-    borderWidth: 1,
   },
   avatar: {
     width: 48,
