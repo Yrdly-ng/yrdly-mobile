@@ -53,6 +53,16 @@ export default function CatalogItemScreen() {
           .maybeSingle();
 
         if (itemError || !itemData) {
+          const { data: bizData } = await supabase
+            .from('businesses')
+            .select('id')
+            .eq('id', itemId)
+            .maybeSingle();
+
+          if (bizData) {
+            router.replace(`/businesses/${bizData.id}` as any);
+            return;
+          }
           console.error('Error fetching catalog item:', itemError);
           setLoading(false);
           return;
@@ -151,6 +161,21 @@ export default function CatalogItemScreen() {
       });
 
       if (existing) {
+        if (item || !existing.item_id) {
+          const imageUrl = item?.images?.[0] || business.image_urls?.[0] || business.cover_image || '';
+          const targetId = item ? item.id : business.id;
+          const itemTitle = item ? `${item.title} (${business.name})` : business.name;
+          await supabase
+            .from('conversations')
+            .update({
+              type: item ? 'briefcase' : 'business',
+              item_id: targetId,
+              item_title: itemTitle,
+              item_image: imageUrl,
+              item_price: item?.price || null,
+            })
+            .eq('id', existing.id);
+        }
         router.push(`/chat/${existing.id}` as any);
       } else {
         const imageUrl = item?.images?.[0] || business.image_urls?.[0] || business.cover_image || '';

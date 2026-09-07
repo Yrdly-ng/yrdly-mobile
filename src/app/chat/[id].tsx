@@ -43,7 +43,7 @@ interface Message {
 
 interface ConversationMeta {
   id: string;
-  type: 'friend' | 'marketplace' | 'briefcase' | 'event';
+  type: 'friend' | 'marketplace' | 'briefcase' | 'event' | 'business';
   participant_ids: string[];
   item_id?: string;
   item_title?: string;
@@ -923,6 +923,92 @@ function ChatContent() {
     );
   };
 
+  const handleViewListing = useCallback(async () => {
+    if (!meta) return;
+
+    if (meta.item_id) {
+      if (meta.type === 'event') {
+        router.push(`/events/${meta.item_id}` as any);
+        return;
+      } else if (meta.type === 'briefcase') {
+        const { data: catItem } = await supabase
+          .from('catalog_items')
+          .select('id')
+          .eq('id', meta.item_id)
+          .maybeSingle();
+
+        if (catItem) {
+          router.push(`/businesses/catalog/${meta.item_id}` as any);
+          return;
+        }
+        const { data: biz } = await supabase
+          .from('businesses')
+          .select('id')
+          .eq('id', meta.item_id)
+          .maybeSingle();
+
+        if (biz) {
+          router.push(`/businesses/${meta.item_id}` as any);
+          return;
+        }
+      } else if (meta.type === 'business') {
+        router.push(`/businesses/${meta.item_id}` as any);
+        return;
+      } else {
+        router.push(`/marketplace/${meta.item_id}`);
+        return;
+      }
+    }
+
+    // Fallback lookup if meta.item_id is missing or null on old conversation records
+    if (meta.item_title) {
+      const cleanTitle = meta.item_title.replace(/\s*\(.*\)$/, '').trim();
+      const { data: catItem } = await supabase
+        .from('catalog_items')
+        .select('id')
+        .ilike('title', `%${cleanTitle}%`)
+        .limit(1)
+        .maybeSingle();
+
+      if (catItem) {
+        router.push(`/businesses/catalog/${catItem.id}` as any);
+        return;
+      }
+
+      const { data: post } = await supabase
+        .from('posts')
+        .select('id')
+        .ilike('title', `%${cleanTitle}%`)
+        .limit(1)
+        .maybeSingle();
+
+      if (post) {
+        router.push(`/marketplace/${post.id}`);
+        return;
+      }
+
+      const otherId = meta.participant_ids?.find((pid: string) => pid !== user?.id);
+      if (otherId) {
+        const { data: biz } = await supabase
+          .from('businesses')
+          .select('id')
+          .eq('owner_id', otherId)
+          .limit(1)
+          .maybeSingle();
+
+        if (biz) {
+          router.push(`/businesses/${biz.id}` as any);
+          return;
+        }
+      }
+    }
+
+    Alert.alert(
+      'Listing Unavailable',
+      'The item or business listing associated with this chat is no longer available.'
+    );
+  }, [meta, user, router]);
+
   const title =
     meta?.type === 'briefcase' || meta?.type === 'business'
       ? meta?.business_name || 'Business'
@@ -1081,19 +1167,7 @@ function ChatContent() {
             borderBottomWidth: 1,
             borderBottomColor: theme.colors.GLASS_BORDER,
           }}
-          onPress={() => {
-            if (meta?.item_id) {
-              if (meta.type === 'event') {
-                router.push(`/events/${meta.item_id}` as any);
-              } else if (meta.type === 'briefcase') {
-                router.push(`/businesses/catalog/${meta.item_id}` as any);
-              } else if (meta.type === 'business') {
-                router.push(`/businesses/${meta.item_id}` as any);
-              } else {
-                router.push(`/marketplace/${meta.item_id}`);
-              }
-            }
-          }}
+          onPress={handleViewListing}
           activeOpacity={0.7}
         >
           {meta.item_image && (
