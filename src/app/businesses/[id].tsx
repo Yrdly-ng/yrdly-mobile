@@ -494,10 +494,11 @@ export default function BusinessProfileScreen() {
             pathname: '/chat/[id]',
             params: {
               id: 'new',
-              type: 'briefcase',
+              type: item ? 'briefcase' : 'business',
               participant_id: business.owner_id,
               item_title: itemTitle,
               item_image: itemImg,
+              item_id: item ? item.id : business.id,
             },
           } as any);
         }
