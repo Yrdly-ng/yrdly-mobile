@@ -932,7 +932,7 @@ function ChatContent() {
     <KeyboardAvoidingView
       style={[stylesheet.container, { backgroundColor: theme.colors.DARK, paddingTop: insets.top }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 60 : 0}
+      keyboardVerticalOffset={0}
     >
       {/* Header */}
       <View
@@ -1087,6 +1087,8 @@ function ChatContent() {
                 router.push(`/events/${meta.item_id}` as any);
               } else if (meta.type === 'briefcase') {
                 router.push(`/businesses/catalog/${meta.item_id}` as any);
+              } else if (meta.type === 'business') {
+                router.push(`/businesses/${meta.item_id}` as any);
               } else {
                 router.push(`/marketplace/${meta.item_id}`);
               }

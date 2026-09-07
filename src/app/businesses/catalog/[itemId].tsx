@@ -154,8 +154,10 @@ export default function CatalogItemScreen() {
         router.push(`/chat/${existing.id}` as any);
       } else {
         const imageUrl = item?.images?.[0] || business.image_urls?.[0] || business.cover_image || '';
+        const chatType = item ? 'briefcase' : 'business';
+        const targetId = item ? item.id : business.id;
         router.push(
-          `/chat/new?type=business&participant_id=${business.owner_id}&item_title=${encodeURIComponent(item ? `${item.title} (${business.name})` : business.name)}&item_image=${encodeURIComponent(imageUrl)}` as any
+          `/chat/new?type=${chatType}&participant_id=${business.owner_id}&item_title=${encodeURIComponent(item ? `${item.title} (${business.name})` : business.name)}&item_image=${encodeURIComponent(imageUrl)}&item_id=${targetId}` as any
         );
       }
     } catch (e) {
