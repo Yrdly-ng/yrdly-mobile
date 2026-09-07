@@ -32,7 +32,10 @@ jobs:
         run: pnpm install
 
       - name: Install posthog-cli
-        run: pnpm add -g posthog-cli
+        run: |
+          npm install -g posthog-cli
+          sudo ln -s $(npm root -g)/posthog-cli/bin/posthog /usr/local/bin/posthog-cli || true
+          sudo ln -s $(which posthog-cli) /usr/local/bin/posthog-cli || true
 
       - name: Write .env file from secrets
         run: |
