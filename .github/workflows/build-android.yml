@@ -69,7 +69,7 @@ jobs:
                 "client_info": {
                   "mobilesdk_app_id": "1:303453233773:android:9166f29c296f509a845564",
                   "android_client_info": {
-                    "package_name": "com.feranmi.dev.yrdlymobile"
+                    "package_name": "com.yrdly"
                   }
                 },
                 "oauth_client": [],
