@@ -40,13 +40,38 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
 
     // Step 4a — handler (only now, after permission confirmed)
     Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: false,
-        shouldShowBanner: true,
-        shouldShowList: true,
-      }),
+      handleNotification: async (notification) => {
+        const type = notification.request.content.data?.type as string | undefined;
+        // Suppress OS push banner for events that already show in-app toasts
+        // (escrow status changes and chat messages)
+        const isToastCoveredEvent = type
+          ? [
+              'payment_successful',
+              'item_shipped',
+              'delivery_confirmed',
+              'funds_released',
+              'message',
+            ].includes(type)
+          : false;
+
+        if (isToastCoveredEvent) {
+          return {
+            shouldShowAlert: false,
+            shouldPlaySound: false,
+            shouldSetBadge: false,
+            shouldShowBanner: false,
+            shouldShowList: false,
+          };
+        }
+
+        return {
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: false,
+          shouldShowBanner: true,
+          shouldShowList: true,
+        };
+      },
     });
 
     // Step 4b — channel (Android only, after permission)

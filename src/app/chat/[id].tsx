@@ -27,6 +27,7 @@ import { useAuth } from '../../hooks/use-supabase-auth';
 import { useAppTheme } from '../../context/ThemeContext';
 import { formatPrice } from '../../lib/utils';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { setActiveConversationId } from '../../lib/active-chat-tracker';
 
 interface Message {
   id: string;
@@ -121,6 +122,17 @@ function ChatContent() {
   const { user, profile, updateProfile } = useAuth();
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
+
+  useEffect(() => {
+    if (isFocused && id && id !== 'new') {
+      setActiveConversationId(id);
+    } else {
+      setActiveConversationId(null);
+    }
+    return () => {
+      setActiveConversationId(null);
+    };
+  }, [isFocused, id]);
 
   const [meta, setMeta] = useState<ConversationMeta | null>(null);
   const [otherUser, setOtherUser] = useState<{

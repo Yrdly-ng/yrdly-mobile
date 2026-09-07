@@ -1,7 +1,6 @@
 import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import { useFollowStatus } from '../hooks/use-follow-status';
 import { GlassCard } from './GlassCard';
@@ -27,7 +26,8 @@ interface DiscoverUserCardProps {
 export function DiscoverUserCard({ user, context, mutualCount, onPress }: DiscoverUserCardProps) {
   const { styles: stylesheet, theme } = useStyles(_stylesheet);
 
-  const { isFollowing, isMutual, actionLoading, toggleFollow } = useFollowStatus(user.id);
+  const userId = user?.id || '';
+  const { isFollowing, actionLoading, toggleFollow } = useFollowStatus(userId);
 
   // Derive badge text/icon based on context
   let badgeIcon: keyof typeof Feather.glyphMap = 'map-pin';
@@ -35,11 +35,17 @@ export function DiscoverUserCard({ user, context, mutualCount, onPress }: Discov
 
   if (context === 'neighbor') {
     badgeIcon = 'map-pin';
-    badgeText = user.home_lga
-      ? `${user.home_lga}, ${user.home_state}`
-      : user.home_state || user.location?.lga
-        ? `${user.location?.lga}, ${user.location?.state}`
-        : 'Nearby';
+    if (user?.home_lga && user?.home_state) {
+      badgeText = `${user.home_lga}, ${user.home_state}`;
+    } else if (user?.home_state) {
+      badgeText = `${user.home_state} State`;
+    } else if (user?.location?.lga && user?.location?.state) {
+      badgeText = `${user.location.lga}, ${user.location.state}`;
+    } else if (user?.location?.state) {
+      badgeText = `${user.location.state} State`;
+    } else {
+      badgeText = 'Nearby';
+    }
   } else if (context === 'mutual') {
     badgeIcon = 'users';
     badgeText = `${mutualCount || 1} mutual friend${(mutualCount || 1) !== 1 ? 's' : ''}`;
@@ -59,8 +65,8 @@ export function DiscoverUserCard({ user, context, mutualCount, onPress }: Discov
         style={StyleSheet.flatten([stylesheet.card, { borderColor: theme.colors.GLASS_BORDER }])}
       >
         <Avatar
-          url={user.avatar_url}
-          name={user.name}
+          url={user?.avatar_url}
+          name={user?.name}
           size={100}
           style={[stylesheet.avatar as any, { backgroundColor: theme.colors.DARK }]}
           fallbackStyle={{ backgroundColor: theme.colors.G }}
@@ -69,7 +75,7 @@ export function DiscoverUserCard({ user, context, mutualCount, onPress }: Discov
 
         <View style={stylesheet.content}>
           <Text style={[stylesheet.name, { color: theme.colors.TEXT_PRIMARY }]} numberOfLines={1}>
-            {user.name || 'Anonymous'}
+            {user?.name || 'Anonymous'}
           </Text>
 
           <View style={stylesheet.badgeRow}>
@@ -92,7 +98,7 @@ export function DiscoverUserCard({ user, context, mutualCount, onPress }: Discov
             isFollowing && { borderColor: theme.colors.GLASS_BORDER, borderWidth: 1 },
           ]}
           onPress={handleAction}
-          disabled={actionLoading}
+          disabled={actionLoading || !userId}
         >
           {actionLoading ? (
             <ActivityIndicator size="small" color={theme.colors.G} />

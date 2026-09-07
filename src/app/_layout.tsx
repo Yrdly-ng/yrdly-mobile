@@ -1,5 +1,7 @@
 import '../theme/unistyles';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ToastProvider } from '@/components/toast';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Stack, useRouter, useSegments, usePathname, useGlobalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -9,11 +11,12 @@ import { ThemeProvider } from '../context/ThemeContext';
 import { LocationProvider } from '../context/LocationContext';
 import { NotificationBadgeProvider } from '../context/NotificationBadgeContext';
 import * as SplashScreen from 'expo-splash-screen';
+import AnimatedSplashScreen from '../components/AnimatedSplashScreen';
 import { PostHogProvider, usePostHog, PostHogErrorBoundary } from 'posthog-react-native';
 import { setAudioModeAsync } from 'expo-audio';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { ErrorBoundary } from '../components/ErrorBoundary';
-import { oneSignalService, OneSignalVerificationDialog } from '../lib/onesignal';
+import { oneSignalService } from '../lib/onesignal';
 import { useFonts } from 'expo-font';
 import {
   Outfit_300Light,
@@ -92,12 +95,20 @@ function AudioSettingsHandler() {
   return null;
 }
 
-function RootNavigationGuard() {
+function RootNavigationGuard({
+  onAuthLoadingChange,
+}: {
+  onAuthLoadingChange: (loading: boolean) => void;
+}) {
   const { user, profile, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
   const [profileWaitTime, setProfileWaitTime] = useState(0);
+
+  useEffect(() => {
+    onAuthLoadingChange(loading);
+  }, [loading, onAuthLoadingChange]);
 
   useEffect(() => {
     if (user && !profile) {
@@ -110,9 +121,6 @@ function RootNavigationGuard() {
 
   useEffect(() => {
     if (loading) return;
-
-    // Auth state resolved — dismiss the splash screen
-    SplashScreen.hideAsync().catch(() => {});
 
     const inAuth = segments[0] === '(auth)' || (segments[0] as string) === 'auth';
     const inOnboarding = segments[0] === '(onboarding)';
@@ -169,6 +177,7 @@ function RootNavigationGuard() {
 
   return (
     <ErrorBoundary>
+      <AnalyticsTracker />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
@@ -195,6 +204,10 @@ import { getStoredThemePreference } from '../lib/theme-preference';
 
 function Layout() {
   useEffect(() => {
+    SplashScreen.hideAsync().catch(() => {});
+  }, []);
+
+  useEffect(() => {
     oneSignalService.initialize();
 
     getStoredThemePreference().then((theme) => {
@@ -203,6 +216,9 @@ function Layout() {
       }
     });
   }, []);
+
+  const [authLoading, setAuthLoading] = useState(true);
+  const [appFullyTransitioned, setAppFullyTransitioned] = useState(false);
 
   const [fontsLoaded] = useFonts({
     Outfit: Outfit_400Regular,
@@ -220,43 +236,56 @@ function Layout() {
     'Inter-Bold': Inter_700Bold,
   });
 
-  // Keep splash screen visible until fonts are ready
-  useEffect(() => {
-    if (fontsLoaded) {
-      SplashScreen.hideAsync().catch(() => {});
-    }
-  }, [fontsLoaded]);
-
-  if (!fontsLoaded) {
-    return <View style={{ flex: 1, backgroundColor: '#050505' }} />;
-  }
-
   const posthogKey = process.env.EXPO_PUBLIC_POSTHOG_KEY || process.env.EXPO_PUBLIC_POSTHOG_API_KEY;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      {posthogKey ? (
-        <PostHogProvider
-          apiKey={posthogKey}
-          options={{
-            host: process.env.EXPO_PUBLIC_POSTHOG_HOST,
-            captureAppLifecycleEvents: true,
-            enableSessionReplay: true,
-            errorTracking: {
-              autocapture: {
-                uncaughtExceptions: true,
-                unhandledRejections: true,
-                nativeCrashes: true,
-              },
-            },
-          }}
-          autocapture={{ captureTouches: true }}
-        >
-          <PostHogErrorBoundary
-            fallback={ErrorFallback}
-            additionalProperties={{ app_section: 'root' }}
-          >
-            <AnalyticsTracker />
+      {!appFullyTransitioned && (
+        <AnimatedSplashScreen
+          ready={fontsLoaded && !authLoading}
+          onFinished={() => setAppFullyTransitioned(true)}
+        />
+      )}
+      <SafeAreaProvider>
+        <ToastProvider position="bottom">
+          {posthogKey ? (
+            <PostHogProvider
+              apiKey={posthogKey}
+              options={{
+                host: process.env.EXPO_PUBLIC_POSTHOG_HOST,
+                captureAppLifecycleEvents: true,
+                enableSessionReplay: true,
+                errorTracking: {
+                  autocapture: {
+                    nativeCrashes: true,
+                    unhandledRejections: true,
+                  },
+                },
+              }}
+              autocapture={{ captureTouches: true, captureScreens: false }}
+            >
+              <PostHogErrorBoundary
+                fallback={ErrorFallback}
+                additionalProperties={{ app_section: 'root' }}
+              >
+                <KeyboardProvider>
+                  <ThemeProvider>
+                    <BottomSheetModalProvider>
+                      <AuthProvider>
+                        <LocationProvider>
+                          <NotificationBadgeProvider>
+                            <AudioSettingsHandler />
+                            <NotificationsHandler />
+                            <RootNavigationGuard onAuthLoadingChange={setAuthLoading} />
+                          </NotificationBadgeProvider>
+                        </LocationProvider>
+                      </AuthProvider>
+                    </BottomSheetModalProvider>
+                  </ThemeProvider>
+                </KeyboardProvider>
+              </PostHogErrorBoundary>
+            </PostHogProvider>
+          ) : (
             <KeyboardProvider>
               <ThemeProvider>
                 <BottomSheetModalProvider>
@@ -265,34 +294,16 @@ function Layout() {
                       <NotificationBadgeProvider>
                         <AudioSettingsHandler />
                         <NotificationsHandler />
-                        <OneSignalVerificationDialog />
-                        <RootNavigationGuard />
+                        <RootNavigationGuard onAuthLoadingChange={setAuthLoading} />
                       </NotificationBadgeProvider>
                     </LocationProvider>
                   </AuthProvider>
                 </BottomSheetModalProvider>
               </ThemeProvider>
             </KeyboardProvider>
-          </PostHogErrorBoundary>
-        </PostHogProvider>
-      ) : (
-        <KeyboardProvider>
-          <ThemeProvider>
-            <BottomSheetModalProvider>
-              <AuthProvider>
-                <LocationProvider>
-                  <NotificationBadgeProvider>
-                    <AudioSettingsHandler />
-                    <NotificationsHandler />
-                    <OneSignalVerificationDialog />
-                    <RootNavigationGuard />
-                  </NotificationBadgeProvider>
-                </LocationProvider>
-              </AuthProvider>
-            </BottomSheetModalProvider>
-          </ThemeProvider>
-        </KeyboardProvider>
-      )}
+          )}
+        </ToastProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

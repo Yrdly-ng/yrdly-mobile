@@ -29,8 +29,8 @@ import { formatPrice, getDistanceStr } from '../../lib/utils';
 import { useNotificationBadge } from '../../context/NotificationBadgeContext';
 import * as Location from 'expo-location';
 import { LocationPicker, LocationValue } from '../../components/LocationPicker';
-import { useFollowStatus } from '../../hooks/use-follow-status';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
+import { DiscoverPeopleSection } from '../../components/DiscoverPeopleSection';
 
 const { width } = Dimensions.get('window');
 type TabType = 'Discover' | 'Marketplace' | 'Events' | 'Businesses';
@@ -53,305 +53,16 @@ const CATS = [
 ];
 
 // ─── DISCOVER SECTION ────────────────────────────────────────────────────────
-function NearbyUserCard({ user, currentLoc, sStylesheet, theme, onPress, focusKey }: any) {
-  const { isFollowing, isFollower, isMutual, actionLoading, toggleFollow } = useFollowStatus(
-    user.id,
-    focusKey
-  );
-  const avatar =
-    user.avatar_url && !user.avatar_url.startsWith('file://') ? { uri: user.avatar_url } : null;
-
-  const handleAction = () => {
-    toggleFollow();
-  };
+function DiscoverSection({ search }: { search: string }) {
+  const params = useLocalSearchParams<{ circleMode?: string; mode?: string }>();
+  const initialMode =
+    params.circleMode === 'circle' || params.mode === 'circle' ? 'circle' : 'nearby';
 
   return (
-    <TouchableOpacity style={sStylesheet.nearbyCard} onPress={onPress} activeOpacity={0.8}>
-      <View style={sStylesheet.nearbyAvatarWrap}>
-        {avatar ? (
-          <Image source={avatar} style={sStylesheet.nearbyAvatar} contentFit="cover" />
-        ) : (
-          <View
-            style={[
-              sStylesheet.nearbyAvatar,
-              {
-                backgroundColor: theme.colors.SURFACE,
-                alignItems: 'center',
-                justifyContent: 'center',
-              },
-            ]}
-          >
-            <Text
-              style={{ color: theme.colors.TEXT_PRIMARY, fontSize: 24, fontFamily: 'Outfit-Bold' }}
-            >
-              {(user.name || '?')[0].toUpperCase()}
-            </Text>
-          </View>
-        )}
-      </View>
-      <View style={sStylesheet.nearbyInfo}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <Text style={sStylesheet.nearbyName} numberOfLines={1}>
-            {(user.name || 'User').split(' ')[0]}
-          </Text>
-          {user.phone_verified && <VerifiedBadge size={12} />}
-        </View>
-        <Text style={sStylesheet.nearbyHandle} numberOfLines={1}>
-          @{user.username || (user.name || 'user').replace(/\s+/g, '').toLowerCase()}
-        </Text>
-        <View style={sStylesheet.nearbyDistRow}>
-          <Ionicons name="location" size={11} color={theme.colors.LABEL} />
-          <Text style={sStylesheet.nearbyDistText}>
-            {getDistanceStr(
-              currentLoc?.coords.latitude,
-              currentLoc?.coords.longitude,
-              user.home_lat ?? user.current_location?.lat ?? user.currentLocation?.lat,
-              user.home_lng ?? user.current_location?.lng ?? user.currentLocation?.lng
-            )}
-          </Text>
-        </View>
-      </View>
-      <TouchableOpacity
-        style={[sStylesheet.connectBtn, (isFollowing || isMutual) && sStylesheet.connectBtnActive]}
-        onPress={handleAction}
-        disabled={actionLoading}
-      >
-        {actionLoading ? (
-          <ActivityIndicator size="small" color={theme.colors.G} />
-        ) : (
-          <Text
-            style={[
-              sStylesheet.connectBtnText,
-              (isFollowing || isMutual) && sStylesheet.connectBtnTextActive,
-            ]}
-          >
-            {isMutual
-              ? 'Friends'
-              : isFollowing
-                ? 'Following'
-                : isFollower
-                  ? 'Follow Back'
-                  : 'Follow'}
-          </Text>
-        )}
-      </TouchableOpacity>
-    </TouchableOpacity>
-  );
-}
-
-function DiscoverSection({
-  currentLoc,
-  search,
-  focusKey,
-}: {
-  currentLoc: Location.LocationObject | null;
-  search: string;
-  focusKey: number;
-}) {
-  const { styles: sStylesheet, theme } = useStyles(stylesheet);
-  const { activeFilter } = useLocation();
-
-  const { profile } = useAuth();
-  const router = useRouter();
-  const [users, setUsers] = useState<User[]>([]);
-  const [sellers, setSellers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchUsers() {
-      if (!profile) return;
-      setLoading(true);
-
-      let q = supabase
-        .from('users')
-        .select('*')
-        .neq('id', profile.id)
-        .or('discoverable.is.null,discoverable.eq.true')
-        .limit(20);
-
-      if (search.trim()) {
-        q = q.ilike('name', `%${search.trim()}%`);
-      } else {
-        if (activeFilter) {
-          if (activeFilter.lga) {
-            q = q.eq('home_lga', activeFilter.lga);
-          } else if (activeFilter.state) {
-            q = q.eq('home_state', activeFilter.state);
-          }
-        } else {
-          // Default: show people in the same LGA/state as the current user
-          const homeLga = profile.home_lga || profile.location?.lga;
-          const homeState = profile.home_state || profile.location?.state;
-          if (homeLga) {
-            q = q.eq('home_lga', homeLga);
-          } else if (homeState) {
-            q = q.eq('home_state', homeState);
-          }
-        }
-      }
-
-      const { data } = await q;
-      if (data) setUsers(data as User[]);
-
-      // Fetch actual active sellers based on posts
-      const { data: postsData } = await supabase
-        .from('posts')
-        .select('user_id')
-        .in('category', ['For Sale', 'Giveaway'])
-        .limit(100);
-
-      if (postsData && postsData.length > 0) {
-        const sellerIds = Array.from(new Set(postsData.map((p) => p.user_id)));
-        const { data: sellersData } = await supabase
-          .from('users')
-          .select('*')
-          .in('id', sellerIds)
-          .neq('id', profile.id)
-          .limit(10);
-        if (sellersData) {
-          setSellers(sellersData as User[]);
-        }
-      }
-
-      setLoading(false);
-    }
-    const timeoutId = setTimeout(() => {
-      fetchUsers();
-    }, 300); // debounce search
-    return () => clearTimeout(timeoutId);
-  }, [profile, search, activeFilter]);
-
-  const nearby = users;
-  const mutuals: User[] = [];
-  const nearbyLabel = activeFilter ? 'IN YOUR AREA' : 'PEOPLE NEARBY';
-
-  if (loading) return <ActivityIndicator color={theme.colors.G} style={{ marginTop: 40 }} />;
-
-  if (search.trim() && users.length === 0) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 100 }}>
-        <Ionicons name="search" size={48} color={theme.colors.MUTED} style={{ marginBottom: 16 }} />
-        <Text style={{ fontFamily: 'Outfit-Bold', fontSize: 18, color: theme.colors.TEXT_PRIMARY }}>
-          No results found
-        </Text>
-        <Text
-          style={{
-            fontFamily: 'Inter-Regular',
-            fontSize: 14,
-            color: theme.colors.LABEL,
-            marginTop: 8,
-          }}
-        >
-          Try a different search term
-        </Text>
-      </View>
-    );
-  }
-
-  if (search.trim() && users.length > 0) {
-    return (
-      <FlatList
-        data={users}
-        keyExtractor={(u) => u.id}
-        numColumns={2}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100, gap: 16 }}
-        columnWrapperStyle={{ gap: 16 }}
-        showsVerticalScrollIndicator={false}
-        renderItem={({ item: u }) => (
-          <NearbyUserCard
-            user={u}
-            context="neighbor"
-            currentLoc={currentLoc}
-            sStylesheet={sStylesheet}
-            theme={theme}
-            focusKey={focusKey}
-            onPress={() => router.push(`/profile/${u.id}` as any)}
-          />
-        )}
-      />
-    );
-  }
-
-  return (
-    <ScrollView
-      style={sStylesheet.sectionContainer}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingBottom: 100 }}
-    >
-      {/* Nearby */}
-      {nearby.length > 0 && (
-        <View style={sStylesheet.discoverGroup}>
-          <Text style={sStylesheet.discoverGroupTitle}>{nearbyLabel}</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
-          >
-            {nearby.map((p) => (
-              <NearbyUserCard
-                key={p.id}
-                user={p}
-                currentLoc={currentLoc}
-                focusKey={focusKey}
-                sStylesheet={sStylesheet}
-                theme={theme}
-                onPress={() => router.push(`/profile/${p.id}` as any)}
-              />
-            ))}
-          </ScrollView>
-        </View>
-      )}
-
-      {/* Mutuals */}
-      {mutuals.length > 0 && (
-        <View style={sStylesheet.discoverGroup}>
-          <Text style={sStylesheet.discoverGroupTitle}>PEOPLE YOU MAY KNOW</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
-          >
-            {mutuals.map((p) => (
-              <NearbyUserCard
-                key={p.id}
-                user={p}
-                context="mutual"
-                sStylesheet={sStylesheet}
-                theme={theme}
-                currentLoc={currentLoc}
-                focusKey={focusKey}
-                onPress={() => router.push(`/profile/${p.id}` as any)}
-              />
-            ))}
-          </ScrollView>
-        </View>
-      )}
-
-      {/* Sellers */}
-      {sellers.length > 0 && (
-        <View style={sStylesheet.discoverGroup}>
-          <Text style={sStylesheet.discoverGroupTitle}>ACTIVE SELLERS</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
-          >
-            {sellers.map((p) => (
-              <NearbyUserCard
-                key={p.id}
-                user={p}
-                context="seller"
-                sStylesheet={sStylesheet}
-                theme={theme}
-                currentLoc={currentLoc}
-                focusKey={focusKey}
-                onPress={() => router.push(`/profile/${p.id}` as any)}
-              />
-            ))}
-          </ScrollView>
-        </View>
-      )}
-    </ScrollView>
+    <DiscoverPeopleSection
+      search={search}
+      initialMode={initialMode}
+    />
   );
 }
 
@@ -1546,7 +1257,7 @@ export default function CatalogTab() {
 
       {/* ── Tab Content ── */}
       {activeTab === 'Discover' && (
-        <DiscoverSection currentLoc={currentLoc} search={debouncedSearch} focusKey={focusKey} />
+        <DiscoverSection search={debouncedSearch} />
       )}
       {activeTab === 'Marketplace' && (
         <MarketplaceSection currentLoc={currentLoc} search={debouncedSearch} />
