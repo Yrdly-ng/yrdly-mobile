@@ -63,6 +63,8 @@ export function useFollowStatus(targetUserId: string, refreshKey?: number) {
           following_id: targetUserId,
         });
         setIsFollowing(true);
+        const { NotificationTriggers } = await import('../lib/notification-triggers');
+        await NotificationTriggers.onNewFollower(user.id, targetUserId);
       }
     } catch (e) {
       console.error('Error toggling follow:', e);

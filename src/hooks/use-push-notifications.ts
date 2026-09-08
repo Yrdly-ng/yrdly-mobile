@@ -122,7 +122,19 @@ function translateNotificationUrl(url: string): string {
     return `/chat/${id}`;
   }
   if (url === '/home') return '/(tabs)';
+  if (url.startsWith('/events/')) {
+    const id = url.split('/')[2];
+    return `/events/${id}`;
+  }
   if (url === '/events') return '/(tabs)/catalog?tab=Events';
+  if (url.startsWith('/businesses/catalog/')) {
+    const id = url.split('/')[3];
+    return `/businesses/catalog/${id}`;
+  }
+  if (url.startsWith('/businesses/')) {
+    const id = url.split('/')[2];
+    return `/businesses/${id}`;
+  }
   if (url === '/my-tickets') return '/tickets';
   if (url === '/marketplace') return '/(tabs)/catalog?tab=Marketplace';
   if (url.startsWith('/posts/') || url.startsWith('/transactions')) return url;
