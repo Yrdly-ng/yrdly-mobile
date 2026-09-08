@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { AuthService, AuthUser } from '@/lib/auth-service';
 import { supabase } from '@/lib/supabase';
+import { getOrCreateDeviceId } from '@/lib/device-id';
 import * as FileSystem from 'expo-file-system/legacy';
 import NetInfo from '@react-native-community/netinfo';
 
@@ -419,7 +420,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 
       if (user) {
-        await AuthService.updateUserProfile(user.id, { push_token: null as any }).catch(console.error);
+        try {
+          const deviceId = await getOrCreateDeviceId();
+          await supabase
+            .from('user_push_tokens')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('device_id', deviceId);
+        } catch (err) {
+          console.error('Failed to delete push token on sign out:', err);
+        }
       }
 
       FileSystem.deleteAsync(PROFILE_CACHE_FILE, { idempotent: true }).catch(() => {});
