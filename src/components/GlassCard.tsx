@@ -30,6 +30,9 @@ export function GlassCard({
 }: GlassCardProps) {
   const { theme } = useStyles();
 
+  const flattenedStyle = StyleSheet.flatten(style);
+  const effectiveRadius = flattenedStyle?.borderRadius ?? borderRadius;
+
   if (Platform.OS === 'ios') {
     return (
       <BlurView
@@ -38,9 +41,8 @@ export function GlassCard({
         style={[
           styles.glassIOS,
           {
-            borderRadius,
+            borderRadius: effectiveRadius,
             borderColor: theme.colors.GLASS_BORDER,
-            shadowColor: theme.colors.DARK,
           },
           style as any,
         ]}
@@ -48,7 +50,7 @@ export function GlassCard({
         <View
           style={[
             styles.glassInner,
-            { borderRadius, backgroundColor: theme.colors.GLASS_BG },
+            { backgroundColor: theme.colors.GLASS_BG },
             contentStyle as any,
           ]}
         >
@@ -64,7 +66,7 @@ export function GlassCard({
       style={[
         styles.glassAndroid,
         {
-          borderRadius,
+          borderRadius: effectiveRadius,
           backgroundColor: theme.colors.SURFACE,
           borderColor: theme.colors.GLASS_BORDER,
         },
@@ -81,9 +83,6 @@ const styles = StyleSheet.create({
   glassIOS: {
     overflow: 'hidden',
     borderWidth: 0.5,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
   },
   glassInner: {
     overflow: 'hidden',
@@ -93,3 +92,4 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
 });
+

@@ -647,9 +647,9 @@ export default function CheckoutScreen() {
           </View>
         </View>
 
-        {/* Delivery */}
+        {/* Delivery / Pickup */}
         <View style={stylesheet.card}>
-          <Text style={stylesheet.sectionTitle}>DELIVERY / PICKUP</Text>
+          <Text style={stylesheet.sectionTitle}>PICKUP / MEET-UP</Text>
 
           {/* Meetup Option */}
           <TouchableOpacity
@@ -672,42 +672,12 @@ export default function CheckoutScreen() {
               <Text
                 style={[
                   stylesheet.optionTitle,
-                  { color: deliveryMethod === 'meetup' ? '#fff' : theme.colors.MUTED },
+                  { color: theme.colors.TEXT_PRIMARY },
                 ]}
               >
                 Meet-up · {item?.area ?? 'Local Area'}
               </Text>
               <Text style={stylesheet.optionDesc}>Agree a safe public meeting point</Text>
-            </View>
-          </TouchableOpacity>
-
-          {/* Delivery Option */}
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={stylesheet.optionRow}
-            onPress={() => setDeliveryMethod('delivery')}
-          >
-            <View
-              style={[
-                stylesheet.radioOuter,
-                {
-                  borderColor:
-                    deliveryMethod === 'delivery' ? theme.colors.G : theme.colors.GLASS_BORDER,
-                },
-              ]}
-            >
-              {deliveryMethod === 'delivery' && <View style={stylesheet.radioInner} />}
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text
-                style={[
-                  stylesheet.optionTitle,
-                  { color: deliveryMethod === 'delivery' ? '#fff' : theme.colors.MUTED },
-                ]}
-              >
-                Delivery (add address)
-              </Text>
-              <Text style={stylesheet.optionDesc}>Seller ships to you</Text>
             </View>
           </TouchableOpacity>
         </View>
