@@ -498,7 +498,7 @@ export default function BusinessProfileScreen() {
               participant_id: business.owner_id,
               item_title: itemTitle,
               item_image: itemImg,
-              item_id: item ? item.id : business.id,
+              item_id: item ? item.id : undefined,
             },
           } as any);
         }

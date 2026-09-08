@@ -163,7 +163,7 @@ export default function CatalogItemScreen() {
       if (existing) {
         if (item || !existing.item_id) {
           const imageUrl = item?.images?.[0] || business.image_urls?.[0] || business.cover_image || '';
-          const targetId = item ? item.id : business.id;
+          const targetId = item ? item.id : null;
           const itemTitle = item ? `${item.title} (${business.name})` : business.name;
           await supabase
             .from('conversations')
@@ -180,9 +180,9 @@ export default function CatalogItemScreen() {
       } else {
         const imageUrl = item?.images?.[0] || business.image_urls?.[0] || business.cover_image || '';
         const chatType = item ? 'briefcase' : 'business';
-        const targetId = item ? item.id : business.id;
+        const itemParam = item ? `&item_id=${item.id}` : '';
         router.push(
-          `/chat/new?type=${chatType}&participant_id=${business.owner_id}&item_title=${encodeURIComponent(item ? `${item.title} (${business.name})` : business.name)}&item_image=${encodeURIComponent(imageUrl)}&item_id=${targetId}` as any
+          `/chat/new?type=${chatType}&participant_id=${business.owner_id}&item_title=${encodeURIComponent(item ? `${item.title} (${business.name})` : business.name)}&item_image=${encodeURIComponent(imageUrl)}${itemParam}` as any
         );
       }
     } catch (e) {

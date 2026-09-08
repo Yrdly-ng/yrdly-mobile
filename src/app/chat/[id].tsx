@@ -432,12 +432,23 @@ function ChatContent() {
       }
       let currentConvId = id;
       if (id === 'new') {
+        let validItemId = paramItemId || null;
+        if (validItemId) {
+          const [{ data: pData }, { data: cData }] = await Promise.all([
+            supabase.from('posts').select('id').eq('id', validItemId).maybeSingle(),
+            supabase.from('catalog_items').select('id').eq('id', validItemId).maybeSingle(),
+          ]);
+          if (!pData && !cData) {
+            validItemId = null;
+          }
+        }
+
         const { data: newConv, error: newError } = await supabase
           .from('conversations')
           .insert({
-            type: paramType,
+            type: paramType || 'friend',
             participant_ids: [user.id, paramParticipantId],
-            item_id: paramItemId || null,
+            item_id: validItemId,
             item_title: paramItemTitle || null,
             item_image: paramItemImage || null,
             item_price: paramItemPrice ? Number(paramItemPrice) : null,
@@ -585,12 +596,23 @@ function ChatContent() {
 
       if (id === 'new') {
         const { type, participant_id, item_id, item_title, item_image, item_price } = params;
+        let validItemId = item_id || null;
+        if (validItemId) {
+          const [{ data: pData }, { data: cData }] = await Promise.all([
+            supabase.from('posts').select('id').eq('id', validItemId).maybeSingle(),
+            supabase.from('catalog_items').select('id').eq('id', validItemId).maybeSingle(),
+          ]);
+          if (!pData && !cData) {
+            validItemId = null;
+          }
+        }
+
         const { data: newConv, error: newError } = await supabase
           .from('conversations')
           .insert({
             type,
             participant_ids: [user.id, participant_id],
-            item_id: item_id || null,
+            item_id: validItemId,
             item_title: item_title || null,
             item_image: item_image || null,
             item_price: item_price ? Number(item_price) : null,

@@ -372,7 +372,7 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
         footerComponent={renderFooter}
         backgroundStyle={{ backgroundColor: theme.colors.DARK }}
         handleIndicatorStyle={{ backgroundColor: theme.colors.GLASS_BORDER }}
-        keyboardBehavior="extend"
+        keyboardBehavior={Platform.OS === 'android' ? 'none' : 'extend'}
         keyboardBlurBehavior="none"
         android_keyboardInputMode="adjustResize"
       >

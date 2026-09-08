@@ -94,11 +94,12 @@ export const CommentInput = forwardRef<CommentInputRef, CommentInputProps>(
           {
             borderTopColor: theme.colors.GLASS_BORDER,
             backgroundColor: theme.colors.DARK,
-            paddingBottom: keyboardVisible
-              ? Platform.OS === 'android'
+            paddingBottom:
+              InputComponent !== TextInput && Platform.OS === 'android'
                 ? 12
-                : 12
-              : Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 12),
+                : keyboardVisible
+                  ? 12
+                  : Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 12),
           },
         ]}
       >
