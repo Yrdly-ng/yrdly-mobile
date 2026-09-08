@@ -7,6 +7,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { SafetyAlert } from '../../types';
 import { PushNotificationService } from '../../lib/push-notification-service';
+import { isResolved } from '../../constants/alerts';
 
 export default function SafetyAlertsScreen() {
   const { styles: s, theme } = useStyles(sStylesheet);
@@ -101,6 +102,23 @@ export default function SafetyAlertsScreen() {
     }
   };
 
+  const handleResolve = async (alert: SafetyAlert) => {
+    try {
+      const { error } = await supabase
+        .from('safety_alerts')
+        .update({ is_resolved: true, resolved_at: new Date().toISOString() })
+        .eq('id', alert.id);
+
+      if (error) throw error;
+
+      setAlerts((prev) => prev.filter((a) => a.id !== alert.id));
+      Alert.alert('Resolved', 'Alert marked as resolved.');
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Error', 'Failed to resolve alert');
+    }
+  };
+
   return (
     <SafeAreaView style={s.root} edges={['top', 'bottom']}>
       <View style={s.header}>
@@ -184,8 +202,20 @@ export default function SafetyAlertsScreen() {
                     </TouchableOpacity>
                   </View>
                 ) : (
-                  <View style={s.statusBadge}>
-                    <Text style={s.statusBadgeText}>STATUS: {alert.status.toUpperCase()}</Text>
+                  <View style={s.historyActionRow}>
+                    <View style={s.statusBadge}>
+                      <Text style={s.statusBadgeText}>
+                        STATUS: {isResolved(alert) ? 'RESOLVED' : alert.status.toUpperCase()}
+                      </Text>
+                    </View>
+                    {alert.status === 'approved' && !isResolved(alert) && (
+                      <TouchableOpacity
+                        style={s.btnResolve}
+                        onPress={() => handleResolve(alert)}
+                      >
+                        <Text style={s.btnTextResolve}>Mark resolved</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 )}
               </View>
@@ -315,6 +345,12 @@ const sStylesheet = createStyleSheet((theme) => ({
   alertSub: { fontFamily: 'Inter', fontSize: 12, color: theme.colors.MUTED, marginBottom: 16 },
 
   actionRow: { flexDirection: 'row', gap: 12 },
+  historyActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
   btn: {
     flex: 1,
     paddingVertical: 12,
@@ -327,4 +363,17 @@ const sStylesheet = createStyleSheet((theme) => ({
   btnApprove: { backgroundColor: theme.colors.G, borderColor: theme.colors.G },
   btnTextReject: { fontFamily: 'Outfit-SemiBold', fontSize: 14, color: theme.colors.TEXT_PRIMARY },
   btnTextApprove: { fontFamily: 'Outfit-SemiBold', fontSize: 14, color: theme.colors.DARK },
+  btnResolve: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: theme.colors.SURFACE_ALT,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+  },
+  btnTextResolve: {
+    fontFamily: 'Outfit-SemiBold',
+    fontSize: 12,
+    color: theme.colors.TEXT_PRIMARY,
+  },
 }));

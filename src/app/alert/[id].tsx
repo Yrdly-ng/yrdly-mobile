@@ -14,6 +14,13 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { Alert } from '../../lib/alert-service';
+import {
+  getSeverityTier,
+  getAlertLabel,
+  isResolved as checkIsResolved,
+  formatAlertDate,
+} from '../../constants/alerts';
+import { SeverityStrip } from '../../components/alerts/SeverityStrip';
 
 export default function AlertDetailsScreen() {
   const { styles: stylesheet, theme } = useStyles(_stylesheet);
@@ -116,32 +123,71 @@ export default function AlertDetailsScreen() {
     );
   }
 
-  const SEVERITY_COLORS = {
-    urgent: {
-      bg: 'rgba(239,68,68,0.08)',
-      border: 'rgba(239,68,68,0.2)',
-      text: '#ef4444',
-      icon: '#ef4444',
-    },
-    caution: {
-      bg: 'rgba(245,158,11,0.08)',
-      border: 'rgba(245,158,11,0.2)',
-      text: '#f59e0b',
-      icon: '#f59e0b',
-    },
-    information: {
-      bg: 'rgba(59,130,246,0.08)',
-      border: 'rgba(59,130,246,0.2)',
-      text: '#3b82f6',
-      icon: '#3b82f6',
-    },
-  };
+  const resolved = checkIsResolved(alert);
+  const tier = getSeverityTier(alert);
+  const c = theme.SEVERITY[tier];
+  const isMissingPerson = Boolean(alert.subject_name || alert.subject_photo_url);
 
-  const isResolved = alert.status === 'resolved';
-  const severityKey = ['urgent', 'caution'].includes(alert.severity || '')
-    ? (alert.severity as keyof typeof SEVERITY_COLORS)
-    : 'information';
-  const c = SEVERITY_COLORS[severityKey];
+  let iconName: keyof typeof Ionicons.glyphMap = 'information-circle-outline';
+  if (isMissingPerson) {
+    iconName = 'body-outline';
+  } else if (tier === 'urgent') {
+    iconName = 'warning';
+  } else if (tier === 'caution') {
+    iconName = 'alert-circle-outline';
+  }
+
+  const extraBlocks = (
+    <>
+      {alert.subject_photo_url && (
+        <Image
+          source={{ uri: alert.subject_photo_url }}
+          style={stylesheet.photo}
+          resizeMode="cover"
+        />
+      )}
+
+      {(alert.subject_name || alert.source) && (
+        <View style={stylesheet.detailsCard}>
+          {alert.subject_name && (
+            <View style={stylesheet.infoRow}>
+              <Feather name="user" size={18} color={theme.colors.LABEL} />
+              <Text style={stylesheet.infoText}>
+                {alert.subject_name} {alert.subject_age ? `(${alert.subject_age} years old)` : ''}
+              </Text>
+            </View>
+          )}
+          {alert.source && (
+            <View style={stylesheet.infoRow}>
+              <Feather name="info" size={18} color={theme.colors.LABEL} />
+              <Text style={stylesheet.infoText}>Source: {alert.source}</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {alert.contact_info && (
+        <TouchableOpacity
+          style={[
+            stylesheet.contactButton,
+            { backgroundColor: resolved ? theme.colors.MUTED : c.icon },
+          ]}
+          onPress={() => Linking.openURL(`tel:${alert.contact_info}`)}
+          disabled={resolved}
+        >
+          <Feather name="phone" size={18} color={theme.colors.TEXT_PRIMARY} />
+          <Text style={stylesheet.contactButtonText}>Contact {alert.contact_info}</Text>
+        </TouchableOpacity>
+      )}
+    </>
+  );
+
+  const descCardBlock = (
+    <View style={stylesheet.descCard}>
+      <Text style={stylesheet.descLabel}>What happened</Text>
+      <Text style={stylesheet.descText}>{alert.description}</Text>
+    </View>
+  );
 
   return (
     <View
@@ -174,7 +220,7 @@ export default function AlertDetailsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={stylesheet.content}>
-        {isResolved && (
+        {resolved && (
           <View style={stylesheet.resolutionBanner}>
             <Feather name="check" size={16} color={theme.colors.G} />
             <Text style={stylesheet.resolutionText}>
@@ -188,88 +234,67 @@ export default function AlertDetailsScreen() {
           style={[
             stylesheet.hero,
             {
-              backgroundColor: isResolved ? '#0a0a0a' : c.bg,
-              borderColor: isResolved ? theme.colors.GLASS_BORDER : c.border,
+              backgroundColor: resolved ? theme.colors.SURFACE_ALT : c.bg,
+              borderColor: resolved ? theme.colors.GLASS_BORDER : c.border,
             },
           ]}
         >
-          <View style={stylesheet.heroTopRow}>
-            <View
-              style={[
-                stylesheet.typePill,
-                { backgroundColor: `${c.icon}22`, borderColor: `${c.icon}44` },
-              ]}
-            >
-              <Text
-                style={[stylesheet.typeText, { color: isResolved ? theme.colors.LABEL : c.text }]}
-              >
-                {alert.type || alert.severity || 'ALERT'}
-              </Text>
-            </View>
-            <Text style={stylesheet.timeText}>
-              {new Date(alert.created_at).toLocaleDateString()}
-            </Text>
-          </View>
-          <Text
-            style={[
-              stylesheet.title,
-              { color: isResolved ? theme.colors.MUTED : theme.colors.TEXT_PRIMARY },
-            ]}
-          >
-            {alert.title}
-          </Text>
-          <View style={stylesheet.heroBottomRow}>
-            <Text style={stylesheet.areaText}>
-              📍 {alert.last_seen_address || alert.area || 'Unknown Location'}
-            </Text>
-          </View>
-        </View>
+          <SeverityStrip tier={tier} isResolved={resolved} width={6} />
 
-        {/* Description */}
-        <View style={stylesheet.descCard}>
-          <Text style={stylesheet.descLabel}>What Happened</Text>
-          <Text style={stylesheet.descText}>{alert.description}</Text>
-        </View>
-
-        {alert.subject_photo_url && (
-          <Image
-            source={{ uri: alert.subject_photo_url }}
-            style={stylesheet.photo}
-            resizeMode="cover"
-          />
-        )}
-
-        {(alert.subject_name || alert.source) && (
-          <View style={stylesheet.detailsCard}>
-            {alert.subject_name && (
-              <View style={stylesheet.infoRow}>
-                <Feather name="user" size={18} color={theme.colors.LABEL} />
-                <Text style={stylesheet.infoText}>
-                  {alert.subject_name} {alert.subject_age ? `(${alert.subject_age} years old)` : ''}
+          <View style={stylesheet.heroInner}>
+            <View style={stylesheet.heroTopRow}>
+              <View style={stylesheet.typeWrapper}>
+                <View
+                  style={[
+                    stylesheet.iconCircle,
+                    { backgroundColor: resolved ? theme.colors.SURFACE : c.bg },
+                  ]}
+                >
+                  <Ionicons
+                    name={iconName}
+                    size={15}
+                    color={resolved ? theme.colors.LABEL : c.icon}
+                  />
+                </View>
+                <Text
+                  style={[stylesheet.typeText, { color: resolved ? theme.colors.LABEL : c.text }]}
+                >
+                  {getAlertLabel(alert)}
                 </Text>
               </View>
-            )}
-            {alert.source && (
-              <View style={stylesheet.infoRow}>
-                <Feather name="info" size={18} color={theme.colors.LABEL} />
-                <Text style={stylesheet.infoText}>Source: {alert.source}</Text>
-              </View>
-            )}
-          </View>
-        )}
+              <Text style={stylesheet.timeText}>
+                {formatAlertDate(alert.created_at)}
+              </Text>
+            </View>
 
-        {alert.contact_info && (
-          <TouchableOpacity
-            style={[
-              stylesheet.contactButton,
-              { backgroundColor: isResolved ? theme.colors.MUTED : c.icon },
-            ]}
-            onPress={() => Linking.openURL(`tel:${alert.contact_info}`)}
-            disabled={isResolved}
-          >
-            <Feather name="phone" size={18} color={theme.colors.TEXT_PRIMARY} />
-            <Text style={stylesheet.contactButtonText}>Contact {alert.contact_info}</Text>
-          </TouchableOpacity>
+            <Text
+              style={[
+                stylesheet.title,
+                { color: resolved ? theme.colors.MUTED : theme.colors.TEXT_PRIMARY },
+              ]}
+            >
+              {alert.title}
+            </Text>
+
+            <View style={stylesheet.heroBottomRow}>
+              <Ionicons name="location-outline" size={13} color={theme.colors.LABEL} />
+              <Text style={stylesheet.areaText}>
+                {alert.last_seen_address || alert.area || 'Unknown Location'}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {isMissingPerson ? (
+          <>
+            {extraBlocks}
+            {descCardBlock}
+          </>
+        ) : (
+          <>
+            {descCardBlock}
+            {extraBlocks}
+          </>
         )}
       </ScrollView>
     </View>
@@ -298,28 +323,38 @@ const _stylesheet = createStyleSheet((theme) => ({
     color: theme.colors.G,
   },
   hero: {
-    paddingHorizontal: 16,
-    paddingVertical: 20,
+    flexDirection: 'row',
+    alignItems: 'stretch',
     borderWidth: 1,
     borderRadius: 24,
+    overflow: 'hidden',
+  },
+  heroInner: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
   },
   heroTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
     marginBottom: 12,
   },
-  typePill: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
+  typeWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   typeText: {
-    fontFamily: 'Outfit-Bold',
-    fontSize: 11,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
+    fontFamily: 'Outfit-SemiBold',
+    fontSize: 14,
   },
   timeText: {
     fontFamily: 'Inter-Regular',
@@ -335,7 +370,7 @@ const _stylesheet = createStyleSheet((theme) => ({
   heroBottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 4,
   },
   areaText: {
     fontFamily: 'Inter-Regular',
@@ -354,8 +389,6 @@ const _stylesheet = createStyleSheet((theme) => ({
     fontFamily: 'Inter-SemiBold',
     fontSize: 11,
     color: theme.colors.LABEL,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
     marginBottom: 8,
   },
   descText: {
