@@ -4,7 +4,6 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { AuthService, AuthUser } from '@/lib/auth-service';
 import { supabase } from '@/lib/supabase';
-import { oneSignalService } from '@/lib/onesignal';
 import * as FileSystem from 'expo-file-system/legacy';
 import NetInfo from '@react-native-community/netinfo';
 
@@ -215,7 +214,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           FileSystem.deleteAsync(PROFILE_CACHE_FILE, { idempotent: true }).catch(() => {});
 
 
-          oneSignalService.logout();
           setUser(null);
           setProfile(null);
           supabase.auth.signOut().catch(() => {});
@@ -249,7 +247,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(user);
 
         if (user) {
-          oneSignalService.login(user.id);
 
           try {
             let userProfile = null;
@@ -425,7 +422,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await AuthService.updateUserProfile(user.id, { push_token: null as any }).catch(console.error);
       }
 
-      oneSignalService.logout();
       FileSystem.deleteAsync(PROFILE_CACHE_FILE, { idempotent: true }).catch(() => {});
       const result = await AuthService.signOut();
       setUser(null);

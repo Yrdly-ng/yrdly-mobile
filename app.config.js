@@ -80,12 +80,6 @@ module.exports = {
     },
     plugins: [
       [
-        "onesignal-expo-plugin",
-        {
-          mode: "development"
-        }
-      ],
-      [
         "expo-notifications",
         {
           icon: "./assets/images/logo.png",
@@ -154,23 +148,6 @@ module.exports = {
     extra: {
       router: {},
       eas: {
-        build: {
-          experimental: {
-            ios: {
-              appExtensions: [
-                {
-                  targetName: "OneSignalNotificationServiceExtension",
-                  bundleIdentifier: "com.yrdly.OneSignalNotificationServiceExtension",
-                  entitlements: {
-                    "com.apple.security.application-groups": [
-                      "group.com.yrdly.onesignal"
-                    ]
-                  }
-                }
-              ]
-            }
-          }
-        },
         projectId: "e7a4c0a6-f56c-4822-b2aa-e6c0eae694cf"
       }
     },

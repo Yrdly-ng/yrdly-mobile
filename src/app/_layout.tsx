@@ -16,7 +16,6 @@ import AnimatedSplashScreen from '../components/AnimatedSplashScreen';
 import { setAudioModeAsync } from 'expo-audio';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { ErrorBoundary } from '../components/ErrorBoundary';
-import { oneSignalService } from '../lib/onesignal';
 import { useFonts } from 'expo-font';
 import {
   Outfit_300Light,
@@ -191,10 +190,6 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 function Layout() {
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    oneSignalService.initialize();
   }, []);
 
   const [authLoading, setAuthLoading] = useState(true);
