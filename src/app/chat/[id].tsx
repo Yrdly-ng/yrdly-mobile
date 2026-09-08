@@ -478,6 +478,7 @@ function ChatContent() {
           .update({
             last_message_text: body,
             updated_at: new Date().toISOString(),
+            deleted_by: [],
           })
           .eq('id', currentConvId);
       }
@@ -643,6 +644,7 @@ function ChatContent() {
           .update({
             last_message_text: mediaText,
             updated_at: new Date().toISOString(),
+            deleted_by: [],
           })
           .eq('id', currentConvId);
       }
