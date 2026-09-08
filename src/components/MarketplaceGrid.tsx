@@ -100,9 +100,9 @@ export function MarketplaceGrid({ searchQuery = '', sortOption = 'newest' }: Mar
           .in('category', ['For Sale', 'Giveaway'])
           .eq('is_sold', false);
 
-        if (activeFilter?.state) query = query.eq('state', activeFilter.state);
-        if (activeFilter?.lga) query = query.eq('lga', activeFilter.lga);
         if (activeFilter?.ward) query = query.eq('ward', activeFilter.ward);
+        else if (activeFilter?.lga) query = query.eq('lga', activeFilter.lga);
+        else if (activeFilter?.state) query = query.eq('state', activeFilter.state);
 
         if (searchQuery) {
           // Simple search on title or description

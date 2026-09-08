@@ -34,28 +34,51 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
 
   const [activeFilter, setActiveFilterRaw] = useState<LocationFilter | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
-  const hasInitializedRef = React.useRef(false);
 
   useEffect(() => {
-    if (hasInitializedRef.current) return;
-    hasInitializedRef.current = true;
-    const loadPersistedFilter = async () => {
+    let isMounted = true;
+    const loadFilter = async () => {
       try {
-        if (hasLocation && userState && userLga) {
-          setActiveFilterRaw({ state: userState, lga: userLga });
-        } else if (hasLocation && userState) {
-          setActiveFilterRaw({ state: userState });
-        } else {
-          setActiveFilterRaw(null);
+        const stored = await SecureStore.getItemAsync(GLOBAL_FILTER_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.isAllNigeria) {
+            if (isMounted) {
+              setActiveFilterRaw(null);
+              setIsInitialized(true);
+            }
+            return;
+          } else if (parsed.state) {
+            if (isMounted) {
+              setActiveFilterRaw(parsed);
+              setIsInitialized(true);
+            }
+            return;
+          }
         }
       } catch {
-        // Fallback
-        setActiveFilterRaw(null);
-      } finally {
-        setIsInitialized(true);
+        // Ignore read errors
       }
+
+      // No explicit user selection stored yet, default to user's LGA / State
+      if (hasLocation && userState) {
+        if (isMounted) {
+          if (userLga) {
+            setActiveFilterRaw({ state: userState, lga: userLga });
+          } else {
+            setActiveFilterRaw({ state: userState });
+          }
+        }
+      } else if (isMounted) {
+        setActiveFilterRaw(null);
+      }
+      if (isMounted) setIsInitialized(true);
     };
-    loadPersistedFilter();
+
+    loadFilter();
+    return () => {
+      isMounted = false;
+    };
   }, [hasLocation, userState, userLga]);
 
   const setGlobalFilter = useCallback(async (newFilter: LocationFilter | null) => {

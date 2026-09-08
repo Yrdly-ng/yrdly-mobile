@@ -99,18 +99,16 @@ export const usePosts = (filter?: LocationFilter | null) => {
             `end_time.gte.${new Date().toISOString()},and(end_time.is.null,start_time.gte.${new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()})`
           );
 
-        // Apply location filters
-        if (filterState) {
-          query = query.eq('state', filterState);
-          eventsQuery = eventsQuery.or(`state.eq.${filterState},is_online.eq.true`);
-        }
-        if (filterLga) {
-          query = query.eq('lga', filterLga);
-          eventsQuery = eventsQuery.or(`lga.eq.${filterLga},is_online.eq.true`);
-        }
+        // Apply location filters (hierarchical: ward > lga > state)
         if (filterWard) {
           query = query.eq('ward', filterWard);
-          eventsQuery = eventsQuery.or(`ward.eq.${filterWard},is_online.eq.true`);
+          eventsQuery = eventsQuery.or(`ward.eq."${filterWard}",is_online.eq.true`);
+        } else if (filterLga) {
+          query = query.eq('lga', filterLga);
+          eventsQuery = eventsQuery.or(`lga.eq."${filterLga}",is_online.eq.true`);
+        } else if (filterState) {
+          query = query.eq('state', filterState);
+          eventsQuery = eventsQuery.or(`state.eq."${filterState}",is_online.eq.true`);
         }
 
         // Hide sold marketplace items from the feed
@@ -125,15 +123,15 @@ export const usePosts = (filter?: LocationFilter | null) => {
           eventsQuery.order('created_at', { ascending: false }).range(from, to),
         ]);
 
-        if (postsRes.error || eventsRes.error) {
-          console.error('Fetch errors:', {
-            postsError: postsRes.error,
-            eventsError: eventsRes.error,
-          });
-          // Instead of returning early, we'll wipe the cache to prevent zombie data
+        if (postsRes.error) {
+          console.error('Fetch posts error:', postsRes.error);
           FileSystem.writeAsStringAsync(cacheFile, JSON.stringify([])).catch(() => {});
           setLoading(false);
           return;
+        }
+
+        if (eventsRes.error) {
+          console.warn('Fetch events warning:', eventsRes.error);
         }
 
         // Filter private posts: only author and accepted friends can view
