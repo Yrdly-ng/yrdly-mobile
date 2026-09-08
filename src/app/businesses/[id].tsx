@@ -196,7 +196,7 @@ const stylesheet = createStyleSheet((theme) => ({
 
   sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   sheetContent: {
-    backgroundColor: '#0A0A0A',
+    backgroundColor: theme.colors.DARK,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderWidth: 1,
@@ -736,8 +736,11 @@ export default function BusinessProfileScreen() {
                     <TouchableOpacity
                       style={[sStylesheet.sheetActionItem, { borderBottomWidth: 0 }]}
                       onPress={() => {
+                        const itemToShare = catalogSheet;
                         setCatalogSheet(null);
-                        handleShareItem(catalogSheet);
+                        if (itemToShare) {
+                          setTimeout(() => handleShareItem(itemToShare), 300);
+                        }
                       }}
                     >
                       <View

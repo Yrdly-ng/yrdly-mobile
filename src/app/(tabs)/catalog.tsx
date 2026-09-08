@@ -1707,7 +1707,7 @@ const stylesheet = createStyleSheet((theme) => ({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#0A0A0A',
+    backgroundColor: theme.colors.DARK,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderWidth: 1,
