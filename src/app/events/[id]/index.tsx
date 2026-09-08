@@ -304,9 +304,16 @@ export default function EventDetailScreen() {
 
         const { data: related } = await relatedQuery.limit(5);
         if (related) setRelatedEvents(related);
+      } else {
+        Alert.alert('Event Unavailable', 'This event is no longer available.', [
+          { text: 'OK', onPress: () => router.back() },
+        ]);
       }
     } catch (error) {
       console.error(error);
+      Alert.alert('Event Unavailable', 'Unable to load event details.', [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
     } finally {
       setLoading(false);
     }

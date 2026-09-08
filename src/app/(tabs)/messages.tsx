@@ -123,7 +123,7 @@ export default function MessagesTab() {
       }
 
       const formatted: Conversation[] = data
-        .filter((c: any) => !c.deleted_by?.includes(user.id))
+        .filter((c: any) => !c.deleted_by?.includes(user.id) || (unreadCounts[c.id] || 0) > 0)
         .map((c: any) => {
           const otherId = c.participant_ids?.find((id: string) => id !== user.id);
           const otherUser = usersMap.get(otherId);

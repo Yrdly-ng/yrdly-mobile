@@ -95,7 +95,6 @@ function PostDetailContent() {
         setComments((prev) => prev.filter((c) => c.id !== item.id));
         if (post) {
           const newCount = Math.max((post.comment_count || 1) - 1, 0);
-          await supabase.from('posts').update({ comment_count: newCount }).eq('id', id);
           setPost((prev) => (prev ? { ...prev, comment_count: newCount } : null));
         }
       } catch (e) {
@@ -115,8 +114,12 @@ function PostDetailContent() {
 
     if (!error && data) {
       setPost(data);
+    } else {
+      Alert.alert('Post Unavailable', 'This post is no longer available.', [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
     }
-  }, [id]);
+  }, [id, router]);
 
   const fetchComments = useCallback(async () => {
     if (!id) return;
