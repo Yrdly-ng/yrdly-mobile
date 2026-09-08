@@ -200,7 +200,7 @@ export default function AdminDisputeDetailScreen() {
     <SafeAreaView style={[sStylesheet.container, { backgroundColor: theme.colors.DARK }]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         {/* Header */}
         <View style={[sStylesheet.header, { borderBottomColor: theme.colors.GLASS_BORDER }]}>

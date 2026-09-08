@@ -1194,9 +1194,27 @@ export const usePosts = (filter?: LocationFilter | null) => {
     await fetchPosts(0, false);
   }, [fetchPosts]);
 
-  const optimisticUpdatePost = useCallback((postId: string, updates: Partial<Post>) => {
-    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, ...updates } : p)));
-  }, []);
+  const optimisticUpdatePost = useCallback(
+    (postId: string, updates: Partial<Post>) => {
+      setPosts((prev) => {
+        const next = prev.map((p) => (p.id === postId ? { ...p, ...updates } : p));
+        let filterString: string | undefined = undefined;
+        if (filterWard) filterString = `ward=eq.${filterWard}`;
+        else if (filterLga) filterString = `lga=eq.${filterLga}`;
+        else if (filterState) filterString = `state=eq.${filterState}`;
+
+        const cacheFile =
+          FileSystem.documentDirectory +
+          (filterString
+            ? `yrdly_posts_cache_${filterString.replace(/\W/g, '_')}.json`
+            : 'yrdly_posts_cache_all.json');
+
+        FileSystem.writeAsStringAsync(cacheFile, JSON.stringify(next)).catch(() => {});
+        return next;
+      });
+    },
+    [filterState, filterLga, filterWard]
+  );
 
   return {
     posts,

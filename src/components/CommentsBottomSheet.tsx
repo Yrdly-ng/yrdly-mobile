@@ -16,6 +16,7 @@ import {
   ActivityIndicator,
   Platform,
   Alert,
+  DeviceEventEmitter,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -94,6 +95,10 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
             const newCount = Math.max((post.comment_count || 1) - 1, 0);
             await supabase.from('posts').update({ comment_count: newCount }).eq('id', postId);
             setPost((prev) => (prev ? { ...prev, comment_count: newCount } : null));
+            DeviceEventEmitter.emit('post_updated', {
+              postId,
+              updates: { comment_count: newCount },
+            });
           }
         } catch (e) {
           console.error('Delete comment error:', e);
@@ -220,6 +225,10 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
           const newCount = (post.comment_count || 0) + 1;
           await supabase.from('posts').update({ comment_count: newCount }).eq('id', postId);
           setPost({ ...post, comment_count: newCount });
+          DeviceEventEmitter.emit('post_updated', {
+            postId,
+            updates: { comment_count: newCount },
+          });
         }
 
         // Trigger notification
@@ -364,7 +373,8 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
         backgroundStyle={{ backgroundColor: theme.colors.DARK }}
         handleIndicatorStyle={{ backgroundColor: theme.colors.GLASS_BORDER }}
         keyboardBehavior="extend"
-        keyboardBlurBehavior="restore"
+        keyboardBlurBehavior="none"
+        android_keyboardInputMode="adjustResize"
       >
         <LiquidGlassView
           {...({

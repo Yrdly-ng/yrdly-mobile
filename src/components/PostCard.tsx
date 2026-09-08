@@ -424,6 +424,11 @@ export const PostCard = React.memo(
           newLikedBy = currentLikedBy.filter((id) => id !== currentUser.id);
         }
 
+        DeviceEventEmitter.emit('post_updated', {
+          postId: post.id,
+          updates: { liked_by: newLikedBy },
+        });
+
         const { error } = await supabase
           .from('posts')
           .update({ liked_by: newLikedBy })
@@ -444,6 +449,10 @@ export const PostCard = React.memo(
         // Revert optimistic update on failure
         setIsLiked(!newIsLiked);
         setLikesCount((prev) => (newIsLiked ? prev - 1 : prev + 1));
+        DeviceEventEmitter.emit('post_updated', {
+          postId: post.id,
+          updates: { liked_by: post.liked_by || [] },
+        });
       }
     };
 
