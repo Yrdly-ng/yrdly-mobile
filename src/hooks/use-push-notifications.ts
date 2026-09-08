@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
-import { Platform, Alert } from 'react-native';
+import { Platform } from 'react-native';
 import { useAuth } from './use-supabase-auth';
 import { AuthService } from '@/lib/auth-service';
 import { router } from 'expo-router';
@@ -92,16 +92,10 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
       console.error('Missing EAS projectId in app.json extra.eas.projectId');
       return null;
     }
-    // TEMP DIAGNOSTIC — DO NOT SHIP. Remove after push registration root
-    // cause is confirmed. See notification system production-readiness audit.
     const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
-    Alert.alert('Push Debug: Token Generated', tokenData.data);
     return tokenData.data;
-  } catch (error: any) {
+  } catch (error) {
     console.error('Push notification setup failed:', error);
-    // TEMP DIAGNOSTIC — DO NOT SHIP. Remove after push registration root
-    // cause is confirmed. See notification system production-readiness audit.
-    Alert.alert('Push Debug: Token Fetch Failed', String(error?.message ?? error));
     return null;
   }
 }
@@ -160,16 +154,7 @@ export function usePushNotifications() {
 
       // Save token to your backend/Supabase here
       setExpoPushToken(token);
-      // TEMP DIAGNOSTIC — DO NOT SHIP. Remove after push registration root
-      // cause is confirmed. See notification system production-readiness audit.
-      AuthService.updateUserProfile(user.id, { push_token: token })
-        .then(() => {
-          Alert.alert('Push Debug: DB Write Succeeded', `Token saved for user ${user.id}`);
-        })
-        .catch((error) => {
-          console.error(error);
-          Alert.alert('Push Debug: DB Write Failed', String(error?.message ?? error));
-        });
+      AuthService.updateUserProfile(user.id, { push_token: token }).catch(console.error);
 
       // Step 4d & 4e — listeners, only after successful registration
       notificationListener.current = Notifications.addNotificationReceivedListener((n) => {
