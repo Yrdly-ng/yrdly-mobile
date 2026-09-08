@@ -926,67 +926,67 @@ function ChatContent() {
   const handleViewListing = useCallback(async () => {
     if (!meta) return;
 
-    if (meta.item_id) {
-      if (meta.type === 'event') {
-        router.push(`/events/${meta.item_id}` as any);
-        return;
-      } else if (meta.type === 'briefcase') {
+    try {
+      const itemId = meta.item_id;
+
+      if (itemId) {
+        // 1. Check if itemId matches a catalog item
         const { data: catItem } = await supabase
           .from('catalog_items')
-          .select('id')
-          .eq('id', meta.item_id)
+          .select('id, business_id')
+          .eq('id', itemId)
           .maybeSingle();
 
         if (catItem) {
-          router.push(`/businesses/catalog/${meta.item_id}` as any);
+          router.push(`/businesses/catalog/${catItem.id}` as any);
           return;
         }
+
+        // 2. Check if itemId matches a business ID or owner ID
         const { data: biz } = await supabase
           .from('businesses')
           .select('id')
-          .eq('id', meta.item_id)
+          .or(`id.eq.${itemId},owner_id.eq.${itemId}`)
+          .limit(1)
           .maybeSingle();
 
         if (biz) {
-          router.push(`/businesses/${meta.item_id}` as any);
+          router.push(`/businesses/${biz.id}` as any);
           return;
         }
-      } else if (meta.type === 'business') {
-        router.push(`/businesses/${meta.item_id}` as any);
-        return;
-      } else {
-        router.push(`/marketplace/${meta.item_id}`);
-        return;
-      }
-    }
 
-    // Fallback lookup if meta.item_id is missing or null on old conversation records
-    if (meta.item_title) {
-      const cleanTitle = meta.item_title.replace(/\s*\(.*\)$/, '').trim();
-      const { data: catItem } = await supabase
-        .from('catalog_items')
-        .select('id')
-        .ilike('title', `%${cleanTitle}%`)
-        .limit(1)
-        .maybeSingle();
+        // 3. Check if itemId matches a post
+        const { data: post } = await supabase
+          .from('posts')
+          .select('id, category')
+          .eq('id', itemId)
+          .maybeSingle();
 
-      if (catItem) {
-        router.push(`/businesses/catalog/${catItem.id}` as any);
-        return;
-      }
+        if (post) {
+          if (post.category === 'For Sale') {
+            router.push(`/marketplace/${post.id}`);
+          } else if (post.category === 'Event') {
+            router.push(`/events/${post.id}`);
+          } else {
+            router.push(`/posts/${post.id}`);
+          }
+          return;
+        }
 
-      const { data: post } = await supabase
-        .from('posts')
-        .select('id')
-        .ilike('title', `%${cleanTitle}%`)
-        .limit(1)
-        .maybeSingle();
+        // 4. Check if itemId matches an event
+        const { data: evt } = await supabase
+          .from('events')
+          .select('id')
+          .eq('id', itemId)
+          .maybeSingle();
 
-      if (post) {
-        router.push(`/marketplace/${post.id}`);
-        return;
+        if (evt) {
+          router.push(`/events/${evt.id}`);
+          return;
+        }
       }
 
+      // 5. Fallback lookup by other participant's business
       const otherId = meta.participant_ids?.find((pid: string) => pid !== user?.id);
       if (otherId) {
         const { data: biz } = await supabase
@@ -1001,12 +1001,47 @@ function ChatContent() {
           return;
         }
       }
-    }
 
-    Alert.alert(
-      'Listing Unavailable',
-      'The item or business listing associated with this chat is no longer available.'
-    );
+      // 6. Fallback lookup by item title
+      if (meta.item_title) {
+        const cleanTitle = meta.item_title.replace(/\s*\(.*\)$/, '').trim();
+        const { data: catItem } = await supabase
+          .from('catalog_items')
+          .select('id')
+          .ilike('title', `%${cleanTitle}%`)
+          .limit(1)
+          .maybeSingle();
+
+        if (catItem) {
+          router.push(`/businesses/catalog/${catItem.id}` as any);
+          return;
+        }
+
+        const { data: post } = await supabase
+          .from('posts')
+          .select('id, category')
+          .ilike('title', `%${cleanTitle}%`)
+          .limit(1)
+          .maybeSingle();
+
+        if (post) {
+          if (post.category === 'For Sale') {
+            router.push(`/marketplace/${post.id}`);
+          } else {
+            router.push(`/posts/${post.id}`);
+          }
+          return;
+        }
+      }
+
+      Alert.alert(
+        'Listing Unavailable',
+        'The item or business listing associated with this chat is no longer available.'
+      );
+    } catch (e) {
+      console.error('Error viewing listing:', e);
+      Alert.alert('Error', 'Unable to open listing at this time.');
+    }
   }, [meta, user, router]);
 
   const title =

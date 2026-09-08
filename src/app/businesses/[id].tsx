@@ -364,12 +364,12 @@ export default function BusinessProfileScreen() {
     if (!id) return;
     const fetchBusiness = async () => {
       try {
-        const { data: bData, error: bError } = await supabase
+        const { data: bData } = await supabase
           .from('businesses')
           .select('*')
-          .eq('id', id)
-          .single();
-        if (bError) throw bError;
+          .or(`id.eq.${id},owner_id.eq.${id}`)
+          .limit(1)
+          .maybeSingle();
         if (bData) {
           let oData = null;
           if (bData.owner_id) {
