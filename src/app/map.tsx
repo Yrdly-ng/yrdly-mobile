@@ -13,7 +13,6 @@ import {
   Linking,
   Alert,
   TextInput,
-  KeyboardAvoidingView,
   SafeAreaView,
   DeviceEventEmitter,
   FlatList,

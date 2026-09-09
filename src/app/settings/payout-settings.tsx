@@ -8,10 +8,10 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
-  KeyboardAvoidingView,
   ScrollView,
   Platform,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
