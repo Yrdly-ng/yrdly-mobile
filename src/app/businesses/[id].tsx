@@ -475,21 +475,32 @@ export default function BusinessProfileScreen() {
       try {
         const { data: convs } = await supabase
           .from('conversations')
-          .select('id, type, participant_ids, item_id')
+          .select('id, type, participant_ids, item_id, business_id, business_name')
+          .contains('participant_ids', [user.id])
           .order('created_at', { ascending: true });
 
         const existing = convs?.find(
           (c) =>
             (c.type === 'briefcase' || c.type === 'business') &&
-            c.participant_ids?.includes(user.id) &&
-            c.participant_ids?.includes(business.owner_id)
+            c.participant_ids?.includes(business.owner_id) &&
+            (!c.business_id || c.business_id === business.id)
         );
 
+        const bizImg = business.logo || business.logo_url || business.image_urls?.[0] || business.cover_image || '';
+
         if (existing) {
-          router.push({ pathname: '/chat/[id]', params: { id: existing.id } } as any);
+          router.push({
+            pathname: '/chat/[id]',
+            params: {
+              id: existing.id,
+              business_id: business.id,
+              business_name: business.name,
+              business_image: bizImg,
+            },
+          } as any);
         } else {
           const itemTitle = item ? `${item.title} (${business.name})` : business.name;
-          const itemImg = item?.images?.[0] || business.image_urls?.[0] || business.cover_image || '';
+          const itemImg = item?.images?.[0] || bizImg;
           router.push({
             pathname: '/chat/[id]',
             params: {
@@ -499,6 +510,9 @@ export default function BusinessProfileScreen() {
               item_title: itemTitle,
               item_image: itemImg,
               item_id: item ? item.id : undefined,
+              business_id: business.id,
+              business_name: business.name,
+              business_image: bizImg,
             },
           } as any);
         }

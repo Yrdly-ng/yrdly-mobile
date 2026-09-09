@@ -129,27 +129,32 @@ export default function MessagesTab() {
           const otherUser = usersMap.get(otherId);
 
           let convType: ConvType = 'friend';
-          if (c.type === 'marketplace' || c.item_id) convType = 'marketplace';
-          else if (c.type === 'briefcase' || c.type === 'business') convType = 'briefcase';
+          if (c.type === 'marketplace' || (c.item_id && c.type !== 'briefcase' && c.type !== 'business')) convType = 'marketplace';
+          else if (c.type === 'briefcase' || c.type === 'business' || c.business_id) convType = 'briefcase';
+
+          const isBiz = convType === 'briefcase' || !!c.business_id;
+          const participantName = isBiz
+            ? c.business_name || c.item_title || otherUser?.name || 'Business'
+            : otherUser?.name || c.item_title || 'Neighbour';
+          const participantAvatar = isBiz && (c.business_image || c.item_image)
+            ? c.business_image || c.item_image
+            : (otherUser?.avatar_url && !otherUser.avatar_url.startsWith('file://') ? otherUser.avatar_url : null);
 
           return {
             id: c.id,
             type: convType,
             participantId: otherId || '',
-            participantName: otherUser?.name || c.item_title || 'Neighbour',
-            participantAvatar:
-              otherUser?.avatar_url && !otherUser.avatar_url.startsWith('file://')
-                ? otherUser.avatar_url
-                : null,
+            participantName,
+            participantAvatar,
             lastMessage: c.last_message_text || c.last_message || 'Tap to chat',
             timestamp: c.updated_at || c.created_at,
             unreadCount: unreadCounts[c.id] || 0,
             context:
-              c.item_title || c.item_id
+              c.item_title || c.item_id || c.business_name
                 ? {
                     itemId: c.item_id,
-                    itemTitle: c.item_title,
-                    itemImage: c.item_image,
+                    itemTitle: c.item_title || c.business_name,
+                    itemImage: c.item_image || c.business_image,
                     itemPrice: c.item_price,
                   }
                 : undefined,

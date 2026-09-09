@@ -49,7 +49,9 @@ interface ConversationMeta {
   item_title?: string;
   item_image?: string;
   item_price?: number;
+  business_id?: string;
   business_name?: string;
+  business_image?: string;
 }
 
 import { AppState } from 'react-native';
@@ -119,6 +121,9 @@ function ChatContent() {
   const paramItemTitle = params.item_title as string | undefined;
   const paramItemImage = params.item_image as string | undefined;
   const paramItemPrice = params.item_price as string | undefined;
+  const paramBusinessId = params.business_id as string | undefined;
+  const paramBusinessName = params.business_name as string | undefined;
+  const paramBusinessImage = params.business_image as string | undefined;
   const { user, profile, updateProfile } = useAuth();
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
@@ -222,6 +227,9 @@ function ChatContent() {
         item_title: paramItemTitle as string,
         item_image: paramItemImage as string,
         item_price: paramItemPrice ? Number(paramItemPrice) : undefined,
+        business_id: paramBusinessId,
+        business_name: paramBusinessName,
+        business_image: paramBusinessImage,
       });
       if (paramParticipantId) {
         const { data: u } = await supabase
@@ -240,8 +248,26 @@ function ChatContent() {
 
     const { data } = await supabase.from('conversations').select('*').eq('id', id).single();
     if (data) {
-      setMeta(data);
+      let resolvedMeta: ConversationMeta = { ...data };
       const otherId = data.participant_ids?.find((pid: string) => pid !== user.id);
+      
+      // If business chat and missing business name/image, attempt lookup
+      if ((data.type === 'business' || data.type === 'briefcase' || data.business_id) && otherId) {
+        if (!resolvedMeta.business_name || !resolvedMeta.business_image) {
+          const query = data.business_id
+            ? supabase.from('businesses').select('id, name, logo, logo_url, cover_image, image_urls').eq('id', data.business_id).maybeSingle()
+            : supabase.from('businesses').select('id, name, logo, logo_url, cover_image, image_urls').eq('owner_id', otherId).maybeSingle();
+          const { data: b } = await query;
+          if (b) {
+            resolvedMeta.business_id = b.id;
+            resolvedMeta.business_name = resolvedMeta.business_name || b.name;
+            resolvedMeta.business_image = resolvedMeta.business_image || b.logo || b.logo_url || b.image_urls?.[0] || b.cover_image || undefined;
+          }
+        }
+      }
+      
+      setMeta(resolvedMeta);
+
       if (otherId) {
         const { data: u } = await supabase
           .from('users')
@@ -264,6 +290,9 @@ function ChatContent() {
     paramItemTitle,
     paramItemImage,
     paramItemPrice,
+    paramBusinessId,
+    paramBusinessName,
+    paramBusinessImage,
   ]);
 
   const fetchMessages = useCallback(async () => {
@@ -452,6 +481,9 @@ function ChatContent() {
             item_title: paramItemTitle || null,
             item_image: paramItemImage || null,
             item_price: paramItemPrice ? Number(paramItemPrice) : null,
+            business_id: paramBusinessId || null,
+            business_name: paramBusinessName || null,
+            business_image: paramBusinessImage || null,
             last_message_text: body,
             updated_at: new Date().toISOString(),
           })
@@ -596,7 +628,7 @@ function ChatContent() {
       const mediaText = isVideo ? 'Sent a video 📹' : 'Sent an image 📸';
 
       if (id === 'new') {
-        const { type, participant_id, item_id, item_title, item_image, item_price } = params;
+        const { type, participant_id, item_id, item_title, item_image, item_price, business_id, business_name, business_image } = params;
         let validItemId = item_id || null;
         if (validItemId) {
           const [{ data: pData }, { data: cData }] = await Promise.all([
@@ -617,6 +649,9 @@ function ChatContent() {
             item_title: item_title || null,
             item_image: item_image || null,
             item_price: item_price ? Number(item_price) : null,
+            business_id: business_id || null,
+            business_name: business_name || null,
+            business_image: business_image || null,
             last_message_text: mediaText,
             updated_at: new Date().toISOString(),
           })
@@ -1010,6 +1045,20 @@ function ChatContent() {
         }
       }
 
+      // 4.5. Check direct business_id if present
+      if (meta.business_id) {
+        const { data: biz } = await supabase
+          .from('businesses')
+          .select('id')
+          .eq('id', meta.business_id)
+          .maybeSingle();
+
+        if (biz) {
+          router.push(`/businesses/${biz.id}` as any);
+          return;
+        }
+      }
+
       // 5. Fallback lookup by other participant's business
       const otherId = meta.participant_ids?.find((pid: string) => pid !== user?.id);
       if (otherId) {
@@ -1068,10 +1117,13 @@ function ChatContent() {
     }
   }, [meta, user, router]);
 
-  const title =
-    meta?.type === 'briefcase' || meta?.type === 'business'
-      ? meta?.business_name || 'Business'
-      : otherUser?.name || 'Chat';
+  const isBusinessChat = meta?.type === 'briefcase' || meta?.type === 'business' || !!meta?.business_id;
+  const title = isBusinessChat
+    ? meta?.business_name || meta?.item_title || otherUser?.name || 'Business'
+    : otherUser?.name || 'Chat';
+  const displayAvatar = isBusinessChat
+    ? meta?.business_image || meta?.item_image || otherUser?.avatar_url
+    : otherUser?.avatar_url;
 
   return (
     <KeyboardAvoidingView
@@ -1124,13 +1176,17 @@ function ChatContent() {
             marginHorizontal: 8,
           }}
           onPress={() => {
-            const otherId = meta?.participant_ids?.find((pid: string) => pid !== user?.id);
-            if (otherId) router.push(`/profile/${otherId}` as any);
+            if (isBusinessChat && meta?.business_id) {
+              router.push(`/businesses/${meta.business_id}` as any);
+            } else {
+              const otherId = meta?.participant_ids?.find((pid: string) => pid !== user?.id);
+              if (otherId) router.push(`/profile/${otherId}` as any);
+            }
           }}
         >
-          {otherUser?.avatar_url && !avatarError && !otherUser.avatar_url.startsWith('file://') ? (
+          {displayAvatar && !avatarError && !displayAvatar.startsWith('file://') ? (
             <Image
-              source={{ uri: otherUser.avatar_url }}
+              source={{ uri: displayAvatar }}
               style={{ width: 38, height: 38, borderRadius: 19 }}
               contentFit="cover"
               onError={() => setAvatarError(true)}
