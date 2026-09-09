@@ -168,7 +168,11 @@ export function DiscoverPeopleSection({
 
       {/* ── MODE 2: MY CIRCLE ── */}
       {mode === 'circle' && (
-        <ScrollView style={sStylesheet.modeContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={sStylesheet.modeContent}
+          contentContainerStyle={{ paddingBottom: 110 }}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Requests Section */}
           {requests.length > 0 && (
             <View style={sStylesheet.sectionBlock}>
@@ -383,7 +387,7 @@ const _stylesheet = createStyleSheet((theme) => ({
     textAlign: 'center',
   },
   listPadding: {
-    paddingBottom: 40,
+    paddingBottom: 110,
   },
   sectionBlock: {
     paddingHorizontal: 16,

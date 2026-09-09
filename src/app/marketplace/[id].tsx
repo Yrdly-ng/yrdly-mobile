@@ -1,5 +1,5 @@
 import { createStyleSheet, useStyles } from 'react-native-unistyles';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -80,6 +80,7 @@ const MarketVideo = React.memo(({ url, shouldPlay }: { url: string; shouldPlay: 
 
 function MarketplaceDetailContent() {
   const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const insets = useSafeAreaInsets();
 
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -976,7 +977,7 @@ function MarketplaceDetailContent() {
           left: 0,
           right: 0,
           paddingHorizontal: 20,
-          paddingBottom: 32,
+          paddingBottom: Math.max(insets.bottom + 12, 24),
           paddingTop: 16,
           backgroundColor: theme.colors.DARK,
           borderTopWidth: 1,

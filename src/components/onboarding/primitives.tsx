@@ -111,7 +111,7 @@ export function PrimaryBtn({
         disabled={disabled || loading}
         style={[
           styles.primaryBtn,
-          (disabled || loading) && { backgroundColor: 'rgba(130,219,126,0.35)', boxShadow: 'none' },
+          (disabled || loading) && { backgroundColor: 'rgba(130,219,126,0.35)', elevation: 0 },
         ]}
       >
         <View style={styles.btnContent}>
@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.26,
     shadowRadius: 14,
-    elevation: 6,
+    elevation: Platform.OS === 'android' ? 0 : 6,
   },
   btnContent: {
     flexDirection: 'row',

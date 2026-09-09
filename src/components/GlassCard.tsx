@@ -60,14 +60,14 @@ export function GlassCard({
     );
   }
 
-  // Android fallback — semi-transparent surface
+  // Android fallback — clean glass surface
   return (
     <View
       style={[
         styles.glassAndroid,
         {
           borderRadius: effectiveRadius,
-          backgroundColor: theme.colors.SURFACE,
+          backgroundColor: theme.colors.DARK === '#FFFFFF' ? '#FFFFFF' : theme.colors.GLASS_BG,
           borderColor: theme.colors.GLASS_BORDER,
         },
         style as any,
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   },
   glassAndroid: {
     borderWidth: 0.5,
-    elevation: 4,
+    elevation: 0,
   },
 });
 

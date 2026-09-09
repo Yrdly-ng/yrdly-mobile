@@ -991,7 +991,9 @@ export const PostCard = React.memo(
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 24 }}>
             <TouchableOpacity
-              style={{ flexDirection: 'row', alignItems: 'center' }}
+              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 4 }}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              activeOpacity={0.6}
               onPress={(e) => {
                 e.stopPropagation();
                 handleLike();
@@ -1018,7 +1020,9 @@ export const PostCard = React.memo(
 
             {post.category !== 'For Sale' ? (
               <TouchableOpacity
-                style={{ flexDirection: 'row', alignItems: 'center' }}
+                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 4 }}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                activeOpacity={0.6}
                 onPress={(e) => {
                   e.stopPropagation();
                   if (onComment) onComment();
@@ -1040,7 +1044,9 @@ export const PostCard = React.memo(
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                style={{ flexDirection: 'row', alignItems: 'center' }}
+                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 4 }}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                activeOpacity={0.6}
                 onPress={(e) => {
                   e.stopPropagation();
                   if (onPress) onPress();
@@ -1061,7 +1067,9 @@ export const PostCard = React.memo(
             )}
 
             <TouchableOpacity
-              style={{ flexDirection: 'row', alignItems: 'center' }}
+              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 4 }}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              activeOpacity={0.6}
               onPress={(e) => {
                 e.stopPropagation();
                 handleShare();
@@ -1088,7 +1096,9 @@ export const PostCard = React.memo(
               e.stopPropagation();
               handleBookmark();
             }}
-            style={{ padding: 2 }}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            activeOpacity={0.6}
+            style={{ padding: 6 }}
           >
             <Ionicons
               name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
