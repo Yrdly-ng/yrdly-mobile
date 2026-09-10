@@ -322,10 +322,11 @@ export default function CheckoutScreen() {
 
   // ── Order Summary ────────────────────────────────────────────
   return (
-    <SafeAreaView
-      style={[stylesheet.container, { backgroundColor: theme.colors.DARK }]}
-      edges={['top', 'bottom']}
-    >
+    <>
+      <SafeAreaView
+        style={[stylesheet.container, { backgroundColor: theme.colors.DARK }]}
+        edges={['top', 'bottom']}
+      >
       {/* Header */}
       <View style={[stylesheet.header, { borderBottomColor: theme.colors.GLASS_BORDER }]}>
         <TouchableOpacity onPress={() => router.back()} style={stylesheet.backBtn}>
@@ -436,6 +437,7 @@ export default function CheckoutScreen() {
       </View>
     </SafeAreaView>
     {checkoutModal}
+    </>
   );
 }
 
