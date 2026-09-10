@@ -1,14 +1,12 @@
 import { createStyleSheet, useStyles } from 'react-native-unistyles';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Clipboard,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -20,7 +18,9 @@ import { api } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 import { formatPrice } from '../../lib/utils';
 import { MARKETPLACE_CONSTANTS } from '../../lib/constants';
+import { PaylukCheckout } from '../../components/PaylukCheckout';
 const COMMISSION_RATE = MARKETPLACE_CONSTANTS.COMMISSION_RATE;
+const PAYLUK_PUBLIC_KEY = process.env.EXPO_PUBLIC_PAYLUK_PUBLIC_KEY ?? '';
 
 interface ItemDetails {
   id: string;
@@ -44,34 +44,7 @@ interface InitializeResponse {
   paylukPaymentToken?: string;
 }
 
-// Response shape from /api/payluk/wallet-balance
-interface WalletBalanceResponse {
-  mainBalance: number;
-  currency: string;
-}
-
-// Response shape from /api/payluk/virtual-account
-interface VirtualAccountResponse {
-  accountNumber: string;
-  bankCode: string;
-  accountName: string;
-  bank: string;
-  dedicated: boolean;
-  expiresIn?: string;
-  amount?: number;
-}
-
-type Stage =
-  | 'loading'
-  | 'summary'
-  | 'payluk_checking' // Fetching wallet balance after initialize
-  | 'payluk_confirm' // Wallet has enough — show "Pay from wallet" button
-  | 'payluk_fund' // Balance insufficient — show virtual account + polling
-  | 'payluk_pending' // pay-escrow call in flight
-  | 'payluk_recorded_failed' // Payluk succeeded but DB update failed
-  | 'error';
-
-const POLL_INTERVAL_MS = 10_000; // 10 seconds
+type Stage = 'loading' | 'summary' | 'payluk_checkout' | 'error';
 
 export default function CheckoutScreen() {
   const { styles: stylesheet, theme } = useStyles(_stylesheet);
@@ -85,20 +58,11 @@ export default function CheckoutScreen() {
   const [errorMsg, setErrorMsg] = useState('');
   const [deliveryMethod, setDeliveryMethod] = useState<'meetup' | 'delivery'>('meetup');
 
-  // Payluk-specific state
+  // Payluk SDK state
   const [paylukTransactionId, setPaylukTransactionId] = useState<string | null>(null);
   const [paylukTotalAmount, setPaylukTotalAmount] = useState<number>(0); // server-authoritative
-  const [walletBalance, setWalletBalance] = useState<number | null>(null);
-  const [virtualAccount, setVirtualAccount] = useState<VirtualAccountResponse | null>(null);
-  const [isPaying, setIsPaying] = useState(false); // double-tap guard
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Cleanup poll on unmount
-  useEffect(() => {
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, []);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [paylukToken, setPaylukToken] = useState<string | null>(null);
 
   // 1. Fetch item + seller info
   const fetchItem = useCallback(async () => {
@@ -163,126 +127,62 @@ export default function CheckoutScreen() {
     fetchItem();
   }, [fetchItem]);
 
-  // ── Payluk: fetch wallet balance and branch ───────────────────────────────
-  const enterPaylukFlow = useCallback(async (transactionId: string, totalAmount: number) => {
-    console.log(
-      '[Checkout] enterPaylukFlow — transactionId:',
-      transactionId,
-      'totalAmount:',
-      totalAmount
-    );
+  // ── Payluk: open Inline Checkout SDK ────────────────────────────────────
+  const enterPaylukFlow = useCallback((transactionId: string, totalAmount: number, paymentToken: string) => {
+    console.log('[Checkout] enterPaylukFlow — transactionId:', transactionId, 'token:', paymentToken);
     setPaylukTransactionId(transactionId);
-    setPaylukTotalAmount(totalAmount); // store server value — never recompute locally
-    setStage('payluk_checking');
-    try {
-      const wallet = await api.get<WalletBalanceResponse>('/api/payluk/wallet-balance');
-      console.log('[Checkout] wallet balance:', wallet.mainBalance, 'needed:', totalAmount);
-      setWalletBalance(wallet.mainBalance);
-      if (wallet.mainBalance >= totalAmount) {
-        console.log('[Checkout] sufficient balance → payluk_confirm');
-        setStage('payluk_confirm');
-      } else {
-        console.log('[Checkout] insufficient balance → fetching virtual account');
-        await fetchVirtualAccount();
-        setStage('payluk_fund');
-        startPolling(transactionId, totalAmount);
-      }
-    } catch (e: any) {
-      console.log('[Checkout] enterPaylukFlow error:', e?.message, e);
-      handlePaylukError(e);
-    }
+    setPaylukTotalAmount(totalAmount);
+    setPaylukToken(paymentToken);
+    setShowCheckout(true);
+    setStage('payluk_checkout');
   }, []);
 
-  const fetchVirtualAccount = async () => {
-    const account = await api.post<VirtualAccountResponse>('/api/payluk/virtual-account', {});
-    setVirtualAccount(account);
-  };
-
-  const startPolling = (transactionId: string, totalAmount: number) => {
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(async () => {
-      try {
-        const wallet = await api.get<WalletBalanceResponse>('/api/payluk/wallet-balance');
-        setWalletBalance(wallet.mainBalance);
-        if (wallet.mainBalance >= totalAmount) {
-          clearInterval(pollRef.current!);
-          pollRef.current = null;
-          setStage('payluk_confirm');
+  // ── Payluk SDK callbacks ─────────────────────────────────────────────────
+  const handleCheckoutSuccess = useCallback(() => {
+    setShowCheckout(false);
+    console.log('[Checkout] SDK success — subscribing to realtime for tx:', paylukTransactionId);
+    // The webhook will update the DB; subscribe to realtime to catch it
+    const channel = supabase
+      .channel(`tx-paid-${paylukTransactionId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'escrow_transactions', filter: `id=eq.${paylukTransactionId}` },
+        (payload) => {
+          if (payload.new?.status === 'paid' || payload.new?.status === 'PAID') {
+            supabase.removeChannel(channel);
+            router.replace({
+              pathname: '/checkout/success',
+              params: { transactionId: paylukTransactionId, itemTitle: item?.title, amount: String(paylukTotalAmount) },
+            } as any);
+          }
         }
-      } catch {
-        // poll silently — errors are transient, don't interrupt the user
-      }
-    }, POLL_INTERVAL_MS);
-  };
+      )
+      .subscribe();
 
-  const checkNow = async () => {
-    if (!paylukTransactionId) return;
-    try {
-      const wallet = await api.get<WalletBalanceResponse>('/api/payluk/wallet-balance');
-      setWalletBalance(wallet.mainBalance);
-      if (wallet.mainBalance >= paylukTotalAmount) {
-        if (pollRef.current) clearInterval(pollRef.current);
-        pollRef.current = null;
-        setStage('payluk_confirm');
-      }
-    } catch {
-      // manual refresh, ignore transient errors
-    }
-  };
-
-  // ── Payluk: execute wallet payment ───────────────────────────────────────
-  const handlePaylukPay = async () => {
-    if (!paylukTransactionId || isPaying) return;
-    console.log('[Checkout] handlePaylukPay — transactionId:', paylukTransactionId);
-    setIsPaying(true);
-    setStage('payluk_pending');
-    try {
-      const result = await api.post('/api/payluk/pay-escrow', {
-        transactionId: paylukTransactionId,
-      });
-      console.log('[Checkout] pay-escrow success:', result);
+    // Fallback: navigate after 8 seconds even if realtime is delayed
+    setTimeout(() => {
+      supabase.removeChannel(channel);
       router.replace({
         pathname: '/checkout/success',
-        params: {
-          transactionId: paylukTransactionId,
-          itemTitle: item?.title,
-          amount: String(item?.price),
-        },
+        params: { transactionId: paylukTransactionId, itemTitle: item?.title, amount: String(paylukTotalAmount) },
       } as any);
-    } catch (e: any) {
-      console.log('[Checkout] pay-escrow error:', e?.message, e);
-      setIsPaying(false);
-      handlePaylukError(e);
-    }
-  };
+    }, 8000);
+  }, [paylukTransactionId, paylukTotalAmount, item]);
 
-  const handlePaylukError = (e: any) => {
-    const msg: string = e?.message ?? '';
-    console.log('[Checkout] handlePaylukError — msg:', msg);
+  const handleCheckoutCancel = useCallback(() => {
+    setShowCheckout(false);
+    setStage('summary');
+  }, []);
+
+  const handleCheckoutError = useCallback((msg: string) => {
+    setShowCheckout(false);
     if (msg === 'PHONE_VERIFICATION_REQUIRED') {
       router.push('/verify-phone' as any);
       return;
     }
-    if (msg === 'INSUFFICIENT_BALANCE') {
-      // Funds dropped between balance check and pay call — go back to funding screen
-      setStage('payluk_fund');
-      if (paylukTransactionId) {
-        startPolling(paylukTransactionId, paylukTotalAmount);
-      }
-      return;
-    }
-    if (msg === 'PAYMENT_RECORDED_FAILED') {
-      setStage('payluk_recorded_failed');
-      return;
-    }
-    if (msg === 'SELLER_PHONE_UNVERIFIED') {
-      setStage('error');
-      setErrorMsg('The seller has not verified their phone number. Payment cannot proceed.');
-      return;
-    }
     setStage('error');
-    setErrorMsg(msg || 'Could not complete payment.');
-  };
+    setErrorMsg(msg || 'Payment could not be completed.');
+  }, []);
 
   // 2. Initialize payment via web API
   const handleInitializePayment = async () => {
@@ -329,15 +229,10 @@ export default function CheckoutScreen() {
       const result = await api.post<InitializeResponse>('/api/payment/initialize', payload);
       console.log('[Checkout] /api/payment/initialize response:', JSON.stringify(result));
 
-      // ── Payluk path: paylukEscrowId present, no paymentLink ──
-      if (result.paylukEscrowId) {
-        console.log(
-          '[Checkout] → Payluk path. escrowId:',
-          result.paylukEscrowId,
-          'transactionId:',
-          result.transactionId
-        );
-        await enterPaylukFlow(result.transactionId, result.totalAmount);
+      // ── Payluk path: paylukPaymentToken present ──
+      if (result.paylukPaymentToken) {
+        console.log('[Checkout] → Payluk SDK path. token:', result.paylukPaymentToken, 'tx:', result.transactionId);
+        enterPaylukFlow(result.transactionId, result.totalAmount, result.paylukPaymentToken);
         return;
       }
 
@@ -379,7 +274,6 @@ export default function CheckoutScreen() {
   };
 
   const commission = item ? Math.round(item.price * COMMISSION_RATE) : 0;
-  // totalAmount for display: use server value during Payluk flow, derive locally for summary/Paystack
   const totalAmount = paylukTotalAmount > 0 ? paylukTotalAmount : (item?.price ?? 0) + commission;
   const thumbnail = item?.image_urls?.[0] || item?.image_url;
 
@@ -392,53 +286,18 @@ export default function CheckoutScreen() {
     );
   }
 
-  // ── Payluk: checking wallet balance ──────────────────────────
-  if (stage === 'payluk_checking') {
-    return (
-      <SafeAreaView style={[stylesheet.center, { backgroundColor: theme.colors.DARK, gap: 18 }]}>
-        <ActivityIndicator size="large" color={theme.colors.G} />
-        <Text style={stylesheet.payingSubtitle}>Checking your wallet...</Text>
-      </SafeAreaView>
-    );
-  }
-
-  // ── Payluk: wallet payment in flight ──────────────────────────
-  if (stage === 'payluk_pending') {
-    return (
-      <SafeAreaView style={[stylesheet.center, { backgroundColor: theme.colors.DARK, gap: 18 }]}>
-        <View style={stylesheet.payingIconContainer}>
-          <Feather name="lock" size={28} color={theme.colors.G} />
-        </View>
-        <View style={{ alignItems: 'center' }}>
-          <Text style={stylesheet.payingTitle}>Processing payment</Text>
-          <Text style={stylesheet.payingSubtitle}>Funding escrow from your wallet...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  // ── Payluk: reconciliation failure ───────────────────────────
-  if (stage === 'payluk_recorded_failed') {
-    return (
-      <SafeAreaView style={[stylesheet.center, { backgroundColor: theme.colors.DARK }]}>
-        <Feather name="alert-triangle" size={48} color="#F59E0B" />
-        <Text style={[stylesheet.errorTitle, { color: theme.colors.TEXT_PRIMARY }]}>
-          Payment received
-        </Text>
-        <Text style={[stylesheet.errorMsg, { color: theme.colors.LABEL }]}>
-          payment processed, please contact support
-        </Text>
-        <Text
-          style={[
-            stylesheet.errorMsg,
-            { color: theme.colors.G, fontFamily: 'Inter-SemiBold', marginTop: 16 },
-          ]}
-        >
-          Reference: {paylukTransactionId}
-        </Text>
-      </SafeAreaView>
-    );
-  }
+  // ── Payluk Checkout SDK (fullscreen modal) ────────────────────
+  // Rendered on top of summary; summary stays mounted underneath for cancel UX
+  const checkoutModal = showCheckout && paylukToken ? (
+    <PaylukCheckout
+      paymentToken={paylukToken}
+      publicKey={PAYLUK_PUBLIC_KEY}
+      amount={totalAmount}
+      onSuccess={handleCheckoutSuccess}
+      onCancel={handleCheckoutCancel}
+      onError={handleCheckoutError}
+    />
+  ) : null;
 
   // ── Error ────────────────────────────────────────────────────
   if (stage === 'error') {
@@ -457,145 +316,6 @@ export default function CheckoutScreen() {
             Go Back
           </Text>
         </TouchableOpacity>
-      </SafeAreaView>
-    );
-  }
-
-  // ── Payluk: wallet has funds — confirm payment ────────────────
-  if (stage === 'payluk_confirm') {
-    return (
-      <SafeAreaView style={[stylesheet.center, { backgroundColor: theme.colors.DARK, gap: 16 }]}>
-        <View style={stylesheet.payingIconContainer}>
-          <Feather name="check-circle" size={28} color={theme.colors.G} />
-        </View>
-        <Text style={stylesheet.payingTitle}>Wallet balance confirmed</Text>
-        <Text style={[stylesheet.payingSubtitle, { textAlign: 'center', maxWidth: 280 }]}>
-          Your wallet has {formatPrice(walletBalance ?? 0)}. Tap below to fund the escrow.
-        </Text>
-        <View style={{ width: '100%', paddingHorizontal: 32, gap: 12, marginTop: 8 }}>
-          <TouchableOpacity
-            style={[stylesheet.payBtn, isPaying && { opacity: 0.5 }]}
-            onPress={handlePaylukPay}
-            activeOpacity={0.85}
-            disabled={isPaying}
-          >
-            <Text style={stylesheet.payBtnText}>Pay {formatPrice(totalAmount)} from wallet</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setStage('summary')}
-            style={{ alignItems: 'center', paddingVertical: 8 }}
-          >
-            <Text style={{ color: theme.colors.LABEL, fontFamily: 'Inter-Regular', fontSize: 13 }}>
-              Cancel
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  // ── Payluk: insufficient balance — show virtual account ───────
-  if (stage === 'payluk_fund') {
-    const needed = walletBalance !== null ? Math.max(0, totalAmount - walletBalance) : totalAmount;
-    return (
-      <SafeAreaView
-        style={[stylesheet.container, { backgroundColor: theme.colors.DARK }]}
-        edges={['top', 'bottom']}
-      >
-        <View style={[stylesheet.header, { borderBottomColor: theme.colors.GLASS_BORDER }]}>
-          <TouchableOpacity onPress={() => setStage('summary')} style={stylesheet.backBtn}>
-            <Feather name="chevron-left" size={24} color={theme.colors.TEXT_PRIMARY} />
-          </TouchableOpacity>
-          <Text style={[stylesheet.headerTitle, { color: theme.colors.TEXT_PRIMARY }]}>
-            Fund your wallet
-          </Text>
-          <View style={{ width: 34 }} />
-        </View>
-
-        <ScrollView contentContainerStyle={stylesheet.scroll} showsVerticalScrollIndicator={false}>
-          {/* Balance status */}
-          <View style={stylesheet.card}>
-            <Text style={stylesheet.sectionTitle}>WALLET BALANCE</Text>
-            <View style={stylesheet.priceRow}>
-              <Text style={stylesheet.priceLabel}>Current balance</Text>
-              <Text style={stylesheet.priceValue}>{formatPrice(walletBalance ?? 0)}</Text>
-            </View>
-            <View style={stylesheet.priceRow}>
-              <Text style={stylesheet.priceLabel}>Amount needed</Text>
-              <Text style={[stylesheet.priceValue, { color: '#E53935' }]}>
-                {formatPrice(needed)}
-              </Text>
-            </View>
-            <View style={stylesheet.priceRow}>
-              <Text style={stylesheet.priceLabel}>Total to pay</Text>
-              <Text style={[stylesheet.totalValue]}>{formatPrice(totalAmount)}</Text>
-            </View>
-          </View>
-
-          {/* Virtual account details */}
-          {virtualAccount ? (
-            <View style={stylesheet.card}>
-              <Text style={stylesheet.sectionTitle}>BANK TRANSFER DETAILS</Text>
-              <Text style={[stylesheet.payingSubtitle, { marginBottom: 16 }]}>
-                Transfer exactly {formatPrice(needed)} to the account below to fund your wallet.
-                {!virtualAccount.dedicated && virtualAccount.expiresIn
-                  ? ` This account expires ${virtualAccount.expiresIn}.`
-                  : ''}
-              </Text>
-              <View style={stylesheet.accountRow}>
-                <Text style={stylesheet.accountLabel}>Bank</Text>
-                <Text style={stylesheet.accountValue}>{virtualAccount.bank}</Text>
-              </View>
-              <View style={stylesheet.accountRow}>
-                <Text style={stylesheet.accountLabel}>Account name</Text>
-                <Text style={stylesheet.accountValue}>{virtualAccount.accountName}</Text>
-              </View>
-              <View style={[stylesheet.accountRow, { alignItems: 'center' }]}>
-                <Text style={stylesheet.accountLabel}>Account number</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <Text
-                    style={[
-                      stylesheet.accountValue,
-                      { fontFamily: 'Outfit-Bold', fontSize: 20, color: theme.colors.G },
-                    ]}
-                  >
-                    {virtualAccount.accountNumber}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => {
-                      Clipboard.setString(virtualAccount.accountNumber);
-                      Alert.alert('Copied', 'Account number copied to clipboard.');
-                    }}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Feather name="copy" size={16} color={theme.colors.LABEL} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          ) : (
-            <View style={stylesheet.card}>
-              <ActivityIndicator color={theme.colors.G} />
-              <Text style={[stylesheet.payingSubtitle, { marginTop: 12, textAlign: 'center' }]}>
-                Generating account details...
-              </Text>
-            </View>
-          )}
-
-          {/* Polling status + manual check */}
-          <View style={[stylesheet.card, { alignItems: 'center', gap: 12 }]}>
-            <ActivityIndicator size="small" color={theme.colors.G} />
-            <Text style={stylesheet.payingSubtitle}>Waiting for your transfer to arrive...</Text>
-            <TouchableOpacity
-              style={[stylesheet.retryBtn, { backgroundColor: theme.colors.SURFACE }]}
-              onPress={checkNow}
-            >
-              <Text style={[stylesheet.retryBtnText, { color: theme.colors.TEXT_PRIMARY }]}>
-                I've sent it — check now
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -715,6 +435,7 @@ export default function CheckoutScreen() {
         </TouchableOpacity>
       </View>
     </SafeAreaView>
+    {checkoutModal}
   );
 }
 
@@ -895,25 +616,6 @@ const _stylesheet = createStyleSheet((theme) => ({
     fontFamily: 'Inter-Regular',
     fontSize: 13,
     color: theme.colors.MUTED,
-  },
-
-  // Virtual account display
-  accountRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.GLASS_BORDER,
-  },
-  accountLabel: {
-    fontFamily: 'Inter-Regular',
-    fontSize: 13,
-    color: theme.colors.MUTED,
-  },
-  accountValue: {
-    fontFamily: 'Inter-SemiBold',
-    fontSize: 14,
-    color: theme.colors.TEXT_PRIMARY,
   },
 
   errorTitle: { fontSize: 22, fontWeight: '800', marginTop: 16, marginBottom: 8 },
