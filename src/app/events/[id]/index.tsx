@@ -1357,7 +1357,7 @@ export default function EventDetailScreen() {
                     {quantity}
                   </Text>
                   <TouchableOpacity
-                    onPress={() => setQuantity((q) => Math.min(10, q + 1))}
+                    onPress={() => setQuantity((q) => Math.min(5, q + 1))}
                     style={[stylesheet.quantityBtn, { backgroundColor: theme.colors.GLASS_BORDER }]}
                   >
                     <Ionicons name="add" size={20} color={theme.colors.TEXT_PRIMARY} />
