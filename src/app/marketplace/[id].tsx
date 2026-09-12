@@ -423,28 +423,31 @@ function MarketplaceDetailContent() {
       withSpring(1, { damping: 5, stiffness: 200 })
     );
 
-    const newLikedState = !isLiked;
+    const previousIsLiked = isLiked;
+    const previousLikeCount = likeCount;
+    const newLikedState = !previousIsLiked;
+
     setIsLiked(newLikedState);
-    setLikeCount((prev) => (newLikedState ? prev + 1 : prev - 1));
+    setLikeCount(newLikedState ? previousLikeCount + 1 : Math.max(0, previousLikeCount - 1));
 
-    const currentLikedBy = post.liked_by || [];
-    const newLikedBy = newLikedState
-      ? [...new Set([...currentLikedBy, user.id])]
-      : currentLikedBy.filter((id) => id !== user.id);
+    try {
+      const { data, error } = await supabase.rpc('toggle_post_like', {
+        p_post_id: post.id,
+        p_user_id: user.id,
+      });
 
-    // Optimistic update done, now save to backend
-    const { error } = await supabase
-      .from('posts')
-      .update({ liked_by: newLikedBy })
-      .eq('id', post.id);
+      if (error) throw error;
 
-    if (error) {
-      // Rollback
-      setIsLiked(!newLikedState);
-      setLikeCount((prev) => (!newLikedState ? prev + 1 : prev - 1));
+      if (data) {
+        setIsLiked(data.is_liked);
+        setLikeCount(data.likes_count);
+        const newLikedBy = (data.liked_by || []) as string[];
+        setPost((prev) => (prev ? { ...prev, liked_by: newLikedBy } : null));
+      }
+    } catch (error) {
+      setIsLiked(previousIsLiked);
+      setLikeCount(previousLikeCount);
       console.error('Error toggling like:', error);
-    } else {
-      setPost((prev) => (prev ? { ...prev, liked_by: newLikedBy } : null));
     }
   };
 

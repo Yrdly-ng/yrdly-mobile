@@ -412,29 +412,23 @@ export const PostCard = React.memo(
       if (onLike) onLike();
 
       try {
-        const currentLikedBy = post.liked_by || [];
-        let newLikedBy;
+        const { data, error } = await supabase.rpc('toggle_post_like', {
+          p_post_id: post.id,
+          p_user_id: currentUser.id,
+        });
 
-        if (newIsLiked) {
-          // Add to array only if not already present to avoid duplicates
-          newLikedBy = currentLikedBy.includes(currentUser.id)
-            ? currentLikedBy
-            : [...currentLikedBy, currentUser.id];
-        } else {
-          newLikedBy = currentLikedBy.filter((id) => id !== currentUser.id);
+        if (error) throw error;
+
+        const newLikedBy = (data?.liked_by || []) as string[];
+        if (data) {
+          setIsLiked(data.is_liked);
+          setLikesCount(data.likes_count);
         }
 
         DeviceEventEmitter.emit('post_updated', {
           postId: post.id,
           updates: { liked_by: newLikedBy },
         });
-
-        const { error } = await supabase
-          .from('posts')
-          .update({ liked_by: newLikedBy })
-          .eq('id', post.id);
-
-        if (error) throw error;
 
         // Trigger notification
         if (newIsLiked) {
@@ -1111,9 +1105,16 @@ export const PostCard = React.memo(
     );
   },
   (prevProps, nextProps) => {
+    const prevLikes = prevProps.post.liked_by || [];
+    const nextLikes = nextProps.post.liked_by || [];
+    const likesEqual =
+      prevLikes === nextLikes ||
+      (prevLikes.length === nextLikes.length &&
+        prevLikes.every((id, idx) => id === nextLikes[idx]));
+
     return (
       prevProps.post.id === nextProps.post.id &&
-      prevProps.post.liked_by?.length === nextProps.post.liked_by?.length &&
+      likesEqual &&
       prevProps.post.comment_count === nextProps.post.comment_count &&
       prevProps.isVisible === nextProps.isVisible
     );

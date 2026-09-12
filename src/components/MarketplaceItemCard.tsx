@@ -69,9 +69,8 @@ export function MarketplaceItemCard({ item, onPress, onMessageSeller, onBuyNow }
 
   const toggleSaved = async () => {
     if (!user) return;
-    const currentLikedBy = item.liked_by || [];
-    const isCurrentlyLiked = currentLikedBy.includes(user.id);
-    const newSaved = !isCurrentlyLiked;
+    const previousSaved = saved;
+    const newSaved = !previousSaved;
 
     setSaved(newSaved);
     Animated.sequence([
@@ -79,15 +78,18 @@ export function MarketplaceItemCard({ item, onPress, onMessageSeller, onBuyNow }
       Animated.spring(heartScale, { toValue: 1.0, useNativeDriver: true, speed: 40 }),
     ]).start();
 
-    const newLikedBy = newSaved
-      ? [...currentLikedBy, user.id]
-      : currentLikedBy.filter((id) => id !== user.id);
-
     try {
-      await supabase.from('posts').update({ liked_by: newLikedBy }).eq('id', item.id);
+      const { data, error } = await supabase.rpc('toggle_post_like', {
+        p_post_id: item.id,
+        p_user_id: user.id,
+      });
+      if (error) throw error;
+      if (data) {
+        setSaved(data.is_liked);
+      }
     } catch (err) {
       console.error('Failed to toggle like', err);
-      setSaved(!newSaved);
+      setSaved(previousSaved);
     }
   };
 

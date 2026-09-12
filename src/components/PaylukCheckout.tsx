@@ -41,7 +41,8 @@ export function PaylukCheckout({
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
   <title>Payluk Checkout</title>
-  <script src="https://cdn.payluk.ng/sdk/v1/payluk-inline.js"></script>
+  <script src="https://checkout.payluk.ng/escrow-checkout.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/payluk-escrow-inline-checkout"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -69,27 +70,55 @@ export function PaylukCheckout({
       }
     }
 
-    window.addEventListener('load', function () {
+    function initCheckout() {
       try {
-        PaylukInlineCheckout.pay({
-          publicKey: ${JSON.stringify(publicKey)},
-          paymentToken: ${JSON.stringify(paymentToken)},
-          amount: ${amount},
-          currency: 'NGN',
-          onSuccess: function () {
-            postMsg({ type: 'payluk_success' });
-          },
-          onCancel: function () {
-            postMsg({ type: 'payluk_cancel' });
-          },
-          onError: function (err) {
-            postMsg({ type: 'payluk_error', message: err && err.message ? err.message : 'Payment error' });
-          }
-        });
+        var SDK = window.EscrowCheckout || window.PaylukInlineCheckout || window.PaylukCheckout || window.Payluk;
+        if (!SDK) {
+          postMsg({ type: 'payluk_error', message: 'Payluk Checkout SDK failed to load' });
+          return;
+        }
+
+        if (typeof SDK === 'function') {
+          SDK({
+            publicKey: ${JSON.stringify(publicKey)},
+            session: ${JSON.stringify(paymentToken)},
+            brand: 'Yrdly',
+            callback: function (res) {
+              postMsg({ type: 'payluk_success', paymentId: res && res.paymentId });
+            },
+            onClose: function () {
+              postMsg({ type: 'payluk_cancel' });
+            }
+          });
+        } else if (SDK.pay) {
+          SDK.pay({
+            publicKey: ${JSON.stringify(publicKey)},
+            paymentToken: ${JSON.stringify(paymentToken)},
+            amount: ${amount},
+            currency: 'NGN',
+            onSuccess: function () {
+              postMsg({ type: 'payluk_success' });
+            },
+            onCancel: function () {
+              postMsg({ type: 'payluk_cancel' });
+            },
+            onError: function (err) {
+              postMsg({ type: 'payluk_error', message: err && err.message ? err.message : 'Payment error' });
+            }
+          });
+        } else {
+          postMsg({ type: 'payluk_error', message: 'Payluk SDK has no valid initialization method' });
+        }
       } catch (e) {
         postMsg({ type: 'payluk_error', message: e && e.message ? e.message : 'Failed to initialise checkout' });
       }
-    });
+    }
+
+    if (document.readyState === 'complete') {
+      initCheckout();
+    } else {
+      window.addEventListener('load', initCheckout);
+    }
   </script>
 </body>
 </html>
