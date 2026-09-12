@@ -4,7 +4,7 @@
  */
 import { supabase } from './supabase';
 
-const WEB_APP_URL = process.env.EXPO_PUBLIC_WEB_APP_URL ?? 'https://app.yrdly.ng';
+const WEB_APP_URL = (process.env.EXPO_PUBLIC_WEB_APP_URL ?? 'https://app.yrdly.ng').replace(/\/+$/, '');
 
 async function getAuthHeaders(): Promise<HeadersInit> {
   const { data } = await supabase.auth.getSession();
@@ -18,7 +18,8 @@ async function getAuthHeaders(): Promise<HeadersInit> {
 export const api = {
   async post<T = any>(path: string, body: object): Promise<T> {
     const headers = await getAuthHeaders();
-    const res = await fetch(`${WEB_APP_URL}${path}`, {
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    const res = await fetch(`${WEB_APP_URL}${cleanPath}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
@@ -30,6 +31,7 @@ export const api = {
       json = await res.json();
     } else {
       const text = await res.text();
+      console.error(`[API POST ${cleanPath}] Non-JSON response (${res.status}):`, text.slice(0, 300));
       throw new Error(
         `API Error (${res.status}): Server returned non-JSON response. Ensure your WEB_APP_URL is correct.`
       );
@@ -41,7 +43,8 @@ export const api = {
 
   async get<T = any>(path: string): Promise<T> {
     const headers = await getAuthHeaders();
-    const res = await fetch(`${WEB_APP_URL}${path}`, {
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    const res = await fetch(`${WEB_APP_URL}${cleanPath}`, {
       headers,
       cache: 'no-store', // Critical for RN iOS to bypass aggressive GET caching
     });
@@ -52,6 +55,7 @@ export const api = {
       json = await res.json();
     } else {
       const text = await res.text();
+      console.error(`[API GET ${cleanPath}] Non-JSON response (${res.status}):`, text.slice(0, 300));
       throw new Error(
         `API Error (${res.status}): Server returned non-JSON response. Ensure your WEB_APP_URL is correct.`
       );
