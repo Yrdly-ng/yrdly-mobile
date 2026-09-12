@@ -9,6 +9,8 @@ import {
   Modal,
   ActivityIndicator,
   DeviceEventEmitter,
+  ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import * as Haptics from 'expo-haptics';
@@ -182,6 +184,7 @@ export default function HomeTab() {
     optimisticUpdatePost,
     deletePost,
   } = usePosts(activeFilter);
+  const { width } = useWindowDimensions();
   const [refreshing, setRefreshing] = useState(false);
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
   const [activePostId, setActivePostId] = useState<string | null>(null);
@@ -574,20 +577,30 @@ export default function HomeTab() {
         ListHeaderComponent={
           <View>
             {activeAlerts.length > 0 && (
-              <View style={{ marginTop: 16 }}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                decelerationRate="fast"
+                snapToInterval={activeAlerts.length > 1 ? width - 32 : undefined}
+                snapToAlignment="center"
+                contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+                style={{ marginTop: 16, marginBottom: 8 }}
+              >
                 {activeAlerts.map((alert) => (
-                  <AlertBanner
-                    key={alert.id}
-                    alert={alert}
-                    onPress={() => router.push('/alerts')}
-                    onDismiss={async () => {
-                      // Persist dismissal so it doesn't reappear on refresh
-                      await SecureStore.setItemAsync(`yrdly_dismissed_alert_${alert.id}`, 'true');
-                      setActiveAlerts((prev) => prev.filter((a) => a.id !== alert.id));
-                    }}
-                  />
+                  <View key={alert.id} style={{ width: activeAlerts.length > 1 ? width - 44 : width - 32 }}>
+                    <AlertBanner
+                      alert={alert}
+                      style={{ marginBottom: 0 }}
+                      onPress={() => router.push('/alerts')}
+                      onDismiss={async () => {
+                        // Persist dismissal so it doesn't reappear on refresh
+                        await SecureStore.setItemAsync(`yrdly_dismissed_alert_${alert.id}`, 'true');
+                        setActiveAlerts((prev) => prev.filter((a) => a.id !== alert.id));
+                      }}
+                    />
+                  </View>
                 ))}
-              </View>
+              </ScrollView>
             )}
             <QuickPostBox />
           </View>

@@ -15,9 +15,10 @@ interface AlertBannerProps {
   alert: Alert;
   onPress: () => void;
   onDismiss?: () => void;
+  style?: any;
 }
 
-export const AlertBanner: React.FC<AlertBannerProps> = ({ alert, onPress, onDismiss }) => {
+export const AlertBanner: React.FC<AlertBannerProps> = ({ alert, onPress, onDismiss, style }) => {
   const { styles: stylesheet, theme } = useStyles(_stylesheet);
 
   const resolved = checkIsResolved(alert);
@@ -45,6 +46,7 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({ alert, onPress, onDism
           borderColor: resolved ? theme.colors.GLASS_BORDER : c.border,
           opacity: resolved ? 0.6 : 1,
         },
+        style,
       ]}
     >
       <SeverityStrip tier={tier} isResolved={resolved} width={5} />
