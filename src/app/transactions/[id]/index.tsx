@@ -418,6 +418,9 @@ export default function TransactionDetailScreen() {
               const msg: string = e?.message ?? '';
               if (msg === 'DELIVERY_RECORDED_FAILED') {
                 Alert.alert('Action Completed', 'payment processed, please contact support');
+              } else if (msg.includes('Action not allowed')) {
+                await fetchTx();
+                Alert.alert('🎉 Done!', 'Funds have been released to the seller. Thank you!');
               } else {
                 Alert.alert('Error', msg || 'Could not confirm receipt. Please try again.');
               }
@@ -455,6 +458,9 @@ export default function TransactionDetailScreen() {
               const msg: string = e?.message ?? '';
               if (msg === 'CLAIM_RECORDED_FAILED') {
                 Alert.alert('Action Completed', 'payment processed, please contact support');
+              } else if (msg.includes('Action not allowed')) {
+                await fetchTx();
+                Alert.alert('✅ Claimed!', 'Your funds have been released to your wallet.');
               } else {
                 Alert.alert(
                   'Cannot Claim Yet',
