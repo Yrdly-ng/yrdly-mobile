@@ -101,6 +101,31 @@ const TIMELINE_STEPS: { status: EscrowStatus; label: string; tsKey: keyof TxDeta
 
 const STATUS_ORDER: EscrowStatus[] = ['pending', 'paid', 'shipped', 'delivered', 'completed'];
 
+function parseImageUrls(val: any): string[] {
+  if (!val) return [];
+  if (Array.isArray(val)) {
+    return val.map((v) => (typeof v === 'string' ? v.trim() : '')).filter((v) => v.length > 0);
+  }
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed.map((v) => (typeof v === 'string' ? v.trim() : '')).filter((v) => v.length > 0);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    if (trimmed.startsWith('http') || trimmed.startsWith('file:') || trimmed.startsWith('data:')) {
+      return [trimmed];
+    }
+  }
+  return [];
+}
+
 function fmt(iso: string | null): string {
   if (!iso) return '';
   return new Date(iso).toLocaleDateString('en-NG', {
@@ -195,54 +220,69 @@ export default function TransactionDetailScreen() {
         null;
 
       if (postItem) {
-        const imgs = Array.isArray(postItem.image_urls)
-          ? postItem.image_urls
-          : postItem.image_url
-            ? [postItem.image_url]
-            : null;
+        const imgs = [
+          ...parseImageUrls(postItem.image_urls),
+          ...parseImageUrls(postItem.image_url),
+        ];
         itemObj = {
           id: postItem.id,
           title: postItem.title || postItem.text || 'Item',
-          images: imgs,
+          images: imgs.length > 0 ? imgs : null,
           price: postItem.price,
         };
       } else if (catalogItem) {
-        const imgs = Array.isArray(catalogItem.images)
-          ? catalogItem.images
-          : typeof catalogItem.images === 'string'
-            ? [catalogItem.images]
-            : null;
+        const imgs = parseImageUrls(catalogItem.images);
         itemObj = {
           id: catalogItem.id,
           title: catalogItem.title || 'Item',
-          images: imgs,
+          images: imgs.length > 0 ? imgs : null,
           price: catalogItem.price,
         };
       }
 
       // Fallback: If joined relationship returned null, fetch directly using item_id
       if (!itemObj && data.item_id) {
-        // Try catalog_items first
-        const { data: catData } = await supabase
-          .from('catalog_items')
-          .select('id, title, images, price')
-          .eq('id', data.item_id)
-          .maybeSingle();
+        const isCatalog = data.item_type === 'catalog';
 
-        if (catData) {
-          const imgs = Array.isArray(catData.images)
-            ? catData.images
-            : typeof catData.images === 'string'
-              ? [catData.images]
-              : null;
-          itemObj = {
-            id: catData.id,
-            title: catData.title || 'Item',
-            images: imgs,
-            price: catData.price,
-          };
+        if (isCatalog) {
+          // Try catalog_items first
+          const { data: catData } = await supabase
+            .from('catalog_items')
+            .select('id, title, images, price')
+            .eq('id', data.item_id)
+            .maybeSingle();
+
+          if (catData) {
+            const imgs = parseImageUrls(catData.images);
+            itemObj = {
+              id: catData.id,
+              title: catData.title || 'Item',
+              images: imgs.length > 0 ? imgs : null,
+              price: catData.price,
+            };
+          } else {
+            // Fallback to posts
+            const { data: pData } = await supabase
+              .from('posts')
+              .select('id, title, text, image_urls, image_url, price')
+              .eq('id', data.item_id)
+              .maybeSingle();
+
+            if (pData) {
+              const imgs = [
+                ...parseImageUrls(pData.image_urls),
+                ...parseImageUrls(pData.image_url),
+              ];
+              itemObj = {
+                id: pData.id,
+                title: pData.title || pData.text || 'Item',
+                images: imgs.length > 0 ? imgs : null,
+                price: pData.price,
+              };
+            }
+          }
         } else {
-          // Try posts table
+          // Try posts first
           const { data: pData } = await supabase
             .from('posts')
             .select('id, title, text, image_urls, image_url, price')
@@ -250,17 +290,33 @@ export default function TransactionDetailScreen() {
             .maybeSingle();
 
           if (pData) {
-            const imgs = Array.isArray(pData.image_urls)
-              ? pData.image_urls
-              : pData.image_url
-                ? [pData.image_url]
-                : null;
+            const imgs = [
+              ...parseImageUrls(pData.image_urls),
+              ...parseImageUrls(pData.image_url),
+            ];
             itemObj = {
               id: pData.id,
               title: pData.title || pData.text || 'Item',
-              images: imgs,
+              images: imgs.length > 0 ? imgs : null,
               price: pData.price,
             };
+          } else {
+            // Fallback to catalog_items
+            const { data: catData } = await supabase
+              .from('catalog_items')
+              .select('id, title, images, price')
+              .eq('id', data.item_id)
+              .maybeSingle();
+
+            if (catData) {
+              const imgs = parseImageUrls(catData.images);
+              itemObj = {
+                id: catData.id,
+                title: catData.title || 'Item',
+                images: imgs.length > 0 ? imgs : null,
+                price: catData.price,
+              };
+            }
           }
         }
       }

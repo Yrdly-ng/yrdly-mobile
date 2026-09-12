@@ -94,6 +94,31 @@ export default function TransactionsScreen() {
 
         if (error) throw error;
 
+function parseImageUrls(val: any): string[] {
+  if (!val) return [];
+  if (Array.isArray(val)) {
+    return val.map((v) => (typeof v === 'string' ? v.trim() : '')).filter((v) => v.length > 0);
+  }
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed.map((v) => (typeof v === 'string' ? v.trim() : '')).filter((v) => v.length > 0);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    if (trimmed.startsWith('http') || trimmed.startsWith('file:') || trimmed.startsWith('data:')) {
+      return [trimmed];
+    }
+  }
+  return [];
+}
+
         const normalised = (await Promise.all(
           (data ?? []).map(async (tx: any) => {
             const postItem = Array.isArray(tx.post_item) ? tx.post_item[0] : tx.post_item;
@@ -104,25 +129,48 @@ export default function TransactionsScreen() {
               ? {
                   id: postItem.id,
                   title: postItem.title || postItem.text || 'Item',
-                  images: postItem.image_urls || [postItem.image_url],
+                  images: [
+                    ...parseImageUrls(postItem.image_urls),
+                    ...parseImageUrls(postItem.image_url),
+                  ],
                 }
               : catalogItem
-                ? { id: catalogItem.id, title: catalogItem.title, images: catalogItem.images }
+                ? {
+                    id: catalogItem.id,
+                    title: catalogItem.title,
+                    images: parseImageUrls(catalogItem.images),
+                  }
                 : null;
 
             if (!itemObj && tx.item_id) {
-              const { data: catData } = await supabase
-                .from('catalog_items')
-                .select('id, title, images')
-                .eq('id', tx.item_id)
-                .maybeSingle();
-              if (catData) {
-                const imgs = Array.isArray(catData.images)
-                  ? catData.images
-                  : typeof catData.images === 'string'
-                    ? [catData.images]
-                    : null;
-                itemObj = { id: catData.id, title: catData.title || 'Item', images: imgs };
+              const isCatalog = tx.item_type === 'catalog';
+              if (isCatalog) {
+                const { data: catData } = await supabase
+                  .from('catalog_items')
+                  .select('id, title, images')
+                  .eq('id', tx.item_id)
+                  .maybeSingle();
+                if (catData) {
+                  const imgs = parseImageUrls(catData.images);
+                  itemObj = { id: catData.id, title: catData.title || 'Item', images: imgs };
+                } else {
+                  const { data: pData } = await supabase
+                    .from('posts')
+                    .select('id, title, text, image_urls, image_url')
+                    .eq('id', tx.item_id)
+                    .maybeSingle();
+                  if (pData) {
+                    const imgs = [
+                      ...parseImageUrls(pData.image_urls),
+                      ...parseImageUrls(pData.image_url),
+                    ];
+                    itemObj = {
+                      id: pData.id,
+                      title: pData.title || pData.text || 'Item',
+                      images: imgs,
+                    };
+                  }
+                }
               } else {
                 const { data: pData } = await supabase
                   .from('posts')
@@ -130,16 +178,25 @@ export default function TransactionsScreen() {
                   .eq('id', tx.item_id)
                   .maybeSingle();
                 if (pData) {
-                  const imgs = Array.isArray(pData.image_urls)
-                    ? pData.image_urls
-                    : pData.image_url
-                      ? [pData.image_url]
-                      : null;
+                  const imgs = [
+                    ...parseImageUrls(pData.image_urls),
+                    ...parseImageUrls(pData.image_url),
+                  ];
                   itemObj = {
                     id: pData.id,
                     title: pData.title || pData.text || 'Item',
                     images: imgs,
                   };
+                } else {
+                  const { data: catData } = await supabase
+                    .from('catalog_items')
+                    .select('id, title, images')
+                    .eq('id', tx.item_id)
+                    .maybeSingle();
+                  if (catData) {
+                    const imgs = parseImageUrls(catData.images);
+                    itemObj = { id: catData.id, title: catData.title || 'Item', images: imgs };
+                  }
                 }
               }
             }
