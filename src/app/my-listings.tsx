@@ -17,6 +17,31 @@ import { useAuth } from '../hooks/use-supabase-auth';
 import { supabase } from '../lib/supabase';
 import type { Post } from '../types';
 
+function parseImageUrls(val: any): string[] {
+  if (!val) return [];
+  if (Array.isArray(val)) {
+    return val.map((v) => (typeof v === 'string' ? v.trim() : '')).filter((v) => v.length > 0);
+  }
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed.map((v) => (typeof v === 'string' ? v.trim() : '')).filter((v) => v.length > 0);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    if (trimmed.startsWith('http') || trimmed.startsWith('file:') || trimmed.startsWith('data:')) {
+      return [trimmed];
+    }
+  }
+  return [];
+}
+
 export default function MyListingsScreen() {
   const { styles: stylesheet, theme } = useStyles(_stylesheet);
 
@@ -31,17 +56,80 @@ export default function MyListingsScreen() {
   const fetchListings = useCallback(async () => {
     if (!user) return;
     try {
-      const { data, error } = await supabase
+      // 1. Fetch user posts
+      const { data: userPosts, error } = await supabase
         .from('posts')
         .select('*')
         .eq('user_id', user.id)
-        .in('category', ['For Sale', 'Giveaway'])
+        .or('category.in.("For Sale","Giveaway"),is_sold.eq.true,price.gt.0')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setPosts(data as Post[]);
+
+      let allListings: any[] = userPosts ? [...userPosts] : [];
+
+      // 2. Fetch escrow transactions where this user is the seller
+      const { data: soldTxs } = await supabase
+        .from('escrow_transactions')
+        .select('id, item_id, item_type, amount, status, created_at')
+        .eq('seller_id', user.id)
+        .in('status', ['paid', 'shipped', 'delivered', 'completed']);
+
+      if (soldTxs && soldTxs.length > 0) {
+        const soldItemIds = new Set(soldTxs.map((t) => t.item_id).filter(Boolean));
+
+        // Mark matching posts in allListings as sold
+        allListings = allListings.map((p) => {
+          if (soldItemIds.has(p.id)) {
+            return { ...p, is_sold: true };
+          }
+          return p;
+        });
+
+        // For any escrow item not already in allListings, fetch its details
+        const existingIds = new Set(allListings.map((p) => p.id));
+        const missingItemIds = Array.from(soldItemIds).filter((id) => !existingIds.has(id));
+
+        for (const itemId of missingItemIds) {
+          const matchingTx = soldTxs.find((t) => t.item_id === itemId);
+          if (!matchingTx) continue;
+
+          // Try fetching from posts first
+          const { data: postData } = await supabase
+            .from('posts')
+            .select('*')
+            .eq('id', itemId)
+            .maybeSingle();
+
+          if (postData) {
+            allListings.push({ ...postData, is_sold: true });
+          } else {
+            // Try fetching from catalog_items
+            const { data: catData } = await supabase
+              .from('catalog_items')
+              .select('*')
+              .eq('id', itemId)
+              .maybeSingle();
+
+            if (catData) {
+              allListings.push({
+                id: catData.id,
+                title: catData.title || 'Catalog Item',
+                price: catData.price || matchingTx.amount,
+                images: catData.images,
+                category: 'Catalog',
+                is_sold: true,
+                created_at: catData.created_at || matchingTx.created_at,
+                user_id: user.id,
+              });
+            }
+          }
+        }
+      }
+
+      setPosts(allListings as Post[]);
     } catch (e) {
-      console.error(e);
+      console.error('fetchListings error:', e);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -98,7 +186,12 @@ export default function MyListingsScreen() {
   };
 
   const renderListing = ({ item }: { item: Post }) => {
-    const imageUrl = item.image_urls?.[0] || item.image_url;
+    const imageUrls = [
+      ...parseImageUrls(item.image_urls),
+      ...parseImageUrls(item.image_url),
+      ...parseImageUrls((item as any).images),
+    ];
+    const imageUrl = imageUrls[0] || null;
     const formattedDate = item.created_at
       ? new Date(item.created_at).toLocaleDateString('en-US', {
           month: 'short',
