@@ -39,12 +39,27 @@ interface TxDetail {
   completed_at: string | null;
   buyer_id: string;
   seller_id: string;
+  refund_amount?: number | null;
   item: { id: string; title: string; images: string[] | null; price: number } | null;
   buyer: { id: string; name: string; avatar_url: string | null } | null;
   seller: { id: string; name: string; avatar_url: string | null } | null;
 }
 
-const getStatusMeta = (status: EscrowStatus, isDarkMode: boolean, colors: any) => {
+const getStatusMeta = (
+  status: EscrowStatus,
+  isDarkMode: boolean,
+  colors: any,
+  refundAmount?: number | null
+) => {
+  if (status === 'cancelled' && refundAmount && refundAmount > 0) {
+    return {
+      label: `Cancelled — Refunded (${formatPrice(refundAmount)})`,
+      color: isDarkMode ? '#81D4FA' : '#0288D1',
+      bg: isDarkMode ? '#01579B22' : '#E1F5FE',
+      icon: 'rotate-ccw',
+    };
+  }
+
   const meta: Record<EscrowStatus, { label: string; color: string; bg: string; icon: string }> = {
     pending: {
       label: 'Awaiting Payment',
@@ -201,6 +216,7 @@ export default function TransactionDetailScreen() {
           payment_provider, payluk_tx_ref,
           created_at, paid_at, shipped_at, delivered_at, completed_at,
           buyer_id, seller_id,
+          disputes:disputes!disputes_transaction_id_fkey(refund_amount, seller_amount, status, resolved_at, created_at),
           post_item:posts(id, title, text, image_urls, image_url, price),
           catalog_item:catalog_items(id, title, images, price),
           buyer:users!escrow_transactions_buyer_id_fkey(id, name, avatar_url),
@@ -321,9 +337,24 @@ export default function TransactionDetailScreen() {
         }
       }
 
+      const disputesList = Array.isArray(data.disputes)
+        ? data.disputes
+        : data.disputes
+          ? [data.disputes]
+          : [];
+      const resolvedDispute = disputesList
+        .filter((d: any) => d.status === 'resolved' || (d.refund_amount && d.refund_amount > 0))
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.resolved_at || b.created_at || 0).getTime() -
+            new Date(a.resolved_at || a.created_at || 0).getTime()
+        )[0];
+      const refundAmount = resolvedDispute?.refund_amount ?? null;
+
       const normalised = {
         ...data,
         item: itemObj,
+        refund_amount: refundAmount,
         buyer: Array.isArray(data.buyer) ? (data.buyer[0] ?? null) : data.buyer,
         seller: Array.isArray(data.seller) ? (data.seller[0] ?? null) : data.seller,
       } as TxDetail;
@@ -355,7 +386,8 @@ export default function TransactionDetailScreen() {
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Confirm',
+          text: 'Mark as Sent',
+          style: 'default',
           onPress: async () => {
             setActionLoading(true);
             try {
@@ -370,9 +402,9 @@ export default function TransactionDetailScreen() {
                 .eq('seller_id', user.id);
               if (error) throw error;
               await fetchTx();
-              Alert.alert('Done!', "The buyer has been notified that you've sent the item.");
-            } catch {
-              Alert.alert('Error', 'Could not update the transaction. Please try again.');
+              Alert.alert('Done!', 'Status updated to Item Sent.');
+            } catch (e: any) {
+              Alert.alert('Error', e.message || 'Could not update status.');
             } finally {
               setActionLoading(false);
             }
@@ -485,7 +517,7 @@ export default function TransactionDetailScreen() {
     );
   }
 
-  const meta = getStatusMeta(tx.status, isDarkMode, theme.colors);
+  const meta = getStatusMeta(tx.status, isDarkMode, theme.colors, tx.refund_amount);
   const currentStepIndex = STATUS_ORDER.indexOf(tx.status);
   const rawThumb = tx.item?.images;
   const thumb =
