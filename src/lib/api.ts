@@ -4,10 +4,24 @@
  */
 import { supabase } from './supabase';
 
-const WEB_APP_URL = (process.env.EXPO_PUBLIC_WEB_APP_URL ?? 'https://app.yrdly.ng').replace(/\/+$/, '');
+const WEB_APP_URL = (process.env.EXPO_PUBLIC_WEB_APP_URL ?? 'https://app.yrdly.ng').replace(
+  /\/+$/,
+  ''
+);
 
-async function getAuthHeaders(): Promise<HeadersInit> {
-  const { data } = await supabase.auth.getSession();
+async function getAuthHeaders(forceRefresh = false): Promise<HeadersInit> {
+  let { data } = await supabase.auth.getSession();
+  const expiresAt = data.session?.expires_at ?? 0;
+  const isExpired = expiresAt > 0 && expiresAt * 1000 <= Date.now() + 30_000;
+
+  if (forceRefresh || !data.session || isExpired) {
+    const refreshed = await supabase.auth.refreshSession();
+    if (refreshed.error) {
+      throw new Error('Your session has expired. Please sign in again.');
+    }
+    data = refreshed.data;
+  }
+
   const token = data.session?.access_token;
   return {
     'Content-Type': 'application/json',
@@ -15,14 +29,16 @@ async function getAuthHeaders(): Promise<HeadersInit> {
   };
 }
 
-export const api = {
-  async post<T = any>(path: string, body: object): Promise<T> {
-    const headers = await getAuthHeaders();
-    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+async function request<T>(method: 'GET' | 'POST', path: string, body?: object): Promise<T> {
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const headers = await getAuthHeaders(attempt === 1);
     const res = await fetch(`${WEB_APP_URL}${cleanPath}`, {
-      method: 'POST',
+      method,
       headers,
-      body: JSON.stringify(body),
+      ...(body ? { body: JSON.stringify(body) } : {}),
+      ...(method === 'GET' ? { cache: 'no-store' as const } : {}),
     });
 
     let json;
@@ -31,38 +47,30 @@ export const api = {
       json = await res.json();
     } else {
       const text = await res.text();
-      console.error(`[API POST ${cleanPath}] Non-JSON response (${res.status}):`, text.slice(0, 300));
+      console.error(
+        `[API ${method} ${cleanPath}] Non-JSON response (${res.status}):`,
+        text.slice(0, 300)
+      );
       throw new Error(
         `API Error (${res.status}): Server returned non-JSON response. Ensure your WEB_APP_URL is correct.`
       );
     }
 
+    if (res.status === 401 && attempt === 0) continue;
     if (!res.ok) throw new Error(json.message ?? json.error ?? `Request failed (${res.status})`);
     return json as T;
+  }
+
+  throw new Error('Your session has expired. Please sign in again.');
+}
+
+export const api = {
+  post<T = any>(path: string, body: object): Promise<T> {
+    return request<T>('POST', path, body);
   },
 
-  async get<T = any>(path: string): Promise<T> {
-    const headers = await getAuthHeaders();
-    const cleanPath = path.startsWith('/') ? path : `/${path}`;
-    const res = await fetch(`${WEB_APP_URL}${cleanPath}`, {
-      headers,
-      cache: 'no-store', // Critical for RN iOS to bypass aggressive GET caching
-    });
-
-    let json;
-    const contentType = res.headers.get('content-type') || '';
-    if (contentType.includes('application/json')) {
-      json = await res.json();
-    } else {
-      const text = await res.text();
-      console.error(`[API GET ${cleanPath}] Non-JSON response (${res.status}):`, text.slice(0, 300));
-      throw new Error(
-        `API Error (${res.status}): Server returned non-JSON response. Ensure your WEB_APP_URL is correct.`
-      );
-    }
-
-    if (!res.ok) throw new Error(json.message ?? json.error ?? `Request failed (${res.status})`);
-    return json as T;
+  get<T = any>(path: string): Promise<T> {
+    return request<T>('GET', path);
   },
 };
 
