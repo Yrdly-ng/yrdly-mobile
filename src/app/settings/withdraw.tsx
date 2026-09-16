@@ -75,6 +75,17 @@ export default function WithdrawScreen() {
   }, [fetchData]);
 
   const handleWithdraw = async () => {
+    if (!user) {
+      Alert.alert('Sign in required', 'Your session has expired. Please sign in again.');
+      return;
+    }
+
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !data.session) {
+      Alert.alert('Sign in required', 'Your session has expired. Please sign in again.');
+      return;
+    }
+
     setConfirming(true);
     try {
       await api.post('/api/seller/payouts/request', { amount: numAmount });
