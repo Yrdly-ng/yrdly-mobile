@@ -24,8 +24,7 @@ workflows:
     scripts:
       - name: Setup pnpm
         script: |
-          corepack enable
-          corepack prepare pnpm@9 --activate
+          npm install -g pnpm
 
       - name: Install dependencies
         script: |
