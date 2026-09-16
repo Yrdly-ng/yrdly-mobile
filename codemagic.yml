@@ -1,0 +1,88 @@
+workflows:
+  ios-unsigned-build:
+    name: Build unsigned iOS IPA
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      groups:
+        - yrdly_env # holds EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY,
+          # EXPO_PUBLIC_PAYSTACK_PUBLIC_KEY, EXPO_PUBLIC_WEB_APP_URL,
+          # EXPO_PUBLIC_GOOGLE_MAPS_API_KEY, EXPO_PUBLIC_VEXO_API_KEY,
+          # EXPO_PUBLIC_TERMII_API_KEY  (add these in Codemagic > Environment variables)
+      node: 22
+      xcode: latest
+      cocoapods: default
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+      cancel_previous_builds: true
+
+    scripts:
+      - name: Setup pnpm
+        script: |
+          corepack enable
+          corepack prepare pnpm@9 --activate
+
+      - name: Install dependencies
+        script: |
+          pnpm install
+
+      - name: Write .env file from secrets
+        script: |
+          cat <<EOT > .env
+          EXPO_PUBLIC_SUPABASE_URL=$EXPO_PUBLIC_SUPABASE_URL
+          EXPO_PUBLIC_SUPABASE_ANON_KEY=$EXPO_PUBLIC_SUPABASE_ANON_KEY
+          EXPO_PUBLIC_PAYSTACK_PUBLIC_KEY=$EXPO_PUBLIC_PAYSTACK_PUBLIC_KEY
+          EXPO_PUBLIC_WEB_APP_URL=$EXPO_PUBLIC_WEB_APP_URL
+          EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=$EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+          EXPO_PUBLIC_VEXO_API_KEY=$EXPO_PUBLIC_VEXO_API_KEY
+          EXPO_PUBLIC_TERMII_API_KEY=$EXPO_PUBLIC_TERMII_API_KEY
+          EOT
+
+      - name: Run Expo prebuild
+        script: |
+          npx expo prebuild --platform ios --clean
+
+      - name: Install CocoaPods dependencies
+        script: |
+          cd ios
+          pod install --repo-update
+
+      - name: Build app archive (unsigned)
+        script: |
+          set -o pipefail
+          cd ios
+          xcodebuild \
+            -workspace YRDLY.xcworkspace \
+            -scheme YRDLY \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath $CM_BUILD_DIR/yrdly.xcarchive \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM="" \
+            archive
+
+      - name: Package IPA from archive
+        script: |
+          APP_PATH=$(find $CM_BUILD_DIR/yrdly.xcarchive/Products/Applications -name "*.app" | head -1)
+          mkdir -p $CM_BUILD_DIR/Payload
+          cp -r "$APP_PATH" $CM_BUILD_DIR/Payload/
+          cd $CM_BUILD_DIR
+          zip -r yrdly-unsigned.ipa Payload/
+          echo "IPA created at: $CM_BUILD_DIR/yrdly-unsigned.ipa"
+
+    artifacts:
+      - yrdly-unsigned.ipa
+
+    publishing:
+      email:
+        recipients:
+          - feranmioyelowo@gmail.com # <-- change to your email
+        notify:
+          success: true
+          failure: true
