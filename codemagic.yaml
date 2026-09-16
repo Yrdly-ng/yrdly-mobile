@@ -24,7 +24,7 @@ workflows:
     scripts:
       - name: Setup pnpm
         script: |
-          npm install -g pnpm
+          npm install -g pnpm --force
 
       - name: Install dependencies
         script: |
