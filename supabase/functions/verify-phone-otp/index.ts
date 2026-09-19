@@ -47,7 +47,10 @@ serve(async (req) => {
 
     // verified is a string "True" not a boolean in Termii v4
     if (data.verified !== 'True' && data.verified !== true) {
-      const msg = data.message || data.error || 'Invalid or expired code';
+      let msg = data.message || data.error || 'Invalid or expired code';
+      if (typeof msg === 'string' && (msg.toLowerCase().includes('token') || msg.toLowerCase().includes('expired'))) {
+        msg = 'The verification code has expired. Please request a new code and try again.';
+      }
       return new Response(JSON.stringify({ error: msg }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

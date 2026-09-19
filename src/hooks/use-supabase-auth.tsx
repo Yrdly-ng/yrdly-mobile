@@ -487,7 +487,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: { pinId, pin },
       });
       if (error) throw new Error(error.message || 'Failed to verify OTP');
-      if (data?.error) throw new Error(data.error);
+      if (data?.error) {
+        let errMessage = data.error;
+        if (typeof errMessage === 'string' && (errMessage.toLowerCase().includes('token') || errMessage.toLowerCase().includes('expired'))) {
+          errMessage = 'The verification code has expired. Please request a new code and try again.';
+        }
+        throw new Error(errMessage);
+      }
 
       if (profile) {
         const updatedProfile = { ...profile, phone_verified: true };
@@ -497,6 +503,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
       }
       return true;
+    } catch (err: any) {
+      let errMessage = err.message || err;
+      if (typeof errMessage === 'string' && (errMessage.toLowerCase().includes('token') || errMessage.toLowerCase().includes('expired'))) {
+        errMessage = 'The verification code has expired. Please request a new code and try again.';
+      }
+      throw new Error(errMessage);
     } finally {
       setLoading(false);
     }
