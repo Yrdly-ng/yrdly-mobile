@@ -182,7 +182,7 @@ export default function PayoutSettingsScreen() {
             {existingBank.isVerified && (
               <View style={s.verifiedRow}>
                 <Feather name="check-circle" size={14} color={theme.colors.G} />
-                <Text style={s.verifiedTxt}>Verified by Paystack</Text>
+                <Text style={s.verifiedTxt}>Verified by Payluk</Text>
               </View>
             )}
           </View>
@@ -309,7 +309,7 @@ export default function PayoutSettingsScreen() {
 
             {step === 'verifying' && (
               <View style={s.verifyingBox}>
-                <Text style={s.verifyingTxt}>Verifying account with Paystack…</Text>
+                <Text style={s.verifyingTxt}>Verifying account with Payluk…</Text>
               </View>
             )}
 
@@ -323,7 +323,7 @@ export default function PayoutSettingsScreen() {
                   <Text style={s.confirmedName} numberOfLines={1} ellipsizeMode="tail">
                     {resolvedName}
                   </Text>
-                  <Text style={s.confirmedSub}>Verified by Paystack ✓</Text>
+                  <Text style={s.confirmedSub}>Verified by Payluk ✓</Text>
                 </View>
               </View>
             )}
