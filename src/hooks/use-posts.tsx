@@ -771,7 +771,7 @@ export const usePosts = (filter?: LocationFilter | null) => {
           moderation_status: moderationStatus,
           // Location stamping — only set on new posts, preserve on edits
           ...(postIdToUpdate
-            ? { updated_at: new Date().toISOString() }
+            ? { updated_at: new Date().toISOString(), is_edited: true }
             : {
                 state: profile.home_state || profile.location?.state || null,
                 lga: profile.home_lga || profile.location?.lga || null,
