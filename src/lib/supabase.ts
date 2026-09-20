@@ -106,6 +106,7 @@ export const supabase = createClient(
   supabaseAnonKey || 'placeholder',
   {
     auth: {
+      storageKey: 'sb-yoiyqxtpmxnrrbqqidcs-auth-token',
       storage:
         Platform.OS === 'web'
           ? typeof window !== 'undefined'
