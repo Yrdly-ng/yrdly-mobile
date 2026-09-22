@@ -72,7 +72,46 @@ export default function WithdrawScreen() {
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  const [previewing, setPreviewing] = useState(false);
+  const [previewData, setPreviewData] = useState<{
+    amount: number;
+    fee: number;
+    totalDebit: number;
+    netToBank: number;
+  } | null>(null);
+
+  const handleContinue = async () => {
+    if (!user) {
+      Alert.alert('Sign in required', 'Your session has expired. Please sign in again.');
+      return;
+    }
+
+    if (!numAmount || numAmount <= 0 || numAmount > balance) {
+      Alert.alert('Invalid Amount', 'Please enter an amount within your available balance.');
+      return;
+    }
+
+    setPreviewing(true);
+    try {
+      const res = await api.post('/api/seller/payouts/preview', { amount: numAmount });
+      if (!res?.success) {
+        const displayMsg = res?.reason || res?.error || 'Failed to preview withdrawal';
+        throw new Error(displayMsg);
+      }
+
+      setPreviewData({
+        amount: res.amount ?? numAmount,
+        fee: res.fee ?? 0,
+        totalDebit: res.totalDebit ?? numAmount,
+        netToBank: res.netToBank ?? numAmount,
+      });
+      setStep('confirm');
+    } catch (e: any) {
+      Alert.alert('Withdrawal Preview Failed', e.message || 'Failed to preview withdrawal');
+    } finally {
+      setPreviewing(false);
+    }
+  };
 
   const handleWithdraw = async () => {
     if (!user) {
@@ -94,7 +133,7 @@ export default function WithdrawScreen() {
         params: { amount: numAmount },
       } as any);
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to request withdrawal');
+      Alert.alert('Withdrawal Failed', e.message || 'Failed to request withdrawal');
       setStep('amount');
     } finally {
       setConfirming(false);
@@ -152,10 +191,13 @@ export default function WithdrawScreen() {
 
           <View style={{ gap: 8, marginBottom: 24 }}>
             {[
-              { l: 'Destination', v: bankInfo?.bankName || 'Bank' },
-              { l: 'Account', v: `**** **** **** ${(bankInfo?.accountNumber || '').slice(-4)}` },
+              { l: 'Destination Bank', v: bankInfo?.bankName || 'Bank' },
+              { l: 'Account Number', v: `**** ${(bankInfo?.accountNumber || '').slice(-4)}` },
               { l: 'Account Holder', v: bankInfo?.accountName || '' },
-              { l: 'Transfer Fee', v: 'Set by Payluk (incl. VAT)' },
+              { l: 'Amount to withdraw', v: `₦${numAmount.toLocaleString()}` },
+              { l: 'Payluk fee (incl. VAT)', v: `₦${(previewData?.fee ?? 0).toLocaleString()}` },
+              { l: 'Total deducted', v: `₦${(previewData?.totalDebit ?? numAmount).toLocaleString()}` },
+              { l: 'You receive in bank', v: `₦${(previewData?.netToBank ?? numAmount).toLocaleString()}` },
             ].map((r) => {
               const { styles: s } = useStyles(sStylesheet);
               return (
@@ -291,23 +333,27 @@ export default function WithdrawScreen() {
         <TouchableOpacity
           style={[
             s.footerBtn,
-            (!numAmount || numAmount <= 0 || numAmount > balance) && {
+            (previewing || !numAmount || numAmount <= 0 || numAmount > balance) && {
               backgroundColor: 'rgba(130,219,126,0.2)',
             },
           ]}
-          onPress={() => setStep('confirm')}
-          disabled={!numAmount || numAmount <= 0 || numAmount > balance}
+          onPress={handleContinue}
+          disabled={previewing || !numAmount || numAmount <= 0 || numAmount > balance}
         >
-          <Text
-            style={[
-              s.footerBtnTxt,
-              (!numAmount || numAmount <= 0 || numAmount > balance) && {
-                color: 'rgba(130,219,126,0.4)',
-              },
-            ]}
-          >
-            Continue
-          </Text>
+          {previewing ? (
+            <ActivityIndicator color="#000" />
+          ) : (
+            <Text
+              style={[
+                s.footerBtnTxt,
+                (!numAmount || numAmount <= 0 || numAmount > balance) && {
+                  color: 'rgba(130,219,126,0.4)',
+                },
+              ]}
+            >
+              Continue
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
