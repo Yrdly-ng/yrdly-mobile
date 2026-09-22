@@ -21,7 +21,7 @@ interface PayoutRequest {
   id: string;
   amount: number;
   status: PayoutStatus;
-  created_at: string;
+  requested_at: string;
   processed_at: string | null;
   bank_name: string;
   account_number: string;
@@ -64,9 +64,9 @@ export default function PayoutsScreen() {
             .eq('seller_id', user.id),
           supabase
             .from('payout_requests')
-            .select('id, amount, status, created_at, processed_at, bank_name, account_number')
+            .select('id, amount, status, requested_at, processed_at, bank_name, account_number')
             .eq('seller_id', user.id)
-            .order('created_at', { ascending: false }),
+            .order('requested_at', { ascending: false }),
           api.get('/api/seller/setup-account').catch(() => ({ account: null })),
           api.get('/api/seller/payouts/balance').catch(() => null),
         ]);
@@ -128,7 +128,7 @@ export default function PayoutsScreen() {
     const { styles: s } = useStyles(sStylesheet);
 
     const col = STATUS_COLOR[item.status] || STATUS_COLOR.pending;
-    const dateStr = new Date(item.created_at).toLocaleDateString('en-GB', {
+    const dateStr = new Date(item.requested_at).toLocaleDateString('en-GB', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
