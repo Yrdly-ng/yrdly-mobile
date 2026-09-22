@@ -155,8 +155,7 @@ export default function WithdrawScreen() {
               { l: 'Destination', v: bankInfo?.bankName || 'Bank' },
               { l: 'Account', v: `**** **** **** ${(bankInfo?.accountNumber || '').slice(-4)}` },
               { l: 'Account Holder', v: bankInfo?.accountName || '' },
-              { l: 'Transfer Fee', v: fee === 0 ? 'Free' : `₦${fee}` },
-              { l: 'Net Amount', v: `₦${net.toLocaleString()}` },
+              { l: 'Transfer Fee', v: 'Set by Payluk (incl. VAT)' },
             ].map((r) => {
               const { styles: s } = useStyles(sStylesheet);
               return (
