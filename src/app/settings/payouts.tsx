@@ -23,8 +23,8 @@ interface PayoutRequest {
   status: PayoutStatus;
   requested_at: string;
   processed_at: string | null;
-  bank_name: string;
-  account_number: string;
+  bank_name?: string;
+  account_number?: string;
 }
 
 export default function PayoutsScreen() {
@@ -64,7 +64,7 @@ export default function PayoutsScreen() {
             .eq('seller_id', user.id),
           supabase
             .from('payout_requests')
-            .select('id, amount, status, requested_at, processed_at, bank_name, account_number')
+            .select('id, amount, status, requested_at, processed_at')
             .eq('seller_id', user.id)
             .order('requested_at', { ascending: false }),
           api.get('/api/seller/setup-account').catch(() => ({ account: null })),
@@ -142,7 +142,7 @@ export default function PayoutsScreen() {
           </View>
           <View style={s.payoutMid}>
             <Text style={s.payoutBank}>
-              {item.bank_name} · ****{item.account_number.slice(-4)}
+              {item.bank_name || 'Bank'} · ****{item.account_number ? item.account_number.slice(-4) : '****'}
             </Text>
             <Text style={s.payoutDate}>
               {dateStr} · {item.id.slice(0, 8).toUpperCase()}
