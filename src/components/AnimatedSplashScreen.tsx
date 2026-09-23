@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { View, AccessibilityInfo, StyleSheet } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { UnistylesRuntime } from 'react-native-unistyles';
-import LogoDraw from './LogoDraw';
 
 interface AnimatedSplashScreenProps {
   ready: boolean;
@@ -9,48 +8,25 @@ interface AnimatedSplashScreenProps {
 }
 
 export function AnimatedSplashScreen({ ready, onFinished }: AnimatedSplashScreenProps) {
-  const [isReduceMotion, setIsReduceMotion] = useState(false);
-  const [checkedReduceMotion, setCheckedReduceMotion] = useState(false);
-  const [animationCompleted, setAnimationCompleted] = useState(false);
-
   const isDark = UnistylesRuntime.themeName === 'dark';
-  const backgroundColor = isDark ? '#0B0D0B' : '#E6F4FE';
+  const backgroundColor = isDark ? '#0B0D0B' : '#F9F9F9';
+  const textColor = isDark ? '#FFFFFF' : '#111111';
 
   useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((enabled) => {
-        setIsReduceMotion(enabled);
-        if (enabled) {
-          setAnimationCompleted(true);
-        }
-        setCheckedReduceMotion(true);
-      })
-      .catch(() => {
-        setCheckedReduceMotion(true);
-      });
-  }, []);
-
-  useEffect(() => {
-    if (animationCompleted && ready) {
-      onFinished();
+    if (ready) {
+      const timer = setTimeout(() => {
+        onFinished();
+      }, 1200);
+      return () => clearTimeout(timer);
     }
-  }, [animationCompleted, ready, onFinished]);
+  }, [ready, onFinished]);
 
   return (
     <View style={[styles.container, { backgroundColor }]}>
-      {checkedReduceMotion && (
-        <LogoDraw
-          size={160}
-          outlineColor="#82DB7E"
-          fillColor="#F7F17C"
-          freezeAt={isReduceMotion ? 1 : undefined}
-          onComplete={() => {
-            if (!isReduceMotion) {
-              setAnimationCompleted(true);
-            }
-          }}
-        />
-      )}
+      <View style={styles.textWrapper}>
+        <Text style={[styles.title, { color: textColor }]}>YRDLY</Text>
+        <Text style={styles.subtitle}>YOUR LOCAL NEIGHBORHOOD NETWORK</Text>
+      </View>
     </View>
   );
 }
@@ -61,6 +37,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 99999,
+  },
+  textWrapper: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#8E8E93',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
 });
 
