@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -50,7 +50,7 @@ interface ETAResponse {
 const { width } = Dimensions.get('window');
 
 const MarketVideo = React.memo(({ url, shouldPlay }: { url: string; shouldPlay: boolean }) => {
-  const { styles: s } = useStyles(_stylesheet);
+  const s = _stylesheet;
 
   const player = useVideoPlayer(url, (player) => {
     player.loop = true;
@@ -79,7 +79,7 @@ const MarketVideo = React.memo(({ url, shouldPlay }: { url: string; shouldPlay: 
 });
 
 function MarketplaceDetailContent() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
   const insets = useSafeAreaInsets();
 
   const router = useRouter();
@@ -1115,7 +1115,7 @@ function MarketplaceDetailContent() {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   container: { flex: 1 },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   errorText: { fontSize: 18, marginBottom: 20 },
@@ -1168,7 +1168,7 @@ const _stylesheet = createStyleSheet((theme) => ({
 }));
 
 export default function MarketplaceDetailScreen() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   return (
     <ErrorBoundary screenName="MarketplaceDetail">

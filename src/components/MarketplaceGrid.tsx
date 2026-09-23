@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
@@ -23,7 +23,7 @@ interface MarketplaceGridProps {
 }
 
 export function MarketplaceGrid({ searchQuery = '', sortOption = 'newest' }: MarketplaceGridProps) {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -202,7 +202,7 @@ export function MarketplaceGrid({ searchQuery = '', sortOption = 'newest' }: Mar
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = UnistylesStyleSheet.create((theme) => ({
   listContent: {
     padding: 16,
     paddingBottom: 100, // padding for the FAB later

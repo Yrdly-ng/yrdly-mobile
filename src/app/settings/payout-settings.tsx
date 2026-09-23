@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -19,7 +19,7 @@ import { api } from '../../lib/api';
 import { BankLogo } from '../../components/BankLogo';
 
 export default function PayoutSettingsScreen() {
-  const { styles: s, theme } = useStyles(sStylesheet);
+  const { theme } = useUnistyles(); const s = sStylesheet;
 
   const router = useRouter();
 
@@ -346,7 +346,7 @@ export default function PayoutSettingsScreen() {
   );
 }
 
-const sStylesheet = createStyleSheet((theme) => ({
+const sStylesheet = StyleSheet.create((theme) => ({
   root: { flex: 1, backgroundColor: theme.colors.DARK },
   header: {
     flexDirection: 'row',

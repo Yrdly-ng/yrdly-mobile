@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
@@ -42,7 +42,7 @@ function formatDate(d: string) {
 }
 
 export default function AdminDisputesScreen() {
-  const { styles: sStylesheet, theme } = useStyles(stylesheet);
+  const { theme } = useUnistyles(); const sStylesheet = stylesheet;
 
   const router = useRouter();
   const { user } = useAuth();
@@ -118,7 +118,7 @@ export default function AdminDisputesScreen() {
   }
 
   const renderItem = ({ item }: { item: any }) => {
-    const { styles: sStylesheet } = useStyles(stylesheet);
+    const sStylesheet = stylesheet;
 
     const tx = item.transaction;
     const buyer = tx?.buyer;
@@ -248,7 +248,7 @@ export default function AdminDisputesScreen() {
       {/* Filter pills */}
       <View style={sStylesheet.filterRow}>
         {STATUS_FILTERS.map((f) => {
-          const { styles: sStylesheet } = useStyles(stylesheet);
+          const sStylesheet = stylesheet;
 
           const active = activeFilter === f.key;
           return (
@@ -308,7 +308,7 @@ export default function AdminDisputesScreen() {
   );
 }
 
-const stylesheet = createStyleSheet((theme) => ({
+const stylesheet = StyleSheet.create((theme) => ({
   container: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   header: {

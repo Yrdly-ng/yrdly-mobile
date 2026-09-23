@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React from 'react';
 import { View, Text } from 'react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
@@ -27,7 +27,7 @@ const PIN_SIZE = 36;
  * Matches Figma Make's MapPinIcon({ type, price?, badge? }) component.
  */
 export function MapPinIcon({ type, price, badge }: Props) {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const color = getPinColors(theme)[type];
 
@@ -61,7 +61,7 @@ export function MapPinIcon({ type, price, badge }: Props) {
 // ─── Micro icons ──────────────────────────────────────────────────────────────
 
 function CalendarMini({ color }: { color: string }) {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   return (
     <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
@@ -72,7 +72,7 @@ function CalendarMini({ color }: { color: string }) {
 }
 
 function StorefrontMini({ color }: { color: string }) {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   return (
     <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
@@ -88,7 +88,7 @@ function StorefrontMini({ color }: { color: string }) {
 }
 
 function CommunityMini({ color }: { color: string }) {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   return (
     <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
@@ -100,7 +100,7 @@ function CommunityMini({ color }: { color: string }) {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   wrapper: {
     alignItems: 'center',
   },

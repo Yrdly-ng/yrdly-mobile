@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
@@ -32,7 +32,7 @@ import { CommentInput, CommentInputRef } from '../../components/CommentInput';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 
 function PostDetailContent() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const router = useRouter();
   const { id, focusComments } = useLocalSearchParams<{ id: string; focusComments?: string }>();
@@ -433,7 +433,7 @@ function PostDetailContent() {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   container: { flex: 1 },
   header: {
     flexDirection: 'row',
@@ -455,7 +455,7 @@ const _stylesheet = createStyleSheet((theme) => ({
 }));
 
 export default function PostDetailScreen() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   return (
     <ErrorBoundary screenName="PostDetail">

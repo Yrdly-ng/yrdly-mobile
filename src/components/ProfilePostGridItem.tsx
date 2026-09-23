@@ -6,7 +6,7 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 import { Post } from '../types';
 import { StorageService } from '../lib/storage-service';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
-import { useStyles, createStyleSheet } from 'react-native-unistyles';
+import { useUnistyles, StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles';
 
 interface ProfilePostGridItemProps {
   post: Post;
@@ -32,7 +32,7 @@ const GridVideoThumbnail = ({ source }: { source: string }) => {
 };
 
 export function ProfilePostGridItem({ post, onPress, width }: ProfilePostGridItemProps) {
-  const { styles, theme } = useStyles(sStylesheet);
+  const { theme } = useUnistyles(); const styles = sStylesheet;
 
   const parsedUrls = Array.isArray(post.image_urls)
     ? post.image_urls
@@ -118,7 +118,7 @@ export function ProfilePostGridItem({ post, onPress, width }: ProfilePostGridIte
   );
 }
 
-const sStylesheet = createStyleSheet((theme) => ({
+const sStylesheet = UnistylesStyleSheet.create((theme) => ({
   container: {
     borderRadius: 16,
     overflow: 'hidden',

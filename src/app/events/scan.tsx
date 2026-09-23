@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -21,7 +21,7 @@ import * as Haptics from 'expo-haptics';
 const { width } = Dimensions.get('window');
 
 export default function TicketScannerScreen() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const router = useRouter();
   const { user } = useAuth();
@@ -259,7 +259,7 @@ export default function TicketScannerScreen() {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   container: { flex: 1 },
   header: {
     flexDirection: 'row',

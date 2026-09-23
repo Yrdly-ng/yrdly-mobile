@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
@@ -153,7 +153,7 @@ function fmt(iso: string | null): string {
 }
 
 export default function TransactionDetailScreen() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const { isDarkMode } = useAppTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -912,7 +912,7 @@ export default function TransactionDetailScreen() {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: {

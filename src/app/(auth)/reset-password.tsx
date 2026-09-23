@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState } from 'react';
 import {
   View,
@@ -28,7 +28,7 @@ import { Alert } from 'react-native';
 const { colors, radii } = ONBOARDING_THEME;
 
 export default function ResetPasswordScreen() {
-  const { styles, theme } = useStyles(stylesheet);
+  const { theme } = useUnistyles(); const styles = stylesheet;
   const router = useRouter();
   const [pw, setPw] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -159,7 +159,7 @@ export default function ResetPasswordScreen() {
   );
 }
 
-const stylesheet = createStyleSheet((theme) => ({
+const stylesheet = UnistylesStyleSheet.create((theme) => ({
   container: {
     flex: 1,
     backgroundColor: colors.DARK,

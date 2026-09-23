@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
@@ -67,7 +67,7 @@ const PostVideo = React.memo(function PostVideo({
   isVideoMuted: boolean;
   setIsVideoMuted: (muted: boolean) => void;
 }) {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
   const [isReady, setIsReady] = useState(false);
   const [progress, setProgress] = useState(0);
   const isFocused = useIsFocused();
@@ -201,7 +201,7 @@ export const PostCard = React.memo(
     const [shareCount, setShareCount] = useState(post.share_count || 0);
     const [isBookmarked, setIsBookmarked] = useState(false);
 
-    const { styles: stylesheet, theme } = useStyles(_stylesheet);
+    const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
     // Sync state when post prop changes (crucial for FlashList cell recycling)
     useEffect(() => {
@@ -1121,7 +1121,7 @@ export const PostCard = React.memo(
   }
 );
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = UnistylesStyleSheet.create((theme) => ({
   container: {
     marginHorizontal: 16,
     marginVertical: 8,

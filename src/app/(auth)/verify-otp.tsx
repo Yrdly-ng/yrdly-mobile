@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -18,7 +18,7 @@ import { ONBOARDING_THEME } from '@/constants/onboarding-theme';
 const { colors } = ONBOARDING_THEME;
 
 export default function VerifyOtpScreen() {
-  const { styles, theme } = useStyles(stylesheet);
+  const { theme } = useUnistyles(); const styles = stylesheet;
   const router = useRouter();
   const { phone } = useLocalSearchParams();
   const [digits, setDigits] = useState(['', '', '', '', '', '']);
@@ -141,7 +141,7 @@ export default function VerifyOtpScreen() {
   );
 }
 
-const stylesheet = createStyleSheet((theme) => ({
+const stylesheet = UnistylesStyleSheet.create((theme) => ({
   container: {
     flex: 1,
     backgroundColor: colors.DARK,

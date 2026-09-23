@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
@@ -58,7 +58,7 @@ function timeAgo(dateString: string) {
 }
 
 export default function NotificationsScreen() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const router = useRouter();
   const { user } = useAuth();
@@ -397,7 +397,7 @@ export default function NotificationsScreen() {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   header: {
     flexDirection: 'row',
     alignItems: 'center',

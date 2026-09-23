@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,7 +19,7 @@ interface AlertBannerProps {
 }
 
 export const AlertBanner: React.FC<AlertBannerProps> = ({ alert, onPress, onDismiss, style }) => {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const resolved = checkIsResolved(alert);
   const tier = getSeverityTier(alert);
@@ -119,7 +119,7 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({ alert, onPress, onDism
   );
 };
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   container: {
     flexDirection: 'row',
     alignItems: 'stretch',

@@ -1,4 +1,4 @@
-import { UnistylesRegistry } from 'react-native-unistyles';
+import { StyleSheet } from 'react-native-unistyles';
 import { Appearance } from 'react-native';
 import { getStoredThemePreferenceSync } from '../lib/theme-preference';
 import {
@@ -103,14 +103,14 @@ declare module 'react-native-unistyles' {
   export interface UnistylesBreakpoints extends AppBreakpoints {}
 }
 
-UnistylesRegistry.addBreakpoints(breakpoints)
-  .addThemes({
+StyleSheet.configure({
+  breakpoints,
+  themes: {
     light: lightTheme,
     dark: darkTheme,
-  })
-  .addConfig({
+  },
+  settings: {
     adaptiveThemes: false,
-    // Resolve the saved theme before the first paint so every screen renders
-    // in one theme from the start, instead of flashing the system theme first.
     initialTheme: getStoredThemePreferenceSync() ?? Appearance.getColorScheme() ?? 'dark',
-  });
+  },
+});

@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, forwardRef, useImperativeHandle, useRef, useMemo } from 'react';
 import {
   View,
@@ -38,7 +38,7 @@ export const CommentInput = forwardRef<CommentInputRef, CommentInputProps>(
     },
     ref
   ) => {
-    const { styles: stylesheet, theme } = useStyles(_stylesheet);
+    const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
     const insets = useSafeAreaInsets();
     const [inputText, setInputText] = useState('');
@@ -163,7 +163,7 @@ export const CommentInput = forwardRef<CommentInputRef, CommentInputProps>(
   }
 );
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   container: {
     borderTopWidth: 1,
     paddingTop: 12,

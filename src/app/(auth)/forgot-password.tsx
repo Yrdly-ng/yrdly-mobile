@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState } from 'react';
 import {
   View,
@@ -25,7 +25,7 @@ import { Ionicons } from '@expo/vector-icons';
 const { colors, radii } = ONBOARDING_THEME;
 
 export default function ForgotPasswordScreen() {
-  const { styles, theme } = useStyles(stylesheet);
+  const { theme } = useUnistyles(); const styles = stylesheet;
   const router = useRouter();
   const { resetPassword, loading } = useAuth();
   const [email, setEmail] = useState('');
@@ -128,7 +128,7 @@ export default function ForgotPasswordScreen() {
   );
 }
 
-const stylesheet = createStyleSheet((theme) => ({
+const stylesheet = UnistylesStyleSheet.create((theme) => ({
   container: {
     flex: 1,
     backgroundColor: colors.DARK,

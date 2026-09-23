@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState } from 'react';
 import {
   View,
@@ -31,7 +31,7 @@ import { Ionicons } from '@expo/vector-icons';
 const { colors, radii } = ONBOARDING_THEME;
 
 export default function Profile1Screen() {
-  const { styles, theme } = useStyles(stylesheet);
+  const { theme } = useUnistyles(); const styles = stylesheet;
   const router = useRouter();
   const { user, profile, updateProfile } = useAuth();
   const { phoneSkipped } = useLocalSearchParams();
@@ -321,7 +321,7 @@ export default function Profile1Screen() {
   );
 }
 
-const stylesheet = createStyleSheet((theme) => ({
+const stylesheet = UnistylesStyleSheet.create((theme) => ({
   container: {
     flex: 1,
     backgroundColor: '#0e0e0e',

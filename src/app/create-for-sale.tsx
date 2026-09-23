@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -38,7 +38,7 @@ const STEPS = ['Photos', 'Details', 'Description', 'Review'];
 const CONDITIONS = ['New', 'Used – Like New', 'Used – Good', 'Fair'];
 
 export default function CreateForSaleScreen() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -963,7 +963,7 @@ export default function CreateForSaleScreen() {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   container: { flex: 1 },
   header: {
     flexDirection: 'row',

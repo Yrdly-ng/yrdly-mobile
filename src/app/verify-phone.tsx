@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState } from 'react';
 import {
   StyleSheet,
@@ -20,7 +20,7 @@ import { ErrorMessage } from '../components/ErrorMessage';
 const { width, height } = Dimensions.get('window');
 
 export default function VerifyPhoneScreen() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
   const router = useRouter();
   const { sendPhoneOtp } = useAuth();
 
@@ -174,7 +174,7 @@ export default function VerifyPhoneScreen() {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = UnistylesStyleSheet.create((theme) => ({
   container: { flex: 1, justifyContent: 'center', padding: 24 },
   blob: { position: 'absolute', width: 80, height: 80, borderRadius: 40, opacity: 0.45 },
   card: {

@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -23,7 +23,7 @@ interface SimpleProfile {
 }
 
 export default function BlockedUsersScreen() {
-  const { styles: s, theme } = useStyles(sStylesheet);
+  const { theme } = useUnistyles(); const s = sStylesheet;
 
   const router = useRouter();
   const { profile, updateProfile } = useAuth();
@@ -137,7 +137,7 @@ export default function BlockedUsersScreen() {
   );
 }
 
-const sStylesheet = createStyleSheet((theme) => ({
+const sStylesheet = StyleSheet.create((theme) => ({
   root: { flex: 1, backgroundColor: theme.colors.DARK },
   header: {
     flexDirection: 'row',

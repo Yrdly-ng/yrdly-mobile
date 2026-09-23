@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Alert, Vibration, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,7 +13,7 @@ const RED = '#B71C1C';
 type ScanResult = { success: true; attendee: string } | { success: false; message: string } | null;
 
 export default function ScanTicketScreen() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -181,7 +181,7 @@ export default function ScanTicketScreen() {
 const CORNER_SIZE = 28;
 const CORNER_THICKNESS = 4;
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 32 },
   permText: { fontSize: 15, textAlign: 'center' },

@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,7 +18,7 @@ import { supabase } from '../../lib/supabase';
 import { Booking } from '../../types';
 
 export default function BookingDetailScreen() {
-  const { styles: s, theme } = useStyles(stylesheet);
+  const { theme } = useUnistyles(); const s = stylesheet;
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
@@ -317,7 +317,7 @@ export default function BookingDetailScreen() {
   );
 }
 
-const stylesheet = createStyleSheet((theme) => ({
+const stylesheet = StyleSheet.create((theme) => ({
   container: { flex: 1, backgroundColor: theme.colors.DARK },
   header: {
     flexDirection: 'row',

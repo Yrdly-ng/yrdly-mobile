@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
@@ -133,7 +133,7 @@ function getDistanceStr(lat1: number, lon1: number, lat2: number, lon2: number) 
 }
 
 const FriendMarker = React.memo(function FriendMarker({ avatar_url }: { avatar_url?: string }) {
-  const { styles: ms, theme } = useStyles(msStylesheet);
+  const { theme } = useUnistyles(); const ms = msStylesheet;
   return (
     <View style={ms.fMarker}>
       <View style={ms.fRing}>
@@ -159,7 +159,7 @@ const IconMarker = React.memo(function IconMarker({
   color: string;
   bg: string;
 }) {
-  const { styles: ms } = useStyles(msStylesheet);
+  const ms = msStylesheet;
   return (
     <View style={ms.iMarker}>
       <View style={[ms.iBox, { backgroundColor: bg }]}>
@@ -171,8 +171,8 @@ const IconMarker = React.memo(function IconMarker({
 });
 
 export default function MapScreen() {
-  const { styles: s, theme } = useStyles(sStylesheet);
-  const { styles: ms } = useStyles(msStylesheet);
+  const { theme } = useUnistyles(); const s = sStylesheet;
+  const ms = msStylesheet;
 
   const insets = useSafeAreaInsets();
   const { isDarkMode } = useAppTheme();
@@ -873,7 +873,7 @@ export default function MapScreen() {
   );
 }
 
-const sStylesheet = createStyleSheet((theme) => ({
+const sStylesheet = UnistylesStyleSheet.create((theme) => ({
   fill: { flex: 1, backgroundColor: theme.colors.DARK },
   topWrap: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
   searchRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 12, alignItems: 'center' },
@@ -1018,7 +1018,7 @@ const sStylesheet = createStyleSheet((theme) => ({
   previewActionTxt: { color: '#000', fontSize: 15, fontFamily: 'Outfit-ExtraBold' },
 }));
 
-const msStylesheet = createStyleSheet((theme) => ({
+const msStylesheet = UnistylesStyleSheet.create((theme) => ({
   fMarker: { alignItems: 'center' },
   fRing: {
     width: 44,

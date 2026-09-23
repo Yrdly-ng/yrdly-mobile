@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useRef, useState } from 'react';
 import {
   StyleSheet,
@@ -71,7 +71,7 @@ interface Props {
 
 // Collapsible ticket card
 function TicketCard({ tier, idx, onChange, onRemove, canRemove }: any) {
-  const { styles: tk, theme } = useStyles(tkStylesheet);
+  const { theme } = useUnistyles(); const tk = tkStylesheet;
 
   const [open, setOpen] = useState(true);
   const rot = useRef(new Animated.Value(open ? 1 : 0)).current;
@@ -185,7 +185,7 @@ export function CreateEventForm({
   categories,
   onSelectCategory,
 }: Props) {
-  const { styles: s, theme } = useStyles(sStylesheet);
+  const { theme } = useUnistyles(); const s = sStylesheet;
 
   const [showDate, setShowDate] = useState(false);
   const [showTime, setShowTime] = useState(false);
@@ -617,8 +617,8 @@ export function CreateEventForm({
           contentContainerStyle={{ gap: 8 }}
         >
           {EVENT_CATEGORIES.map((cat) => {
-            const { styles: s } = useStyles(sStylesheet);
-            const { styles: tk } = useStyles(tkStylesheet);
+            const s = sStylesheet;
+            const tk = tkStylesheet;
 
             const active = values.eventCategory === cat;
             return (
@@ -767,7 +767,7 @@ export function CreateEventForm({
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
-const sStylesheet = createStyleSheet((theme) => ({
+const sStylesheet = UnistylesStyleSheet.create((theme) => ({
   card: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 12 },
   settingsCard: { borderRadius: 16, borderWidth: 1, marginBottom: 12, overflow: 'hidden' },
   settingsRow: {
@@ -883,7 +883,7 @@ const sStylesheet = createStyleSheet((theme) => ({
   publishTxt: { color: '#0B0D0B', fontSize: 17, fontWeight: '900' },
 }));
 
-const tkStylesheet = createStyleSheet((theme) => ({
+const tkStylesheet = UnistylesStyleSheet.create((theme) => ({
   card: { borderRadius: 14, borderWidth: 1, marginBottom: 10, overflow: 'hidden' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
   iconWrap: {

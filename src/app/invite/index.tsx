@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React from 'react';
 import { View, Text, TouchableOpacity, Share, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,7 +8,7 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../hooks/use-supabase-auth';
 
 export default function InviteScreen() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -73,7 +73,7 @@ export default function InviteScreen() {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   container: { flex: 1, backgroundColor: theme.colors.DARK },
   header: {
     flexDirection: 'row',

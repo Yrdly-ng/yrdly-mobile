@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Animated, Dimensions, Pressable } from 'react-native';
 import { Image } from 'expo-image';
@@ -43,7 +43,7 @@ const BADGE_COLORS: Record<BadgeType, { bg: string; text: string; icon: string }
 };
 
 export function MarketplaceItemCard({ item, onPress, onMessageSeller, onBuyNow }: Props) {
-  const { styles: stylesheet, theme } = useStyles(sStylesheet);
+  const { theme } = useUnistyles(); const stylesheet = sStylesheet;
 
   const { user } = useAuth();
   const { isDarkMode } = useAppTheme();
@@ -264,7 +264,7 @@ export function MarketplaceItemCard({ item, onPress, onMessageSeller, onBuyNow }
   );
 }
 
-const sStylesheet = createStyleSheet((theme) => ({
+const sStylesheet = StyleSheet.create((theme) => ({
   card: {
     width: CARD_WIDTH,
     borderRadius: 20,

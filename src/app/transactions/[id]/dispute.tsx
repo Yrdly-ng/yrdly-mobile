@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState } from 'react';
 import {
@@ -28,7 +28,7 @@ const DISPUTE_REASONS = [
 ];
 
 export default function DisputeScreen() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -305,7 +305,7 @@ export default function DisputeScreen() {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   container: { flex: 1 },
   header: {
     flexDirection: 'row',

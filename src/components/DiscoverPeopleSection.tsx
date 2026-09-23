@@ -11,7 +11,7 @@ import {
 import { Image } from 'expo-image';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useCommunityConnections, CommunityFilterTab } from '../hooks/useCommunityConnections';
 import { DiscoverUserCard } from './DiscoverUserCard';
 
@@ -24,7 +24,7 @@ export function DiscoverPeopleSection({
   search = '',
   initialMode = 'nearby',
 }: DiscoverPeopleSectionProps) {
-  const { styles: sStylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const sStylesheet = _stylesheet;
   const router = useRouter();
 
   const [mode, setMode] = useState<'nearby' | 'circle'>(initialMode);
@@ -289,7 +289,7 @@ export function DiscoverPeopleSection({
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   container: {
     flex: 1,
   },

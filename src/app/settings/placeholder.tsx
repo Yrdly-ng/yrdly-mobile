@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
 export default function GenericSettingsScreen() {
-  const { styles: s, theme } = useStyles(sStylesheet);
+  const { theme } = useUnistyles(); const s = sStylesheet;
 
   const router = useRouter();
   const { title } = useLocalSearchParams();
@@ -37,7 +37,7 @@ export default function GenericSettingsScreen() {
   );
 }
 
-const sStylesheet = createStyleSheet((theme) => ({
+const sStylesheet = StyleSheet.create((theme) => ({
   root: { flex: 1, backgroundColor: theme.colors.DARK },
   header: {
     flexDirection: 'row',

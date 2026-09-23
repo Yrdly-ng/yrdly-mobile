@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -28,7 +28,7 @@ interface PayoutRequest {
 }
 
 export default function PayoutsScreen() {
-  const { styles: s, theme } = useStyles(sStylesheet);
+  const { theme } = useUnistyles(); const s = sStylesheet;
   const STATUS_COLOR: Record<string, string> = {
     completed: theme.colors.G,
     processing: '#64B5F6',
@@ -125,7 +125,7 @@ export default function PayoutsScreen() {
   };
 
   const renderItem = ({ item, index }: { item: PayoutRequest; index: number }) => {
-    const { styles: s } = useStyles(sStylesheet);
+    const s = sStylesheet;
 
     const col = STATUS_COLOR[item.status] || STATUS_COLOR.pending;
     const dateStr = new Date(item.requested_at).toLocaleDateString('en-GB', {
@@ -308,7 +308,7 @@ export default function PayoutsScreen() {
             </View>
           }
           renderItem={(props) => {
-            const { styles: s } = useStyles(sStylesheet);
+            const s = sStylesheet;
 
             const isFirst = props.index === 0;
             const isLast = props.index === payouts.length - 1;
@@ -327,7 +327,7 @@ export default function PayoutsScreen() {
   );
 }
 
-const sStylesheet = createStyleSheet((theme) => ({
+const sStylesheet = StyleSheet.create((theme) => ({
   root: { flex: 1, backgroundColor: theme.colors.DARK },
 
   header: { paddingHorizontal: 20, paddingBottom: 12 },

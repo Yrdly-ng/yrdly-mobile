@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useCallback } from 'react';
 import {
   View,
@@ -37,7 +37,7 @@ interface LocationPickerProps {
 type PickerMode = 'state' | 'lga';
 
 export function LocationPicker({ value, onChange }: LocationPickerProps) {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const [detecting, setDetecting] = useState(false);
   const [detectionResult, setDetectionResult] = useState<'success' | 'outside' | 'denied' | null>(
@@ -298,7 +298,7 @@ export function LocationPicker({ value, onChange }: LocationPickerProps) {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   gpsBtn: {
     flexDirection: 'row',
     alignItems: 'center',

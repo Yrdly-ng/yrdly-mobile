@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -17,7 +17,7 @@ interface ImageCarouselProps {
 }
 
 export function ImageCarousel({ imageUrls, height = 300, autoPlay = false }: ImageCarouselProps) {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -104,7 +104,7 @@ export function ImageCarousel({ imageUrls, height = 300, autoPlay = false }: Ima
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   placeholder: {
     width: '100%',
     backgroundColor: theme.colors.SURFACE,

@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -39,7 +39,7 @@ function formatDate(d: string) {
 }
 
 export default function AdminDisputeDetailScreen() {
-  const { styles: sStylesheet, theme } = useStyles(stylesheet);
+  const { theme } = useUnistyles(); const sStylesheet = stylesheet;
 
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -239,7 +239,7 @@ export default function AdminDisputeDetailScreen() {
               { role: 'Buyer', p: buyer },
               { role: 'Seller', p: seller },
             ].map(({ role, p }) => {
-              const { styles: sStylesheet } = useStyles(stylesheet);
+              const sStylesheet = stylesheet;
               return (
                 <View key={role} style={sStylesheet.partyRow}>
                   <Avatar
@@ -390,7 +390,7 @@ export default function AdminDisputeDetailScreen() {
               </Text>
 
               {RESOLUTION_OPTIONS.map((opt) => {
-                const { styles: sStylesheet } = useStyles(stylesheet);
+                const sStylesheet = stylesheet;
 
                 const active = selectedResolution === opt.value;
                 return (
@@ -475,7 +475,7 @@ export default function AdminDisputeDetailScreen() {
   );
 }
 
-const stylesheet = createStyleSheet((theme) => ({
+const stylesheet = StyleSheet.create((theme) => ({
   container: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   centerText: { marginTop: 12, fontSize: 16 },

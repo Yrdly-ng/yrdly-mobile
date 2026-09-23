@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Image } from 'expo-image';
@@ -45,7 +45,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({
   onDelete,
   onPressProfile,
 }) => {
-  const { styles, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const styles = _stylesheet;
   const router = useRouter();
   const [showReplies, setShowReplies] = useState(false);
 
@@ -169,7 +169,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({
   );
 };
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = UnistylesStyleSheet.create((theme) => ({
   commentContainer: {
     marginBottom: 16,
   },

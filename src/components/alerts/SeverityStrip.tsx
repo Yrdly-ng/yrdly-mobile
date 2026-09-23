@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { SeverityTier } from '../../constants/alerts';
 
 interface SeverityStripProps {
@@ -15,7 +15,7 @@ export const SeverityStrip: React.FC<SeverityStripProps> = ({
   width = 6,
   isResolved = false,
 }) => {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const iconColor = isResolved
     ? theme.colors.LABEL
@@ -46,7 +46,7 @@ export const SeverityStrip: React.FC<SeverityStripProps> = ({
   return <View style={[stylesheet.strip, { width, backgroundColor: iconColor }]} />;
 };
 
-const _stylesheet = createStyleSheet(() => ({
+const _stylesheet = StyleSheet.create(() => ({
   strip: {
     alignSelf: 'stretch',
     borderRadius: 0,

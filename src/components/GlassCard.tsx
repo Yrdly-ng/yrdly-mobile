@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Platform, ViewStyle } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { useStyles } from 'react-native-unistyles';
+import { useUnistyles } from 'react-native-unistyles';
 
 interface GlassCardProps {
   children: React.ReactNode;
@@ -28,7 +28,7 @@ export function GlassCard({
   tint = 'systemChromeMaterial',
   borderRadius = 20,
 }: GlassCardProps) {
-  const { theme } = useStyles();
+  const { theme } = useUnistyles();
 
   const flattenedStyle = StyleSheet.flatten(style);
   const effectiveRadius = flattenedStyle?.borderRadius ?? borderRadius;

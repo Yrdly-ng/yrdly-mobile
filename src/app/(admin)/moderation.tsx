@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -44,7 +44,7 @@ function ModerationCard({
   item: ModerationItem;
   onResolve: (id: string, action: 'approve' | 'reject') => void;
 }) {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const handleApprove = () => {
     Alert.alert(
@@ -122,7 +122,7 @@ function ModerationCard({
 }
 
 export default function ModerationQueueScreen() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -218,7 +218,7 @@ export default function ModerationQueueScreen() {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   container: { flex: 1, backgroundColor: theme.colors.DARK },
   header: {
     flexDirection: 'row',

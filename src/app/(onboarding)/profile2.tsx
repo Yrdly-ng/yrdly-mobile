@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState } from 'react';
 import {
   View,
@@ -24,7 +24,7 @@ import { resolveCoords } from '@/lib/geocoding-service';
 const { colors, radii } = ONBOARDING_THEME;
 
 export default function Profile2Screen() {
-  const { styles, theme } = useStyles(stylesheet);
+  const { theme } = useUnistyles(); const styles = stylesheet;
   const router = useRouter();
   const { user, updateProfile } = useAuth();
 
@@ -209,7 +209,7 @@ export default function Profile2Screen() {
   );
 }
 
-const stylesheet = createStyleSheet((theme) => ({
+const stylesheet = UnistylesStyleSheet.create((theme) => ({
   container: {
     flex: 1,
     backgroundColor: '#0e0e0e',

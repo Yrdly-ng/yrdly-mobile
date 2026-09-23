@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import {
   View,
@@ -84,7 +84,7 @@ const FeedPostItem = memo(
 );
 
 const QuickPostBox = memo(() => {
-  const { styles, theme } = useStyles(sStylesheet);
+  const { theme } = useUnistyles(); const styles = sStylesheet;
 
   const { user, profile } = useAuth();
   const router = useRouter();
@@ -167,7 +167,7 @@ const QuickPostBox = memo(() => {
 });
 
 export default function HomeTab() {
-  const { styles: stylesheet, theme } = useStyles(sStylesheet);
+  const { theme } = useUnistyles(); const stylesheet = sStylesheet;
 
   const { user, profile } = useAuth();
   const { isDarkMode } = useAppTheme();
@@ -642,7 +642,7 @@ export default function HomeTab() {
   );
 }
 
-const sStylesheet = createStyleSheet((theme) => ({
+const sStylesheet = StyleSheet.create((theme) => ({
   container: {
     flex: 1,
   },

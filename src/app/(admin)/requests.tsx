@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -44,7 +44,7 @@ function RequestCard({
   item: DeletionRequest;
   onResolve: (id: string) => void;
 }) {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const initials = item.name ? item.name.charAt(0).toUpperCase() : '?';
 
@@ -143,7 +143,7 @@ function RequestCard({
 }
 
 export default function DeletionRequestsScreen() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -264,7 +264,7 @@ export default function DeletionRequestsScreen() {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   container: { flex: 1, backgroundColor: theme.colors.DARK },
   header: {
     flexDirection: 'row',

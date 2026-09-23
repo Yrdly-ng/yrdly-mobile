@@ -11,7 +11,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { svgPathProperties } from 'svg-path-properties';
-import { useStyles } from 'react-native-unistyles'; // adjust import path if your unistyles setup differs
+import { useUnistyles } from 'react-native-unistyles'; // adjust import path if your unistyles setup differs
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
@@ -62,7 +62,7 @@ export default function LogoDraw({
   // says confirmed tokens include GLASS_BORDER, SURFACE, SURFACE_ALT, G,
   // TEXT_PRIMARY, LABEL, DIVIDER. `G` is assumed to be the brand green here;
   // verify rather than assume.
-  const { theme } = useStyles();
+  const { theme } = useUnistyles();
   const resolvedOutlineColor = outlineColor ?? theme.colors.G;
   const resolvedFillColor = fillColor ?? theme.colors.SURFACE_ALT;
 

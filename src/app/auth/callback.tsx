@@ -1,8 +1,8 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { View, ActivityIndicator } from 'react-native';
 
 export default function AuthCallback() {
-  const { theme } = useStyles();
+  const { theme } = useUnistyles();
 
   // This screen acts as a dummy receiver for the deep link `yrdlymobile://auth/callback`.
   // As soon as this screen mounts (or even before), the Supabase Auth listener in `use-supabase-auth.tsx`

@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, Platform, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,7 +13,7 @@ export function OpeningHoursPicker({
   value: string;
   onChange: (v: string) => void;
 }) {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const [visible, setVisible] = useState(false);
   const [startDay, setStartDay] = useState('Mon');
@@ -201,7 +201,7 @@ export function OpeningHoursPicker({
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   pickerBox: {
     width: '100%',
     paddingHorizontal: 16,

@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState } from 'react';
 import {
   View,
@@ -23,7 +23,7 @@ import { AuthService } from '../../lib/auth-service';
 import { ModerationService } from '../../lib/moderation-service';
 
 export default function EditProfileScreen() {
-  const { styles: s, theme } = useStyles(sStylesheet);
+  const { theme } = useUnistyles(); const s = sStylesheet;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -356,7 +356,7 @@ export default function EditProfileScreen() {
   );
 }
 
-const sStylesheet = createStyleSheet((theme) => ({
+const sStylesheet = StyleSheet.create((theme) => ({
   root: { flex: 1, backgroundColor: theme.colors.DARK },
   header: {
     flexDirection: 'row',

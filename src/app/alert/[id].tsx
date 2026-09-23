@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -23,7 +23,7 @@ import {
 import { SeverityStrip } from '../../components/alerts/SeverityStrip';
 
 export default function AlertDetailsScreen() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const { id } = useLocalSearchParams();
   const router = useRouter();
@@ -301,7 +301,7 @@ export default function AlertDetailsScreen() {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   container: { flex: 1 },
   emptyContainer: { padding: 40, alignItems: 'center', justifyContent: 'center', marginTop: 40 },
   emptyText: { fontFamily: 'Inter-Medium', fontSize: 16, marginTop: 16, textAlign: 'center' },

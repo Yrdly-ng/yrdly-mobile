@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
@@ -108,7 +108,7 @@ const ChatVideo = React.memo(
 );
 
 function ChatContent() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const { isDarkMode } = useAppTheme();
   const router = useRouter();
@@ -1506,7 +1506,7 @@ function ChatContent() {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   container: { flex: 1 },
   header: {
     flexDirection: 'row',
@@ -1583,7 +1583,7 @@ const _stylesheet = createStyleSheet((theme) => ({
 }));
 
 export default function ChatScreen() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   return (
     <ErrorBoundary screenName="Chat">

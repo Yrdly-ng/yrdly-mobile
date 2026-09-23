@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
@@ -53,7 +53,7 @@ function isMediaPost(p: Post): boolean {
 }
 
 function PressableCard({ style, onPress, children, activeOpacity = 0.85, ...props }: any) {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const scale = useSharedValue(1);
 
@@ -84,7 +84,7 @@ function PressableCard({ style, onPress, children, activeOpacity = 0.85, ...prop
 }
 
 export default function ProfileTab() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const insets = useSafeAreaInsets();
   const { user, profile } = useAuth();
@@ -954,7 +954,7 @@ export default function ProfileTab() {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   root: {
     flex: 1,
     backgroundColor: theme.colors.DARK,

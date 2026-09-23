@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,7 +7,7 @@ import { Feather } from '@expo/vector-icons';
 import { formatPrice } from '../../lib/utils';
 
 export default function CheckoutSuccessScreen() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const router = useRouter();
   const { transactionId, itemTitle, amount } = useLocalSearchParams<{
@@ -72,7 +72,7 @@ export default function CheckoutSuccessScreen() {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   container: {
     flex: 1,
     backgroundColor: theme.colors.DARK,

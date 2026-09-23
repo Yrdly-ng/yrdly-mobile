@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,7 +15,7 @@ import { useCustomerBookings } from '../../hooks/use-bookings';
 import { Booking } from '../../types';
 
 export default function BookingsDashboardScreen() {
-  const { styles: s, theme } = useStyles(stylesheet);
+  const { theme } = useUnistyles(); const s = stylesheet;
   const router = useRouter();
   const { user } = useAuth();
 
@@ -140,7 +140,7 @@ export default function BookingsDashboardScreen() {
   );
 }
 
-const stylesheet = createStyleSheet((theme) => ({
+const stylesheet = StyleSheet.create((theme) => ({
   container: { flex: 1, backgroundColor: theme.colors.DARK },
   header: {
     flexDirection: 'row',

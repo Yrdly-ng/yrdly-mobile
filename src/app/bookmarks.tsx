@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, RefreshControl, Dimensions } from 'react-native';
 import { supabase } from '../lib/supabase';
@@ -12,7 +12,7 @@ import { PostSkeleton } from '../components/Skeleton';
 const { width } = Dimensions.get('window');
 
 export default function BookmarksScreen() {
-  const { styles, theme } = useStyles(sStylesheet);
+  const { theme } = useUnistyles(); const styles = sStylesheet;
 
   const { user } = useAuth();
   const router = useRouter();
@@ -206,7 +206,7 @@ export default function BookmarksScreen() {
   );
 }
 
-const sStylesheet = createStyleSheet((theme) => ({
+const sStylesheet = StyleSheet.create((theme) => ({
   container: { flex: 1 },
   tabs: {
     flexDirection: 'row',

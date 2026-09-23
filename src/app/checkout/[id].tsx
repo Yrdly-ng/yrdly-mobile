@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -47,7 +47,7 @@ interface InitializeResponse {
 type Stage = 'loading' | 'summary' | 'payluk_checkout' | 'error';
 
 export default function CheckoutScreen() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const router = useRouter();
   const { id, type = 'marketplace_post' } = useLocalSearchParams<{ id: string; type?: string }>();
@@ -441,7 +441,7 @@ export default function CheckoutScreen() {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   scroll: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 100, gap: 16 },

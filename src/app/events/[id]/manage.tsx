@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -22,7 +22,7 @@ const formatDateTime = (value: string | null) =>
     : 'Not scanned';
 
 export default function ManageEventScreen() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -276,7 +276,7 @@ export default function ManageEventScreen() {
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   return (
     <View
@@ -296,7 +296,7 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
   header: {

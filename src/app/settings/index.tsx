@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles, UnistylesRuntime } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles, UnistylesRuntime } from 'react-native-unistyles';
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -8,7 +8,7 @@ import { useAuth } from '../../hooks/use-supabase-auth';
 import { setStoredThemePreference } from '../../lib/theme-preference';
 
 function SettingSection({ title, children }: { title: string; children: React.ReactNode }) {
-  const { styles: s } = useStyles(sStylesheet);
+  const s = sStylesheet;
 
   return (
     <View style={s.section}>
@@ -19,7 +19,7 @@ function SettingSection({ title, children }: { title: string; children: React.Re
 }
 
 function SettingDivider() {
-  const { styles: s } = useStyles(sStylesheet);
+  const s = sStylesheet;
   return <View style={s.divider} />;
 }
 
@@ -46,7 +46,7 @@ function SettingRow({
   chevron?: boolean;
   onPress?: () => void;
 }) {
-  const { styles: s, theme } = useStyles(sStylesheet);
+  const { theme } = useUnistyles(); const s = sStylesheet;
 
   return (
     <TouchableOpacity style={s.row} onPress={onPress} disabled={!onPress && !toggle}>
@@ -84,7 +84,7 @@ function SettingRow({
 }
 
 export default function SettingsScreen() {
-  const { styles: s, theme } = useStyles(sStylesheet);
+  const { theme } = useUnistyles(); const s = sStylesheet;
 
   const router = useRouter();
   const { user, profile, signOut } = useAuth();
@@ -316,7 +316,7 @@ export default function SettingsScreen() {
   );
 }
 
-const sStylesheet = createStyleSheet((theme) => ({
+const sStylesheet = StyleSheet.create((theme) => ({
   root: { flex: 1, backgroundColor: theme.colors.DARK },
   header: {
     flexDirection: 'row',

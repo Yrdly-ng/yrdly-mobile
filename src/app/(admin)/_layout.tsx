@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { Redirect, Slot } from 'expo-router';
@@ -6,7 +6,7 @@ import { useAuth } from '../../hooks/use-supabase-auth';
 
 export default function AdminLayout() {
   const { profile, loading } = useAuth();
-  const { theme } = useStyles();
+  const { theme } = useUnistyles();
 
   if (loading) {
     return (

@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useRef, useState, useEffect } from 'react';
 import {
   StyleSheet,
@@ -73,7 +73,7 @@ function fmtDate(dateStr: string): { day: string; month: string; full: string; t
 
 // ── Compact card (horizontal scroll "More Events") ───────────────────────────
 export function EventCardCompact({ event, onPress }: EventCardProps) {
-  const { styles: c, theme } = useStyles(cStylesheet);
+  const { theme } = useUnistyles(); const c = cStylesheet;
 
   const { user } = useAuth();
   const isOwner = user?.id === event.user_id;
@@ -261,7 +261,7 @@ export function EventCardCompact({ event, onPress }: EventCardProps) {
 
 // ── Full featured hero card ──────────────────────────────────────────────────
 export function EventCard({ event, onPress }: EventCardProps) {
-  const { styles: f, theme } = useStyles(fStylesheet);
+  const { theme } = useUnistyles(); const f = fStylesheet;
 
   const { user } = useAuth();
   const router = useRouter();
@@ -491,7 +491,7 @@ export function EventCard({ event, onPress }: EventCardProps) {
 
 // ── Compact card styles ───────────────────────────────────────────────────────
 const COMPACT_W = width * 0.56;
-const cStylesheet = createStyleSheet((theme) => ({
+const cStylesheet = UnistylesStyleSheet.create((theme) => ({
   card: { width: COMPACT_W, borderRadius: 20, overflow: 'hidden', borderWidth: 1 },
   imgWrap: { width: '100%', height: 140, position: 'relative' },
   dateBubble: {
@@ -559,7 +559,7 @@ const cStylesheet = createStyleSheet((theme) => ({
 }));
 
 // ── Full card styles ──────────────────────────────────────────────────────────
-const fStylesheet = createStyleSheet((theme) => ({
+const fStylesheet = UnistylesStyleSheet.create((theme) => ({
   wrap: { marginHorizontal: 16, marginBottom: 16 },
   card: { borderRadius: 24, overflow: 'hidden', borderWidth: 1 },
   imgWrap: { width: '100%', height: 200, position: 'relative' },

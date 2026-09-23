@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState } from 'react';
 import {
   StyleSheet,
@@ -12,7 +12,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { useLocation } from '../context/LocationContext';
 
 export function LocationChip() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const { displayLabel, activeFilter, setGlobalFilter, userProfileLocation, hasLocation } =
     useLocation();
@@ -109,7 +109,7 @@ export function LocationChip() {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = UnistylesStyleSheet.create((theme) => ({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',

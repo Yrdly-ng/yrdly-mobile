@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
@@ -23,7 +23,7 @@ const FILTERS: { key: SeverityFilter; label: string; color: string; bg: string }
 ];
 
 export default function AlertsScreen() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -164,7 +164,7 @@ export default function AlertsScreen() {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   container: { flex: 1 },
   listContent: { paddingVertical: 16, paddingBottom: 32 },
   sectionHeader: {

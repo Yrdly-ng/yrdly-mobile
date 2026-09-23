@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useCallback, useRef, useMemo } from 'react';
 import {
   StyleSheet,
@@ -42,7 +42,7 @@ const EVENT_CATEGORIES = [
 ];
 
 export function EventList({ searchQuery = '', sortOption = 'newest' }: EventListProps) {
-  const { styles: stylesheet, theme } = useStyles(sStylesheet);
+  const { theme } = useUnistyles(); const stylesheet = sStylesheet;
 
   const { activeFilter } = useLocation();
   const router = useRouter();
@@ -564,7 +564,7 @@ export function EventList({ searchQuery = '', sortOption = 'newest' }: EventList
   );
 }
 
-const sStylesheet = createStyleSheet((theme) => ({
+const sStylesheet = UnistylesStyleSheet.create((theme) => ({
   listContent: { paddingBottom: 100 },
   chipsScroll: { marginBottom: 16 },
   chipsContent: { paddingHorizontal: 16, gap: 8 },

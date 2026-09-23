@@ -1,5 +1,5 @@
 import React, { createContext, useContext } from 'react';
-import { createStyleSheet, useStyles, UnistylesRuntime } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles, UnistylesRuntime } from 'react-native-unistyles';
 import Colors from '../constants/Colors';
 import { setStoredThemePreference } from '../lib/theme-preference';
 
@@ -15,11 +15,11 @@ interface ThemeContextType {
 export const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 // Empty sheet so the provider subscribes to Unistyles and re-renders on theme change.
-const themeSubscription = createStyleSheet(() => ({}));
+const themeSubscription = StyleSheet.create(() => ({}));
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Subscribe to Unistyles so the context updates whenever the theme switches.
-  useStyles(themeSubscription);
+  useUnistyles();
 
   const activeTheme: ActiveTheme = UnistylesRuntime.themeName === 'light' ? 'light' : 'dark';
   const isDarkMode = activeTheme === 'dark';

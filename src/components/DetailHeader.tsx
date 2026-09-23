@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -12,7 +12,7 @@ interface Props {
 }
 
 function ChevronLeft() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   return (
     <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
@@ -33,7 +33,7 @@ function ChevronLeft() {
  * Matches Figma Make's DetailHeader({ title, onBack }) component.
  */
 export function DetailHeader({ title, onBack, rightContent }: Props) {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -61,7 +61,7 @@ export function DetailHeader({ title, onBack, rightContent }: Props) {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   container: {
     backgroundColor: theme.colors.DARK,
     flexDirection: 'row',

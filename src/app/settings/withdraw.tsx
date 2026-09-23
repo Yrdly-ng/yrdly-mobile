@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -17,7 +17,7 @@ import { api } from '../../lib/api';
 import { useAuth } from '../../hooks/use-supabase-auth';
 
 export default function WithdrawScreen() {
-  const { styles: s, theme } = useStyles(stylesheet);
+  const { theme } = useUnistyles(); const s = stylesheet;
 
   const router = useRouter();
   const { user } = useAuth();
@@ -201,7 +201,7 @@ export default function WithdrawScreen() {
               { l: 'Total deducted', v: `₦${(previewData?.totalDebit ?? numAmount).toLocaleString()}` },
               { l: 'You receive in bank', v: `₦${(previewData?.netToBank ?? numAmount).toLocaleString()}` },
             ].map((r) => {
-              const { styles: s } = useStyles(stylesheet);
+              const s = stylesheet;
               return (
                 <View key={r.l} style={s.confirmRow}>
                   <Text style={s.confirmRowL}>{r.l}</Text>
@@ -362,7 +362,7 @@ export default function WithdrawScreen() {
   );
 }
 
-const stylesheet = createStyleSheet((theme) => ({
+const stylesheet = StyleSheet.create((theme) => ({
   root: { flex: 1, backgroundColor: theme.colors.DARK },
   header: {
     flexDirection: 'row',

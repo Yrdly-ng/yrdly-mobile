@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -22,7 +22,7 @@ import ImageViewing from 'react-native-image-viewing';
 import type { Business, CatalogItem } from '../../../types';
 
 export default function CatalogItemScreen() {
-  const { styles: sStylesheet, theme } = useStyles(stylesheet);
+  const { theme } = useUnistyles(); const sStylesheet = stylesheet;
 
   const { itemId } = useLocalSearchParams<{ itemId: string }>();
   const { isDarkMode } = useAppTheme();
@@ -697,7 +697,7 @@ export default function CatalogItemScreen() {
   );
 }
 
-const stylesheet = createStyleSheet((theme) => ({
+const stylesheet = StyleSheet.create((theme) => ({
   root: { flex: 1 },
   imageContainer: { height: 300, width: '100%', position: 'relative' },
   imageOverlay: {

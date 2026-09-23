@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -28,7 +28,7 @@ type Tab = 'catalog' | 'reviews' | 'analytics';
 
 // duplicate stylesheet removed
 
-const stylesheet = createStyleSheet((theme) => ({
+const stylesheet = StyleSheet.create((theme) => ({
   root: { flex: 1, backgroundColor: theme.colors.DARK },
   coverContainer: { height: 155, width: '100%', position: 'relative' },
   backBtn: {
@@ -323,7 +323,7 @@ const stylesheet = createStyleSheet((theme) => ({
 }));
 
 export default function BusinessProfileScreen() {
-  const { styles: sStylesheet, theme } = useStyles(stylesheet);
+  const { theme } = useUnistyles(); const sStylesheet = stylesheet;
 
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();

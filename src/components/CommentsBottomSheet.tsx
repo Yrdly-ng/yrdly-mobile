@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, {
   useState,
   useEffect,
@@ -52,7 +52,7 @@ import { CommentInput, CommentInputRef } from './CommentInput';
 
 export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBottomSheetProps>(
   ({ postId, onCommentAdded }, ref) => {
-    const { styles: stylesheet, theme } = useStyles(_stylesheet);
+    const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
     const router = useRouter();
     const { user, profile } = useAuth();
@@ -315,7 +315,7 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
 
     const renderFooter = useCallback(
       (props: any) => {
-        const { styles: stylesheet, theme } = useStyles(_stylesheet);
+        const { theme } = useUnistyles(); const stylesheet = _stylesheet;
         return (
           <BottomSheetFooter {...props} bottomInset={0}>
             <View style={{ overflow: 'hidden' }}>
@@ -422,7 +422,7 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
   }
 );
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = UnistylesStyleSheet.create((theme) => ({
   header: {
     alignItems: 'center',
     paddingVertical: 12,

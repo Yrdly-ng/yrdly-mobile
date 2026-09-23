@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
@@ -67,7 +67,7 @@ const { width } = Dimensions.get('window');
 
 // Custom Skeleton Component
 const SkeletonCard = ({ height = 20, width = '100%', style }: any) => {
-  const { theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles();
   const opacity = useSharedValue(0.3);
 
   useEffect(() => {
@@ -95,7 +95,7 @@ const SkeletonCard = ({ height = 20, width = '100%', style }: any) => {
 };
 
 export default function EventDetailScreen() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -1511,7 +1511,7 @@ export default function EventDetailScreen() {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   container: { flex: 1 },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   errorText: { fontSize: 18, marginBottom: 20 },

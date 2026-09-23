@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleProp, ViewStyle, StyleSheet } from 'react-native';
 import { Image, ImageStyle } from 'expo-image';
-import { useStyles } from 'react-native-unistyles';
+import { useUnistyles } from 'react-native-unistyles';
 import { StorageService } from '../lib/storage-service';
 
 interface AvatarProps {
@@ -21,7 +21,7 @@ export function Avatar({
   fallbackStyle,
   fallbackTextStyle,
 }: AvatarProps) {
-  const { theme } = useStyles();
+  const { theme } = useUnistyles();
   const [error, setError] = useState(false);
 
   // Guard against file:// URLs from broken uploads saving local URIs

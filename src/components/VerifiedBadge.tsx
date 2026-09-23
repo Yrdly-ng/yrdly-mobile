@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React from 'react';
 import Svg, { Path } from 'react-native-svg';
 
@@ -15,7 +15,7 @@ interface Props {
  *   {user.verified && <VerifiedBadge size={16} />}
  */
 export function VerifiedBadge({ size = 20, color }: Props) {
-  const { theme } = useStyles();
+  const { theme } = useUnistyles();
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
       <Path
@@ -27,12 +27,12 @@ export function VerifiedBadge({ size = 20, color }: Props) {
 }
 
 export function BusinessBadge({ size = 20 }: Props) {
-  const { theme } = useStyles();
+  const { theme } = useUnistyles();
   return <VerifiedBadge size={size} color="#FBBF24" />; // Yellow for business
 }
 
 export function MarketplaceBadge({ size = 20 }: Props) {
-  const { theme } = useStyles();
+  const { theme } = useUnistyles();
   // Using a distinct SVG path for a "store/shopping" badge to differentiate from the checkmark
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">

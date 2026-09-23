@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -47,7 +47,7 @@ const STATUS_ICONS: Record<EscrowStatus, string> = {
 };
 
 export default function TransactionsScreen() {
-  const { styles: s, theme } = useStyles(sStylesheet);
+  const { theme } = useUnistyles(); const s = sStylesheet;
 
   const STATUS_MAP: Record<EscrowStatus, { label: string; color: string }> = {
     pending: { label: 'In Escrow', color: '#FFB648' },
@@ -408,7 +408,7 @@ function parseImageUrls(val: any): string[] {
   );
 }
 
-const sStylesheet = createStyleSheet((theme) => ({
+const sStylesheet = UnistylesStyleSheet.create((theme) => ({
   root: { flex: 1, backgroundColor: theme.colors.DARK },
 
   header: { paddingHorizontal: 20, paddingBottom: 12 },

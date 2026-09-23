@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles, UnistylesRuntime } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles, UnistylesRuntime } from 'react-native-unistyles';
 import { Tabs, useRouter } from 'expo-router';
 import { View, Platform, Text, TouchableOpacity, Alert, AppState } from 'react-native';
 import { Plus } from 'phosphor-react-native';
@@ -26,7 +26,7 @@ const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpaci
 
 /** Wraps any tab icon with a spring scale animation on focus */
 function TabIconWrapper({ focused, children }: { focused: boolean; children: React.ReactNode }) {
-  const { styles, theme } = useStyles(sStylesheet);
+  const { theme } = useUnistyles(); const styles = sStylesheet;
 
   const scale = useSharedValue(1);
 
@@ -43,7 +43,7 @@ function TabIconWrapper({ focused, children }: { focused: boolean; children: Rea
 
 /** Floating create button with spring press feedback */
 function FloatingCreateButton({ onPress }: { onPress: () => void }) {
-  const { styles, theme } = useStyles(sStylesheet);
+  const { theme } = useUnistyles(); const styles = sStylesheet;
 
   const scale = useSharedValue(1);
 
@@ -83,7 +83,7 @@ function CreateMenuOverlay({
   onClose: () => void;
   onSelect: (route: string) => void;
 }) {
-  const { styles, theme } = useStyles(sStylesheet);
+  const { theme } = useUnistyles(); const styles = sStylesheet;
 
   if (!visible) return null;
 
@@ -199,7 +199,7 @@ function CreateMenuOverlay({
 }
 
 export default function TabLayout() {
-  const { styles, theme } = useStyles(sStylesheet);
+  const { theme } = useUnistyles(); const styles = sStylesheet;
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -504,7 +504,7 @@ export default function TabLayout() {
   );
 }
 
-const sStylesheet = createStyleSheet((theme) => ({
+const sStylesheet = StyleSheet.create((theme) => ({
   createButton: {
     width: 52,
     height: 52,

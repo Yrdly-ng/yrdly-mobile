@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 import * as Haptics from 'expo-haptics';
 import { Check, X } from 'phosphor-react-native';
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import type { ToastEntry } from './ToastProvider';
 
 export interface ToastProps {
@@ -60,7 +60,7 @@ export function Toast({
   onDismissStart,
   onDismissed,
 }: ToastProps) {
-  const { styles, theme } = useStyles(stylesheet);
+  const { theme } = useUnistyles(); const styles = stylesheet;
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
 
@@ -219,7 +219,7 @@ export function Toast({
   );
 }
 
-const stylesheet = createStyleSheet((theme) => ({
+const stylesheet = StyleSheet.create((theme) => ({
   container: {
     position: 'absolute',
     left: 16,

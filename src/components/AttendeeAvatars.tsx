@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { useStyles, createStyleSheet } from 'react-native-unistyles';
+import { useUnistyles, StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles';
 import { Avatar } from './Avatar';
 
 export interface AttendeeUser {
@@ -28,7 +28,7 @@ export function AttendeeAvatars({
   showIcon = true,
   showCountBadge = true,
 }: AttendeeAvatarsProps) {
-  const { theme } = useStyles(createStyleSheet(() => ({})));
+  const { theme } = useUnistyles();
   const [failedImages, setFailedImages] = useState<Record<number, boolean>>({});
 
   const normalizedAttendees: AttendeeUser[] = attendees.map((item, idx) => {

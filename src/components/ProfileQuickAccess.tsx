@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, Ionicons, Feather } from '@expo/vector-icons';
-import { useStyles, createStyleSheet } from 'react-native-unistyles';
+import { useUnistyles, StyleSheet } from 'react-native-unistyles';
 
 export interface ProfileQuickAccessProps {
   /**
@@ -18,7 +18,7 @@ export interface ProfileQuickAccessProps {
  * Tickets, My Events, My Business, My Listings.
  */
 export default function ProfileQuickAccess({ onManageStore }: ProfileQuickAccessProps) {
-  const { styles, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const styles = _stylesheet;
   const router = useRouter();
 
   const [activeTooltipIndex, setActiveTooltipIndex] = useState<number | null>(null);
@@ -105,7 +105,7 @@ export default function ProfileQuickAccess({ onManageStore }: ProfileQuickAccess
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   container: {
     flexDirection: 'row',
     alignItems: 'flex-start',

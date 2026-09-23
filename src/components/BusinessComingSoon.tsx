@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useEffect } from 'react';
 import { View, Text, Dimensions, TouchableOpacity, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -15,7 +15,7 @@ import Animated, {
 const { width } = Dimensions.get('window');
 
 export function BusinessComingSoon() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   // Animations
   const pulseScale = useSharedValue(1);
@@ -180,7 +180,7 @@ export function BusinessComingSoon() {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   container: {
     flexGrow: 1,
     alignItems: 'center',

@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -24,7 +24,7 @@ interface DiscoverUserCardProps {
 }
 
 export function DiscoverUserCard({ user, context, mutualCount, onPress }: DiscoverUserCardProps) {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const userId = user?.id || '';
   const { isFollowing, actionLoading, toggleFollow } = useFollowStatus(userId);
@@ -119,7 +119,7 @@ export function DiscoverUserCard({ user, context, mutualCount, onPress }: Discov
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = UnistylesStyleSheet.create((theme) => ({
   container: {
     paddingHorizontal: 16,
     paddingVertical: 6,

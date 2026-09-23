@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -29,7 +29,7 @@ const CATS = [
 ];
 
 export default function CreateCatalogItemScreen() {
-  const { styles: sStylesheet, theme } = useStyles(stylesheet);
+  const { theme } = useUnistyles(); const sStylesheet = stylesheet;
 
   const router = useRouter();
   const { business_id: businessId, id: itemId } = useLocalSearchParams<{
@@ -390,7 +390,7 @@ export default function CreateCatalogItemScreen() {
   );
 }
 
-const stylesheet = createStyleSheet((theme) => ({
+const stylesheet = StyleSheet.create((theme) => ({
   root: { flex: 1, backgroundColor: theme.colors.DARK },
 
   header: {

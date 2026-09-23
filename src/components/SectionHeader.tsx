@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useStyles, createStyleSheet } from 'react-native-unistyles';
+import { useUnistyles, StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles';
 
 interface SectionHeaderProps {
   title: string;
@@ -9,7 +9,7 @@ interface SectionHeaderProps {
 }
 
 export function SectionHeader({ title, emoji, count }: SectionHeaderProps) {
-  const { theme } = useStyles(createStyleSheet(() => ({})));
+  const { theme } = useUnistyles();
 
   return (
     <View style={styles.container}>

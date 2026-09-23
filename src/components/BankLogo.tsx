@@ -2,10 +2,10 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { Image } from 'expo-image';
 import { useBankLogos } from '../hooks/use-bank-logos';
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 export function BankLogo({ code, name, size = 24 }: { code: string; name: string; size?: number }) {
-  const { styles: s, theme } = useStyles(stylesheet);
+  const { theme } = useUnistyles(); const s = stylesheet;
   const { getBankLogo } = useBankLogos();
   const logoUrl = getBankLogo(code);
 
@@ -28,7 +28,7 @@ export function BankLogo({ code, name, size = 24 }: { code: string; name: string
   );
 }
 
-const stylesheet = createStyleSheet((theme) => ({
+const stylesheet = StyleSheet.create((theme) => ({
   image: {
     backgroundColor: theme.colors.SURFACE_ALT,
     borderWidth: 1,

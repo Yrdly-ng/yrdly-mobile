@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   StyleSheet,
@@ -34,7 +34,7 @@ interface CategoryTile {
 }
 
 export function BusinessHub({ searchQuery }: BusinessHubProps) {
-  const { styles: s, theme } = useStyles(sStylesheet);
+  const { theme } = useUnistyles(); const s = sStylesheet;
 
   const { isDarkMode } = useAppTheme();
   const router = useRouter();
@@ -341,7 +341,7 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
   );
 }
 
-const sStylesheet = createStyleSheet((theme) => ({
+const sStylesheet = UnistylesStyleSheet.create((theme) => ({
   container: { flex: 1 },
   skeletonGrid: {
     flexDirection: 'row',

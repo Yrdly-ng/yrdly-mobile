@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
 /**
  * ForSaleForm.tsx
  * Premium presentation layer for the "Sell an Item" flow.
@@ -86,10 +86,10 @@ function PriceTypeSelector({
   value: boolean;
   onChange: (v: boolean) => void;
 }) {
-  const { styles: stylesheet, theme } = useStyles(sStylesheet);
-  const { styles: pt } = useStyles(ptStylesheet);
-  const { styles: pg } = useStyles(pgStylesheet);
-  const { styles: dd } = useStyles(ddStylesheet);
+  const { theme } = useUnistyles(); const stylesheet = sStylesheet;
+  const pt = ptStylesheet;
+  const pg = pgStylesheet;
+  const dd = ddStylesheet;
 
   const slide = useRef(new Animated.Value(value ? 1 : 0)).current;
 
@@ -145,10 +145,10 @@ function Dropdown({
   onSelect: (v: string) => void;
   icon: string;
 }) {
-  const { styles: stylesheet, theme } = useStyles(sStylesheet);
-  const { styles: pt } = useStyles(ptStylesheet);
-  const { styles: pg } = useStyles(pgStylesheet);
-  const { styles: dd } = useStyles(ddStylesheet);
+  const { theme } = useUnistyles(); const stylesheet = sStylesheet;
+  const pt = ptStylesheet;
+  const pg = pgStylesheet;
+  const dd = ddStylesheet;
 
   const [open, setOpen] = useState(false);
   const heightAnim = useRef(new Animated.Value(0)).current;
@@ -247,10 +247,10 @@ function PhotoGallery({
   onAdd: () => void;
   onRemove: (i: number) => void;
 }) {
-  const { styles: stylesheet, theme } = useStyles(sStylesheet);
-  const { styles: pt } = useStyles(ptStylesheet);
-  const { styles: pg } = useStyles(pgStylesheet);
-  const { styles: dd } = useStyles(ddStylesheet);
+  const { theme } = useUnistyles(); const stylesheet = sStylesheet;
+  const pt = ptStylesheet;
+  const pg = pgStylesheet;
+  const dd = ddStylesheet;
 
   const [activeDot, setActiveDot] = useState(0);
 
@@ -349,10 +349,10 @@ export function ForSaleForm({
   categories,
   onSelectCategory,
 }: ForSaleFormProps) {
-  const { styles: stylesheet, theme } = useStyles(sStylesheet);
-  const { styles: pt } = useStyles(ptStylesheet);
-  const { styles: pg } = useStyles(pgStylesheet);
-  const { styles: dd } = useStyles(ddStylesheet);
+  const { theme } = useUnistyles(); const stylesheet = sStylesheet;
+  const pt = ptStylesheet;
+  const pg = pgStylesheet;
+  const dd = ddStylesheet;
 
   const locationLabel =
     profile?.home_lga || profile?.home_state
@@ -681,7 +681,7 @@ export function ForSaleForm({
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
-const sStylesheet = createStyleSheet((theme) => ({
+const sStylesheet = UnistylesStyleSheet.create((theme) => ({
   card: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 12 },
   settingsCard: { borderRadius: 16, borderWidth: 1, marginBottom: 12, overflow: 'hidden' },
   settingsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
@@ -765,7 +765,7 @@ const sStylesheet = createStyleSheet((theme) => ({
 }));
 
 // Price type segment styles
-const ptStylesheet = createStyleSheet((theme) => ({
+const ptStylesheet = UnistylesStyleSheet.create((theme) => ({
   wrap: {
     flexDirection: 'row',
     borderRadius: 28,
@@ -780,7 +780,7 @@ const ptStylesheet = createStyleSheet((theme) => ({
 }));
 
 // Photo gallery styles
-const pgStylesheet = createStyleSheet((theme) => ({
+const pgStylesheet = UnistylesStyleSheet.create((theme) => ({
   wrap: {},
   header: {
     flexDirection: 'row',
@@ -836,7 +836,7 @@ const pgStylesheet = createStyleSheet((theme) => ({
 }));
 
 // Dropdown styles
-const ddStylesheet = createStyleSheet((theme) => ({
+const ddStylesheet = UnistylesStyleSheet.create((theme) => ({
   row: { borderRadius: 12, borderWidth: 1, padding: 12 },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
   label: { fontSize: 13, fontWeight: '700' },

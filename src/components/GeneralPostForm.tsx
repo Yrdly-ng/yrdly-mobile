@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useRef, useState } from 'react';
 import {
   StyleSheet,
@@ -57,7 +57,7 @@ export function GeneralPostForm({
   categories,
   onSelectCategory,
 }: Props) {
-  const { styles: stylesheet, theme } = useStyles(sStylesheet);
+  const { theme } = useUnistyles(); const stylesheet = sStylesheet;
 
   const pressScale = useRef(new Animated.Value(1)).current;
   const [menuScale] = useState(new Animated.Value(showCategoryMenu ? 1 : 0));
@@ -132,7 +132,7 @@ export function GeneralPostForm({
                   ]}
                 >
                   {categories.map((cat) => {
-                    const { styles: s } = useStyles(sStylesheet);
+                    const s = sStylesheet;
                     return (
                       <TouchableOpacity
                         key={cat}
@@ -328,7 +328,7 @@ export function GeneralPostForm({
   );
 }
 
-const sStylesheet = createStyleSheet((theme) => ({
+const sStylesheet = UnistylesStyleSheet.create((theme) => ({
   profileRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 16 },
   avatar: { width: 48, height: 48, borderRadius: 24 },
   cameraBtn: {

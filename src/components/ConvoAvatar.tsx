@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React from 'react';
 import { View, Image } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
@@ -12,7 +12,7 @@ interface Props {
 }
 
 function TagIcon() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   return (
     <Svg width={8} height={8} viewBox="0 0 24 24" fill="none">
@@ -28,7 +28,7 @@ function TagIcon() {
 }
 
 function ShopIcon() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   return (
     <Svg width={8} height={8} viewBox="0 0 24 24" fill="none">
@@ -50,7 +50,7 @@ function ShopIcon() {
  * Matches Figma Make's ConvoAvatar({ convo }) component.
  */
 export function ConvoAvatar({ avatarId, type, online = false, size = 48 }: Props) {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const BADGE_ICONS: Record<
     Exclude<ConvoType, 'friends'>,
@@ -99,7 +99,7 @@ export function ConvoAvatar({ avatarId, type, online = false, size = 48 }: Props
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   avatar: {
     backgroundColor: theme.colors.GLASS_BORDER,
   },

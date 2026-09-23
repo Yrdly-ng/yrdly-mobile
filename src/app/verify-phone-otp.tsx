@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   StyleSheet,
@@ -24,7 +24,7 @@ const { width, height } = Dimensions.get('window');
 const OTP_LENGTH = 6;
 
 export default function VerifyPhoneOtpScreen() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
   const router = useRouter();
   const { phone, initialPinId } = useLocalSearchParams<{ phone: string; initialPinId: string }>();
   const { verifyPhoneOtp, sendPhoneOtp } = useAuth();
@@ -256,7 +256,7 @@ export default function VerifyPhoneOtpScreen() {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = UnistylesStyleSheet.create((theme) => ({
   container: { flex: 1, justifyContent: 'center', padding: 24 },
   blob: { position: 'absolute', width: 80, height: 80, borderRadius: 40, opacity: 0.45 },
   card: {

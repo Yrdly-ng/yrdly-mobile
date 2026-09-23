@@ -1,11 +1,11 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useEffect } from 'react';
 import { View, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../hooks/use-supabase-auth';
 
 export default function NewPostScreen() {
-  const { styles: stylesheet, theme } = useStyles(_stylesheet);
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const router = useRouter();
   const params = useLocalSearchParams<{ category?: string }>();
@@ -34,7 +34,7 @@ export default function NewPostScreen() {
   );
 }
 
-const _stylesheet = createStyleSheet((theme) => ({
+const _stylesheet = StyleSheet.create((theme) => ({
   container: {
     flex: 1,
     backgroundColor: theme.colors.DARK,

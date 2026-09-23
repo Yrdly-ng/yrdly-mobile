@@ -1,4 +1,4 @@
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
@@ -192,7 +192,7 @@ function MarketplaceSection({
   currentLoc: Location.LocationObject | null;
   search: string;
 }) {
-  const { styles: sStylesheet, theme } = useStyles(stylesheet);
+  const { theme } = useUnistyles(); const sStylesheet = stylesheet;
   const { activeFilter } = useLocation();
 
   const router = useRouter();
@@ -770,7 +770,7 @@ function EventsSection({
   currentLoc: Location.LocationObject | null;
   search: string;
 }) {
-  const { styles: sStylesheet, theme } = useStyles(stylesheet);
+  const { theme } = useUnistyles(); const sStylesheet = stylesheet;
   const { activeFilter } = useLocation();
 
   const router = useRouter();
@@ -929,7 +929,7 @@ function PlacesSection({
   currentLoc: Location.LocationObject | null;
   search: string;
 }) {
-  const { styles: sStylesheet, theme } = useStyles(stylesheet);
+  const { theme } = useUnistyles(); const sStylesheet = stylesheet;
   const { activeFilter } = useLocation();
 
   const router = useRouter();
@@ -1083,7 +1083,7 @@ function PlacesSection({
 
 // ─── MAIN EXPLORE TAB ────────────────────────────────────────────────────────
 export default function CatalogTab() {
-  const { styles: sStylesheet, theme } = useStyles(stylesheet);
+  const { theme } = useUnistyles(); const sStylesheet = stylesheet;
 
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -1314,7 +1314,7 @@ export default function CatalogTab() {
 }
 
 // ─── STYLES ──────────────────────────────────────────────────────────────────
-const stylesheet = createStyleSheet((theme) => ({
+const stylesheet = StyleSheet.create((theme) => ({
   root: { flex: 1 },
   header: {
     flexDirection: 'row',

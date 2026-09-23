@@ -7,7 +7,7 @@ import Animated, {
   withTiming,
   withSequence,
 } from 'react-native-reanimated';
-import { useStyles, createStyleSheet } from 'react-native-unistyles';
+import { useUnistyles, StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles';
 
 interface SkeletonProps {
   width?: DimensionValue;
@@ -17,7 +17,7 @@ interface SkeletonProps {
 }
 
 export function Skeleton({ width = '100%', height = 20, borderRadius = 4, style }: SkeletonProps) {
-  const { theme } = useStyles(createStyleSheet(() => ({})));
+  const { theme } = useUnistyles();
   const opacity = useSharedValue(0.5);
 
   useEffect(() => {
@@ -49,7 +49,7 @@ export function Skeleton({ width = '100%', height = 20, borderRadius = 4, style 
 }
 
 export function PostSkeleton() {
-  const { theme } = useStyles(createStyleSheet(() => ({})));
+  const { theme } = useUnistyles();
 
   return (
     <View style={[styles.postContainer, { borderBottomColor: theme.colors.GLASS_BORDER }]}>

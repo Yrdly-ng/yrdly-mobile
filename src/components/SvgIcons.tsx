@@ -1,6 +1,6 @@
 import React from 'react';
 import { Svg, Path, Circle, Rect, G } from 'react-native-svg';
-import { useStyles } from 'react-native-unistyles';
+import { useUnistyles } from 'react-native-unistyles';
 
 export interface SvgIconProps {
   color?: string;
@@ -9,7 +9,7 @@ export interface SvgIconProps {
 }
 
 export function BusinessIcon({ color, size = 24 }: SvgIconProps) {
-  const { theme } = useStyles();
+  const { theme } = useUnistyles();
   const fill = color || theme.colors.TEXT_PRIMARY;
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -25,7 +25,7 @@ export function BusinessIcon({ color, size = 24 }: SvgIconProps) {
 }
 
 export function EventsIcon({ color, size = 24 }: SvgIconProps) {
-  const { theme } = useStyles();
+  const { theme } = useUnistyles();
   const fill = color || theme.colors.TEXT_PRIMARY;
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -49,7 +49,7 @@ export function EventsIcon({ color, size = 24 }: SvgIconProps) {
 }
 
 export function ExploreIcon({ color, size = 24 }: SvgIconProps) {
-  const { theme } = useStyles();
+  const { theme } = useUnistyles();
   const fill = color || theme.colors.TEXT_PRIMARY;
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -72,7 +72,7 @@ export function ExploreIcon({ color, size = 24 }: SvgIconProps) {
 }
 
 export function HomeIcon({ color, size = 24 }: SvgIconProps) {
-  const { theme } = useStyles();
+  const { theme } = useUnistyles();
   const fill = color || theme.colors.TEXT_PRIMARY;
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -82,7 +82,7 @@ export function HomeIcon({ color, size = 24 }: SvgIconProps) {
 }
 
 export function MapIcon({ color, size = 24 }: SvgIconProps) {
-  const { theme } = useStyles();
+  const { theme } = useUnistyles();
   const fill = color || theme.colors.TEXT_PRIMARY;
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -98,7 +98,7 @@ export function MapIcon({ color, size = 24 }: SvgIconProps) {
 }
 
 export function MarketplaceIcon({ color, size = 24 }: SvgIconProps) {
-  const { theme } = useStyles();
+  const { theme } = useUnistyles();
   const fill = color || theme.colors.TEXT_PRIMARY;
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -111,7 +111,7 @@ export function MarketplaceIcon({ color, size = 24 }: SvgIconProps) {
 }
 
 export function MessagesIcon({ color, size = 24 }: SvgIconProps) {
-  const { theme } = useStyles();
+  const { theme } = useUnistyles();
   const fill = color || theme.colors.TEXT_PRIMARY;
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -161,7 +161,7 @@ export function MessagesIcon({ color, size = 24 }: SvgIconProps) {
 }
 
 export function NotificationsIcon({ color, size = 24 }: SvgIconProps) {
-  const { theme } = useStyles();
+  const { theme } = useUnistyles();
   const fill = color || theme.colors.TEXT_PRIMARY;
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -176,7 +176,7 @@ export function NotificationsIcon({ color, size = 24 }: SvgIconProps) {
 }
 
 export function ProfileIcon({ color, size = 24 }: SvgIconProps) {
-  const { theme } = useStyles();
+  const { theme } = useUnistyles();
   const fill = color || theme.colors.TEXT_PRIMARY;
   return (
     <Svg width={size} height={size} viewBox="0 0 20 20" fill="none">
