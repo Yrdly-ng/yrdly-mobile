@@ -56,7 +56,7 @@ export function MarketplaceGrid({ searchQuery = '', sortOption = 'newest' }: Mar
           .limit(1);
 
         if (existing && existing.length > 0) {
-          router.push('/', { params: { id: existing[0].id } });
+          router.push({ pathname: '/chat/[id]', params: { id: existing[0].id } });
           return;
         }
 
@@ -79,7 +79,7 @@ export function MarketplaceGrid({ searchQuery = '', sortOption = 'newest' }: Mar
 
         if (error || !created) throw error ?? new Error('Failed to create conversation');
 
-        router.push('/', { params: { id: created.id } });
+        router.push({ pathname: '/chat/[id]', params: { id: created.id } });
       } catch (e) {
         console.error('Message seller error:', e);
         Alert.alert('Error', 'Could not open chat. Please try again.');
@@ -192,7 +192,7 @@ export function MarketplaceGrid({ searchQuery = '', sortOption = 'newest' }: Mar
           item={item}
           onPress={() => router.push(`/marketplace/${item.id}`)}
           onMessageSeller={handleMessageSeller}
-          onBuyNow={(item) => router.push('/', { params: { id: item.id, type: 'marketplace' } })}
+          onBuyNow={(item) => router.push({ pathname: '/checkout/[id]', params: { id: item.id, type: 'marketplace' } })}
         />
       )}
       contentContainerStyle={stylesheet.listContent}

@@ -82,6 +82,7 @@ module.exports = {
       [
         "expo-notifications",
         {
+          mode: process.env.EAS_BUILD_PROFILE === "production" ? "production" : "development",
           icon: "./assets/images/logo.png",
           color: "#82DB7E",
           androidMode: "default",

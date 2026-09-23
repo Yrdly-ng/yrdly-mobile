@@ -155,7 +155,7 @@ export default function MyEventsScreen() {
                 paddingVertical: 8,
                 borderRadius: 12,
               }}
-              onPress={() => router.push('/events/scan' as any, { params: { eventId: item.id } })}
+              onPress={() => router.push({ pathname: '/events/scan', params: { eventId: item.id } })}
             >
               <Ionicons name="qr-code" size={16} color={theme.colors.TEXT_PRIMARY} />
               <Text style={stylesheet.scanBtnText}>Scan Attendee Tickets</Text>

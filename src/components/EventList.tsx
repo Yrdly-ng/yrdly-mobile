@@ -473,7 +473,7 @@ export function EventList({ searchQuery = '', sortOption = 'newest' }: EventList
           stylesheet.createBanner,
           { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER },
         ]}
-        onPress={() => router.push('/', { params: { category: 'Event' } })}
+        onPress={() => router.push('/create-event')}
       >
         <View style={[stylesheet.createIcon, { backgroundColor: 'rgba(130,219,126,0.1)' }]}>
           <Ionicons name="calendar-outline" size={24} color={theme.colors.G} />
@@ -488,7 +488,7 @@ export function EventList({ searchQuery = '', sortOption = 'newest' }: EventList
         </View>
         <TouchableOpacity
           style={[stylesheet.createCTA, { backgroundColor: theme.colors.G }]}
-          onPress={() => router.push('/', { params: { category: 'Event' } })}
+          onPress={() => router.push('/create-event')}
         >
           <Text style={stylesheet.createCTATxt}>Create Event</Text>
           <Ionicons name="add-circle-outline" size={14} color="#0B0D0B" style={{ marginLeft: 4 }} />
@@ -546,7 +546,7 @@ export function EventList({ searchQuery = '', sortOption = 'newest' }: EventList
             </Text>
             <TouchableOpacity
               style={[stylesheet.createBtn, { backgroundColor: theme.colors.G }]}
-              onPress={() => router.push('/', { params: { category: 'Event' } })}
+              onPress={() => router.push('/create-event')}
             >
               <Ionicons
                 name="add-circle-outline"

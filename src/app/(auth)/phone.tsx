@@ -91,7 +91,7 @@ export default function PhoneScreen() {
 
               <PrimaryBtn
                 label="Send Verification Code"
-                onClick={() => router.push('/(auth)/verify-otp', { params: { phone } })}
+                onClick={() => router.push({ pathname: '/(auth)/verify-otp', params: { phone } })}
                 disabled={phone.length < 10}
               />
             </GlassCard>
