@@ -17,7 +17,7 @@ import { api } from '../../lib/api';
 import { useAuth } from '../../hooks/use-supabase-auth';
 
 export default function WithdrawScreen() {
-  const { styles: s, theme } = useStyles(sStylesheet);
+  const { styles: s, theme } = useStyles(stylesheet);
 
   const router = useRouter();
   const { user } = useAuth();
@@ -72,6 +72,8 @@ export default function WithdrawScreen() {
 
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
   const [previewing, setPreviewing] = useState(false);
   const [previewData, setPreviewData] = useState<{
     amount: number;
@@ -199,7 +201,7 @@ export default function WithdrawScreen() {
               { l: 'Total deducted', v: `₦${(previewData?.totalDebit ?? numAmount).toLocaleString()}` },
               { l: 'You receive in bank', v: `₦${(previewData?.netToBank ?? numAmount).toLocaleString()}` },
             ].map((r) => {
-              const { styles: s } = useStyles(sStylesheet);
+              const { styles: s } = useStyles(stylesheet);
               return (
                 <View key={r.l} style={s.confirmRow}>
                   <Text style={s.confirmRowL}>{r.l}</Text>
@@ -360,7 +362,7 @@ export default function WithdrawScreen() {
   );
 }
 
-const sStylesheet = createStyleSheet((theme) => ({
+const stylesheet = createStyleSheet((theme) => ({
   root: { flex: 1, backgroundColor: theme.colors.DARK },
   header: {
     flexDirection: 'row',

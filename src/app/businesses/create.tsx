@@ -41,6 +41,7 @@ export default function BusinessEditScreen() {
   const router = useRouter();
   const { user } = useAuth();
 
+  const [mode, setMode] = useState<'product' | 'service' | 'both'>('product');
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
   const [phone, setPhone] = useState('');
@@ -71,6 +72,7 @@ export default function BusinessEditScreen() {
             .eq('id', id)
             .single();
           if (data) {
+            setMode(data.mode || 'product');
             setName(data.name || '');
             setDesc(data.description || '');
             setPhone(data.phone || '');
@@ -167,6 +169,7 @@ export default function BusinessEditScreen() {
         phone: phone.trim(),
         website: website.trim(),
         category,
+        mode,
         hours: hours.trim(),
         location: location.trim() || 'Location not specified',
         state: bizState || null,

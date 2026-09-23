@@ -472,7 +472,109 @@ export class NotificationTriggers {
    * Trigger notification when someone views a user's profile
    * Profile view notifications are disabled.
    */
+  /**
+   * Trigger notification when someone views a user's profile
+   * Profile view notifications are disabled.
+   */
   static async onProfileView(_viewedUserId: string, _viewerId: string) {
     // Profile view notifications intentionally disabled
+  }
+
+  /**
+   * Booking Triggers
+   */
+  static async onBookingRequested(params: {
+    providerOwnerId: string;
+    customerName: string;
+    serviceName: string;
+    appointmentTime: string;
+    bookingId: string;
+  }) {
+    try {
+      const formattedDate = new Date(params.appointmentTime).toLocaleString();
+      await NotificationService.createNotification({
+        userId: params.providerOwnerId,
+        type: 'booking_requested',
+        title: 'New Booking Request',
+        message: `${params.customerName} requested a booking for "${params.serviceName}" on ${formattedDate}`,
+        relatedId: params.bookingId,
+        relatedType: 'booking',
+        data: { bookingId: params.bookingId },
+      });
+    } catch (error) {
+      console.error('Error creating booking requested notification:', error);
+    }
+  }
+
+  static async onBookingConfirmed(params: {
+    customerId: string;
+    businessName: string;
+    serviceName: string;
+    appointmentTime: string;
+    bookingId: string;
+  }) {
+    try {
+      const formattedDate = new Date(params.appointmentTime).toLocaleString();
+      await NotificationService.createNotification({
+        userId: params.customerId,
+        type: 'booking_confirmed',
+        title: 'Booking Confirmed!',
+        message: `Your booking for "${params.serviceName}" with ${params.businessName} on ${formattedDate} is confirmed`,
+        relatedId: params.bookingId,
+        relatedType: 'booking',
+        data: { bookingId: params.bookingId },
+      });
+    } catch (error) {
+      console.error('Error creating booking confirmed notification:', error);
+    }
+  }
+
+  static async onBookingCancelled(params: {
+    targetUserId: string;
+    cancellerName: string;
+    serviceName: string;
+    isLate: boolean;
+    bookingId: string;
+  }) {
+    try {
+      const type = params.isLate ? 'booking_late_cancelled' : 'booking_cancelled';
+      const title = params.isLate ? 'Late Booking Cancellation' : 'Booking Cancelled';
+      const message = params.isLate
+        ? `${params.cancellerName} cancelled the booking for "${params.serviceName}" (< 5h notice). A strike has been recorded.`
+        : `${params.cancellerName} cancelled the booking for "${params.serviceName}".`;
+
+      await NotificationService.createNotification({
+        userId: params.targetUserId,
+        type,
+        title,
+        message,
+        relatedId: params.bookingId,
+        relatedType: 'booking',
+        data: { bookingId: params.bookingId },
+      });
+    } catch (error) {
+      console.error('Error creating booking cancelled notification:', error);
+    }
+  }
+
+  static async onBookingNoShow(params: {
+    targetUserId: string;
+    serviceName: string;
+    party: 'customer' | 'provider';
+    bookingId: string;
+  }) {
+    try {
+      await NotificationService.createNotification({
+        userId: params.targetUserId,
+        type: 'booking_no_show',
+        title: 'Booking No-Show Recorded',
+        message: `A no-show was recorded for "${params.serviceName}". A strike has been added to your account.`,
+        relatedId: params.bookingId,
+        relatedType: 'booking',
+        data: { bookingId: params.bookingId },
+      });
+    } catch (error) {
+      console.error('Error creating booking no-show notification:', error);
+    }
   }
 }
