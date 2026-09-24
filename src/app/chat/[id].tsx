@@ -100,6 +100,7 @@ const ChatVideo = React.memo(
       <VideoView
         style={{ width, height, borderRadius, marginBottom }}
         player={player}
+        fullscreenOptions={{ enable: true }}
         allowsPictureInPicture
       />
     );

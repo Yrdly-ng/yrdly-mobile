@@ -75,7 +75,7 @@ const MarketVideo = React.memo(({ url, shouldPlay }: { url: string; shouldPlay: 
     }
   }, [shouldPlay, player]);
 
-  return <VideoView style={s.mainImage} player={player} allowsPictureInPicture />;
+  return <VideoView style={s.mainImage} player={player} fullscreenOptions={{ enable: true }} allowsPictureInPicture />;
 });
 
 function MarketplaceDetailContent() {
