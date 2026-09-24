@@ -810,7 +810,7 @@ const pgStylesheet = UnistylesStyleSheet.create((theme) => ({
     position: 'relative',
   },
   img: { width: '100%', height: '100%' },
-  videoIcon: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center' },
+  videoIcon: { ...StyleSheet.absoluteFill, justifyContent: 'center', alignItems: 'center' },
   removeBtn: {
     position: 'absolute',
     top: 6,

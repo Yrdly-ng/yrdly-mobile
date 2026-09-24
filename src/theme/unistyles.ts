@@ -111,6 +111,6 @@ StyleSheet.configure({
   },
   settings: {
     adaptiveThemes: false,
-    initialTheme: getStoredThemePreferenceSync() ?? Appearance.getColorScheme() ?? 'dark',
+    initialTheme: (getStoredThemePreferenceSync() ?? (Appearance.getColorScheme() === 'light' ? 'light' : 'dark')) as 'light' | 'dark',
   },
 });

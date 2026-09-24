@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0d0d0d',
   },
   loader: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#0d0d0d',

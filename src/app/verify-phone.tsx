@@ -52,7 +52,7 @@ export default function VerifyPhoneScreen() {
       style={[stylesheet.container, { backgroundColor: theme.colors.DARK }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={StyleSheet.absoluteFillObject}>
+      <View style={StyleSheet.absoluteFill}>
         <View
           style={[
             stylesheet.blob,
@@ -70,12 +70,12 @@ export default function VerifyPhoneScreen() {
       {isLiquidGlassSupported ? (
         <LiquidGlassView
           {...({ intensity: 20, tint: 'dark', fallbackColor: 'rgba(0, 0, 0, 0.6)' } as any)}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
         />
       ) : Platform.OS === 'ios' ? (
-        <BlurView intensity={20} style={StyleSheet.absoluteFillObject} tint="dark" />
+        <BlurView intensity={20} style={StyleSheet.absoluteFill} tint="dark" />
       ) : (
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.6)' }]} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.6)' }]} />
       )}
 
       <View

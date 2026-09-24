@@ -17,7 +17,7 @@ import { Image } from 'expo-image';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import ImagePicker from 'react-native-image-crop-picker';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused } from 'expo-router/react-navigation';
 import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 import ImageViewing from 'react-native-image-viewing';
@@ -100,7 +100,7 @@ const ChatVideo = React.memo(
       <VideoView
         style={{ width, height, borderRadius, marginBottom }}
         player={player}
-        allowsFullscreen
+        fullscreenOptions={{ enable: true }}
         allowsPictureInPicture
       />
     );

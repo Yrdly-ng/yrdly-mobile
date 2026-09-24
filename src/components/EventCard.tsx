@@ -143,21 +143,21 @@ export function EventCardCompact({ event, onPress }: EventCardProps) {
           {imageUrl ? (
             <Image
               source={{ uri: imageUrl }}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               contentFit="cover"
               transition={200}
             />
           ) : event.video_urls && event.video_urls.length > 0 ? (
             <View
               style={[
-                StyleSheet.absoluteFillObject,
+                StyleSheet.absoluteFill,
                 { backgroundColor: '#1a2210', justifyContent: 'center', alignItems: 'center' },
               ]}
             >
               <Ionicons name="play-circle-outline" size={32} color="rgba(130,219,126,0.5)" />
             </View>
           ) : (
-            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#1a2210' }]} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: '#1a2210' }]} />
           )}
           {/* Date badge overlay */}
           {dateInfo && (
@@ -222,7 +222,7 @@ export function EventCardCompact({ event, onPress }: EventCardProps) {
                 {event.author_image ? (
                   <Image
                     source={{ uri: event.author_image }}
-                    style={StyleSheet.absoluteFillObject}
+                    style={StyleSheet.absoluteFill}
                     contentFit="cover"
                   />
                 ) : (
@@ -346,12 +346,12 @@ export function EventCard({ event, onPress }: EventCardProps) {
           {imageUrl ? (
             <Image
               source={{ uri: StorageService.getOptimizedImageUrl(imageUrl, 800) || imageUrl }}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               contentFit="cover"
               transition={200}
             />
           ) : event.video_urls && event.video_urls.length > 0 ? (
-            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#1a2210' }]}>
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: '#1a2210' }]}>
               <Ionicons
                 name="play-circle-outline"
                 size={40}
@@ -360,7 +360,7 @@ export function EventCard({ event, onPress }: EventCardProps) {
               />
             </View>
           ) : (
-            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#1a2210' }]}>
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: '#1a2210' }]}>
               <Ionicons
                 name="calendar"
                 size={40}
@@ -563,7 +563,7 @@ const fStylesheet = UnistylesStyleSheet.create((theme) => ({
   wrap: { marginHorizontal: 16, marginBottom: 16 },
   card: { borderRadius: 24, overflow: 'hidden', borderWidth: 1 },
   imgWrap: { width: '100%', height: 200, position: 'relative' },
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.28)' },
+  overlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.28)' },
   dateBubble: {
     position: 'absolute',
     top: 12,

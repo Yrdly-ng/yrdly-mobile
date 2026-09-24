@@ -52,7 +52,7 @@ interface PostCardProps {
   onDelete?: (postId: string) => void;
 }
 import { AppState } from 'react-native';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused } from 'expo-router/react-navigation';
 
 const PostVideo = React.memo(function PostVideo({
   post,
@@ -1251,7 +1251,7 @@ const _stylesheet = UnistylesStyleSheet.create((theme) => ({
     width: '100%',
   },
   heartOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,
@@ -1264,7 +1264,7 @@ const _stylesheet = UnistylesStyleSheet.create((theme) => ({
     elevation: 8,
   },
   imageOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
