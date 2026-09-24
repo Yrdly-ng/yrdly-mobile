@@ -1,0 +1,24 @@
+{
+  "name": "promo-video",
+  "version": "1.0.0",
+  "description": "Yrdly Motion Graphics Promotional Video powered by Remotion",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "remotion preview src/index.ts",
+    "render:vertical": "remotion render src/index.ts YrdlyPromo-Vertical out/scene1-vertical.mp4",
+    "render:landscape": "remotion render src/index.ts YrdlyPromo-Landscape out/scene1-landscape.png",
+    "still:vertical": "remotion still src/index.ts YrdlyPromo-Vertical out/scene1-vertical.png --frame=60",
+    "still:landscape": "remotion still src/index.ts YrdlyPromo-Landscape out/scene1-landscape.png --frame=60"
+  },
+  "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@remotion/cli": "^4.0.528",
+    "@remotion/google-fonts": "^4.0.528",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "remotion": "^4.0.528",
+    "typescript": "^5.8.2"
+  }
+}
