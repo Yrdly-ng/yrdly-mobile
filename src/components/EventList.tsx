@@ -354,12 +354,12 @@ export function EventList({ searchQuery = '', sortOption = 'newest' }: EventList
                   {imgUrl ? (
                     <Image
                       source={{ uri: imgUrl }}
-                      style={StyleSheet.absoluteFillObject}
+                      style={StyleSheet.absoluteFill}
                       contentFit="cover"
                       transition={300}
                     />
                   ) : (
-                    <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#0d1a0d' }]} />
+                    <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0d1a0d' }]} />
                   )}
                   <View style={stylesheet.heroOverlay} />
                   <View style={stylesheet.featBadge}>
@@ -594,7 +594,7 @@ const sStylesheet = UnistylesStyleSheet.create((theme) => ({
     marginHorizontal: 0,
     position: 'relative',
   },
-  heroOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.52)' },
+  heroOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.52)' },
   featBadge: {
     position: 'absolute',
     top: 14,

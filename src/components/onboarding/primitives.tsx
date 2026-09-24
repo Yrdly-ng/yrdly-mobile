@@ -67,9 +67,9 @@ export function SceneBg({
   };
 
   return (
-    <View style={StyleSheet.absoluteFillObject}>
-      <Image source={source} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
-      <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(5,5,5,0.78)' }]} />
+    <View style={StyleSheet.absoluteFill}>
+      <Image source={source} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(5,5,5,0.78)' }]} />
     </View>
   );
 }

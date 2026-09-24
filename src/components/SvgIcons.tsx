@@ -1,9 +1,9 @@
-import React from 'react';
+import { ColorValue } from 'react-native';
 import { Svg, Path, Circle, Rect, G } from 'react-native-svg';
 import { useUnistyles } from 'react-native-unistyles';
 
 export interface SvgIconProps {
-  color?: string;
+  color?: ColorValue;
   size?: number;
   filled?: boolean;
 }

@@ -18,7 +18,7 @@ import { Image } from 'expo-image';
 import { ModerationService } from '../../lib/moderation-service';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused } from 'expo-router/react-navigation';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { usePosts } from '../../hooks/use-posts';

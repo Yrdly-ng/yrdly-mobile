@@ -294,11 +294,11 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
                   {tile.image ? (
                     <Image
                       source={{ uri: tile.image }}
-                      style={StyleSheet.absoluteFillObject}
+                      style={StyleSheet.absoluteFill}
                       contentFit="cover"
                     />
                   ) : (
-                    <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#2e7d32' }]} />
+                    <View style={[StyleSheet.absoluteFill, { backgroundColor: '#2e7d32' }]} />
                   )}
                   <View style={s.tileOverlay} />
                   <View style={s.tileBadge}>
@@ -368,7 +368,7 @@ const sStylesheet = UnistylesStyleSheet.create((theme) => ({
   contentPad: { paddingHorizontal: 16, paddingBottom: 100 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   tile: { width: '48%', height: 160, borderRadius: 20, overflow: 'hidden', marginBottom: 14 },
-  tileOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
+  tileOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.35)' },
   tileBadge: {
     position: 'absolute',
     top: 10,

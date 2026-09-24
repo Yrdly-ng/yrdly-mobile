@@ -3,7 +3,6 @@ module.exports = {
     name: "YRDLY",
     slug: "yrdly",
     version: "1.0.0",
-    sdkVersion: "54.0.0",
     orientation: "portrait",
     icon: "./assets/images/logo.png",
     splash: {
@@ -135,9 +134,6 @@ module.exports = {
         {
           android: {
             enableMultiDex: true
-          },
-          ios: {
-            swiftVersion: "5.9"
           }
         }
       ]

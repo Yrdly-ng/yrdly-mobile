@@ -30,7 +30,7 @@ import ImageViewing from 'react-native-image-viewing';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused } from 'expo-router/react-navigation';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { Post, User } from '../../types';
@@ -75,7 +75,7 @@ const MarketVideo = React.memo(({ url, shouldPlay }: { url: string; shouldPlay: 
     }
   }, [shouldPlay, player]);
 
-  return <VideoView style={s.mainImage} player={player} allowsFullscreen allowsPictureInPicture />;
+  return <VideoView style={s.mainImage} player={player} allowsPictureInPicture />;
 });
 
 function MarketplaceDetailContent() {

@@ -265,7 +265,7 @@ function parseImageUrls(val: any): string[] {
           {thumb ? (
             <Image
               source={{ uri: thumb }}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               contentFit="cover"
             />
           ) : null}

@@ -41,7 +41,7 @@ import { useAuth } from '../../hooks/use-supabase-auth';
 import { CommentsBottomSheet, CommentsBottomSheetRef } from '../../components/CommentsBottomSheet';
 import ImageViewing from 'react-native-image-viewing';
 import { useNotificationBadge } from '../../context/NotificationBadgeContext';
-import { useScrollToTop, useIsFocused } from '@react-navigation/native';
+import { useScrollToTop, useIsFocused } from 'expo-router/react-navigation';
 import { AlertBanner } from '../../components/AlertBanner';
 import { AlertService, Alert } from '../../lib/alert-service';
 import * as SecureStore from 'expo-secure-store';
