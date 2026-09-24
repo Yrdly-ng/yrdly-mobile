@@ -5,10 +5,24 @@
   "main": "src/index.ts",
   "scripts": {
     "start": "remotion preview src/index.ts",
-    "render:vertical": "remotion render src/index.ts YrdlyPromo-Vertical out/scene1-vertical.mp4",
-    "render:landscape": "remotion render src/index.ts YrdlyPromo-Landscape out/scene1-landscape.png",
-    "still:vertical": "remotion still src/index.ts YrdlyPromo-Vertical out/scene1-vertical.png --frame=60",
-    "still:landscape": "remotion still src/index.ts YrdlyPromo-Landscape out/scene1-landscape.png --frame=60"
+    "still:scene1-vertical": "remotion still src/index.ts YrdlyPromo-Vertical out/scene1-vertical.png --frame=60",
+    "still:scene1-landscape": "remotion still src/index.ts YrdlyPromo-Landscape out/scene1-landscape.png --frame=60",
+    "still:scene2-vertical": "remotion still src/index.ts Scene2-Feed-Vertical out/scene2-vertical.png --frame=115",
+    "still:scene2-landscape": "remotion still src/index.ts Scene2-Feed-Landscape out/scene2-landscape.png --frame=115",
+    "still:scene3-vertical": "remotion still src/index.ts Scene3-Alerts-Vertical out/scene3-vertical.png --frame=115",
+    "still:scene3-landscape": "remotion still src/index.ts Scene3-Alerts-Landscape out/scene3-landscape.png --frame=115",
+    "still:scene4-vertical": "remotion still src/index.ts Scene4-Marketplace-Vertical out/scene4-vertical.png --frame=115",
+    "still:scene4-landscape": "remotion still src/index.ts Scene4-Marketplace-Landscape out/scene4-landscape.png --frame=115",
+    "render:scene4-vertical": "remotion render src/index.ts Scene4-Marketplace-Vertical out/scene4-vertical.mp4 --enforce-node-image-renderer",
+    "render:scene4-landscape": "remotion render src/index.ts Scene4-Marketplace-Landscape out/scene4-landscape.mp4 --enforce-node-image-renderer",
+    "still:scene5-vertical": "remotion still src/index.ts Scene5-Events-Vertical out/scene5-vertical.png --frame=115",
+    "still:scene5-landscape": "remotion still src/index.ts Scene5-Events-Landscape out/scene5-landscape.png --frame=115",
+    "render:scene5-vertical": "remotion render src/index.ts Scene5-Events-Vertical out/scene5-vertical.mp4 --enforce-node-image-renderer",
+    "render:scene5-landscape": "remotion render src/index.ts Scene5-Events-Landscape out/scene5-landscape.mp4 --enforce-node-image-renderer",
+    "still:scene6-vertical": "remotion still src/index.ts Scene6-Discovery-Vertical out/scene6-vertical.png --frame=85",
+    "still:scene6-landscape": "remotion still src/index.ts Scene6-Discovery-Landscape out/scene6-landscape.png --frame=85",
+    "render:scene6-vertical": "remotion render src/index.ts Scene6-Discovery-Vertical out/scene6-vertical.mp4 --enforce-node-image-renderer",
+    "render:scene6-landscape": "remotion render src/index.ts Scene6-Discovery-Landscape out/scene6-landscape.mp4 --enforce-node-image-renderer"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
