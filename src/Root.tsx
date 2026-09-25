@@ -8,11 +8,6 @@ import { Scene3Alerts } from './scenes/Scene3Alerts';
 import { Scene4Marketplace } from './scenes/Scene4Marketplace';
 import { Scene5Events } from './scenes/Scene5Events';
 import { Scene6Discovery } from './scenes/Scene6Discovery';
-import { SellFlowComposition } from './scenes/sell-flow/SellFlowComposition';
-import { BuyFlowComposition, BUYFLOW_TOTAL_DURATION } from './scenes/buy-flow/BuyFlowComposition';
-import { EventFlowComposition, EVENTFLOW_TOTAL_DURATION } from './scenes/event-flow/EventFlowComposition';
-import { PostUpdateFlowComposition, POSTUPDATEFLOW_TOTAL_DURATION } from './scenes/post-update-flow/PostUpdateFlowComposition';
-import { OnboardingFlowComposition, ONBOARDINGFLOW_TOTAL_DURATION } from './scenes/onboarding-flow/OnboardingFlowComposition';
 
 // Preload fonts
 loadOutfit('normal', {
@@ -169,26 +164,6 @@ export const Root: React.FC = () => {
           layout: 'landscape' as const,
         }}
       />
-
-      {/* ─── SELL FLOW ─── */}
-      <Composition id="SellFlow-Vertical"  component={SellFlowComposition} durationInFrames={840} fps={30} width={1080} height={1920} />
-      <Composition id="SellFlow-Landscape" component={SellFlowComposition} durationInFrames={840} fps={30} width={1920} height={1080} />
-
-      {/* ─── BUY FLOW ─── */}
-      <Composition id="BuyFlow-Vertical"  component={BuyFlowComposition} durationInFrames={BUYFLOW_TOTAL_DURATION} fps={30} width={1080} height={1920} />
-      <Composition id="BuyFlow-Landscape" component={BuyFlowComposition} durationInFrames={BUYFLOW_TOTAL_DURATION} fps={30} width={1920} height={1080} />
-
-      {/* ─── EVENT FLOW ─── */}
-      <Composition id="EventFlow-Vertical"  component={EventFlowComposition} durationInFrames={EVENTFLOW_TOTAL_DURATION} fps={30} width={1080} height={1920} />
-      <Composition id="EventFlow-Landscape" component={EventFlowComposition} durationInFrames={EVENTFLOW_TOTAL_DURATION} fps={30} width={1920} height={1080} />
-
-      {/* ─── POST UPDATE FLOW ─── */}
-      <Composition id="PostUpdateFlow-Vertical"  component={PostUpdateFlowComposition} durationInFrames={POSTUPDATEFLOW_TOTAL_DURATION} fps={30} width={1080} height={1920} />
-      <Composition id="PostUpdateFlow-Landscape" component={PostUpdateFlowComposition} durationInFrames={POSTUPDATEFLOW_TOTAL_DURATION} fps={30} width={1920} height={1080} />
-
-      {/* ─── ONBOARDING FLOW ─── */}
-      <Composition id="OnboardingFlow-Vertical"  component={OnboardingFlowComposition} durationInFrames={ONBOARDINGFLOW_TOTAL_DURATION} fps={30} width={1080} height={1920} />
-      <Composition id="OnboardingFlow-Landscape" component={OnboardingFlowComposition} durationInFrames={ONBOARDINGFLOW_TOTAL_DURATION} fps={30} width={1920} height={1080} />
     </>
   );
 };
