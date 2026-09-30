@@ -229,6 +229,12 @@ export default function BookingDetailScreen() {
               minute: '2-digit',
             })}
           </Text>
+          <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="card-outline" size={16} color={theme.colors.LABEL} />
+            <Text style={{ marginLeft: 6, fontSize: 13, color: theme.colors.TEXT_SECONDARY, fontWeight: '600' }}>
+              Payment: {(booking.payment_status || 'unpaid').toUpperCase()}
+            </Text>
+          </View>
         </View>
 
         {/* Flag Warnings */}

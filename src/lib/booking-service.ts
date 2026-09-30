@@ -83,13 +83,17 @@ export class BookingService {
   /**
    * Get weekly availability for a business
    */
-  static async getProviderAvailability(businessId: string): Promise<ProviderAvailability[]> {
-    const { data, error } = await supabase
+  static async getProviderAvailability(businessId: string, staffId?: string | null): Promise<ProviderAvailability[]> {
+    let q: any = supabase
       .from('provider_availability')
       .select('*')
       .eq('business_id', businessId)
       .order('day_of_week', { ascending: true });
 
+    if (staffId) q = q.eq('staff_id', staffId);
+    else if (staffId === null) q = q.is('staff_id', null);
+
+    const { data, error } = await q;
     if (error) throw error;
     return data || [];
   }
@@ -99,22 +103,24 @@ export class BookingService {
    */
   static async setProviderAvailability(
     businessId: string,
-    schedules: Array<{ day_of_week: number; start_time: string; end_time: string; is_available: boolean }>
+    schedules: Array<{ day_of_week: number; start_time: string; end_time: string; is_available: boolean }>,
+    staffId?: string | null
   ): Promise<void> {
     for (const schedule of schedules) {
+      const row: any = {
+        business_id: businessId,
+        day_of_week: schedule.day_of_week,
+        start_time: schedule.start_time,
+        end_time: schedule.end_time,
+        is_available: schedule.is_available,
+        updated_at: new Date().toISOString(),
+      };
+      if (staffId) row.staff_id = staffId;
+      const onConflict = staffId ? 'business_id,staff_id,day_of_week' : 'business_id,day_of_week';
+
       const { error } = await supabase
         .from('provider_availability')
-        .upsert(
-          {
-            business_id: businessId,
-            day_of_week: schedule.day_of_week,
-            start_time: schedule.start_time,
-            end_time: schedule.end_time,
-            is_available: schedule.is_available,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'business_id,day_of_week' }
-        );
+        .upsert(row, { onConflict });
 
       if (error) throw error;
     }
@@ -158,12 +164,13 @@ export class BookingService {
   }
 
   /**
-   * Compute available time slots for a specific date and service
+   * Compute available time slots for a specific date and service (optional staff filter)
    */
   static async getAvailableSlots(
     businessId: string,
     serviceId: string,
-    dateString: string // YYYY-MM-DD
+    dateString: string, // YYYY-MM-DD
+    staffId?: string | null
   ): Promise<TimeSlot[]> {
     const targetDate = new Date(dateString + 'T00:00:00');
     const dayOfWeek = targetDate.getDay();
@@ -179,12 +186,13 @@ export class BookingService {
     const durationMs = service.duration_minutes * 60 * 1000;
 
     // 2. Check for blackout or custom hours on date
-    const { data: exception } = await supabase
+    let excQ: any = supabase
       .from('availability_exceptions')
       .select('*')
       .eq('business_id', businessId)
-      .eq('date', dateString)
-      .single();
+      .eq('date', dateString);
+    if (staffId) excQ = excQ.eq('staff_id', staffId);
+    const { data: exception } = await excQ.maybeSingle();
 
     if (exception && exception.is_blackout) {
       return []; // Fully booked / blackout
@@ -193,18 +201,18 @@ export class BookingService {
     // 3. Get standard weekly availability for day of week
     let startTimeStr = '09:00';
     let endTimeStr = '17:00';
-    let isAvailable = true;
 
     if (exception && exception.custom_start_time && exception.custom_end_time) {
       startTimeStr = exception.custom_start_time;
       endTimeStr = exception.custom_end_time;
     } else {
-      const { data: weekly } = await supabase
+      let wq: any = supabase
         .from('provider_availability')
         .select('*')
         .eq('business_id', businessId)
-        .eq('day_of_week', dayOfWeek)
-        .single();
+        .eq('day_of_week', dayOfWeek);
+      if (staffId) wq = wq.eq('staff_id', staffId);
+      const { data: weekly } = await wq.maybeSingle();
 
       if (!weekly || !weekly.is_available) {
         return []; // Provider does not work on this day
@@ -217,15 +225,17 @@ export class BookingService {
     const dayStartISO = new Date(`${dateString}T00:00:00`).toISOString();
     const dayEndISO = new Date(`${dateString}T23:59:59`).toISOString();
 
-    const { data: existingBookings } = await supabase
+    let bookingsQ: any = supabase
       .from('bookings')
       .select('appointment_time, end_time')
       .eq('business_id', businessId)
       .not('status', 'in', '("cancelled","late_cancelled")')
       .gte('appointment_time', dayStartISO)
       .lte('appointment_time', dayEndISO);
+    if (staffId) bookingsQ = bookingsQ.eq('staff_id', staffId);
+    const { data: existingBookings } = await bookingsQ;
 
-    const bookedIntervals = (existingBookings || []).map((b) => ({
+    const bookedIntervals = (existingBookings || []).map((b: any) => ({
       start: new Date(b.appointment_time).getTime(),
       end: new Date(b.end_time).getTime(),
     }));
@@ -250,7 +260,7 @@ export class BookingService {
 
       // Check overlap with existing bookings
       const isOverlap = bookedIntervals.some(
-        (b) => curr < b.end && slotEnd > b.start
+        (b: any) => curr < b.end && slotEnd > b.start
       );
 
       const isPast = curr <= nowMs;
@@ -284,6 +294,8 @@ export class BookingService {
     serviceId: string;
     appointmentTime: string; // ISO string
     notes?: string;
+    staffId?: string | null;
+    quoteId?: string | null;
   }): Promise<Booking> {
     // 1. Fetch service duration
     const { data: service } = await supabase
@@ -303,6 +315,8 @@ export class BookingService {
           customer_id: params.customerId,
           business_id: params.businessId,
           service_id: params.serviceId,
+          staff_id: params.staffId || null,
+          quote_id: params.quoteId || null,
           appointment_time: params.appointmentTime,
           end_time: endTimeDate.toISOString(),
           notes: params.notes,

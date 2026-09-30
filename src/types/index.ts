@@ -221,6 +221,18 @@ export interface User {
 
 export type BusinessMode = 'product' | 'service' | 'both';
 
+export interface BusinessStaff {
+  id: string;
+  business_id: string;
+  user_id?: string | null;
+  name: string;
+  role?: string;
+  avatar_url?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ServiceOffering {
   id: string;
   business_id: string;
@@ -231,6 +243,11 @@ export interface ServiceOffering {
   price_is_from: boolean;
   category?: string;
   is_active: boolean;
+  deposit_required?: boolean;
+  deposit_amount?: number | null;
+  deposit_percent?: number | null;
+  requires_full_payment?: boolean;
+  escrow_enabled?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -238,6 +255,7 @@ export interface ServiceOffering {
 export interface ProviderAvailability {
   id: string;
   business_id: string;
+  staff_id?: string | null;
   day_of_week: number; // 0 = Sun, 6 = Sat
   start_time: string; // HH:mm format
   end_time: string;   // HH:mm format
@@ -249,6 +267,7 @@ export interface ProviderAvailability {
 export interface AvailabilityException {
   id: string;
   business_id: string;
+  staff_id?: string | null;
   date: string; // YYYY-MM-DD
   is_blackout: boolean;
   custom_start_time?: string;
@@ -261,14 +280,97 @@ export type BookingStatus = 'requested' | 'confirmed' | 'completed' | 'cancelled
 export type StrikeType = 'late_cancellation' | 'no_show';
 export type StrikeParty = 'customer' | 'provider';
 
+export type PaymentStatus =
+  | 'unpaid'
+  | 'deposit_pending'
+  | 'deposit_paid'
+  | 'fully_paid'
+  | 'escrow_held'
+  | 'escrow_released'
+  | 'refunded'
+  | 'failed';
+
+export type PaymentType = 'deposit' | 'full' | 'escrow';
+
+export interface BookingPayment {
+  id: string;
+  booking_id: string;
+  amount: number;
+  type: PaymentType;
+  status: PaymentStatus;
+  provider: string;
+  payluk_reference?: string | null;
+  payluk_checkout_url?: string | null;
+  escrow_hold: boolean;
+  created_at: string;
+  paid_at?: string | null;
+}
+
+export type QuoteStatus = 'pending' | 'estimated' | 'accepted' | 'rejected' | 'expired' | 'converted' | 'cancelled';
+
+export interface QuoteRequest {
+  id: string;
+  customer_id: string;
+  business_id: string;
+  staff_id?: string | null;
+  category?: string | null;
+  title: string;
+  description: string;
+  images?: string[];
+  location_text?: string | null;
+  urgency?: string | null;
+  status: QuoteStatus;
+  estimated_price?: number | null;
+  estimated_duration_minutes?: number | null;
+  estimate_notes?: string | null;
+  expires_at?: string | null;
+  converted_booking_id?: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined fields
+  business?: Business;
+  staff?: BusinessStaff;
+}
+
+export interface QuoteMessage {
+  id: string;
+  quote_id: string;
+  sender_id: string;
+  body: string;
+  created_at: string;
+  sender_name?: string;
+  sender_avatar?: string;
+}
+
+export type AppealStatus = 'pending' | 'approved' | 'rejected';
+
+export interface StrikeAppeal {
+  id: string;
+  booking_id: string;
+  appellant_id: string;
+  appellant_type: 'customer' | 'provider';
+  reason: string;
+  evidence_urls?: string[];
+  status: AppealStatus;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  resolution_note?: string | null;
+  created_at: string;
+  booking?: Booking;
+}
+
 export interface Booking {
   id: string;
   customer_id: string;
   business_id: string;
   service_id: string;
+  staff_id?: string | null;
+  quote_id?: string | null;
   appointment_time: string;
   end_time: string;
   status: BookingStatus;
+  payment_status?: PaymentStatus;
+  payment_due_at?: string | null;
   notes?: string;
   cancelled_by?: string;
   cancelled_at?: string;
@@ -281,6 +383,7 @@ export interface Booking {
   // Joined fields
   service?: ServiceOffering;
   business?: Business;
+  staff?: BusinessStaff;
   customer?: {
     id: string;
     name: string;

@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useProviderAvailability } from '../../../hooks/use-bookings';
 import { BookingService } from '../../../lib/booking-service';
+import { StaffService } from '../../../lib/staff-service';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -23,7 +24,10 @@ export default function ManageAvailabilityScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
-  const { availability, exceptions, loading, refresh } = useProviderAvailability(id);
+  const [staffList, setStaffList] = useState<any[]>([]);
+  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
+
+  const { availability, exceptions, loading, refresh } = useProviderAvailability(id, selectedStaffId);
 
   const [schedule, setSchedule] = useState<
     Array<{ day_of_week: number; start_time: string; end_time: string; is_available: boolean }>
@@ -32,6 +36,14 @@ export default function ManageAvailabilityScreen() {
   const [blackoutDate, setBlackoutDate] = useState('');
   const [blackoutReason, setBlackoutReason] = useState('');
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (id) {
+      StaffService.listStaff(id)
+        .then(setStaffList)
+        .catch((err) => console.error('Error fetching staff list:', err));
+    }
+  }, [id]);
 
   useEffect(() => {
     // Initialize days 0-6
@@ -62,7 +74,7 @@ export default function ManageAvailabilityScreen() {
   const handleSaveSchedule = async () => {
     setSaving(true);
     try {
-      await BookingService.setProviderAvailability(id!, schedule);
+      await BookingService.setProviderAvailability(id!, schedule, selectedStaffId);
       Alert.alert('Success', 'Weekly schedule saved successfully');
       refresh();
     } catch (err: any) {
@@ -118,6 +130,48 @@ export default function ManageAvailabilityScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={s.content}>
+          {staffList.length > 0 && (
+            <View style={{ marginBottom: 16 }}>
+              <Text style={s.sectionTitle}>Select Schedule Target</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                <TouchableOpacity
+                  style={{
+                    paddingHorizontal: 16,
+                    paddingVertical: 8,
+                    borderRadius: 20,
+                    marginRight: 8,
+                    backgroundColor: selectedStaffId === null ? theme.colors.G : theme.colors.SURFACE_ALT,
+                  }}
+                  onPress={() => setSelectedStaffId(null)}
+                >
+                  <Text style={{ color: selectedStaffId === null ? '#FFF' : theme.colors.TEXT_PRIMARY, fontWeight: '600' }}>
+                    Business Hours (Default)
+                  </Text>
+                </TouchableOpacity>
+                {staffList.map((st) => {
+                  const isSel = st.id === selectedStaffId;
+                  return (
+                    <TouchableOpacity
+                      key={st.id}
+                      style={{
+                        paddingHorizontal: 16,
+                        paddingVertical: 8,
+                        borderRadius: 20,
+                        marginRight: 8,
+                        backgroundColor: isSel ? theme.colors.G : theme.colors.SURFACE_ALT,
+                      }}
+                      onPress={() => setSelectedStaffId(st.id)}
+                    >
+                      <Text style={{ color: isSel ? '#FFF' : theme.colors.TEXT_PRIMARY, fontWeight: '600' }}>
+                        {st.name} ({st.role || 'Staff'})
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+
           <Text style={s.sectionTitle}>Weekly Schedule</Text>
           <Text style={s.sectionSub}>Define working hours for each day (HH:mm 24-hr format)</Text>
 

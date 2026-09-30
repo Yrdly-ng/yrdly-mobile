@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { useAvailableSlots } from '../../hooks/use-bookings';
 import { BookingService } from '../../lib/booking-service';
+import { StaffService } from '../../lib/staff-service';
 import { NotificationTriggers } from '../../lib/notification-triggers';
 import { supabase } from '../../lib/supabase';
 
@@ -41,6 +42,8 @@ export default function CreateBookingScreen() {
 
   const [selectedDate, setSelectedDate] = useState(dates[0].isoDate);
   const [selectedSlotTime, setSelectedSlotTime] = useState<string | null>(null);
+  const [staffList, setStaffList] = useState<any[]>([]);
+  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -48,18 +51,31 @@ export default function CreateBookingScreen() {
   const [business, setBusiness] = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
 
-  const { slots, loading: slotsLoading } = useAvailableSlots(businessId, serviceId, selectedDate);
+  const { slots, loading: slotsLoading } = useAvailableSlots(
+    businessId,
+    serviceId,
+    selectedDate,
+    selectedStaffId
+  );
 
   React.useEffect(() => {
     const fetchDetails = async () => {
       try {
         setLoadingDetails(true);
-        const [serviceRes, bizRes] = await Promise.all([
+        const [serviceRes, bizRes, allStaff, serviceStaff] = await Promise.all([
           supabase.from('service_offerings').select('*').eq('id', serviceId).single(),
           supabase.from('businesses').select('*').eq('id', businessId).single(),
+          StaffService.listStaff(businessId!),
+          StaffService.getServiceStaff(serviceId!),
         ]);
         if (serviceRes.data) setService(serviceRes.data);
         if (bizRes.data) setBusiness(bizRes.data);
+
+        const assignedSet = new Set((serviceStaff || []).map((s: any) => s.id));
+        const eligible = (allStaff || []).filter(
+          (st: any) => st.is_active && (assignedSet.size === 0 || assignedSet.has(st.id))
+        );
+        setStaffList(eligible);
       } catch (err) {
         console.error('Error fetching booking details:', err);
       } finally {
@@ -84,6 +100,7 @@ export default function CreateBookingScreen() {
         businessId: businessId!,
         serviceId: serviceId!,
         appointmentTime: selectedSlotTime,
+        staffId: selectedStaffId,
         notes: notes.trim() || undefined,
       });
 
@@ -170,6 +187,41 @@ export default function CreateBookingScreen() {
                 This service provider has accumulated previous late cancellations or no-shows.
               </Text>
             </View>
+          </View>
+        )}
+
+        {/* Staff Selector (Optional) */}
+        {staffList.length > 0 && (
+          <View style={{ marginBottom: 16 }}>
+            <Text style={s.sectionTitle}>Select Staff (Optional)</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.datesRow}>
+              <TouchableOpacity
+                style={[s.dateChip, selectedStaffId === null && s.dateChipSelected]}
+                onPress={() => {
+                  setSelectedStaffId(null);
+                  setSelectedSlotTime(null);
+                }}
+              >
+                <Text style={[s.dateDayTxt, selectedStaffId === null && s.dateDayTxtSelected]}>Any</Text>
+                <Text style={[s.dateNumTxt, selectedStaffId === null && s.dateNumTxtSelected]}>Staff</Text>
+              </TouchableOpacity>
+              {staffList.map((st) => {
+                const isSel = st.id === selectedStaffId;
+                return (
+                  <TouchableOpacity
+                    key={st.id}
+                    style={[s.dateChip, isSel && s.dateChipSelected]}
+                    onPress={() => {
+                      setSelectedStaffId(st.id);
+                      setSelectedSlotTime(null);
+                    }}
+                  >
+                    <Text style={[s.dateDayTxt, isSel && s.dateDayTxtSelected]}>{st.role || 'Staff'}</Text>
+                    <Text style={[s.dateNumTxt, isSel && s.dateNumTxtSelected]} numberOfLines={1}>{st.name}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </View>
         )}
 
