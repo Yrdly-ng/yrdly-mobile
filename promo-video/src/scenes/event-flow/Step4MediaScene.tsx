@@ -1,13 +1,13 @@
 import React from 'react';
-import { interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { interpolate, spring, useCurrentFrame, useVideoConfig, Img } from 'remotion';
 import { COLORS, FONTS } from '../../theme';
 import { StepHeader, ContinueButton } from '../sell-flow/shared';
 
-// Event-themed image swatches (same palette as the event's brand)
-const PHOTO_SWATCHES = [
-  'linear-gradient(135deg, rgba(130,219,126,0.55) 0%, rgba(20,50,30,0.95) 100%)',
-  'linear-gradient(135deg, rgba(99,102,241,0.55) 0%, rgba(20,15,60,0.95) 100%)',
-  'linear-gradient(135deg, rgba(245,158,11,0.55) 0%, rgba(60,30,5,0.95) 100%)',
+// Real event poster photo URLs
+const PHOTO_URLS = [
+  'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=500&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&auto=format&fit=crop&q=80',
 ];
 
 export const Step4MediaScene: React.FC = () => {
@@ -62,7 +62,7 @@ export const Step4MediaScene: React.FC = () => {
           <div style={{ flex: 1, overflowY: 'hidden', padding: '0 20px', display: 'flex', flexDirection: 'column' }}>
             {/* Photo grid */}
             <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {PHOTO_SWATCHES.map((swatch, i) => {
+              {PHOTO_URLS.map((url, i) => {
                 const visible = photoVisible[i];
                 const sp = photoSprings[i];
                 const opacity = visible ? interpolate(sp, [0, 1], [0, 1]) : 0;
@@ -74,7 +74,6 @@ export const Step4MediaScene: React.FC = () => {
                     style={{
                       width: 108, height: 108,
                       borderRadius: 16,
-                      background: swatch,
                       border: `2px solid ${isFirst ? COLORS.G : 'transparent'}`,
                       position: 'relative',
                       opacity,
@@ -83,6 +82,7 @@ export const Step4MediaScene: React.FC = () => {
                       flexShrink: 0,
                     }}
                   >
+                    <Img src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     {/* COVER badge on first photo */}
                     {isFirst && coverVisible && (
                       <div

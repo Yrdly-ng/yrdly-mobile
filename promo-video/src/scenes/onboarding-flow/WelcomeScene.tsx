@@ -1,5 +1,5 @@
 import React from 'react';
-import { interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { interpolate, spring, useCurrentFrame, useVideoConfig, Img, staticFile } from 'remotion';
 import { COLORS, FONTS } from '../../theme';
 
 // WelcomeScene — hero cold-open
@@ -92,8 +92,10 @@ export const WelcomeScene: React.FC = () => {
 
           {/* Full-screen ambient bg inside phone */}
           <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+            {/* Real onboarding splash background photo */}
+            <Img src={staticFile('onboarding/splash.jpg')} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }} />
             {/* Photo-like radial bg */}
-            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(5,5,5,0.3) 0%, rgba(5,5,5,0.7) 60%, rgba(5,5,5,0.97) 100%)', zIndex: 1 }} />
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(5,5,5,0.35) 0%, rgba(5,5,5,0.75) 60%, rgba(5,5,5,0.98) 100%)', zIndex: 1 }} />
             <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 50% 35%, rgba(130,219,126,0.15) 0%, transparent 60%)', zIndex: 1 }} />
             {/* Subtle grid/texture */}
             <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '28px 28px', zIndex: 0 }} />
@@ -118,12 +120,10 @@ export const WelcomeScene: React.FC = () => {
                   opacity: logoOpacity,
                   transform: `scale(${interpolate(logoScale, [0, 1], [0.7, 1])})`,
                   marginBottom: 20,
+                  overflow: 'hidden',
                 }}
               >
-                {/* Y lettermark */}
-                <svg viewBox="0 0 88 88" width={56} height={56} fill="none">
-                  <path d="M20 20L44 50V72M68 20L44 50" stroke="#050505" strokeWidth="9" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
+                <Img src={staticFile('yrdly-logo.png')} style={{ width: 68, height: 68, objectFit: 'contain' }} />
               </div>
 
               {/* YRDLY wordmark */}

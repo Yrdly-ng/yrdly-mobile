@@ -1,5 +1,6 @@
 import React from 'react';
 import { Sequence } from 'remotion';
+import { CaptionOverlay } from '../../components/CaptionOverlay';
 import { Step1ItemDetailScene, STEP1_DURATION } from './Step1ItemDetailScene';
 import { Step2CheckoutScene, STEP2_DURATION } from './Step2CheckoutScene';
 import { Step3PaylukModalScene, STEP3_DURATION } from './Step3PaylukModalScene';
@@ -28,6 +29,12 @@ export const BuyFlowComposition: React.FC = () => {
       <Sequence from={S4_START} durationInFrames={STEP4_DURATION}>
         <Step4SuccessScene />
       </Sequence>
+
+      {/* Kinetic Captions for Mute Social Viewing */}
+      <CaptionOverlay startFrame={20} durationFrames={160} text="Discover great deals from verified local sellers" highlightWords={["deals", "verified", "sellers"]} />
+      <CaptionOverlay startFrame={260} durationFrames={160} text="Inspect item photos & seller verification status" highlightWords={["photos", "verification"]} />
+      <CaptionOverlay startFrame={500} durationFrames={120} text="Pay securely with Payluk Escrow protection" highlightWords={["securely", "Payluk", "Escrow"]} />
+      <CaptionOverlay startFrame={660} durationFrames={160} text="Funds held safely until delivery is confirmed!" highlightWords={["safely", "delivery", "confirmed"]} />
     </>
   );
 };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { interpolate, spring, useCurrentFrame, useVideoConfig, Img, staticFile } from 'remotion';
 import { COLORS, FONTS } from '../../theme';
 
 // ─── Typewriter helper ────────────────────────────────────────────────────────
@@ -87,20 +87,22 @@ export const ProfileSetupScene: React.FC = () => {
           </div>
 
           {/* Scrollable content */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '0 28px', paddingTop: 20, paddingBottom: 24, overflowY: 'hidden' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '0 28px', paddingTop: 20, paddingBottom: 24, overflowY: 'hidden', position: 'relative' }}>
+            <Img src={staticFile('onboarding/profile_bg.jpg')} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.25, pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(5,5,5,0.4) 0%, rgba(5,5,5,0.85) 60%, rgba(5,5,5,0.98) 100%)', pointerEvents: 'none' }} />
             {/* Header */}
-            <div style={{ opacity: headerOp, transform: `translateY(${headerY}px)`, marginBottom: 24 }}>
+            <div style={{ opacity: headerOp, transform: `translateY(${headerY}px)`, marginBottom: 24, position: 'relative', zIndex: 1 }}>
               <div style={{ fontSize: 24, fontWeight: 800, color: COLORS.TEXT_PRIMARY, fontFamily: FONTS.display, letterSpacing: -0.4 }}>Set up your profile</div>
               <div style={{ fontSize: 13, color: COLORS.TEXT_SECONDARY, fontFamily: FONTS.body, marginTop: 4 }}>Help your neighbours get to know you</div>
             </div>
 
             {/* Avatar */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 24 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 24, position: 'relative', zIndex: 1 }}>
               <div style={{ position: 'relative' }}>
                 {/* Outer glow ring */}
                 <div style={{ position: 'absolute', inset: -4, borderRadius: '50%', border: `2.5px solid ${COLORS.G}`, opacity: avatarRingOp, transform: `scale(${interpolate(avatarRingScale, [0, 1], [0.7, 1])})` }} />
                 {/* Avatar circle */}
-                <div style={{ width: 88, height: 88, borderRadius: '50%', backgroundColor: avatarBgColor, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${frame >= 55 ? COLORS.G : 'rgba(255,255,255,0.15)'}`, position: 'relative' }}>
+                <div style={{ width: 88, height: 88, borderRadius: '50%', backgroundColor: avatarBgColor, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${frame >= 55 ? COLORS.G : 'rgba(255,255,255,0.15)'}`, position: 'relative', overflow: 'hidden' }}>
                   {frame < 55 ? (
                     // Camera icon
                     <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -108,8 +110,8 @@ export const ProfileSetupScene: React.FC = () => {
                       <circle cx="12" cy="13" r="4"/>
                     </svg>
                   ) : (
-                    // Initials
-                    <span style={{ fontSize: 28, fontWeight: 800, color: COLORS.G, fontFamily: FONTS.display, opacity: initialsOp }}>AO</span>
+                    // Real user photo avatar
+                    <Img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: initialsOp }} />
                   )}
                 </div>
                 {/* Camera badge */}

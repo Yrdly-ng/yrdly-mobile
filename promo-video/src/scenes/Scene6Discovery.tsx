@@ -138,6 +138,9 @@ export const Scene6Discovery: React.FC<Scene6DiscoveryProps> = ({ layout = 'vert
           rotateX={phoneRotateX}
           opacity={phoneOpacity}
           glow={true}
+          kenBurns={true}
+          frame={frame}
+          duration={120}
         >
           <DiscoveryUI
             selectedCategory="businesses"

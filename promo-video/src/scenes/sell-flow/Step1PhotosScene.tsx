@@ -1,13 +1,13 @@
 import React from 'react';
-import { interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { interpolate, spring, useCurrentFrame, useVideoConfig, Img } from 'remotion';
 import { COLORS, FONTS } from '../../theme';
 import { StepHeader, ContinueButton, ScreenTitle } from './shared';
 
-// Image tile placeholder colours (simulate real listing photos)
-const IMAGE_COLORS = [
-  'linear-gradient(135deg, #2a4a35 0%, #1a3025 100%)',
-  'linear-gradient(135deg, #3a3020 0%, #2a2015 100%)',
-  'linear-gradient(135deg, #1e2a3a 0%, #141e2a 100%)',
+// Real listing photo URLs
+const IMAGE_URLS = [
+  'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=500&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=500&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=500&auto=format&fit=crop&q=80',
 ];
 
 const CameraIcon: React.FC = () => (
@@ -85,7 +85,7 @@ export const Step1PhotosScene: React.FC = () => {
             {/* Photo grid */}
             <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {/* Existing image tiles */}
-              {IMAGE_COLORS.map((bg, i) => (
+              {IMAGE_URLS.map((url, i) => (
                 <div
                   key={i}
                   style={{
@@ -96,7 +96,7 @@ export const Step1PhotosScene: React.FC = () => {
                     opacity: tileOpacities[i],
                   }}
                 >
-                  <div style={{ width: '100%', height: '100%', background: bg }} />
+                  <Img src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   {/* COVER badge on first tile */}
                   {i === 0 && imagesLoaded && (
                     <div

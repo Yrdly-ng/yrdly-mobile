@@ -1,5 +1,5 @@
 import React from 'react';
-import { interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { interpolate, spring, useCurrentFrame, useVideoConfig, Img } from 'remotion';
 import { COLORS, FONTS } from '../../theme';
 
 // ─── Item constants (same item from SellFlow for continuity) ──────────────────
@@ -197,33 +197,17 @@ export const Step1ItemDetailScene: React.FC = () => {
 
             {/* ── Media gallery (height 220px) ── */}
             <div style={{ height: 220, flexShrink: 0, position: 'relative' }}>
-              {/* Simulated photo carousel: dark green gradient "photo" */}
+              {/* Real photo carousel: Nike Air Max 90 photo */}
               <div
                 style={{
                   width: '100%',
                   height: '100%',
-                  background: 'linear-gradient(135deg, #1e3828 0%, #0f2018 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  position: 'relative',
+                  overflow: 'hidden',
                 }}
               >
-                {/* Stylised shoe silhouette */}
-                <svg viewBox="0 0 120 60" width={120} height={60} fill="none">
-                  <path
-                    d="M10 42 Q30 18 60 20 Q90 22 100 36 L108 42 Q112 45 110 48 L20 50 Q12 50 10 46 Z"
-                    fill="rgba(130,219,126,0.18)"
-                    stroke="rgba(130,219,126,0.35)"
-                    strokeWidth={1}
-                  />
-                  <path
-                    d="M60 20 Q72 16 80 22"
-                    stroke="rgba(255,255,255,0.2)"
-                    strokeWidth={1.5}
-                    strokeLinecap="round"
-                    fill="none"
-                  />
-                </svg>
+                <Img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&auto=format&fit=crop&q=80" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.5) 100%)' }} />
               </div>
 
               {/* Back button overlay */}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { interpolate, spring, useCurrentFrame, useVideoConfig, Img, staticFile } from 'remotion';
 import { COLORS, FONTS } from '../../theme';
 
 // ─── Exact slide content from src/app/(onboarding)/tour.tsx ──────────────────
@@ -10,6 +10,7 @@ const SLIDES = [
       'Stay connected with the people, places, and conversations that make your neighbourhood feel like home.',
     cta: 'Continue',
     bgGradient: 'radial-gradient(ellipse at 50% 40%, rgba(130,219,126,0.18) 0%, transparent 65%)',
+    imageFile: 'slide1.jpg',
   },
   {
     headline: 'Everything You Need,\nClose to Home',
@@ -17,6 +18,7 @@ const SLIDES = [
       'Discover trusted neighbours, support local businesses, and find great deals just around the corner.',
     cta: 'Continue',
     bgGradient: 'radial-gradient(ellipse at 50% 40%, rgba(99,102,241,0.18) 0%, transparent 65%)',
+    imageFile: 'slide2.jpg',
   },
   {
     headline: "Something's Always\nHappening Nearby",
@@ -24,6 +26,7 @@ const SLIDES = [
       "From community gatherings to weekend markets, there's always something worth showing up for.",
     cta: 'Continue',
     bgGradient: 'radial-gradient(ellipse at 50% 40%, rgba(245,158,11,0.14) 0%, transparent 65%)',
+    imageFile: 'slide3.jpg',
   },
   {
     headline: 'Meet the People\nAround You',
@@ -31,6 +34,7 @@ const SLIDES = [
       'Build meaningful relationships with the people who live, work and create around you.',
     cta: 'Welcome Home',
     bgGradient: 'radial-gradient(ellipse at 50% 40%, rgba(130,219,126,0.2) 0%, transparent 65%)',
+    imageFile: 'slide4.jpg',
   },
 ];
 
@@ -122,10 +126,12 @@ export const TourScene: React.FC = () => {
 
           {/* Full-screen content */}
           <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+            {/* Real slide background image */}
+            <Img src={staticFile(`onboarding/${slide.imageFile}`)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }} />
             {/* Slide-specific bg glow */}
-            <div style={{ position: 'absolute', inset: 0, background: slide.bgGradient, transition: 'none', zIndex: 0 }} />
-            <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.025) 1px, transparent 1px)', backgroundSize: '28px 28px', zIndex: 0 }} />
-            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(5,5,5,0.2) 0%, rgba(5,5,5,0.85) 75%, rgba(5,5,5,0.98) 100%)', zIndex: 1 }} />
+            <div style={{ position: 'absolute', inset: 0, background: slide.bgGradient, transition: 'none', zIndex: 1 }} />
+            <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.025) 1px, transparent 1px)', backgroundSize: '28px 28px', zIndex: 1 }} />
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(5,5,5,0.3) 0%, rgba(5,5,5,0.85) 75%, rgba(5,5,5,0.98) 100%)', zIndex: 1 }} />
 
             {/* Top bar: progress pills + Skip */}
             <div style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px 0' }}>

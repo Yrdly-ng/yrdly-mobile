@@ -156,6 +156,9 @@ export const Scene3Alerts: React.FC<Scene3AlertsProps> = ({ layout = 'vertical' 
           rotateX={phoneRotateX}
           opacity={phoneOpacity}
           glow={true}
+          kenBurns={true}
+          frame={frame}
+          duration={180}
         >
           <AlertsUI
             alert1Progress={alert1Progress}

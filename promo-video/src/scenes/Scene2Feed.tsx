@@ -148,6 +148,9 @@ export const Scene2Feed: React.FC<Scene2FeedProps> = ({ layout = 'vertical' }) =
           rotateX={phoneRotateX}
           opacity={phoneOpacity}
           glow={true}
+          kenBurns={true}
+          frame={frame}
+          duration={180}
         >
           <FeedUI
             scrollY={scrollY}

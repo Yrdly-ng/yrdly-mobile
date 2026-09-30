@@ -1,5 +1,5 @@
 import React from 'react';
-import { interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { interpolate, spring, useCurrentFrame, useVideoConfig, Img, staticFile } from 'remotion';
 import { COLORS, FONTS } from '../../theme';
 
 const POST_TEXT =
@@ -171,7 +171,9 @@ export const SuccessAndFeedScene: React.FC = () => {
                 >
                   {/* Post header */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px 6px' }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 18, background: 'linear-gradient(135deg, rgba(130,219,126,0.6), rgba(99,102,241,0.4))', border: `2px solid ${COLORS.G}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONTS.display, fontWeight: 700, fontSize: 13, color: '#000', flexShrink: 0 }}>A</div>
+                    <div style={{ width: 36, height: 36, borderRadius: 18, border: `2px solid ${COLORS.G}`, overflow: 'hidden', flexShrink: 0 }}>
+                      <Img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontFamily: FONTS.display, fontWeight: 700, fontSize: 13, color: COLORS.TEXT_PRIMARY }}>Amara Okonkwo</div>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 2 }}>
@@ -195,7 +197,9 @@ export const SuccessAndFeedScene: React.FC = () => {
                   </div>
 
                   {/* Photo */}
-                  <div style={{ width: '100%', height: 130, background: 'linear-gradient(135deg, rgba(30,60,40,0.9), rgba(20,50,30,0.95))', position: 'relative' }}>
+                  <div style={{ width: '100%', height: 130, position: 'relative', overflow: 'hidden' }}>
+                    <Img src="https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=600&auto=format&fit=crop&q=80" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.6) 100%)' }} />
                     <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.4) 100%)' }} />
                     <div style={{ position: 'absolute', bottom: 8, left: 10, display: 'flex', gap: 4, alignItems: 'center' }}>
                       <svg viewBox="0 0 24 24" width={12} height={12} fill="rgba(255,255,255,0.7)"><path d="M12 2a5 5 0 105 5 5 5 0 00-5-5zm0 8a3 3 0 110-6 3 3 0 010 6zm9 11v-1a7 7 0 00-7-7h-4a7 7 0 00-7 7v1h2v-1a5 5 0 015-5h4a5 5 0 015 5v1z"/></svg>

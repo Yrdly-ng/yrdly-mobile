@@ -1,5 +1,5 @@
 import React from 'react';
-import { interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { interpolate, spring, useCurrentFrame, useVideoConfig, Img } from 'remotion';
 import { COLORS, FONTS } from '../../theme';
 import { StepHeader } from '../sell-flow/shared';
 
@@ -86,7 +86,9 @@ export const Step5ReviewScene: React.FC = () => {
               }}
             >
               {/* Cover image area */}
-              <div style={{ height: 160, background: 'linear-gradient(135deg, rgba(130,219,126,0.55) 0%, rgba(20,50,30,0.95) 100%)', position: 'relative' }}>
+              <div style={{ height: 160, position: 'relative', overflow: 'hidden' }}>
+                <Img src="https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800&auto=format&fit=crop&q=80" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.5) 100%)' }} />
                 {/* Carousel dots */}
                 <div style={{ position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 5 }}>
                   {[0, 1, 2].map((i) => (

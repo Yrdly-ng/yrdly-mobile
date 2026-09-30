@@ -1,5 +1,5 @@
 import React from 'react';
-import { interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { interpolate, spring, useCurrentFrame, useVideoConfig, Img, staticFile } from 'remotion';
 import { COLORS, FONTS } from '../../theme';
 
 // ─── Typewriter helper ────────────────────────────────────────────────────────
@@ -116,15 +116,14 @@ export const SignupScene: React.FC = () => {
 
           {/* Full-screen bg */}
           <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(130,219,126,0.06) 0%, transparent 40%)', pointerEvents: 'none' }} />
+            <Img src={staticFile('onboarding/signup.jpg')} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.35, pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(5,5,5,0.4) 0%, rgba(5,5,5,0.85) 60%, rgba(5,5,5,0.98) 100%)', pointerEvents: 'none' }} />
             <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.025) 1px, transparent 1px)', backgroundSize: '28px 28px', pointerEvents: 'none' }} />
 
             {/* Logo top */}
             <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 0 4px', flexShrink: 0, position: 'relative', zIndex: 2 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, rgba(130,219,126,0.9), rgba(80,200,80,0.6))', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(130,219,126,0.4)' }}>
-                <svg viewBox="0 0 36 36" width={24} height={24} fill="none">
-                  <path d="M8 8L18 22V30M28 8L18 22" stroke="#050505" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, rgba(130,219,126,0.9), rgba(80,200,80,0.6))', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(130,219,126,0.4)', overflow: 'hidden' }}>
+                <Img src={staticFile('yrdly-logo.png')} style={{ width: 28, height: 28, objectFit: 'contain' }} />
               </div>
             </div>
 

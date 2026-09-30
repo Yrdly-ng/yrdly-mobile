@@ -8,6 +8,8 @@ import { Scene3Alerts } from './scenes/Scene3Alerts';
 import { Scene4Marketplace } from './scenes/Scene4Marketplace';
 import { Scene5Events } from './scenes/Scene5Events';
 import { Scene6Discovery } from './scenes/Scene6Discovery';
+import { Scene7Finale } from './scenes/Scene7Finale';
+import { FullPromoSequence, FULL_PROMO_DURATION } from './scenes/FullPromoSequence';
 import { SellFlowComposition } from './scenes/sell-flow/SellFlowComposition';
 import { BuyFlowComposition, BUYFLOW_TOTAL_DURATION } from './scenes/buy-flow/BuyFlowComposition';
 import { EventFlowComposition, EVENTFLOW_TOTAL_DURATION } from './scenes/event-flow/EventFlowComposition';
@@ -26,9 +28,55 @@ loadInter('normal', {
 export const Root: React.FC = () => {
   return (
     <>
-      {/* ─── SCENE 1 COMPOSITIONS (0:00 - 0:04 | 120 FRAMES) ─── */}
+      {/* ─── MASTER FULL PROMO VIDEO (0:00 - 0:32 | 960 FRAMES) ─── */}
       <Composition
         id="YrdlyPromo-Vertical"
+        component={FullPromoSequence}
+        durationInFrames={FULL_PROMO_DURATION}
+        fps={30}
+        width={1080}
+        height={1920}
+        defaultProps={{
+          layout: 'vertical' as const,
+        }}
+      />
+      <Composition
+        id="YrdlyPromo-Landscape"
+        component={FullPromoSequence}
+        durationInFrames={FULL_PROMO_DURATION}
+        fps={30}
+        width={1920}
+        height={1080}
+        defaultProps={{
+          layout: 'landscape' as const,
+        }}
+      />
+      <Composition
+        id="FullPromoSequence-Vertical"
+        component={FullPromoSequence}
+        durationInFrames={FULL_PROMO_DURATION}
+        fps={30}
+        width={1080}
+        height={1920}
+        defaultProps={{
+          layout: 'vertical' as const,
+        }}
+      />
+      <Composition
+        id="FullPromoSequence-Landscape"
+        component={FullPromoSequence}
+        durationInFrames={FULL_PROMO_DURATION}
+        fps={30}
+        width={1920}
+        height={1080}
+        defaultProps={{
+          layout: 'landscape' as const,
+        }}
+      />
+
+      {/* ─── SCENE 1 COMPOSITIONS (0:00 - 0:04 | 120 FRAMES) ─── */}
+      <Composition
+        id="Scene1-Intro-Vertical"
         component={Scene1Intro}
         durationInFrames={120}
         fps={30}
@@ -39,7 +87,7 @@ export const Root: React.FC = () => {
         }}
       />
       <Composition
-        id="YrdlyPromo-Landscape"
+        id="Scene1-Intro-Landscape"
         component={Scene1Intro}
         durationInFrames={120}
         fps={30}
@@ -161,6 +209,30 @@ export const Root: React.FC = () => {
       <Composition
         id="Scene6-Discovery-Landscape"
         component={Scene6Discovery}
+        durationInFrames={120}
+        fps={30}
+        width={1920}
+        height={1080}
+        defaultProps={{
+          layout: 'landscape' as const,
+        }}
+      />
+
+      {/* ─── SCENE 7 COMPOSITIONS (0:32 - 0:36 | 120 FRAMES) ─── */}
+      <Composition
+        id="Scene7-Finale-Vertical"
+        component={Scene7Finale}
+        durationInFrames={120}
+        fps={30}
+        width={1080}
+        height={1920}
+        defaultProps={{
+          layout: 'vertical' as const,
+        }}
+      />
+      <Composition
+        id="Scene7-Finale-Landscape"
+        component={Scene7Finale}
         durationInFrames={120}
         fps={30}
         width={1920}

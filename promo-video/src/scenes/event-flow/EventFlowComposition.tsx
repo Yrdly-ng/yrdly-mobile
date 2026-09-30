@@ -1,5 +1,6 @@
 import React from 'react';
 import { Sequence } from 'remotion';
+import { CaptionOverlay }   from '../../components/CaptionOverlay';
 import { EntrySheetScene }   from './EntrySheetScene';
 import { Step0BasicInfoScene } from './Step0BasicInfoScene';
 import { Step1DateTimeScene }  from './Step1DateTimeScene';
@@ -75,5 +76,14 @@ export const EventFlowComposition: React.FC = () => (
     <Sequence from={SUCCESS_START} durationInFrames={SUCCESS_DUR} name="Success">
       <SuccessScene />
     </Sequence>
+
+    {/* Kinetic Captions for Mute Social Viewing */}
+    <CaptionOverlay startFrame={20} durationFrames={160} text="Host & discover local community events" highlightWords={["Host", "community", "events"]} />
+    <CaptionOverlay startFrame={260} durationFrames={160} text="Set event title, description & category" highlightWords={["title", "description", "category"]} />
+    <CaptionOverlay startFrame={540} durationFrames={140} text="Schedule event date, time & location" highlightWords={["date", "time", "location"]} />
+    <CaptionOverlay startFrame={960} durationFrames={180} text="Configure Free or Paid ticket tiers" highlightWords={["Free", "Paid", "ticket", "tiers"]} />
+    <CaptionOverlay startFrame={1400} durationFrames={140} text="Attach event posters & gallery photos" highlightWords={["posters", "gallery", "photos"]} />
+    <CaptionOverlay startFrame={1620} durationFrames={180} text="Review event overview before publishing" highlightWords={["Review", "overview", "publishing"]} />
+    <CaptionOverlay startFrame={1880} durationFrames={100} text="Event live! Neighbours can RSVP instantly." highlightWords={["live", "RSVP", "instantly"]} />
   </>
 );

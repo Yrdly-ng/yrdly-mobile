@@ -1,4 +1,5 @@
 import React from 'react';
+import { Img, staticFile } from 'remotion';
 import { COLORS, FONTS } from '../theme';
 
 export interface FeedPostData {
@@ -106,18 +107,23 @@ export const FeedUI: React.FC<FeedUIProps> = ({
           flexShrink: 0,
         }}
       >
-        {/* YRDLY Brand Logo Text */}
-        <span
-          style={{
-            fontFamily: FONTS.display,
-            fontSize: '20px',
-            fontWeight: 800,
-            color: COLORS.G,
-            letterSpacing: '-0.5px',
-          }}
-        >
-          YRDLY
-        </span>
+        {/* YRDLY Brand Logo + Text */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ width: 26, height: 26, borderRadius: 8, background: 'linear-gradient(135deg, rgba(130,219,126,0.9), rgba(80,200,80,0.6))', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+            <Img src={staticFile('yrdly-logo.png')} style={{ width: 22, height: 22, objectFit: 'contain' }} />
+          </div>
+          <span
+            style={{
+              fontFamily: FONTS.display,
+              fontSize: '20px',
+              fontWeight: 800,
+              color: COLORS.G,
+              letterSpacing: '-0.5px',
+            }}
+          >
+            YRDLY
+          </span>
+        </div>
 
         {/* Location Chip */}
         <div

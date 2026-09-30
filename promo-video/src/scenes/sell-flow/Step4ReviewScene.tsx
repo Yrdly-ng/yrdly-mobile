@@ -1,5 +1,5 @@
 import React from 'react';
-import { interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { interpolate, spring, useCurrentFrame, useVideoConfig, Img } from 'remotion';
 import { COLORS, FONTS } from '../../theme';
 import { StepHeader, ScreenTitle } from './shared';
 
@@ -67,12 +67,10 @@ export const Step4ReviewScene: React.FC = () => {
                 opacity: cardOp,
               }}
             >
-              {/* Image carousel placeholder */}
-              <div style={{ height: 200, background: 'linear-gradient(135deg, #1e3828 0%, #0f2018 100%)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {/* Simple photo icon */}
-                <svg viewBox="0 0 24 24" width={48} height={48} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth={1.5} strokeLinecap="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-                </svg>
+              {/* Image carousel preview */}
+              <div style={{ height: 200, position: 'relative', overflow: 'hidden' }}>
+                <Img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&auto=format&fit=crop&q=80" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.5) 100%)' }} />
                 {/* Pagination dots */}
                 <div style={{ position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 5 }}>
                   {[0,1,2].map((i) => (

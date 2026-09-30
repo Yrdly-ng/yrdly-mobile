@@ -1,5 +1,6 @@
 import React from 'react';
 import { COLORS } from '../theme';
+import { kenBurnsDrift } from './v2motion';
 
 interface PhoneFrameProps {
   children: React.ReactNode;
@@ -11,6 +12,12 @@ interface PhoneFrameProps {
   translateY?: number;
   opacity?: number;
   glow?: boolean;
+  /** v2: enable continuous Ken-Burns drift */
+  kenBurns?: boolean;
+  /** v2: current frame (required when kenBurns=true) */
+  frame?: number;
+  /** v2: scene duration in frames (required when kenBurns=true) */
+  duration?: number;
 }
 
 export const PhoneFrame: React.FC<PhoneFrameProps> = ({
@@ -23,7 +30,18 @@ export const PhoneFrame: React.FC<PhoneFrameProps> = ({
   translateY = 0,
   opacity = 1,
   glow = true,
+  kenBurns = false,
+  frame = 0,
+  duration = 180,
 }) => {
+  const kbTransform = kenBurns ? kenBurnsDrift(frame, duration) : '';
+  const combinedTransform = [
+    `translateY(${translateY}px)`,
+    `scale(${scale})`,
+    `rotateX(${rotateX}deg)`,
+    `rotateY(${rotateY}deg)`,
+    kbTransform,
+  ].filter(Boolean).join(' ');
   return (
     <div
       style={{
@@ -31,7 +49,7 @@ export const PhoneFrame: React.FC<PhoneFrameProps> = ({
         width: `${width}px`,
         height: `${height}px`,
         opacity,
-        transform: `translateY(${translateY}px) scale(${scale}) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`,
+        transform: combinedTransform,
         transformStyle: 'preserve-3d',
         perspective: 1200,
         display: 'flex',

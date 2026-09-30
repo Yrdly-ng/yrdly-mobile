@@ -1,5 +1,5 @@
 import React from 'react';
-import { interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { interpolate, spring, useCurrentFrame, useVideoConfig, Img } from 'remotion';
 import { COLORS, FONTS } from '../../theme';
 
 // ─── Typewriter helper ────────────────────────────────────────────────────────
@@ -232,8 +232,9 @@ export const ComposeScene: React.FC = () => {
                     border: `1px solid rgba(130,219,126,0.2)`,
                   }}
                 >
-                  {/* Simulated photo content */}
-                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.4) 100%)' }} />
+                  {/* Real attached photo content */}
+                  <Img src="https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=600&auto=format&fit=crop&q=80" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.6) 100%)' }} />
                   <div style={{ position: 'absolute', top: 8, left: 8, display: 'flex', gap: 4, alignItems: 'center' }}>
                     <svg viewBox="0 0 24 24" width={14} height={14} fill="rgba(255,255,255,0.7)">
                       <path d="M12 2a5 5 0 105 5 5 5 0 00-5-5zm0 8a3 3 0 110-6 3 3 0 010 6zm9 11v-1a7 7 0 00-7-7h-4a7 7 0 00-7 7v1h2v-1a5 5 0 015-5h4a5 5 0 015 5v1z"/>

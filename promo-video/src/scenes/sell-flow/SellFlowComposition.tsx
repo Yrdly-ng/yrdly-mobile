@@ -1,5 +1,6 @@
 import React from 'react';
 import { Sequence } from 'remotion';
+import { CaptionOverlay }        from '../../components/CaptionOverlay';
 import { EntrySheetScene }       from './EntrySheetScene';
 import { Step1PhotosScene }      from './Step1PhotosScene';
 import { Step2DetailsScene }     from './Step2DetailsScene';
@@ -49,6 +50,14 @@ export const SellFlowComposition: React.FC = () => {
       <Sequence from={SUCCESS_START} durationInFrames={SUCCESS_DUR} name="Success">
         <SuccessScene />
       </Sequence>
+
+      {/* Kinetic Captions for Mute Social Viewing */}
+      <CaptionOverlay startFrame={20} durationFrames={120} text="Sell to verified neighbours in 3 simple steps" highlightWords={["Sell", "3", "simple", "steps"]} />
+      <CaptionOverlay startFrame={260} durationFrames={140} text="Upload multiple crisp listing photos" highlightWords={["crisp", "listing", "photos"]} />
+      <CaptionOverlay startFrame={500} durationFrames={150} text="Set price and choose item category" highlightWords={["Set", "price", "category"]} />
+      <CaptionOverlay startFrame={890} durationFrames={120} text="Add detailed description & pickup location" highlightWords={["description", "pickup", "location"]} />
+      <CaptionOverlay startFrame={1070} durationFrames={140} text="Protected by Payluk Escrow Payment System" highlightWords={["Payluk", "Escrow", "Protection"]} />
+      <CaptionOverlay startFrame={1310} durationFrames={110} text="Item listed live in your neighbourhood marketplace!" highlightWords={["live", "neighbourhood", "marketplace"]} />
     </>
   );
 };

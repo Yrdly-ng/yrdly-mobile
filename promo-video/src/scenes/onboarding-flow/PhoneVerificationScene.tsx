@@ -1,5 +1,5 @@
 import React from 'react';
-import { interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { interpolate, spring, useCurrentFrame, useVideoConfig, Img, staticFile } from 'remotion';
 import { COLORS, FONTS } from '../../theme';
 
 // ─── Typewriter helper ────────────────────────────────────────────────────────
@@ -92,6 +92,8 @@ export const PhoneVerificationScene: React.FC = () => {
 
           {/* Content area */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '0 28px', paddingTop: 24, position: 'relative', overflow: 'hidden' }}>
+            <Img src={staticFile('onboarding/phone_bg.jpg')} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.25, pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(5,5,5,0.4) 0%, rgba(5,5,5,0.85) 60%, rgba(5,5,5,0.98) 100%)', pointerEvents: 'none' }} />
             {/* Header */}
             <div style={{ opacity: headerOp, transform: `translateY(${headerY}px)`, marginBottom: 8 }}>
               <div style={{ fontSize: 26, fontWeight: 800, color: COLORS.TEXT_PRIMARY, fontFamily: FONTS.display, letterSpacing: -0.5 }}>Verify your number</div>

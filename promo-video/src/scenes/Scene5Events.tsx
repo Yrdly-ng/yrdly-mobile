@@ -152,7 +152,11 @@ export const Scene5Events: React.FC<Scene5EventsProps> = ({ layout = 'vertical' 
           perspective: '1000px',
         }}
       >
-        <PhoneFrame>
+        <PhoneFrame
+          kenBurns={true}
+          frame={frame}
+          duration={180}
+        >
           <EventsUI
             mode={mode}
             organizerStep={organizerStep}

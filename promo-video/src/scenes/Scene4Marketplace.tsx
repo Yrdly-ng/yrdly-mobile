@@ -160,6 +160,9 @@ export const Scene4Marketplace: React.FC<Scene4MarketplaceProps> = ({ layout = '
           rotateX={phoneRotateX}
           opacity={phoneOpacity}
           glow={true}
+          kenBurns={true}
+          frame={frame}
+          duration={180}
         >
           <MarketplaceUI
             mode={mode}
