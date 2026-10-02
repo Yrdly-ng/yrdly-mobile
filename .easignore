@@ -40,4 +40,7 @@ yarn-error.*
 /ios
 /android
 
+# Promo video
+promo-video/
+
 package-lock.json
