@@ -24,10 +24,7 @@ module.exports = {
       },
       associatedDomains: [
         "applinks:app.yrdly.ng"
-      ],
-      config: {
-        googleMapsApiKey: process.env.GOOGLE_MAPS_IOS_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
-      }
+      ]
     },
     android: {
       adaptiveIcon: {
@@ -78,6 +75,12 @@ module.exports = {
       favicon: "./assets/images/favicon.png"
     },
     plugins: [
+      [
+        "react-native-maps",
+        {
+          iosGoogleMapsApiKey: process.env.GOOGLE_MAPS_IOS_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+        }
+      ],
       [
         "expo-notifications",
         {
