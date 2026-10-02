@@ -58,6 +58,9 @@ yrdly-cursor.code-workspace
 YRDLY NEW DESIGNS/
 Redesign Profile Screen Layout/
 
+# Promo video (never push to GitHub)
+promo-video/
+
 # Markdown docs / agent files
 *.md
 
