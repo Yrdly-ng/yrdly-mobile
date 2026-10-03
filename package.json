@@ -75,9 +75,11 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
+    "@e2e-dev/mobile": "^0.8.1",
     "@types/mapbox__polyline": "^1.0.5",
     "@types/react": "~19.2.3",
     "babel-preset-expo": "~57.0.2",
+    "e2e": "^0.15.1",
     "eslint": "^8.56.0",
     "eslint-config-expo": "~57.0.2",
     "prettier": "^3.1.1",
@@ -89,6 +91,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "test:e2e": "e2e run",
+    "test:e2e:smoke": "e2e run tests/smoke.e2e.ts",
     "lint": "eslint . --ext .ts,.tsx --ignore-path .gitignore",
     "lint:fix": "eslint . --ext .ts,.tsx --ignore-path .gitignore --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,md}\"",

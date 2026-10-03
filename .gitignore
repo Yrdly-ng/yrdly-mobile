@@ -29,6 +29,7 @@ client_secret_*.json
 
 # Debug / build artifacts
 ts-errors.txt
+.e2e/
 
 # Metro
 .metro-health-check*

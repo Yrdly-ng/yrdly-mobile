@@ -8,12 +8,14 @@
       "developmentClient": true,
       "distribution": "internal",
       "node": "22.15.0",
+      "pnpm": "11.2.2",
       "ios": {
         "image": "macos-sequoia-15.6-xcode-26.2"
       }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "pnpm": "11.2.2"
     },
     "apk": {
       "extends": "production",
@@ -23,6 +25,7 @@
     },
     "production": {
       "node": "22.15.0",
+      "pnpm": "11.2.2",
       "ios": {
         "image": "macos-sequoia-15.6-xcode-26.2"
       }

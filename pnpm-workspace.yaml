@@ -18,5 +18,5 @@ minimumReleaseAgeExclude:
   - expo-video@57.0.5
 
 allowBuilds:
-  - unrs-resolver
-  - "@callstack/liquid-glass"
+  unrs-resolver: true
+  "@callstack/liquid-glass": true
