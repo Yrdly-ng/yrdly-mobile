@@ -20,7 +20,7 @@ export default function CommunitiesIndexScreen() {
   const { theme } = useUnistyles();
   const s = stylesheet;
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   const [tab, setTab] = useState<'mine' | 'discover'>('mine');
   const [query, setQuery] = useState('');
@@ -35,9 +35,9 @@ export default function CommunitiesIndexScreen() {
   }, []);
 
   const loadDiscover = useCallback(async (q?: string) => {
-    const data = await CommunityService.discoverCommunities({ query: q }).catch(() => []);
+    const data = await CommunityService.discoverCommunities({ state: profile?.home_state ?? undefined, query: q }).catch(() => []);
     setDiscovered(data);
-  }, []);
+  }, [profile]);
 
   const load = useCallback(async () => {
     setLoading(true);
