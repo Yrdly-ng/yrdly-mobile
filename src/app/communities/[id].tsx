@@ -42,6 +42,8 @@ function EmptyFeed({ communityName }: { communityName: string }) {
       </Text>
     </Animated.View>
   );
+}
+
 function ScrollableImages({ urls }: { urls: string[] }) {
   return (
     <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
