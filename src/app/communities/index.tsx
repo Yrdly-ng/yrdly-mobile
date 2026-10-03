@@ -1,9 +1,8 @@
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import React, { useEffect, useState, useCallback } from 'react';
-import {
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
   View,
   Text,
-  FlatList,
+  SectionList,
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
@@ -58,7 +57,26 @@ export default function CommunitiesIndexScreen() {
     loadDiscover(t);
   };
 
-  const list: Community[] = tab === 'mine' ? myComms : discovered;
+  const sections = useMemo(() => {
+    if (tab === 'mine') {
+      return myComms.length > 0 ? [{ title: '', data: myComms }] : [];
+    }
+    if (query.trim()) {
+      return discovered.length > 0 ? [{ title: 'Search Results', data: discovered }] : [];
+    }
+    
+    const local = discovered.filter(c => c.type === 'lga' || c.type === 'ward');
+    const interests = discovered.filter(c => c.type === 'interest');
+    
+    const res = [];
+    if (interests.length > 0) {
+      res.push({ title: 'Popular Interests', data: interests });
+    }
+    if (local.length > 0) {
+      res.push({ title: profile?.home_state ? `Local to ${profile.home_state}` : 'Local Communities', data: local });
+    }
+    return res;
+  }, [tab, query, myComms, discovered, profile]);
 
   return (
     <SafeAreaView style={[s.root, { backgroundColor: theme.colors.DARK }]} edges={['top']}>
@@ -103,8 +121,8 @@ export default function CommunitiesIndexScreen() {
       {loading ? (
         <ActivityIndicator style={{ marginTop: 40 }} color={theme.colors.G} />
       ) : (
-        <FlatList
-          data={list}
+        <SectionList
+          sections={sections}
           keyExtractor={(c) => c.id}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.G} />}
@@ -117,9 +135,16 @@ export default function CommunitiesIndexScreen() {
             </View>
           }
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+          renderSectionHeader={({ section: { title } }) => (
+            title ? (
+              <Text style={[s.sectionTitle, { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-Bold' }]}>
+                {title}
+              </Text>
+            ) : null
+          )}
           renderItem={({ item }) => (
             <TouchableOpacity
-              style={[s.card, { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER }]}
+              style={[s.card, { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER, marginBottom: 0 }]}
               activeOpacity={0.82}
               onPress={() => router.push(`/communities/${item.id}` as any)}
             >
@@ -169,6 +194,7 @@ const stylesheet = StyleSheet.create((theme) => ({
   tabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: theme.colors.GLASS_BORDER, marginBottom: 12 },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 10 },
   tabLabel: { fontSize: 14 },
+  sectionTitle: { fontSize: 18, marginTop: 24, marginBottom: 12 },
   card: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     padding: 14, borderRadius: 14, borderWidth: 1,
