@@ -85,3 +85,54 @@ workflows:
         notify:
           success: true
           failure: true
+
+  android-apk-build:
+    name: Build Android APK
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      groups:
+        - yrdly_env
+      node: 22
+      java: 17
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+      cancel_previous_builds: true
+    scripts:
+      - name: Setup pnpm
+        script: |
+          npm install -g pnpm --force
+      - name: Install dependencies
+        script: |
+          pnpm install --ignore-scripts
+          pnpm run postinstall
+      - name: Write .env file from secrets
+        script: |
+          cat <<EOT > .env
+          EXPO_PUBLIC_SUPABASE_URL=$EXPO_PUBLIC_SUPABASE_URL
+          EXPO_PUBLIC_SUPABASE_ANON_KEY=$EXPO_PUBLIC_SUPABASE_ANON_KEY
+          EXPO_PUBLIC_WEB_APP_URL=$EXPO_PUBLIC_WEB_APP_URL
+          EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=$EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+          EXPO_PUBLIC_VEXO_API_KEY=$EXPO_PUBLIC_VEXO_API_KEY
+          EXPO_PUBLIC_TERMII_API_KEY=$EXPO_PUBLIC_TERMII_API_KEY
+          EOT
+      - name: Run Expo prebuild
+        script: |
+          npx expo prebuild --platform android --clean
+      - name: Build Android APK
+        script: |
+          cd android
+          ./gradlew assembleRelease
+    artifacts:
+      - android/app/build/outputs/apk/release/app-release.apk
+    publishing:
+      email:
+        recipients:
+          - feranmioyelowo@gmail.com
+        notify:
+          success: true
+          failure: true
