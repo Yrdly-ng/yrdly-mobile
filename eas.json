@@ -23,6 +23,7 @@
     },
     "production": {
       "node": "22.15.0",
+      "installCommand": "pnpm install --frozen-lockfile --ignore-scripts && pnpm run postinstall",
       "ios": {
         "image": "macos-sequoia-15.6-xcode-26.2"
       }
