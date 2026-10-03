@@ -96,9 +96,7 @@
     "postinstall": "node -e \"const fs=require('fs'),path=require('path');try{const corePath=path.dirname(require.resolve('expo-modules-core/package.json'));['android/src/main/kotlin','android/src/release/java'].forEach(d=>{const p=path.join(corePath,d);if(!fs.existsSync(p))fs.mkdirSync(p,{recursive:true});});}catch(e){}\""
   },
   "private": true,
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "unrs-resolver"
-    ]
-  }
+  "onlyBuiltDependencies": [
+    "unrs-resolver"
+  ]
 }
