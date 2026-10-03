@@ -43,8 +43,11 @@ interface Message {
 
 interface ConversationMeta {
   id: string;
-  type: 'friend' | 'marketplace' | 'briefcase' | 'event' | 'business';
+  type: 'friend' | 'marketplace' | 'briefcase' | 'event' | 'business' | 'group';
   participant_ids: string[];
+  title?: string;
+  avatar_url?: string;
+  invite_code?: string;
   item_id?: string;
   item_title?: string;
   item_image?: string;
