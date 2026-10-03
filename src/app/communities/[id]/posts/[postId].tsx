@@ -15,11 +15,11 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Image } from 'expo-image';
 import { ArrowLeft, PaperPlaneTilt, Heart } from 'phosphor-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { supabase } from '../../../lib/supabase';
-import { useAuth } from '../../../hooks/use-supabase-auth';
-import { CommunityService, CommunityPost, CommunityComment } from '../../../lib/community-service';
-import { timeAgo } from '../../../lib/utils';
-import { useToast } from '../../../components/toast';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/hooks/use-supabase-auth';
+import { CommunityService, CommunityPost, CommunityComment } from '@/lib/community-service';
+import { timeAgo } from '@/lib/utils';
+import { useToast } from '@/components/toast';
 
 function CommentRow({ comment }: { comment: CommunityComment }) {
   const { theme } = useUnistyles();
@@ -121,16 +121,16 @@ export default function CommunityPostDetailScreen() {
 
   if (loading || !post) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.BACKGROUND }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.DARK }}>
         <ActivityIndicator color={theme.colors.G} />
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.BACKGROUND }}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.DARK }}>
       <Stack.Screen options={{ headerShown: false }} />
-      <SafeAreaView edges={['top']} style={[s.header, { backgroundColor: theme.colors.BACKGROUND, borderBottomColor: theme.colors.GLASS_BORDER }]}>
+      <SafeAreaView edges={['top']} style={[s.header, { backgroundColor: theme.colors.DARK, borderBottomColor: theme.colors.GLASS_BORDER }]}>
         <TouchableOpacity onPress={() => router.back()} style={{ padding: 6 }}>
           <ArrowLeft size={22} color={theme.colors.TEXT_PRIMARY} />
         </TouchableOpacity>

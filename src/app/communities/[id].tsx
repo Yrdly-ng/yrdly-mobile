@@ -20,13 +20,13 @@ import {
   Heart, ChatCircle, ImageSquare, Trash, Warning
 } from 'phosphor-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../hooks/use-supabase-auth';
-import { CommunityService, Community, CommunityPost, CommunityMembership } from '../../lib/community-service';
-import { StorageService } from '../../lib/storage-service';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/hooks/use-supabase-auth';
+import { CommunityService, Community, CommunityPost, CommunityMembership } from '@/lib/community-service';
+import { StorageService } from '@/lib/storage-service';
 import ImagePicker from 'react-native-image-crop-picker';
-import { timeAgo } from '../../lib/utils';
-import { useToast } from '../../components/toast';
+import { timeAgo } from '@/lib/utils';
+import { useToast } from '@/components/toast';
 
 // ─── Welcome empty state ──────────────────────────────────────────────────────
 function EmptyFeed({ communityName }: { communityName: string }) {
@@ -41,6 +41,14 @@ function EmptyFeed({ communityName }: { communityName: string }) {
         {communityName} is just getting started. Share something with your neighbours.
       </Text>
     </Animated.View>
+  );
+function ScrollableImages({ urls }: { urls: string[] }) {
+  return (
+    <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+      {urls.slice(0, 4).map((url, i) => (
+        <Image key={i} source={{ uri: url }} style={{ width: 90, height: 90, borderRadius: 10 }} contentFit="cover" />
+      ))}
+    </View>
   );
 }
 
@@ -134,15 +142,7 @@ function PostCard({
   );
 }
 
-function ScrollableImages({ urls }: { urls: string[] }) {
-  return (
-    <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-      {urls.slice(0, 4).map((url, i) => (
-        <Image key={i} source={{ uri: url }} style={{ width: 90, height: 90, borderRadius: 10 }} contentFit="cover" />
-      ))}
-    </View>
-  );
-}
+
 
 const postCardStylesheet = StyleSheet.create((theme) => ({
   card: { marginHorizontal: 0, padding: 14, borderRadius: 16, borderWidth: 1, marginBottom: 12 },
@@ -332,7 +332,7 @@ export default function CommunityFeedScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.BACKGROUND }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.DARK }}>
         <ActivityIndicator color={theme.colors.G} />
       </View>
     );
@@ -340,7 +340,7 @@ export default function CommunityFeedScreen() {
 
   if (!community) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.BACKGROUND }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.DARK }}>
         <Warning size={48} color={theme.colors.LABEL} />
         <Text style={{ color: theme.colors.LABEL, fontFamily: 'Inter-Regular', marginTop: 12 }}>Community not found.</Text>
       </View>
@@ -350,11 +350,11 @@ export default function CommunityFeedScreen() {
   const isMember = membership?.status === 'active';
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.BACKGROUND }}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.DARK }}>
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Custom header */}
-      <SafeAreaView edges={['top']} style={[s.header, { backgroundColor: theme.colors.BACKGROUND, borderBottomColor: theme.colors.GLASS_BORDER }]}>
+      <SafeAreaView edges={['top']} style={[s.header, { backgroundColor: theme.colors.DARK, borderBottomColor: theme.colors.GLASS_BORDER }]}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <ArrowLeft size={22} color={theme.colors.TEXT_PRIMARY} />
         </TouchableOpacity>

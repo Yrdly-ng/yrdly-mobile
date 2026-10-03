@@ -13,8 +13,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MagnifyingGlass, UsersThree, Lock, ArrowRight } from 'phosphor-react-native';
-import { CommunityService, Community } from '../../lib/community-service';
-import { useAuth } from '../../hooks/use-supabase-auth';
+import { CommunityService, Community } from '@/lib/community-service';
+import { useAuth } from '@/hooks/use-supabase-auth';
 
 export default function CommunitiesIndexScreen() {
   const { theme } = useUnistyles();
@@ -61,7 +61,7 @@ export default function CommunitiesIndexScreen() {
   const list: Community[] = tab === 'mine' ? myComms : discovered;
 
   return (
-    <SafeAreaView style={[s.root, { backgroundColor: theme.colors.BACKGROUND }]} edges={['top']}>
+    <SafeAreaView style={[s.root, { backgroundColor: theme.colors.DARK }]} edges={['top']}>
       {/* Header */}
       <View style={s.header}>
         <Text style={[s.title, { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-Bold' }]}>
