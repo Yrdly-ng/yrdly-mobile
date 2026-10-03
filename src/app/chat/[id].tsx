@@ -1117,11 +1117,16 @@ function ChatContent() {
     }
   }, [meta, user, router]);
 
+  const isGroupChat = meta?.type === 'group';
   const isBusinessChat = meta?.type === 'briefcase' || meta?.type === 'business' || !!meta?.business_id;
-  const title = isBusinessChat
+  const title = isGroupChat
+    ? meta?.title || 'Group Chat'
+    : isBusinessChat
     ? meta?.business_name || meta?.item_title || otherUser?.name || 'Business'
     : otherUser?.name || 'Chat';
-  const displayAvatar = isBusinessChat
+  const displayAvatar = isGroupChat
+    ? meta?.avatar_url || null
+    : isBusinessChat
     ? meta?.business_image || meta?.item_image || otherUser?.avatar_url
     : otherUser?.avatar_url;
 
@@ -1178,7 +1183,7 @@ function ChatContent() {
           onPress={() => {
             if (isBusinessChat && meta?.business_id) {
               router.push(`/businesses/${meta.business_id}` as any);
-            } else {
+            } else if (!isGroupChat) {
               const otherId = meta?.participant_ids?.find((pid: string) => pid !== user?.id);
               if (otherId) router.push(`/profile/${otherId}` as any);
             }
@@ -1205,7 +1210,7 @@ function ChatContent() {
               }}
             >
               <Text style={{ fontFamily: 'Outfit-Bold', fontSize: 16, color: theme.colors.G }}>
-                {title.charAt(0).toUpperCase()}
+                {isGroupChat ? '👥' : title.charAt(0).toUpperCase()}
               </Text>
             </View>
           )}
@@ -1217,12 +1222,14 @@ function ChatContent() {
               {title}
             </Text>
             <Text style={{ fontFamily: 'Inter-Regular', fontSize: 12, color: theme.colors.LABEL }}>
-              @{otherUser?.username || otherUser?.name || 'user'}
+              {isGroupChat
+                ? `${meta?.participant_ids?.length || 0} members`
+                : `@${otherUser?.username || otherUser?.name || 'user'}`}
             </Text>
           </View>
         </TouchableOpacity>
 
-        {Boolean(meta?.participant_ids?.find((pid: string) => pid !== user?.id)) && (
+        {(Boolean(meta?.participant_ids?.find((pid: string) => pid !== user?.id)) || isGroupChat) && (
           <TouchableOpacity
             style={{
               width: 36,
@@ -1235,6 +1242,18 @@ function ChatContent() {
               alignItems: 'center',
             }}
             onPress={() => {
+              if (isGroupChat) {
+                Alert.alert('Group Options', `Invite Code: ${meta?.invite_code || 'N/A'}`, [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Copy Invite Code',
+                    onPress: () => {
+                      Alert.alert('Invite Code', `Code: ${meta?.invite_code}`);
+                    },
+                  },
+                ]);
+                return;
+              }
               Alert.alert('Options', '', [
                 { text: 'Cancel', style: 'cancel' },
                 {

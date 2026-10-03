@@ -19,8 +19,8 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Swipeable } from 'react-native-gesture-handler';
-type ConvType = 'friend' | 'marketplace' | 'briefcase';
-type FilterTab = 'all' | 'friends' | 'marketplace' | 'business';
+type ConvType = 'friend' | 'marketplace' | 'briefcase' | 'group';
+type FilterTab = 'all' | 'groups' | 'friends' | 'marketplace' | 'business';
 
 interface Conversation {
   id: string;
@@ -69,6 +69,7 @@ export default function MessagesTab() {
 
   const FILTERS: { key: FilterTab; label: string }[] = [
     { key: 'all', label: 'All' },
+    { key: 'groups', label: 'Groups' },
     { key: 'friends', label: 'Friends' },
     { key: 'marketplace', label: 'Marketplace' },
     { key: 'business', label: 'Business' },
@@ -129,14 +130,22 @@ export default function MessagesTab() {
           const otherUser = usersMap.get(otherId);
 
           let convType: ConvType = 'friend';
-          if (c.type === 'marketplace' || (c.item_id && c.type !== 'briefcase' && c.type !== 'business')) convType = 'marketplace';
+          if (c.type === 'group') convType = 'group';
+          else if (c.type === 'marketplace' || (c.item_id && c.type !== 'briefcase' && c.type !== 'business')) convType = 'marketplace';
           else if (c.type === 'briefcase' || c.type === 'business' || c.business_id) convType = 'briefcase';
 
           const isBiz = convType === 'briefcase' || !!c.business_id;
-          const participantName = isBiz
+          const isGroup = convType === 'group';
+
+          const participantName = isGroup
+            ? c.title || 'Group Chat'
+            : isBiz
             ? c.business_name || c.item_title || otherUser?.name || 'Business'
             : otherUser?.name || c.item_title || 'Neighbour';
-          const participantAvatar = isBiz && (c.business_image || c.item_image)
+
+          const participantAvatar = isGroup
+            ? c.avatar_url || null
+            : isBiz && (c.business_image || c.item_image)
             ? c.business_image || c.item_image
             : (otherUser?.avatar_url && !otherUser.avatar_url.startsWith('file://') ? otherUser.avatar_url : null);
 
@@ -193,6 +202,7 @@ export default function MessagesTab() {
 
   const filteredConversations = useMemo(() => {
     return conversations.filter((c) => {
+      if (activeFilter === 'groups' && c.type !== 'group') return false;
       if (activeFilter === 'friends' && c.type !== 'friend') return false;
       if (activeFilter === 'marketplace' && c.type !== 'marketplace') return false;
       if (activeFilter === 'business' && c.type !== 'briefcase') return false;
@@ -322,6 +332,12 @@ export default function MessagesTab() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <TouchableOpacity style={stylesheet.headerIconBtn} onPress={() => setSearching(true)}>
                 <Ionicons name="search-outline" size={18} color={theme.colors.TEXT_PRIMARY} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={stylesheet.headerIconBtn}
+                onPress={() => router.push('/create-group-chat' as any)}
+              >
+                <Ionicons name="people-outline" size={18} color={theme.colors.G} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
