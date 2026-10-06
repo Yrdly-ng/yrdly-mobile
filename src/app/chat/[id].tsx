@@ -43,11 +43,8 @@ interface Message {
 
 interface ConversationMeta {
   id: string;
-  type: 'friend' | 'marketplace' | 'briefcase' | 'event' | 'business' | 'group';
+  type: 'friend' | 'marketplace' | 'briefcase' | 'event' | 'business';
   participant_ids: string[];
-  title?: string;
-  avatar_url?: string;
-  invite_code?: string;
   item_id?: string;
   item_title?: string;
   item_image?: string;
@@ -251,6 +248,13 @@ function ChatContent() {
 
     const { data } = await supabase.from('conversations').select('*').eq('id', id).single();
     if (data) {
+      if (data.type === 'group') {
+        setLoading(false);
+        Alert.alert('Group chats are unavailable', 'Use Communities to talk with people around shared interests.');
+        router.replace('/(tabs)/messages' as any);
+        return;
+      }
+
       let resolvedMeta: ConversationMeta = { ...data };
       const otherId = data.participant_ids?.find((pid: string) => pid !== user.id);
       
@@ -1120,16 +1124,11 @@ function ChatContent() {
     }
   }, [meta, user, router]);
 
-  const isGroupChat = meta?.type === 'group';
   const isBusinessChat = meta?.type === 'briefcase' || meta?.type === 'business' || !!meta?.business_id;
-  const title = isGroupChat
-    ? meta?.title || 'Group Chat'
-    : isBusinessChat
+  const title = isBusinessChat
     ? meta?.business_name || meta?.item_title || otherUser?.name || 'Business'
     : otherUser?.name || 'Chat';
-  const displayAvatar = isGroupChat
-    ? meta?.avatar_url || null
-    : isBusinessChat
+  const displayAvatar = isBusinessChat
     ? meta?.business_image || meta?.item_image || otherUser?.avatar_url
     : otherUser?.avatar_url;
 
@@ -1186,7 +1185,7 @@ function ChatContent() {
           onPress={() => {
             if (isBusinessChat && meta?.business_id) {
               router.push(`/businesses/${meta.business_id}` as any);
-            } else if (!isGroupChat) {
+            } else {
               const otherId = meta?.participant_ids?.find((pid: string) => pid !== user?.id);
               if (otherId) router.push(`/profile/${otherId}` as any);
             }
@@ -1213,7 +1212,7 @@ function ChatContent() {
               }}
             >
               <Text style={{ fontFamily: 'Outfit-Bold', fontSize: 16, color: theme.colors.G }}>
-                {isGroupChat ? '👥' : title.charAt(0).toUpperCase()}
+                {title.charAt(0).toUpperCase()}
               </Text>
             </View>
           )}
@@ -1225,14 +1224,12 @@ function ChatContent() {
               {title}
             </Text>
             <Text style={{ fontFamily: 'Inter-Regular', fontSize: 12, color: theme.colors.LABEL }}>
-              {isGroupChat
-                ? `${meta?.participant_ids?.length || 0} members`
-                : `@${otherUser?.username || otherUser?.name || 'user'}`}
+              {`@${otherUser?.username || otherUser?.name || 'user'}`}
             </Text>
           </View>
         </TouchableOpacity>
 
-        {(Boolean(meta?.participant_ids?.find((pid: string) => pid !== user?.id)) || isGroupChat) && (
+        {Boolean(meta?.participant_ids?.find((pid: string) => pid !== user?.id)) && (
           <TouchableOpacity
             style={{
               width: 36,
@@ -1245,18 +1242,6 @@ function ChatContent() {
               alignItems: 'center',
             }}
             onPress={() => {
-              if (isGroupChat) {
-                Alert.alert('Group Options', `Invite Code: ${meta?.invite_code || 'N/A'}`, [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Copy Invite Code',
-                    onPress: () => {
-                      Alert.alert('Invite Code', `Code: ${meta?.invite_code}`);
-                    },
-                  },
-                ]);
-                return;
-              }
               Alert.alert('Options', '', [
                 { text: 'Cancel', style: 'cancel' },
                 {

@@ -19,8 +19,8 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Swipeable } from 'react-native-gesture-handler';
-type ConvType = 'friend' | 'marketplace' | 'briefcase' | 'group';
-type FilterTab = 'all' | 'groups' | 'friends' | 'marketplace' | 'business';
+type ConvType = 'friend' | 'marketplace' | 'briefcase';
+type FilterTab = 'all' | 'friends' | 'marketplace' | 'business';
 
 interface Conversation {
   id: string;
@@ -57,7 +57,7 @@ export default function MessagesTab() {
   const { theme } = useUnistyles(); const stylesheet = _stylesheet;
 
   const router = useRouter();
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -66,10 +66,12 @@ export default function MessagesTab() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
   const [refreshing, setRefreshing] = useState(false);
+  const [showNewMessage, setShowNewMessage] = useState(false);
+  const [messageableUsers, setMessageableUsers] = useState<{ id: string; name: string; avatar_url: string | null }[]>([]);
+  const [loadingMessageableUsers, setLoadingMessageableUsers] = useState(false);
 
   const FILTERS: { key: FilterTab; label: string }[] = [
     { key: 'all', label: 'All' },
-    { key: 'groups', label: 'Groups' },
     { key: 'friends', label: 'Friends' },
     { key: 'marketplace', label: 'Marketplace' },
     { key: 'business', label: 'Business' },
@@ -84,6 +86,7 @@ export default function MessagesTab() {
         .from('conversations')
         .select('*')
         .contains('participant_ids', [user.id])
+        .neq('type', 'group')
         .order('updated_at', { ascending: false });
 
       if (error || !data) return;
@@ -130,22 +133,15 @@ export default function MessagesTab() {
           const otherUser = usersMap.get(otherId);
 
           let convType: ConvType = 'friend';
-          if (c.type === 'group') convType = 'group';
-          else if (c.type === 'marketplace' || (c.item_id && c.type !== 'briefcase' && c.type !== 'business')) convType = 'marketplace';
+          if (c.type === 'marketplace' || (c.item_id && c.type !== 'briefcase' && c.type !== 'business')) convType = 'marketplace';
           else if (c.type === 'briefcase' || c.type === 'business' || c.business_id) convType = 'briefcase';
 
           const isBiz = convType === 'briefcase' || !!c.business_id;
-          const isGroup = convType === 'group';
-
-          const participantName = isGroup
-            ? c.title || 'Group Chat'
-            : isBiz
+          const participantName = isBiz
             ? c.business_name || c.item_title || otherUser?.name || 'Business'
             : otherUser?.name || c.item_title || 'Neighbour';
 
-          const participantAvatar = isGroup
-            ? c.avatar_url || null
-            : isBiz && (c.business_image || c.item_image)
+          const participantAvatar = isBiz && (c.business_image || c.item_image)
             ? c.business_image || c.item_image
             : (otherUser?.avatar_url && !otherUser.avatar_url.startsWith('file://') ? otherUser.avatar_url : null);
 
@@ -200,9 +196,48 @@ export default function MessagesTab() {
     }, [user])
   );
 
+  useEffect(() => {
+    if (!showNewMessage || !user) return;
+    let active = true;
+    const loadMessageableUsers = async () => {
+      setLoadingMessageableUsers(true);
+      try {
+        const { data: follows, error: followsError } = await supabase
+          .from('followers')
+          .select('following_id')
+          .eq('follower_id', user.id);
+        if (followsError) throw followsError;
+
+        const userIds = (follows || []).map((row) => row.following_id).filter(Boolean);
+        if (!userIds.length) {
+          if (active) setMessageableUsers([]);
+          return;
+        }
+
+        const { data: people, error: peopleError } = await supabase
+          .from('users')
+          .select('id, name, avatar_url')
+          .in('id', userIds)
+          .order('name');
+        if (peopleError) throw peopleError;
+        if (active) setMessageableUsers(people || []);
+      } catch (error) {
+        if (active) Alert.alert('Could not load people', error instanceof Error ? error.message : 'Please try again.');
+      } finally {
+        if (active) setLoadingMessageableUsers(false);
+      }
+    };
+    void loadMessageableUsers();
+    return () => { active = false; };
+  }, [showNewMessage, user]);
+
+  const startDirectMessage = (participantId: string) => {
+    setShowNewMessage(false);
+    router.push(`/chat/new?participant_id=${participantId}&type=friend` as any);
+  };
+
   const filteredConversations = useMemo(() => {
     return conversations.filter((c) => {
-      if (activeFilter === 'groups' && c.type !== 'group') return false;
       if (activeFilter === 'friends' && c.type !== 'friend') return false;
       if (activeFilter === 'marketplace' && c.type !== 'marketplace') return false;
       if (activeFilter === 'business' && c.type !== 'briefcase') return false;
@@ -335,9 +370,9 @@ export default function MessagesTab() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={stylesheet.headerIconBtn}
-                onPress={() => router.push('/create-group-chat' as any)}
+                onPress={() => setShowNewMessage(true)}
               >
-                <Ionicons name="people-outline" size={18} color={theme.colors.G} />
+                <Ionicons name="person-add-outline" size={18} color={theme.colors.G} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
@@ -393,7 +428,7 @@ export default function MessagesTab() {
           </View>
           <Text style={stylesheet.emptyTitle}>No messages yet</Text>
           <Text style={stylesheet.emptySubtitle}>Say hello to someone in your neighbourhood.</Text>
-          <TouchableOpacity style={stylesheet.startBtn} onPress={() => router.push('/catalog?tab=Discover&circleMode=circle' as any)}>
+          <TouchableOpacity style={stylesheet.startBtn} onPress={() => setShowNewMessage(true)}>
             <Text style={stylesheet.startBtnText}>Start a Conversation</Text>
           </TouchableOpacity>
         </View>
@@ -501,6 +536,48 @@ export default function MessagesTab() {
           }}
         />
       )}
+
+      <Modal
+        visible={showNewMessage}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowNewMessage(false)}
+      >
+        <View style={stylesheet.modalBackdrop}>
+          <View style={[stylesheet.newMessageSheet, { backgroundColor: theme.colors.DARK, borderColor: theme.colors.GLASS_BORDER }]}>
+            <View style={stylesheet.newMessageHeader}>
+              <Text style={stylesheet.newMessageTitle}>New message</Text>
+              <TouchableOpacity onPress={() => setShowNewMessage(false)} accessibilityLabel="Close">
+                <Ionicons name="close" size={24} color={theme.colors.TEXT_PRIMARY} />
+              </TouchableOpacity>
+            </View>
+            {loadingMessageableUsers ? (
+              <ActivityIndicator style={{ marginVertical: 28 }} color={theme.colors.G} />
+            ) : messageableUsers.length === 0 ? (
+              <Text style={stylesheet.emptySubtitle}>Follow someone’s profile to start a direct message.</Text>
+            ) : (
+              <FlatList
+                data={messageableUsers}
+                keyExtractor={(item) => item.id}
+                keyboardShouldPersistTaps="handled"
+                renderItem={({ item }) => (
+                  <TouchableOpacity style={stylesheet.messageableUser} onPress={() => startDirectMessage(item.id)}>
+                    {item.avatar_url ? (
+                      <Image source={{ uri: item.avatar_url }} style={stylesheet.avatarImg} contentFit="cover" />
+                    ) : (
+                      <View style={stylesheet.avatarPlaceholder}>
+                        <Text style={stylesheet.avatarInitial}>{item.name?.charAt(0).toUpperCase() || '?'}</Text>
+                      </View>
+                    )}
+                    <Text style={stylesheet.name}>{item.name || 'YRDLY member'}</Text>
+                    <Feather name="chevron-right" size={18} color={theme.colors.LABEL} />
+                  </TouchableOpacity>
+                )}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -683,6 +760,11 @@ const _stylesheet = StyleSheet.create((theme) => ({
     borderRadius: 22,
   },
   startBtnText: { fontFamily: 'Outfit-Bold', fontSize: 14, color: '#000' },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' },
+  newMessageSheet: { maxHeight: '75%', padding: 18, paddingBottom: 28, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: 1 },
+  newMessageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  newMessageTitle: { fontFamily: 'Outfit-Bold', fontSize: 19, color: theme.colors.TEXT_PRIMARY },
+  messageableUser: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.colors.GLASS_BORDER },
   deleteAction: {
     backgroundColor: '#ef4444',
     justifyContent: 'center',
