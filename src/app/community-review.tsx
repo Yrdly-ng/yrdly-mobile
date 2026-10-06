@@ -4,9 +4,9 @@ import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshContr
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { supabase } from '../../lib/supabase';
-import { Community, CommunityService } from '../../lib/community-service';
-import { useAuth } from '../../hooks/use-supabase-auth';
+import { supabase } from '../lib/supabase';
+import { Community, CommunityService } from '../lib/community-service';
+import { useAuth } from '../hooks/use-supabase-auth';
 
 type ReviewItem = Community & { creator?: { name?: string; phone_verified?: boolean } | null };
 

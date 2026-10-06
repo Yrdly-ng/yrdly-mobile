@@ -26,7 +26,7 @@ export interface DisputeData {
   description?: string;
   evidence_urls?: string[];
   resolution?: string;
-  resolutionOperation?: { status: string; errorMessage?: string; resolution?: string; refundAmount?: number; sellerAmount?: number; createdAt?: string; updatedAt?: string } | null;
+  resolutionOperation?: { status: string; isStale?: boolean; errorMessage?: string; resolution?: string; refundAmount?: number; sellerAmount?: number; createdAt?: string; updatedAt?: string } | null;
   providerSubmissionStatus?: 'not_required' | 'processing' | 'submitted' | 'needs_reconciliation';
   providerSubmissionError?: string | null;
   status: 'open' | 'under_review' | 'resolved' | 'closed';

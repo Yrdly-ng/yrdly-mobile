@@ -315,7 +315,7 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
 
     const renderFooter = useCallback(
       (props: any) => {
-        const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+        const stylesheet = _stylesheet;
         return (
           <BottomSheetFooter {...props} bottomInset={0}>
             <View style={{ overflow: 'hidden' }}>

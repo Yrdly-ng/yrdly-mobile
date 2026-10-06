@@ -55,8 +55,8 @@ export default function AdminDisputeDetailScreen() {
   const fetchDispute = useCallback(async () => {
     if (!id || !user) return;
     try {
-      setAccessDenied(false);
       const data = await DisputeService.getDisputeDetails(id);
+      setAccessDenied(false);
       setDispute(data);
       setAdminNote(data?.adminNotes || data?.admin_notes || '');
       if (data?.resolutionOperation) {
@@ -74,7 +74,7 @@ export default function AdminDisputeDetailScreen() {
   }, [id, user]);
 
   useEffect(() => {
-    fetchDispute();
+    void fetchDispute();
   }, [fetchDispute]);
 
   const handleResolve = async () => {
@@ -178,9 +178,9 @@ export default function AdminDisputeDetailScreen() {
     ...(dispute.buyerEvidence?.photos || dispute.buyer_evidence?.photos || []),
     ...(dispute.sellerEvidence?.photos || dispute.seller_evidence?.photos || []),
   ];
-  const operationAge = Date.now() - new Date(dispute.resolutionOperation?.updatedAt || dispute.resolutionOperation?.createdAt || 0).getTime();
   const resolutionNeedsReconciliation = dispute.resolutionOperation?.status === 'needs_reconciliation'
-    || (dispute.resolutionOperation?.status === 'processing' && operationAge > 5 * 60 * 1000);
+    || dispute.resolutionOperation?.isStale === true;
+  const resolutionInProgress = dispute.resolutionOperation?.status === 'processing' && !resolutionNeedsReconciliation;
 
   return (
     <SafeAreaView style={[sStylesheet.container, { backgroundColor: theme.colors.DARK }]}>
@@ -429,8 +429,18 @@ export default function AdminDisputeDetailScreen() {
             </View>
           )}
 
+          {resolutionInProgress && (
+            <View style={[sStylesheet.section, { backgroundColor: theme.colors.SURFACE, borderColor: '#F59E0B' }]}>
+              <Text style={[sStylesheet.sectionTitle, { color: '#F59E0B' }]}>PAYMENT IS PROCESSING</Text>
+              <Text style={[sStylesheet.description, { color: theme.colors.LABEL, marginTop: 8 }]}>Wait for the provider result before resolving this dispute again. Refresh the details to check for an update; reconciliation becomes available if processing remains unresolved for five minutes.</Text>
+              <TouchableOpacity onPress={() => void fetchDispute()} style={[sStylesheet.resolveBtn, { backgroundColor: theme.colors.G, marginTop: 12 }]}>
+                <Text style={sStylesheet.resolveBtnText}>Refresh status</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Resolution controls — only for non-resolved disputes */}
-          {!isResolved && !resolutionNeedsReconciliation && (
+          {!isResolved && !resolutionNeedsReconciliation && !resolutionInProgress && (
             <View
               style={[
                 sStylesheet.section,

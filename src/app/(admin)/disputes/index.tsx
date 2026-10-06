@@ -56,8 +56,8 @@ export default function AdminDisputesScreen() {
   const fetchDisputes = useCallback(async () => {
     if (!user) return;
     try {
-      setAccessDenied(false);
       const { data } = await DisputeService.getDisputesByStatus(activeFilter);
+      setAccessDenied(false);
       setDisputes(data || []);
     } catch (e) {
       console.error('Fetch disputes error:', e);
@@ -69,7 +69,7 @@ export default function AdminDisputesScreen() {
   }, [user, activeFilter]);
 
   useEffect(() => {
-    fetchDisputes();
+    void fetchDisputes();
   }, [fetchDisputes]);
   const onRefresh = useCallback(() => {
     setRefreshing(true);

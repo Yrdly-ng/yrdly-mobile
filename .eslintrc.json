@@ -1,16 +1,22 @@
 {
-  "extends": ["expo", "expo/web"],
+  "extends": ["expo"],
   "ignorePatterns": [
     "dist",
     "node_modules",
     "build",
     ".expo",
-    "coverage"
+    "coverage",
+    "supabase/**",
+    "src/Root.tsx"
   ],
   "rules": {
     "react/no-unescaped-entities": "off",
-    "react-native/no-unused-styles": "warn",
     "no-unused-vars": "warn",
+    "react-hooks/immutability": "warn",
+    "react-hooks/set-state-in-effect": "warn",
+    "react-hooks/purity": "warn",
+    "react-hooks/refs": "warn",
+    "react-hooks/preserve-manual-memoization": "warn",
     "no-console": [
       "warn",
       {

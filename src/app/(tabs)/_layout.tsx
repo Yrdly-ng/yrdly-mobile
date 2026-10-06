@@ -84,10 +84,9 @@ function CreateMenuOverlay({
   onSelect: (route: string) => void;
 }) {
   const { theme } = useUnistyles(); const styles = sStylesheet;
+  const { profile } = useAuth();
 
   if (!visible) return null;
-
-  const { profile } = useAuth();
 
   const OPTIONS = [
     {

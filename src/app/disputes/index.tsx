@@ -17,7 +17,6 @@ export default function CustomerDisputesScreen() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    setLoading(true);
     try {
       setRows(await DisputeService.getDisputesByUser(user.id));
       setError('');
@@ -37,7 +36,7 @@ export default function CustomerDisputesScreen() {
         <Text style={{ color: theme.colors.TEXT_PRIMARY, fontSize: 19, fontWeight: '700', marginLeft: 14 }}>My disputes</Text>
       </View>
       {loading ? <ActivityIndicator style={{ marginTop: 48 }} color={theme.colors.G} /> : error ? (
-        <View style={{ padding: 24, alignItems: 'center' }}><Text style={{ color: theme.colors.LABEL, textAlign: 'center' }}>{error}</Text><TouchableOpacity onPress={load} style={{ padding: 16 }}><Text style={{ color: theme.colors.G }}>Try again</Text></TouchableOpacity></View>
+          <View style={{ padding: 24, alignItems: 'center' }}><Text style={{ color: theme.colors.LABEL, textAlign: 'center' }}>{error}</Text><TouchableOpacity onPress={() => { setLoading(true); void load(); }} style={{ padding: 16 }}><Text style={{ color: theme.colors.G }}>Try again</Text></TouchableOpacity></View>
       ) : (
         <FlatList
           data={rows}

@@ -50,7 +50,7 @@ export interface AuthUser {
   welcome_message_sent?: boolean;
   created_at?: string;
   updated_at?: string;
-  role?: 'user' | 'admin';
+  role?: 'user' | 'admin' | 'moderator';
   is_admin?: boolean;
   discoverable?: boolean;
 }
