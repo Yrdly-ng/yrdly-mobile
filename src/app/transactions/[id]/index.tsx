@@ -40,6 +40,7 @@ interface TxDetail {
   buyer_id: string;
   seller_id: string;
   refund_amount?: number | null;
+  disputes?: { id: string; status: string; created_at?: string }[];
   item: { id: string; title: string; images: string[] | null; price: number } | null;
   buyer: { id: string; name: string; avatar_url: string | null } | null;
   seller: { id: string; name: string; avatar_url: string | null } | null;
@@ -216,7 +217,7 @@ export default function TransactionDetailScreen() {
           payment_provider, payluk_tx_ref,
           created_at, paid_at, shipped_at, delivered_at, completed_at,
           buyer_id, seller_id,
-          disputes:disputes!disputes_transaction_id_fkey(refund_amount, seller_amount, status, resolved_at, created_at),
+          disputes:disputes!disputes_transaction_id_fkey(id, refund_amount, seller_amount, status, resolved_at, created_at),
           post_item:posts(id, title, text, image_urls, image_url, price),
           catalog_item:catalog_items(id, title, images, price),
           buyer:users!escrow_transactions_buyer_id_fkey(id, name, avatar_url),
@@ -354,6 +355,7 @@ export default function TransactionDetailScreen() {
       const normalised = {
         ...data,
         item: itemObj,
+        disputes: disputesList,
         refund_amount: refundAmount,
         buyer: Array.isArray(data.buyer) ? (data.buyer[0] ?? null) : data.buyer,
         seller: Array.isArray(data.seller) ? (data.seller[0] ?? null) : data.seller,
@@ -786,11 +788,20 @@ export default function TransactionDetailScreen() {
         {tx.status === 'disputed' && (
           <View style={[stylesheet.card, stylesheet.disputeCard]}>
             <Feather name="alert-triangle" size={20} color="#B71C1C" />
-            <Text style={stylesheet.disputeText}>
-              A dispute has been raised on this transaction. Our team will review and contact both
-              parties within 24 hours.
-            </Text>
+            <View style={{ flex: 1 }}>
+              <Text style={stylesheet.disputeText}>
+                A dispute has been raised on this transaction. Our team will review and contact both parties.
+              </Text>
+              {!!tx.disputes?.[0]?.id && <TouchableOpacity onPress={() => router.push(`/disputes/${tx.disputes![0].id}` as any)} style={{ paddingTop: 10 }}>
+                <Text style={{ color: '#B71C1C', fontWeight: '700' }}>View dispute details and history</Text>
+              </TouchableOpacity>}
+            </View>
           </View>
+        )}
+        {!!tx.disputes?.[0]?.id && tx.status !== 'disputed' && (
+          <TouchableOpacity style={[stylesheet.card, { padding: 16 }]} onPress={() => router.push(`/disputes/${tx.disputes![0].id}` as any)}>
+            <Text style={{ color: theme.colors.G, fontWeight: '700' }}>View dispute history</Text>
+          </TouchableOpacity>
         )}
 
         {/* Action buttons */}

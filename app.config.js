@@ -150,6 +150,7 @@ module.exports = {
     },
     extra: {
       router: {},
+      apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || 'https://app.yrdly.ng',
       eas: {
         projectId: "e7a4c0a6-f56c-4822-b2aa-e6c0eae694cf"
       }

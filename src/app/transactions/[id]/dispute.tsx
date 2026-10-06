@@ -14,15 +14,14 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import ImagePicker from 'react-native-image-crop-picker';
 import { Image } from 'expo-image';
-import { supabase } from '../../../lib/supabase';
+import { StorageService } from '../../../lib/storage-service';
 import { useAuth } from '../../../hooks/use-supabase-auth';
 import { DisputeService } from '../../../lib/dispute-service';
 
 const DISPUTE_REASONS = [
   { value: 'item_not_received', label: 'Item Not Received' },
-  { value: 'item_not_as_described', label: 'Item Not as Described' },
-  { value: 'counterfeit_item', label: 'Counterfeit / Fake Item' },
-  { value: 'damaged_item', label: 'Item Arrived Damaged' },
+  { value: 'item_different', label: 'Item Not as Described' },
+  { value: 'item_damaged', label: 'Item Arrived Damaged' },
   { value: 'seller_unresponsive', label: 'Seller is Unresponsive' },
   { value: 'other', label: 'Other' },
 ];
@@ -42,6 +41,7 @@ export default function DisputeScreen() {
 
   const pickPhotos = async () => {
     try {
+      if (photos.length >= 5) return Alert.alert('Limit reached', 'You can attach up to five files.');
       const image = await ImagePicker.openPicker({
         mediaType: 'photo',
         cropping: true,
@@ -52,7 +52,7 @@ export default function DisputeScreen() {
       });
 
       if (image) {
-        uploadPhotos([image.path]);
+        await uploadPhotos([image.path]);
       }
     } catch (e: any) {
       if (e.message !== 'User cancelled image selection') {
@@ -69,21 +69,16 @@ export default function DisputeScreen() {
     try {
       for (const uri of uris) {
         const ext = uri.split('.').pop()?.split('?')[0] || 'jpeg';
-        const fileName = `dispute_${user.id}_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-        const filePath = `disputes/${fileName}`;
-        const response = await fetch(uri);
-        const blob = await response.blob();
-        const { error } = await supabase.storage
-          .from('image')
-          .upload(filePath, blob, { contentType: `image/${ext}`, upsert: true });
-        if (!error) {
-          const { data } = supabase.storage.from('image').getPublicUrl(filePath);
-          if (data.publicUrl) uploaded.push(data.publicUrl);
-        }
+        const mime = ext.toLowerCase() === 'jpg' ? 'image/jpeg' : `image/${ext.toLowerCase()}`;
+        const { path, error } = await StorageService.uploadDisputeEvidence(id!, user.id, {
+          uri, name: `evidence_${Date.now()}.${ext}`, type: mime,
+        });
+        if (error || !path) throw error || new Error('Evidence upload failed');
+        uploaded.push(path);
       }
-      setPhotos((prev) => [...prev, ...uploaded]);
+      setPhotos((prev) => [...prev, ...uploaded].slice(0, 5));
     } catch (e) {
-      Alert.alert('Upload Failed', 'Some photos could not be uploaded.');
+      Alert.alert('Upload Failed', e instanceof Error ? e.message : 'Evidence could not be uploaded. Please try again.');
     } finally {
       setUploading(false);
     }
@@ -115,13 +110,15 @@ export default function DisputeScreen() {
           onPress: async () => {
             setSubmitting(true);
             try {
-              await DisputeService.openDispute(id, user.id, selectedReason, {
+              const opened = await DisputeService.openDispute(id, user.id, selectedReason, {
                 description: description.trim(),
                 photos,
               });
               Alert.alert(
-                'Dispute Opened',
-                'Our team will review your case and get back to you within 24 hours.',
+                opened.providerSubmissionStatus === 'needs_reconciliation' ? 'Dispute filed; provider sync needs review' : 'Dispute Opened',
+                opened.providerSubmissionStatus === 'needs_reconciliation'
+                  ? 'Your dispute is saved locally. Support must reconcile the Payluk submission before settlement.'
+                  : 'Our team will review your case and get back to you within 24 hours.',
                 [
                   {
                     text: 'OK',

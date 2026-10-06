@@ -15,16 +15,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../hooks/use-supabase-auth';
 import { Avatar } from '../../../components/Avatar';
+import { DisputeService } from '../../../lib/dispute-service';
 
 const RESOLUTION_OPTIONS = [
   { value: 'refund_buyer', label: 'Refund Buyer', icon: 'rotate-ccw' as const },
   { value: 'release_seller', label: 'Release Funds to Seller', icon: 'check-circle' as const },
   { value: 'partial_refund', label: 'Partial Refund', icon: 'percent' as const },
   { value: 'escalate', label: 'Escalate', icon: 'alert-triangle' as const },
-  { value: 'close', label: 'Close Without Action', icon: 'x-circle' as const },
 ];
 
 const STATUS_COLOR: Record<string, string> = {
@@ -50,42 +49,25 @@ export default function AdminDisputeDetailScreen() {
   const [resolving, setResolving] = useState(false);
   const [selectedResolution, setSelectedResolution] = useState('');
   const [adminNote, setAdminNote] = useState('');
+  const [partialRefund, setPartialRefund] = useState('');
   const [accessDenied, setAccessDenied] = useState(false);
 
   const fetchDispute = useCallback(async () => {
     if (!id || !user) return;
     try {
-      const { data: profile } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (!profile || profile.role !== 'admin') {
-        setAccessDenied(true);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('disputes')
-        .select(
-          `
-          *,
-          transaction:transactions(
-            id, amount, status, escrow_status,
-            buyer:users!transactions_buyer_id_fkey(id, name, avatar_url, email),
-            seller:users!transactions_seller_id_fkey(id, name, avatar_url, email),
-            catalog_item:catalog_items(id, name, images)
-          )
-        `
-        )
-        .eq('id', id)
-        .maybeSingle();
-
-      if (error) throw error;
+      setAccessDenied(false);
+      const data = await DisputeService.getDisputeDetails(id);
       setDispute(data);
+      setAdminNote(data?.adminNotes || data?.admin_notes || '');
+      if (data?.resolutionOperation) {
+        const refund = Number(data.resolutionOperation.refundAmount || 0);
+        const seller = Number(data.resolutionOperation.sellerAmount || 0);
+        setSelectedResolution(refund > 0 && seller > 0 ? 'partial_refund' : refund > 0 ? 'refund_buyer' : 'release_seller');
+        if (refund > 0 && seller > 0) setPartialRefund(String(refund));
+      }
     } catch (e) {
       console.error('Fetch dispute error:', e);
+      if (e instanceof Error && /admin|forbidden|403/i.test(e.message)) setAccessDenied(true);
     } finally {
       setLoading(false);
     }
@@ -101,7 +83,15 @@ export default function AdminDisputeDetailScreen() {
       return;
     }
 
-    Alert.alert(
+      const amount = Number(tx?.amount || 0);
+      const refundAmount = selectedResolution === 'refund_buyer' ? amount : selectedResolution === 'partial_refund' ? Number(partialRefund) : 0;
+      const sellerAmount = amount - refundAmount;
+      if (selectedResolution === 'partial_refund' && (!Number.isFinite(refundAmount) || refundAmount <= 0 || refundAmount >= amount)) {
+        Alert.alert('Invalid amount', 'Enter a refund greater than zero and less than the order total.');
+        return;
+      }
+
+      Alert.alert(
       'Confirm Resolution',
       `Apply "${RESOLUTION_OPTIONS.find((o) => o.value === selectedResolution)?.label}" to this dispute?`,
       [
@@ -112,35 +102,25 @@ export default function AdminDisputeDetailScreen() {
           onPress: async () => {
             setResolving(true);
             try {
-              await supabase
-                .from('disputes')
-                .update({
-                  status: selectedResolution === 'escalate' ? 'under_review' : 'resolved',
-                  resolution: selectedResolution,
-                  admin_note: adminNote.trim() || null,
-                  resolved_at: new Date().toISOString(),
-                  resolved_by: user!.id,
-                })
-                .eq('id', id);
-
-              // Update transaction escrow_status if applicable
-              if (dispute?.transaction?.id) {
-                if (selectedResolution === 'refund_buyer') {
-                  await supabase
-                    .from('transactions')
-                    .update({ escrow_status: 'refunded', status: 'refunded' })
-                    .eq('id', dispute.transaction.id);
-                } else if (selectedResolution === 'release_seller') {
-                  await supabase
-                    .from('transactions')
-                    .update({ escrow_status: 'released', status: 'completed' })
-                    .eq('id', dispute.transaction.id);
-                }
+              if (selectedResolution === 'escalate') {
+                await DisputeService.markUnderReview(id!, adminNote.trim() || undefined);
+                Alert.alert('Updated', 'Dispute moved under review.');
+                await fetchDispute();
+                return;
               }
-
-              Alert.alert('Done', 'Dispute resolved successfully.', [
-                { text: 'OK', onPress: () => router.back() },
-              ]);
+              if (adminNote.trim()) await DisputeService.addAdminNotes(id!, adminNote.trim());
+              const result = await DisputeService.resolveDispute(
+                id!, user!.id,
+                selectedResolution === 'refund_buyer' ? 'Full refund to buyer' : selectedResolution === 'release_seller' ? 'Release full amount to seller' : 'Partial refund to buyer',
+                refundAmount,
+                sellerAmount,
+              );
+              if (!result.success) {
+                Alert.alert('Reconciliation required', 'The payment outcome is uncertain. Do not retry this resolution; an administrator must verify the provider outcome.');
+                await fetchDispute();
+                return;
+              }
+              Alert.alert('Done', 'Dispute resolution completed successfully.', [{ text: 'OK', onPress: () => router.back() }]);
             } catch (e) {
               console.error('Resolve error:', e);
               Alert.alert('Error', 'Could not apply resolution. Try again.');
@@ -191,10 +171,16 @@ export default function AdminDisputeDetailScreen() {
   const tx = dispute.transaction;
   const buyer = tx?.buyer;
   const seller = tx?.seller;
-  const item = tx?.catalog_item;
+  const item = tx?.item || tx?.catalog_item;
   const statusColor = STATUS_COLOR[dispute.status] ?? '#6B7280';
   const isResolved = dispute.status === 'resolved' || dispute.status === 'closed';
-  const evidence: string[] = dispute.evidence_urls ?? [];
+  const evidence: string[] = [
+    ...(dispute.buyerEvidence?.photos || dispute.buyer_evidence?.photos || []),
+    ...(dispute.sellerEvidence?.photos || dispute.seller_evidence?.photos || []),
+  ];
+  const operationAge = Date.now() - new Date(dispute.resolutionOperation?.updatedAt || dispute.resolutionOperation?.createdAt || 0).getTime();
+  const resolutionNeedsReconciliation = dispute.resolutionOperation?.status === 'needs_reconciliation'
+    || (dispute.resolutionOperation?.status === 'processing' && operationAge > 5 * 60 * 1000);
 
   return (
     <SafeAreaView style={[sStylesheet.container, { backgroundColor: theme.colors.DARK }]}>
@@ -295,7 +281,7 @@ export default function AdminDisputeDetailScreen() {
               </Text>
               <Text style={[sStylesheet.detailRow, { color: theme.colors.TEXT_PRIMARY }]}>
                 <Text style={{ color: theme.colors.MUTED }}>Escrow: </Text>
-                {tx.escrow_status ?? '—'}
+                {tx.status ?? '—'}
               </Text>
               <Text style={[sStylesheet.detailRow, { color: theme.colors.TEXT_PRIMARY }]}>
                 <Text style={{ color: theme.colors.MUTED }}>Transaction ID: </Text>
@@ -314,18 +300,51 @@ export default function AdminDisputeDetailScreen() {
             <Text style={[sStylesheet.sectionTitle, { color: theme.colors.MUTED }]}>DISPUTE</Text>
             <Text style={[sStylesheet.detailRow, { color: theme.colors.TEXT_PRIMARY }]}>
               <Text style={{ color: theme.colors.MUTED }}>Reason: </Text>
-              {(dispute.reason ?? 'Unknown').replace(/_/g, ' ')}
+              {(dispute.disputeReason ?? dispute.dispute_reason ?? dispute.reason ?? 'Unknown').replace(/_/g, ' ')}
             </Text>
             <Text style={[sStylesheet.detailRow, { color: theme.colors.TEXT_PRIMARY }]}>
               <Text style={{ color: theme.colors.MUTED }}>Filed: </Text>
               {formatDate(dispute.created_at)}
             </Text>
-            {dispute.description && (
+            {(dispute.buyerEvidence?.description || dispute.sellerEvidence?.description || dispute.description) && (
               <Text style={[sStylesheet.description, { color: theme.colors.LABEL }]}>
-                {dispute.description}
+                {dispute.buyerEvidence?.description || dispute.sellerEvidence?.description || dispute.description}
               </Text>
             )}
           </View>
+
+          {dispute.providerSubmissionStatus && !['submitted', 'not_required'].includes(dispute.providerSubmissionStatus) && (
+            <View style={[sStylesheet.section, { backgroundColor: theme.colors.SURFACE, borderColor: '#EF4444' }]}>
+              <Text style={[sStylesheet.sectionTitle, { color: '#EF4444' }]}>PAYLUK DISPUTE SYNC NEEDS REVIEW</Text>
+              <Text style={[sStylesheet.description, { color: theme.colors.LABEL, marginTop: 8 }]}>{dispute.providerSubmissionStatus.replace(/_/g, ' ')}. Verify the Payluk dispute state before settlement. {dispute.providerSubmissionError || ''}</Text>
+              <TouchableOpacity
+                disabled={resolving}
+                onPress={() => Alert.alert('Confirm Payluk dispute', 'Have you verified in Payluk that this escrow is DISPUTED or INVESTIGATING?', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Yes, confirm', onPress: async () => {
+                    setResolving(true);
+                    try { await DisputeService.confirmPaylukSubmission(id!); await fetchDispute(); }
+                    catch (e) { Alert.alert('Could not confirm', e instanceof Error ? e.message : 'Try again.'); }
+                    finally { setResolving(false); }
+                  } },
+                ])}
+                style={[sStylesheet.resolveBtn, { backgroundColor: theme.colors.G, marginTop: 12 }]}
+              ><Text style={sStylesheet.resolveBtnText}>I verified the dispute exists in Payluk</Text></TouchableOpacity>
+              {dispute.providerSubmissionStatus === 'needs_reconciliation' && <TouchableOpacity
+                disabled={resolving}
+                onPress={() => Alert.alert('Retry Payluk submission?', 'Have you verified in Payluk that no dispute has been submitted for this escrow? This will send the saved buyer claim now.', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Yes, submit', style: 'destructive', onPress: async () => {
+                    setResolving(true);
+                    try { await DisputeService.retryPaylukSubmission(id!); await fetchDispute(); }
+                    catch (e) { Alert.alert('Payluk retry failed', e instanceof Error ? e.message : 'Verify provider state before retrying.'); }
+                    finally { setResolving(false); }
+                  } },
+                ])}
+                style={[sStylesheet.resolveBtn, { backgroundColor: '#9A3412', marginTop: 10 }]}
+              ><Text style={sStylesheet.resolveBtnText}>Payluk has no dispute; submit saved claim</Text></TouchableOpacity>}
+            </View>
+          )}
 
           {/* Evidence images */}
           {evidence.length > 0 && (
@@ -356,7 +375,7 @@ export default function AdminDisputeDetailScreen() {
           )}
 
           {/* Admin note (if already resolved) */}
-          {isResolved && dispute.admin_note && (
+          {isResolved && (dispute.resolution || dispute.resolutionOperation?.status) && (
             <View
               style={[
                 sStylesheet.section,
@@ -367,7 +386,7 @@ export default function AdminDisputeDetailScreen() {
                 RESOLUTION NOTE
               </Text>
               <Text style={[sStylesheet.description, { color: theme.colors.LABEL }]}>
-                {dispute.admin_note}
+                {dispute.resolutionOperation?.status ? `Payment operation: ${dispute.resolutionOperation.status.replace(/_/g, ' ')}` : ''}
               </Text>
               {dispute.resolution && (
                 <Text style={[sStylesheet.detailRow, { color: theme.colors.G }]}>
@@ -377,8 +396,41 @@ export default function AdminDisputeDetailScreen() {
             </View>
           )}
 
+          {resolutionNeedsReconciliation && (
+            <View style={[sStylesheet.section, { backgroundColor: theme.colors.SURFACE, borderColor: '#F59E0B' }]}>
+              <Text style={[sStylesheet.sectionTitle, { color: '#F59E0B' }]}>PAYMENT NEEDS RECONCILIATION</Text>
+              <Text style={[sStylesheet.description, { color: theme.colors.LABEL, marginTop: 8 }]}>Check the provider’s final status before choosing either outcome. Confirm there is no pending refund or payout before allowing a retry.</Text>
+              <TouchableOpacity
+                disabled={resolving}
+                onPress={() => Alert.alert('Confirm provider outcome', 'Have you verified that the full saved resolution was applied?', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Yes, finalize', onPress: async () => {
+                    setResolving(true);
+                    try { await DisputeService.reconcileResolution(id!, 'applied'); await fetchDispute(); Alert.alert('Reconciled', 'Dispute finalized from the verified provider result.'); }
+                    catch (e) { Alert.alert('Error', e instanceof Error ? e.message : 'Could not reconcile.'); }
+                    finally { setResolving(false); }
+                  } },
+                ])}
+                style={[sStylesheet.resolveBtn, { backgroundColor: theme.colors.G, marginTop: 12 }]}
+              ><Text style={sStylesheet.resolveBtnText}>Provider confirms payment applied</Text></TouchableOpacity>
+              <TouchableOpacity
+                disabled={resolving}
+                onPress={() => Alert.alert('Allow safe retry?', 'Have you verified that no refund or payout was applied and none is pending? The saved resolution will become retryable.', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Yes, allow retry', style: 'destructive', onPress: async () => {
+                    setResolving(true);
+                    try { await DisputeService.reconcileResolution(id!, 'not_applied'); await fetchDispute(); Alert.alert('Retry enabled', 'The saved resolution can now be retried.'); }
+                    catch (e) { Alert.alert('Error', e instanceof Error ? e.message : 'Could not reconcile.'); }
+                    finally { setResolving(false); }
+                  } },
+                ])}
+                style={[sStylesheet.resolveBtn, { backgroundColor: '#9A3412', marginTop: 10 }]}
+              ><Text style={sStylesheet.resolveBtnText}>Provider confirms no payment applied</Text></TouchableOpacity>
+            </View>
+          )}
+
           {/* Resolution controls — only for non-resolved disputes */}
-          {!isResolved && (
+          {!isResolved && !resolutionNeedsReconciliation && (
             <View
               style={[
                 sStylesheet.section,
@@ -430,6 +482,15 @@ export default function AdminDisputeDetailScreen() {
                 );
               })}
 
+              {selectedResolution === 'partial_refund' && <TextInput
+                value={partialRefund}
+                onChangeText={setPartialRefund}
+                keyboardType="decimal-pad"
+                placeholder="Refund amount (₦)"
+                placeholderTextColor={theme.colors.MUTED}
+                style={[sStylesheet.noteInput, { backgroundColor: theme.colors.SURFACE, color: theme.colors.TEXT_PRIMARY, borderColor: theme.colors.GLASS_BORDER }]}
+              />}
+
               <TextInput
                 value={adminNote}
                 onChangeText={setAdminNote}
@@ -449,7 +510,7 @@ export default function AdminDisputeDetailScreen() {
 
               <TouchableOpacity
                 onPress={handleResolve}
-                disabled={resolving || !selectedResolution}
+                disabled={resolving || !selectedResolution || resolutionNeedsReconciliation}
                 style={[
                   sStylesheet.resolveBtn,
                   {

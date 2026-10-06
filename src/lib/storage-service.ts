@@ -269,17 +269,18 @@ export class StorageService {
   /** Upload dispute evidence */
   static async uploadDisputeEvidence(
     transactionId: string,
+    userId: string,
     file: MobileFile
-  ): Promise<{ url: string | null; error: any }> {
-    const safeName = file.name.replace(/\s+/g, '_');
-    const path = `${transactionId}/${Date.now()}_${safeName}`;
+  ): Promise<{ path: string | null; error: any }> {
+    const safeName = file.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9._-]/g, '');
+    const path = `${transactionId}/${userId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${safeName}`;
 
     const { data, error } = await this.uploadFile('dispute-evidence', path, file, {
-      cacheControl: '86400',
+      cacheControl: '3600',
     });
-    if (error || !data) return { url: null, error };
+    if (error || !data) return { path: null, error: error || new Error('Upload returned no object') };
 
-    return { url: this.getPublicUrl('dispute-evidence', path), error: null };
+    return { path: data.path || path, error: null };
   }
 
   /** Upload a post video */

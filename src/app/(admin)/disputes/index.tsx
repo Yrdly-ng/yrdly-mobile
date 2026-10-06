@@ -1,5 +1,5 @@
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,9 +12,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../hooks/use-supabase-auth';
 import { Avatar } from '../../../components/Avatar';
+import { DisputeService } from '../../../lib/dispute-service';
 
 type DisputeStatus = 'all' | 'open' | 'under_review' | 'resolved' | 'closed';
 
@@ -56,40 +56,17 @@ export default function AdminDisputesScreen() {
   const fetchDisputes = useCallback(async () => {
     if (!user) return;
     try {
-      // Check admin role
-      const { data: profile } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (!profile || profile.role !== 'admin') {
-        setAccessDenied(true);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('disputes')
-        .select(
-          `
-          id, status, reason, created_at,
-          transaction:transactions(id, amount,
-            buyer:users!transactions_buyer_id_fkey(id, name, avatar_url),
-            seller:users!transactions_seller_id_fkey(id, name, avatar_url)
-          )
-        `
-        )
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      setAccessDenied(false);
+      const { data } = await DisputeService.getDisputesByStatus(activeFilter);
       setDisputes(data || []);
     } catch (e) {
       console.error('Fetch disputes error:', e);
+      if (e instanceof Error && /admin|forbidden|403/i.test(e.message)) setAccessDenied(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user]);
+  }, [user, activeFilter]);
 
   useEffect(() => {
     fetchDisputes();
@@ -99,10 +76,7 @@ export default function AdminDisputesScreen() {
     fetchDisputes();
   }, [fetchDisputes]);
 
-  const filtered = useMemo(
-    () => (activeFilter === 'all' ? disputes : disputes.filter((d) => d.status === activeFilter)),
-    [disputes, activeFilter]
-  );
+  const filtered = disputes;
 
   if (accessDenied) {
     return (
@@ -153,7 +127,7 @@ export default function AdminDisputesScreen() {
 
         {/* Reason */}
         <Text style={[sStylesheet.reason, { color: theme.colors.TEXT_PRIMARY }]} numberOfLines={2}>
-          {item.reason?.replace(/_/g, ' ') ?? 'Dispute'}
+          {item.disputeReason?.replace(/_/g, ' ') ?? item.dispute_reason?.replace(/_/g, ' ') ?? 'Dispute'}
         </Text>
 
         {/* Parties */}

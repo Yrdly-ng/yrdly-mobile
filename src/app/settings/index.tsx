@@ -165,6 +165,13 @@ export default function SettingsScreen() {
           />
           <SettingDivider />
           <SettingRow
+            icon={<Feather name="shield" size={16} color={theme.colors.TEXT_PRIMARY} />}
+            label="My disputes"
+            sub="Review your claims, evidence and outcomes"
+            onPress={() => router.push('/disputes' as any)}
+          />
+          <SettingDivider />
+          <SettingRow
             icon={<Ionicons name="wallet-outline" size={18} color={theme.colors.TEXT_PRIMARY} />}
             label="Payouts"
             sub="Manage your earnings & balances"
