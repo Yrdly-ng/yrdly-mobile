@@ -15,8 +15,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import ImagePicker from 'react-native-image-crop-picker';
 import { MagnifyingGlass, UsersThree, Lock, ArrowRight, Plus, ShieldCheck } from 'phosphor-react-native';
 import { CommunityService, Community, CommunityPrivacy } from '@/lib/community-service';
+import type { MobileFile } from '@/lib/storage-service';
 import { useAuth } from '@/hooks/use-supabase-auth';
 
 export default function CommunitiesIndexScreen() {
@@ -36,8 +38,8 @@ export default function CommunitiesIndexScreen() {
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState('');
-  const [bannerUrl, setBannerUrl] = useState('');
+  const [avatarFile, setAvatarFile] = useState<MobileFile | null>(null);
+  const [bannerFile, setBannerFile] = useState<MobileFile | null>(null);
   const [privacy, setPrivacy] = useState<CommunityPrivacy>('open');
 
   const loadMine = useCallback(async () => {
@@ -49,7 +51,7 @@ export default function CommunitiesIndexScreen() {
     if (!user?.id) return;
     const data = await CommunityService.listMyCommunitySubmissions(user.id).catch(() => []);
     setSubmissions(data);
-  }, [user?.id]);
+  }, [user]);
 
   const loadDiscover = useCallback(async (q?: string) => {
     const data = await CommunityService.discoverCommunities({ state: profile?.home_state ?? undefined, query: q }).catch(() => []);
@@ -75,6 +77,34 @@ export default function CommunitiesIndexScreen() {
     loadDiscover(t);
   };
 
+  const pickCommunityImage = async (kind: 'avatar' | 'banner') => {
+    try {
+      const image = await ImagePicker.openPicker({
+        mediaType: 'photo',
+        cropping: true,
+        width: kind === 'avatar' ? 900 : 1600,
+        height: kind === 'avatar' ? 900 : 600,
+        compressImageQuality: 0.88,
+        compressImageMaxWidth: 2000,
+        compressImageMaxHeight: 2000,
+      });
+      if (image.size > 10 * 1024 * 1024) {
+        Alert.alert('Image is too large', 'Choose an image under 10 MB.');
+        return;
+      }
+      const file: MobileFile = {
+        uri: image.path,
+        name: image.filename || `${kind}-${Date.now()}.jpg`,
+        type: image.mime || 'image/jpeg',
+        size: image.size,
+      };
+      if (kind === 'avatar') setAvatarFile(file);
+      else setBannerFile(file);
+    } catch (error: any) {
+      if (error?.code !== 'E_PICKER_CANCELLED') Alert.alert('Could not select image', error.message || 'Try another image.');
+    }
+  };
+
   const submitCommunity = async () => {
     if (!user?.id || !name.trim() || !description.trim()) {
       Alert.alert('Missing details', 'Add a community name and description to continue.');
@@ -86,12 +116,12 @@ export default function CommunitiesIndexScreen() {
         createdBy: user.id,
         name,
         description,
-        avatarUrl,
-        bannerUrl,
+        avatarFile,
+        bannerFile,
         privacy,
       });
       setShowCreate(false);
-      setName(''); setDescription(''); setAvatarUrl(''); setBannerUrl(''); setPrivacy('open');
+      setName(''); setDescription(''); setAvatarFile(null); setBannerFile(null); setPrivacy('open');
       await load();
       Alert.alert('Sent for review', 'Your community will appear after a moderator approves it.');
     } catch (error: any) {
@@ -259,8 +289,16 @@ export default function CommunitiesIndexScreen() {
             <ScrollView keyboardShouldPersistTaps="handled">
               <TextInput value={name} onChangeText={setName} maxLength={60} placeholder="Community name" placeholderTextColor={theme.colors.LABEL} style={[s.formInput, { color: theme.colors.TEXT_PRIMARY, borderColor: theme.colors.GLASS_BORDER }]} />
               <TextInput value={description} onChangeText={setDescription} maxLength={500} multiline placeholder="Description" placeholderTextColor={theme.colors.LABEL} style={[s.formInput, s.descriptionInput, { color: theme.colors.TEXT_PRIMARY, borderColor: theme.colors.GLASS_BORDER }]} />
-              <TextInput value={avatarUrl} onChangeText={setAvatarUrl} autoCapitalize="none" keyboardType="url" placeholder="Profile image URL" placeholderTextColor={theme.colors.LABEL} style={[s.formInput, { color: theme.colors.TEXT_PRIMARY, borderColor: theme.colors.GLASS_BORDER }]} />
-              <TextInput value={bannerUrl} onChangeText={setBannerUrl} autoCapitalize="none" keyboardType="url" placeholder="Banner image URL (optional)" placeholderTextColor={theme.colors.LABEL} style={[s.formInput, { color: theme.colors.TEXT_PRIMARY, borderColor: theme.colors.GLASS_BORDER }]} />
+              <Text style={{ color: theme.colors.TEXT_PRIMARY, marginBottom: 6 }}>Profile image <Text style={{ color: theme.colors.LABEL, fontSize: 11 }}>(optional, up to 10 MB)</Text></Text>
+              <TouchableOpacity onPress={() => pickCommunityImage('avatar')} style={[s.imagePickerRow, { borderColor: theme.colors.GLASS_BORDER }]}>
+                {avatarFile ? <Image source={{ uri: avatarFile.uri }} style={s.avatarPreview} /> : <View style={[s.avatarPreview, s.imagePlaceholder, { backgroundColor: theme.colors.SURFACE }]}><UsersThree size={21} color={theme.colors.LABEL} /></View>}
+                <Text style={{ color: theme.colors.G, fontFamily: 'Inter-SemiBold' }}>{avatarFile ? 'Change profile image' : 'Choose profile image'}</Text>
+              </TouchableOpacity>
+              <Text style={{ color: theme.colors.TEXT_PRIMARY, marginTop: 12, marginBottom: 6 }}>Banner image <Text style={{ color: theme.colors.LABEL, fontSize: 11 }}>(optional, up to 10 MB)</Text></Text>
+              <TouchableOpacity onPress={() => pickCommunityImage('banner')} style={[s.bannerPickerRow, { borderColor: theme.colors.GLASS_BORDER }]}>
+                {bannerFile ? <Image source={{ uri: bannerFile.uri }} style={s.bannerPreview} /> : <View style={[s.bannerPreview, s.imagePlaceholder, { backgroundColor: theme.colors.SURFACE }]}><UsersThree size={21} color={theme.colors.LABEL} /></View>}
+                <Text style={{ color: theme.colors.G, fontFamily: 'Inter-SemiBold' }}>{bannerFile ? 'Change banner image' : 'Choose banner image'}</Text>
+              </TouchableOpacity>
               <Text style={{ color: theme.colors.LABEL, marginTop: 4, marginBottom: 8 }}>Membership</Text>
               <View style={s.privacyOptions}>
                 {([['open', 'Anyone'], ['request', 'By request'], ['invite', 'Invite only']] as const).map(([value, label]) => (
@@ -314,6 +352,11 @@ const stylesheet = StyleSheet.create((theme) => ({
   createModal: { maxHeight: '90%', borderRadius: 18, borderWidth: 1, padding: 18 },
   formInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, marginBottom: 10, fontSize: 14 },
   descriptionInput: { minHeight: 90, textAlignVertical: 'top' },
+  imagePickerRow: { minHeight: 76, borderWidth: 1, borderStyle: 'dashed', borderRadius: 12, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  bannerPickerRow: { minHeight: 86, borderWidth: 1, borderStyle: 'dashed', borderRadius: 12, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  avatarPreview: { width: 54, height: 54, borderRadius: 27 },
+  bannerPreview: { width: 110, height: 62, borderRadius: 8 },
+  imagePlaceholder: { alignItems: 'center', justifyContent: 'center' },
   privacyOptions: { flexDirection: 'row', gap: 6, marginBottom: 10 },
   privacyOption: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10, borderWidth: 1 },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 12 },
