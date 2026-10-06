@@ -68,7 +68,7 @@ export function DiscoverPeopleSection({
 
   return (
     <View style={sStylesheet.container}>
-      {/* ── Segmented Mode Toggle (Nearby | My circle) ── */}
+      {/* ── Segmented Mode Toggle ── */}
       <View style={sStylesheet.toggleContainer}>
         <TouchableOpacity
           style={[sStylesheet.toggleButton, mode === 'nearby' && sStylesheet.toggleButtonActive]}
@@ -78,6 +78,14 @@ export function DiscoverPeopleSection({
           <Text style={[sStylesheet.toggleText, mode === 'nearby' && sStylesheet.toggleTextActive]}>
             Nearby
           </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={sStylesheet.toggleButton}
+          onPress={() => router.push('/communities' as any)}
+          activeOpacity={0.8}
+        >
+          <Text style={sStylesheet.toggleText}>Communities</Text>
         </TouchableOpacity>
 
         <TouchableOpacity

@@ -32,22 +32,13 @@ import { LocationPicker, LocationValue } from '../../components/LocationPicker';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { DiscoverPeopleSection } from '../../components/DiscoverPeopleSection';
 
-// When user taps 'Communities' in the Explore super-tab, navigate to the communities index
-function CommunitiesRedirect() {
-  const router = useRouter();
-  React.useEffect(() => { router.push('/communities' as any); }, []);
-  return null;
-}
-
-
 const { width } = Dimensions.get('window');
-type TabType = 'Discover' | 'Marketplace' | 'Events' | 'Businesses' | 'Communities';
+type TabType = 'Discover' | 'Marketplace' | 'Events' | 'Businesses';
 const TABS: { key: TabType; label: string }[] = [
   { key: 'Discover', label: 'Discover' },
   { key: 'Marketplace', label: 'Marketplace' },
   { key: 'Events', label: 'Events' },
   { key: 'Businesses', label: 'Business' },
-  { key: 'Communities', label: 'Communities' },
 ];
 
 const CATS = [
@@ -1275,8 +1266,6 @@ export default function CatalogTab() {
       {activeTab === 'Businesses' && (
         <PlacesSection currentLoc={currentLoc} search={debouncedSearch} />
       )}
-      {activeTab === 'Communities' && <CommunitiesRedirect />}
-
       <Modal visible={showLocationPicker} animationType="slide" transparent>
         <View style={sStylesheet.modalContainer}>
           <View style={sStylesheet.modalContent}>
