@@ -9,11 +9,14 @@ import {
   ActivityIndicator,
   RefreshControl,
   Image,
+  Modal,
+  ScrollView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { MagnifyingGlass, UsersThree, Lock, ArrowRight } from 'phosphor-react-native';
-import { CommunityService, Community } from '@/lib/community-service';
+import { MagnifyingGlass, UsersThree, Lock, ArrowRight, Plus, ShieldCheck } from 'phosphor-react-native';
+import { CommunityService, Community, CommunityPrivacy } from '@/lib/community-service';
 import { useAuth } from '@/hooks/use-supabase-auth';
 
 export default function CommunitiesIndexScreen() {
@@ -26,13 +29,27 @@ export default function CommunitiesIndexScreen() {
   const [query, setQuery] = useState('');
   const [myComms, setMyComms] = useState<Community[]>([]);
   const [discovered, setDiscovered] = useState<Community[]>([]);
+  const [submissions, setSubmissions] = useState<Community[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [bannerUrl, setBannerUrl] = useState('');
+  const [privacy, setPrivacy] = useState<CommunityPrivacy>('open');
 
   const loadMine = useCallback(async () => {
     const data = await CommunityService.listMyCommunities().catch(() => []);
     setMyComms(data);
   }, []);
+
+  const loadSubmissions = useCallback(async () => {
+    if (!user?.id) return;
+    const data = await CommunityService.listMyCommunitySubmissions(user.id).catch(() => []);
+    setSubmissions(data);
+  }, [user?.id]);
 
   const loadDiscover = useCallback(async (q?: string) => {
     const data = await CommunityService.discoverCommunities({ state: profile?.home_state ?? undefined, query: q }).catch(() => []);
@@ -41,9 +58,9 @@ export default function CommunitiesIndexScreen() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    await Promise.all([loadMine(), loadDiscover()]);
+    await Promise.all([loadMine(), loadDiscover(), loadSubmissions()]);
     setLoading(false);
-  }, [loadMine, loadDiscover]);
+  }, [loadMine, loadDiscover, loadSubmissions]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -56,6 +73,32 @@ export default function CommunitiesIndexScreen() {
   const onSearch = (t: string) => {
     setQuery(t);
     loadDiscover(t);
+  };
+
+  const submitCommunity = async () => {
+    if (!user?.id || !name.trim() || !description.trim()) {
+      Alert.alert('Missing details', 'Add a community name and description to continue.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await CommunityService.submitCommunity({
+        createdBy: user.id,
+        name,
+        description,
+        avatarUrl,
+        bannerUrl,
+        privacy,
+      });
+      setShowCreate(false);
+      setName(''); setDescription(''); setAvatarUrl(''); setBannerUrl(''); setPrivacy('open');
+      await load();
+      Alert.alert('Sent for review', 'Your community will appear after a moderator approves it.');
+    } catch (error: any) {
+      Alert.alert('Could not submit', error.message || 'Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const sections = useMemo(() => {
@@ -86,7 +129,36 @@ export default function CommunitiesIndexScreen() {
         <Text style={[s.title, { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-Bold' }]}>
           Communities
         </Text>
+        <TouchableOpacity
+          style={[s.createButton, { backgroundColor: profile?.phone_verified ? theme.colors.G : theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER }]}
+          onPress={() => profile?.phone_verified ? setShowCreate(true) : router.push('/verify-phone' as any)}
+        >
+          {profile?.phone_verified ? <Plus size={16} color="#000" /> : <ShieldCheck size={16} color={theme.colors.G} />}
+          <Text style={{ color: profile?.phone_verified ? '#000' : theme.colors.G, fontFamily: 'Inter-SemiBold', fontSize: 12 }}>
+            {profile?.phone_verified ? 'Create' : 'Verify to create'}
+          </Text>
+        </TouchableOpacity>
       </View>
+
+      {(profile?.role === 'admin' || profile?.role === 'moderator' || (profile as any)?.is_admin) && (
+        <TouchableOpacity onPress={() => router.push('/community-review' as any)} style={{ marginHorizontal: 16, marginTop: 6, marginBottom: 4 }}>
+          <Text style={{ color: theme.colors.G, fontFamily: 'Inter-SemiBold', fontSize: 12 }}>Review community submissions</Text>
+        </TouchableOpacity>
+      )}
+
+      {submissions.length > 0 && (
+        <View style={[s.submissionBox, { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER }]}>
+          <Text style={{ color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-SemiBold', marginBottom: 8 }}>Your submissions</Text>
+          {submissions.map((item) => (
+            <View key={item.id} style={s.submissionRow}>
+              <View style={{ flex: 1 }}><Text numberOfLines={1} style={{ color: theme.colors.TEXT_PRIMARY }}>{item.name}</Text>{item.approval_status === 'rejected' && item.rejection_reason ? <Text style={{ color: theme.colors.LABEL, fontSize: 11, marginTop: 2 }}>{item.rejection_reason}</Text> : null}</View>
+              <Text style={{ color: item.approval_status === 'pending' ? '#E8B54A' : '#EF4444', fontSize: 11 }}>
+                {item.approval_status === 'pending' ? 'Awaiting review' : 'Rejected'}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       {/* Search */}
       <View style={[s.searchRow, { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER }]}>
@@ -178,14 +250,44 @@ export default function CommunitiesIndexScreen() {
           )}
         />
       )}
+
+      <Modal visible={showCreate} animationType="slide" transparent onRequestClose={() => setShowCreate(false)}>
+        <View style={s.modalBackdrop}>
+          <View style={[s.createModal, { backgroundColor: theme.colors.DARK, borderColor: theme.colors.GLASS_BORDER }]}>
+            <Text style={{ color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-Bold', fontSize: 19 }}>Create a community</Text>
+            <Text style={{ color: theme.colors.LABEL, fontSize: 12, marginTop: 4, marginBottom: 12 }}>A moderator will review the details before it goes live.</Text>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <TextInput value={name} onChangeText={setName} maxLength={60} placeholder="Community name" placeholderTextColor={theme.colors.LABEL} style={[s.formInput, { color: theme.colors.TEXT_PRIMARY, borderColor: theme.colors.GLASS_BORDER }]} />
+              <TextInput value={description} onChangeText={setDescription} maxLength={500} multiline placeholder="Description" placeholderTextColor={theme.colors.LABEL} style={[s.formInput, s.descriptionInput, { color: theme.colors.TEXT_PRIMARY, borderColor: theme.colors.GLASS_BORDER }]} />
+              <TextInput value={avatarUrl} onChangeText={setAvatarUrl} autoCapitalize="none" keyboardType="url" placeholder="Profile image URL" placeholderTextColor={theme.colors.LABEL} style={[s.formInput, { color: theme.colors.TEXT_PRIMARY, borderColor: theme.colors.GLASS_BORDER }]} />
+              <TextInput value={bannerUrl} onChangeText={setBannerUrl} autoCapitalize="none" keyboardType="url" placeholder="Banner image URL (optional)" placeholderTextColor={theme.colors.LABEL} style={[s.formInput, { color: theme.colors.TEXT_PRIMARY, borderColor: theme.colors.GLASS_BORDER }]} />
+              <Text style={{ color: theme.colors.LABEL, marginTop: 4, marginBottom: 8 }}>Membership</Text>
+              <View style={s.privacyOptions}>
+                {([['open', 'Anyone'], ['request', 'By request'], ['invite', 'Invite only']] as const).map(([value, label]) => (
+                  <TouchableOpacity key={value} onPress={() => setPrivacy(value)} style={[s.privacyOption, { borderColor: privacy === value ? theme.colors.G : theme.colors.GLASS_BORDER, backgroundColor: privacy === value ? theme.colors.G + '18' : 'transparent' }]}>
+                    <Text style={{ color: privacy === value ? theme.colors.G : theme.colors.TEXT_PRIMARY, fontSize: 12 }}>{label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+            <View style={s.modalActions}>
+              <TouchableOpacity onPress={() => setShowCreate(false)} style={s.modalAction}><Text style={{ color: theme.colors.LABEL }}>Cancel</Text></TouchableOpacity>
+              <TouchableOpacity disabled={saving} onPress={submitCommunity} style={[s.modalAction, { backgroundColor: theme.colors.G }]}><Text style={{ color: '#000', fontFamily: 'Inter-SemiBold' }}>{saving ? 'Sending…' : 'Send for review'}</Text></TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const stylesheet = StyleSheet.create((theme) => ({
   root: { flex: 1 },
-  header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
+  header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: 26 },
+  createButton: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 20, borderWidth: 1 },
+  submissionBox: { marginHorizontal: 16, marginTop: 8, padding: 12, borderRadius: 12, borderWidth: 1 },
+  submissionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
   searchRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginHorizontal: 16, marginVertical: 8,
@@ -208,4 +310,12 @@ const stylesheet = StyleSheet.create((theme) => ({
   commDesc: { fontSize: 12 },
   emptyWrap: { alignItems: 'center', paddingTop: 60, gap: 12 },
   emptyText: { fontSize: 14, textAlign: 'center', maxWidth: 240 },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', padding: 16 },
+  createModal: { maxHeight: '90%', borderRadius: 18, borderWidth: 1, padding: 18 },
+  formInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, marginBottom: 10, fontSize: 14 },
+  descriptionInput: { minHeight: 90, textAlignVertical: 'top' },
+  privacyOptions: { flexDirection: 'row', gap: 6, marginBottom: 10 },
+  privacyOption: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10, borderWidth: 1 },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 12 },
+  modalAction: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10 },
 }));

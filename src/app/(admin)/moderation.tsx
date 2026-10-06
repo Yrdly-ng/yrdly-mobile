@@ -181,6 +181,10 @@ export default function ModerationQueueScreen() {
             </View>
           )}
         </View>
+        <TouchableOpacity onPress={() => router.push('/community-review' as any)} style={stylesheet.communityReviewBtn}>
+          <Feather name="users" size={16} color={theme.colors.G} />
+          <Text style={{ color: theme.colors.G, fontSize: 11, fontFamily: 'Inter-SemiBold' }}>Communities</Text>
+        </TouchableOpacity>
       </View>
 
       {loading ? (
@@ -238,6 +242,7 @@ const _stylesheet = StyleSheet.create((theme) => ({
     borderWidth: 1,
     borderColor: theme.colors.GLASS_BORDER,
   },
+  communityReviewBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 8, borderRadius: 10, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER },
   headerCenter: {
     flex: 1,
     flexDirection: 'row',
