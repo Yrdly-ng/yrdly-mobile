@@ -92,6 +92,7 @@ module.exports = {
         }
       ],
       "expo-router",
+      "crisp-sdk-react-native",
       [
         "expo-splash-screen",
         {

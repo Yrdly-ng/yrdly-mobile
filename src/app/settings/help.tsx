@@ -4,6 +4,7 @@ import { View, Text, TouchableOpacity, ScrollView, Linking } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
+import { isCrispChatEnabled, openCrispChat } from '../../components/CrispChat';
 
 interface FAQItem {
   q: string;
@@ -92,9 +93,16 @@ export default function HelpScreen() {
           <Text style={s.supportDesc}>
             Our support team is available to assist you with any questions or account issues.
           </Text>
-          <TouchableOpacity style={s.supportBtn} onPress={handleContactSupport}>
-            <Text style={s.supportBtnText}>Email Support</Text>
-          </TouchableOpacity>
+          <View style={s.supportActions}>
+            {isCrispChatEnabled && (
+              <TouchableOpacity style={s.chatSupportBtn} onPress={openCrispChat}>
+                <Text style={s.chatSupportBtnText}>Chat with support</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={s.supportBtn} onPress={handleContactSupport}>
+              <Text style={s.supportBtnText}>Email Support</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -178,13 +186,26 @@ const sStylesheet = StyleSheet.create((theme) => ({
     lineHeight: 20,
     marginBottom: 16,
   },
+  supportActions: { flexDirection: 'row', alignSelf: 'stretch', gap: 10 },
   supportBtn: {
+    flex: 1,
     height: 44,
-    paddingHorizontal: 24,
+    paddingHorizontal: 8,
     borderRadius: 22,
     backgroundColor: theme.colors.G,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  chatSupportBtn: {
+    flex: 1,
+    height: 44,
+    paddingHorizontal: 8,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: theme.colors.G,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   supportBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: theme.colors.TEXT_PRIMARY },
+  chatSupportBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: theme.colors.G },
 }));

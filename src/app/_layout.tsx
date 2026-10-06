@@ -16,6 +16,7 @@ import AnimatedSplashScreen from '../components/AnimatedSplashScreen';
 import { setAudioModeAsync } from 'expo-audio';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import CrispChat from '../components/CrispChat';
 import { useFonts } from 'expo-font';
 import {
   Outfit_300Light,
@@ -225,6 +226,7 @@ function Layout() {
               <ThemeProvider>
                 <BottomSheetModalProvider>
                   <AuthProvider>
+                    <CrispChat />
                     <LocationProvider>
                       <NotificationBadgeProvider>
                         <AudioSettingsHandler />
