@@ -135,6 +135,9 @@ module.exports = {
       [
         "expo-build-properties",
         {
+          ios: {
+            enableSceneSupport: true
+          },
           android: {
             enableMultiDex: true
           }

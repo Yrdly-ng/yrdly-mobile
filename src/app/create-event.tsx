@@ -77,8 +77,8 @@ export default function CreateEventScreen() {
   const [imageDimsMap, setImageDimsMap] = useState<{ [uri: string]: { w: number; h: number } }>({});
 
   const [tiers, setTiers] = useState<
-    Array<{ name: string; price: string; isFree: boolean; capacity: string }>
-  >([{ name: 'Standard Ticket', price: '0', isFree: true, capacity: '100' }]);
+    Array<{ id: string; name: string; price: string; isFree: boolean; capacity: string }>
+  >([{ id: '1', name: 'Standard Ticket', price: '0', isFree: true, capacity: '100' }]);
 
   const [publishing, setPublishing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -185,19 +185,19 @@ export default function CreateEventScreen() {
   const addTier = () => {
     setTiers((prev) => [
       ...prev,
-      { name: 'VIP Ticket', price: '1000', isFree: false, capacity: '50' },
+      { id: Date.now().toString(), name: 'VIP Ticket', price: '1000', isFree: false, capacity: '50' },
     ]);
   };
 
-  const removeTier = (index: number) => {
+  const removeTier = (id: string) => {
     if (tiers.length <= 1) return;
-    setTiers((prev) => prev.filter((_, i) => i !== index));
+    setTiers((prev) => prev.filter((t) => t.id !== id));
   };
 
-  const updateTier = (index: number, field: string, value: any) => {
+  const updateTier = (id: string, field: string, value: any) => {
     setTiers((prev) =>
-      prev.map((t, i) => {
-        if (i !== index) return t;
+      prev.map((t) => {
+        if (t.id !== id) return t;
         if (field === 'isFree') return { ...t, isFree: value, price: value ? '0' : t.price };
         return { ...t, [field]: value };
       })
@@ -734,7 +734,7 @@ export default function CreateEventScreen() {
             <Text style={stylesheet.stepDesc}>Add the ticket tiers available for your event.</Text>
 
             {tiers.map((t, idx) => (
-              <View key={idx} style={stylesheet.tierCard}>
+              <View key={t.id} style={stylesheet.tierCard}>
                 <View
                   style={{
                     flexDirection: 'row',
@@ -752,7 +752,7 @@ export default function CreateEventScreen() {
                     Ticket Tier {idx + 1}
                   </Text>
                   {tiers.length > 1 && (
-                    <TouchableOpacity onPress={() => removeTier(idx)} style={{ padding: 4 }}>
+                    <TouchableOpacity onPress={() => removeTier(t.id)} style={{ padding: 4 }}>
                       <Feather name="trash-2" size={18} color="#ef4444" />
                     </TouchableOpacity>
                   )}
@@ -764,7 +764,7 @@ export default function CreateEventScreen() {
                   placeholder="e.g. VIP Access"
                   placeholderTextColor={theme.colors.LABEL}
                   value={t.name}
-                  onChangeText={(val) => updateTier(idx, 'name', val)}
+                  onChangeText={(val) => updateTier(t.id, 'name', val)}
                 />
 
                 <View style={stylesheet.switchRow}>
@@ -773,7 +773,7 @@ export default function CreateEventScreen() {
                   </Text>
                   <Switch
                     value={t.isFree}
-                    onValueChange={(val) => updateTier(idx, 'isFree', val)}
+                    onValueChange={(val) => updateTier(t.id, 'isFree', val)}
                     trackColor={{ false: theme.colors.SURFACE, true: theme.colors.G }}
                   />
                 </View>
@@ -787,7 +787,7 @@ export default function CreateEventScreen() {
                       placeholderTextColor={theme.colors.LABEL}
                       keyboardType="numeric"
                       value={t.price ? Number(t.price).toLocaleString('en-US') : ''}
-                      onChangeText={(val) => updateTier(idx, 'price', val.replace(/[^0-9]/g, ''))}
+                      onChangeText={(val) => updateTier(t.id, 'price', val.replace(/[^0-9]/g, ''))}
                     />
                   </>
                 )}
@@ -799,7 +799,7 @@ export default function CreateEventScreen() {
                   placeholderTextColor={theme.colors.LABEL}
                   keyboardType="numeric"
                   value={t.capacity}
-                  onChangeText={(val) => updateTier(idx, 'capacity', val)}
+                  onChangeText={(val) => updateTier(t.id, 'capacity', val)}
                 />
               </View>
             ))}
