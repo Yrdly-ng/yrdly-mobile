@@ -29,12 +29,25 @@ interface EventCardProps {
 
 type BadgeType = 'Today' | 'Tomorrow' | 'This Weekend' | 'Free' | 'Trending' | 'New';
 
+function getEventPriceInfo(event: Post): { minPrice: number; isFree: boolean; hasTiers: boolean } {
+  const tiers: Array<{ price: number }> = (event as any).ticket_tiers || [];
+  if (tiers && tiers.length > 0) {
+    const prices = tiers.map((t) => Number(t.price) || 0);
+    const min = Math.min(...prices);
+    const allFree = prices.every((p) => p === 0);
+    return { minPrice: min, isFree: allFree, hasTiers: true };
+  }
+  const rawPrice = Number(event.price) || 0;
+  return { minPrice: rawPrice, isFree: rawPrice === 0, hasTiers: false };
+}
+
 function getEventBadge(event: Post): BadgeType | null {
   if (!event.event_date) return null;
   const d = new Date(event.event_date);
   const now = new Date();
   const diffDays = Math.floor((d.getTime() - now.getTime()) / 86400000);
-  if (event.price === 0 || !event.price) return 'Free';
+  const priceInfo = getEventPriceInfo(event);
+  if (priceInfo.isFree) return 'Free';
   const ageHours =
     (now.getTime() - new Date(event.timestamp || event.created_at || '').getTime()) / 3600000;
   if (ageHours < 12) return 'New';
@@ -456,11 +469,21 @@ export function EventCard({ event, onPress }: EventCardProps) {
               <AttendeeAvatars attendees={event.attendees as any} size={22} maxVisible={4} />
             </View>
 
-            <View style={f.priceWrap}>
-              <Text style={[f.price, { color: event.price ? theme.colors.G : '#22c55e' }]}>
-                {event.price === 0 || !event.price ? 'Free Entry' : formatPrice(event.price)}
-              </Text>
-            </View>
+            {(() => {
+              const priceInfo = getEventPriceInfo(event);
+              const label = priceInfo.isFree
+                ? 'Free Entry'
+                : priceInfo.hasTiers
+                ? `From ${formatPrice(priceInfo.minPrice)}`
+                : formatPrice(priceInfo.minPrice);
+              return (
+                <View style={f.priceWrap}>
+                  <Text style={[f.price, { color: !priceInfo.isFree ? theme.colors.G : '#22c55e' }]}>
+                    {label}
+                  </Text>
+                </View>
+              );
+            })()}
 
             <TouchableOpacity
               style={[
