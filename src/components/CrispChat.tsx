@@ -10,6 +10,8 @@ import {
   show,
 } from 'crisp-sdk-react-native';
 import { useAuth } from '../hooks/use-supabase-auth';
+import { supabase } from '../lib/supabase';
+import { WEB_APP_URL } from '../lib/api';
 
 const websiteId = process.env.EXPO_PUBLIC_CRISP_WEBSITE_ID;
 let configuredWebsiteId: string | null = null;
@@ -24,6 +26,10 @@ export function openCrispChat() {
 export default function CrispChat() {
   const { user, profile } = useAuth();
   const previousUserId = useRef<string | null>(null);
+  const currentUserId = useRef<string | null>(user?.id ?? null);
+  const currentEmail = useRef<string | null>(user?.email ?? null);
+  currentUserId.current = user?.id ?? null;
+  currentEmail.current = user?.email ?? null;
 
   useEffect(() => {
     if (!websiteId) {
@@ -51,7 +57,6 @@ export default function CrispChat() {
 
     if (!user) return;
 
-    if (user.email) setUserEmail(user.email);
     const currentProfile = profile?.id === user.id ? profile : null;
     const nickname = currentProfile?.name || currentProfile?.username;
     if (nickname) setUserNickname(nickname);
@@ -74,6 +79,58 @@ export default function CrispChat() {
       }
     }
   }, [user, profile]);
+
+  useEffect(() => {
+    if (!websiteId || configuredWebsiteId !== websiteId || !user?.id || !user.email) return;
+
+    const userId = user.id;
+    const email = user.email;
+    const controller = new AbortController();
+    let isCurrentRequest = true;
+
+    setUserEmail(email);
+
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    const identifyWithSignature = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error || !session?.access_token || controller.signal.aborted) return;
+
+        const response = await fetch(`${WEB_APP_URL}/api/crisp/identity`, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+
+        if (!response.ok) return;
+
+        const result = await response.json() as { email?: string; signature?: string };
+        if (
+          !isCurrentRequest ||
+          currentUserId.current !== userId ||
+          currentEmail.current !== email ||
+          result.email !== email ||
+          !result.signature
+        ) return;
+
+        setUserEmail(email, result.signature);
+      } catch {
+        // The unsigned email above remains the fallback.
+      } finally {
+        clearTimeout(timeout);
+      }
+    };
+
+    void identifyWithSignature();
+
+    return () => {
+      isCurrentRequest = false;
+      clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [user?.id, user?.email]);
 
   return null;
 }
