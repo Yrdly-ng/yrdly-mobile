@@ -72,14 +72,13 @@ export default function SignUpScreen() {
 
     const { error: err, session } = await signUp(cleanEmail, password, name);
     if (err) {
+      const errMsg = (err.message || "").toLowerCase();
       if (
-        err.message.toLowerCase().includes('already registered') ||
-        err.message.toLowerCase().includes('already in use')
+        errMsg.includes('already registered') ||
+        errMsg.includes('already in use') ||
+        errMsg.includes('already exists')
       ) {
-        try {
-          await supabase.auth.resend({ type: 'signup', email: cleanEmail });
-        } catch {}
-        router.push({ pathname: '/(auth)/verify-email', params: { email: cleanEmail } });
+        setError("An account with this email address already exists. Please log in instead.");
         return;
       }
       setError(err.message);

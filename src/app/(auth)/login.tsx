@@ -24,6 +24,7 @@ import { ONBOARDING_THEME } from '@/constants/onboarding-theme';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/use-supabase-auth';
 import { Ionicons } from '@expo/vector-icons';
+import { ErrorMessageFormatter } from '@/lib/error-messages';
 
 const { colors } = ONBOARDING_THEME;
 
@@ -37,20 +38,28 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
 
   const handleGoogle = async () => {
     setError('');
     const { error: err } = await signInWithGoogle();
-    if (err) setError(err.message);
+    if (err) setError(ErrorMessageFormatter.formatAuthError(err.message));
   };
 
   const handleApple = async () => {
     setError('');
     const { error: err } = await signInWithApple();
-    if (err) setError(err.message);
+    if (err) setError(ErrorMessageFormatter.formatAuthError(err.message));
   };
 
   const handleSignIn = async () => {
+    if (lockedUntil && Date.now() < lockedUntil) {
+      const secondsLeft = Math.ceil((lockedUntil - Date.now()) / 1000);
+      setError(`Too many attempts. You have been rate-limited for security reasons. Please wait ${secondsLeft}s before trying again.`);
+      return;
+    }
+
     if (!email || !password) {
       setError('Please fill in all required fields');
       return;
@@ -60,9 +69,27 @@ export default function LoginScreen() {
     setError('');
     const { error: err } = await signIn(cleanEmail, password);
     if (err) {
+      const newAttempts = failedAttempts + 1;
+      setFailedAttempts(newAttempts);
+
+      const errMsg = (err.message || "").toLowerCase();
+      const isRateLimited =
+        newAttempts >= 5 ||
+        errMsg.includes("rate limit") ||
+        errMsg.includes("rate_limit") ||
+        errMsg.includes("too many") ||
+        errMsg.includes("429") ||
+        errMsg.includes("security_purposes");
+
+      if (isRateLimited) {
+        setLockedUntil(Date.now() + 60000);
+        setError("Too many attempts. You have been rate-limited for security reasons. Please wait a few minutes before trying again.");
+        return;
+      }
+
       if (
-        err.message.toLowerCase().includes('email not confirmed') ||
-        err.message.toLowerCase().includes('unconfirmed')
+        errMsg.includes('email not confirmed') ||
+        errMsg.includes('unconfirmed')
       ) {
         try {
           await supabase.auth.resend({ type: 'signup', email: cleanEmail });
@@ -70,8 +97,10 @@ export default function LoginScreen() {
         router.push({ pathname: '/(auth)/verify-email', params: { email: cleanEmail } });
         return;
       }
-      setError(err.message);
+      setError(ErrorMessageFormatter.formatAuthError(err.message));
     } else {
+      setFailedAttempts(0);
+      setLockedUntil(null);
       router.push('/(tabs)');
     }
   };

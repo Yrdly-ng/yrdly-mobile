@@ -83,7 +83,26 @@ export class AuthService {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        const errMsg = (error.message || "").toLowerCase();
+        if (errMsg.includes("already registered") || errMsg.includes("already in use") || errMsg.includes("user_already_exists")) {
+          return {
+            user: null,
+            session: null,
+            error: new Error("An account with this email address already exists. Please log in instead."),
+          };
+        }
+        throw error;
+      }
+
+      if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        return {
+          user: null,
+          session: null,
+          error: new Error("An account with this email address already exists. Please log in instead."),
+        };
+      }
+
       return { user: data.user, session: data.session, error: null };
     } catch (error) {
       console.error('Sign up error:', error);
