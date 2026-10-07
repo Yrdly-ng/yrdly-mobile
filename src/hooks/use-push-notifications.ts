@@ -9,11 +9,22 @@ import { supabase } from '@/lib/supabase';
 import { getOrCreateDeviceId } from '@/lib/device-id';
 import { router } from 'expo-router';
 import { logError } from '@/lib/error-logger';
+import { isCrispPushNotification, openChat, registerPushToken } from 'crisp-sdk-react-native';
 
 // NO top-level Notifications calls here
 
 // appOwnership is 'expo' in Expo Go, null/undefined in production builds
 const isExpoGo = Constants.appOwnership === 'expo';
+
+function isCrispNotificationData(data: unknown): boolean {
+  if (!data || typeof data !== 'object') return false;
+
+  try {
+    return isCrispPushNotification(data as Record<string, string>);
+  } catch {
+    return false;
+  }
+}
 
 async function registerForPushNotificationsAsync(): Promise<string | null> {
   // Only skip in Expo Go — production APK/IPA should always register
@@ -41,10 +52,28 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
       return null;
     }
 
+    try {
+      const deviceToken = await Notifications.getDevicePushTokenAsync();
+      registerPushToken(deviceToken.data);
+    } catch (error) {
+      console.warn('Failed to register device push token with Crisp:', error);
+    }
+
     // Step 4a — handler (only now, after permission confirmed)
     Notifications.setNotificationHandler({
       handleNotification: async (notification) => {
-        const type = notification.request.content.data?.type as string | undefined;
+        const data = notification.request.content.data;
+        if (isCrispNotificationData(data)) {
+          return {
+            shouldShowAlert: false,
+            shouldPlaySound: false,
+            shouldSetBadge: false,
+            shouldShowBanner: false,
+            shouldShowList: false,
+          };
+        }
+
+        const type = data?.type as string | undefined;
         // Suppress OS push banner for events that already show in-app toasts
         // (escrow status changes and chat messages)
         const isToastCoveredEvent = type
@@ -181,13 +210,19 @@ export function usePushNotifications() {
 
       // Step 4d & 4e — listeners, only after successful registration
       notificationListener.current = Notifications.addNotificationReceivedListener((n) => {
+        if (isCrispNotificationData(n.request.content.data)) return;
         setNotification(n);
       });
 
       responseListener.current = Notifications.addNotificationResponseReceivedListener(
         (response) => {
-          console.log('Notification Response:', response);
           const data = response.notification.request.content.data;
+          if (isCrispNotificationData(data)) {
+            openChat();
+            return;
+          }
+
+          console.log('Notification Response:', response);
           const url = data?.url;
 
           if (typeof url === 'string') {

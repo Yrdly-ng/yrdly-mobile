@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import {
   configure,
   resetSession,
+  setShouldPromptForNotificationPermission,
   setSessionBool,
   setSessionString,
   setUserEmail,
@@ -33,6 +34,7 @@ export default function CrispChat() {
     }
 
     if (configuredWebsiteId !== websiteId) {
+      setShouldPromptForNotificationPermission(false);
       configure(websiteId);
       configuredWebsiteId = websiteId;
     }

@@ -91,8 +91,19 @@ module.exports = {
           androidCollapsedTitle: "Yrdly"
         }
       ],
+      process.env.EXPO_PUBLIC_CRISP_WEBSITE_ID
+        ? [
+            "crisp-sdk-react-native",
+            {
+              websiteId: process.env.EXPO_PUBLIC_CRISP_WEBSITE_ID,
+              notifications: {
+                enabled: true,
+                mode: "coexistence"
+              }
+            }
+          ]
+        : "crisp-sdk-react-native",
       "expo-router",
-      "crisp-sdk-react-native",
       [
         "expo-splash-screen",
         {
