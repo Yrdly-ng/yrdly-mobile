@@ -21,6 +21,7 @@ import { AlertBanner } from '../components/AlertBanner';
 import { NotificationService } from '../lib/notification-service';
 import * as SecureStore from 'expo-secure-store';
 import { AlertService } from '../lib/alert-service';
+import { getMobileNotificationDestination } from '../lib/notification-routing';
 
 interface Notification {
   id: string;
@@ -313,45 +314,7 @@ export default function NotificationsScreen() {
                       prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n))
                     );
                   }
-                  const t = item.type || '';
-                  if (t.includes('event')) {
-                    if (item.related_id) router.push(`/events/${item.related_id}` as any);
-                    else router.push('/events' as any);
-                  } else if (t.includes('marketplace') || t.includes('escrow')) {
-                    if (item.related_id) router.push(`/marketplace/${item.related_id}` as any);
-                    else router.push('/marketplace' as any);
-                  } else if (t === 'message') {
-                    if (item.related_id) router.push(`/chat/${item.related_id}` as any);
-                    else router.push('/messages' as any);
-                  } else if (
-                    [
-                      'payment_successful',
-                      'item_shipped',
-                      'delivery_confirmed',
-                      'funds_released',
-                      'dispute_opened',
-                      'dispute_resolved',
-                      'payout_processed',
-                      'payout_failed',
-                    ].includes(t)
-                  ) {
-                    if (item.related_id) router.push(`/transactions/${item.related_id}` as any);
-                    else router.push('/transactions' as any);
-                  } else if (
-                    ['friend_request', 'friend_request_accepted', 'new_follower'].includes(t)
-                  ) {
-                    const profileId = item.from_user_id || item.related_id;
-                    if (profileId) router.push(`/profile/${profileId}` as any);
-                    else router.push('/catalog?tab=Discover&circleMode=circle' as any);
-                  } else if (t.includes('alert') || t.includes('safety')) {
-                    if (item.related_id) router.push(`/alert/${item.related_id}` as any);
-                    else router.push('/alerts' as any);
-                  } else if (t === 'post_comment') {
-                    if (item.related_id)
-                      router.push(`/posts/${item.related_id}?focusComments=true` as any);
-                  } else if (item.related_id) {
-                    router.push(`/posts/${item.related_id}` as any);
-                  }
+                  router.push(getMobileNotificationDestination(item) as any);
                 }}
               >
                 <View style={stylesheet.avatarWrapper}>
