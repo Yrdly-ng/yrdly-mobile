@@ -12,15 +12,13 @@ export async function getStoredThemePreference(): Promise<'light' | 'dark' | nul
   }
 }
 
-// Synchronous read used to resolve the theme before the first paint.
+// DEPRECATED: Sync SecureStore.getItem crashes on iOS New Arch (SIGABRT) when
+// called during module evaluation (see YRDLY-2026-10-06-122102.ips).
+// Kept for backwards-compat but now safe - it no longer touches native code.
+// Use getStoredThemePreference() (async) instead - hydration happens in _layout.tsx.
 export function getStoredThemePreferenceSync(): 'light' | 'dark' | null {
-  try {
-    const value = SecureStore.getItem(THEME_PREFERENCE_KEY);
-    return value === 'light' || value === 'dark' ? value : null;
-  } catch (e) {
-    console.warn('[theme-preference] Failed to read stored theme', e);
-    return null;
-  }
+  console.warn('[theme-preference] getStoredThemePreferenceSync is deprecated - use async getStoredThemePreference()');
+  return null;
 }
 
 export async function setStoredThemePreference(theme: 'light' | 'dark'): Promise<void> {

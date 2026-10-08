@@ -1,6 +1,5 @@
 import { StyleSheet } from 'react-native-unistyles';
 import { Appearance } from 'react-native';
-import { getStoredThemePreferenceSync } from '../lib/theme-preference';
 import {
   G,
   GLOW,
@@ -111,6 +110,8 @@ StyleSheet.configure({
   },
   settings: {
     adaptiveThemes: false,
-    initialTheme: (getStoredThemePreferenceSync() ?? (Appearance.getColorScheme() === 'light' ? 'light' : 'dark')) as 'light' | 'dark',
+    // Use OS appearance only at startup. Stored preference is applied async
+    // in _layout.tsx after mount to avoid sync SecureStore crash (SIGABRT).
+    initialTheme: (Appearance.getColorScheme() === 'light' ? 'light' : 'dark') as 'light' | 'dark',
   },
 });

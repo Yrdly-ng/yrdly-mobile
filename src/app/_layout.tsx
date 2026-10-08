@@ -1,4 +1,7 @@
 import '../theme/unistyles';
+import { UnistylesRuntime } from 'react-native-unistyles';
+import { getStoredThemePreference } from '../lib/theme-preference';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ToastProvider } from '@/components/toast';
@@ -186,9 +189,16 @@ function RootNavigationGuard({
   );
 }
 
-import { KeyboardProvider } from 'react-native-keyboard-controller';
-
 function Layout() {
+  // Hydrate saved theme async AFTER mount - avoids sync SecureStore SIGABRT (see YRDLY-2026-10-06 IPS)
+  useEffect(() => {
+    getStoredThemePreference().then((pref) => {
+      if (pref && UnistylesRuntime.themeName !== pref) {
+        UnistylesRuntime.setTheme(pref);
+      }
+    }).catch(() => {});
+  }, []);
+
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => {});
   }, []);
