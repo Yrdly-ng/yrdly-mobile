@@ -26,7 +26,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v3
         with:
-          version: 9
+          version: 11.2.2
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -47,6 +47,9 @@ jobs:
           EXPO_PUBLIC_WEB_APP_URL=${{ secrets.EXPO_PUBLIC_WEB_APP_URL }}
           EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=${{ secrets.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY }}
           EXPO_PUBLIC_VEXO_API_KEY=${{ secrets.EXPO_PUBLIC_VEXO_API_KEY }}
+          EXPO_PUBLIC_SENTRY_DSN=${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
+          EXPO_PUBLIC_POSTHOG_KEY=${{ secrets.EXPO_PUBLIC_POSTHOG_KEY }}
+          EXPO_PUBLIC_POSTHOG_HOST=${{ secrets.EXPO_PUBLIC_POSTHOG_HOST }}
           EXPO_PUBLIC_TERMII_API_KEY=${{ secrets.EXPO_PUBLIC_TERMII_API_KEY }}
           EXPO_PUBLIC_POSTHOG_KEY=${{ secrets.EXPO_PUBLIC_POSTHOG_KEY }}
           EXPO_PUBLIC_POSTHOG_HOST=${{ secrets.EXPO_PUBLIC_POSTHOG_HOST }}
