@@ -15,6 +15,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../hooks/use-supabase-auth';
 import { supabase } from '../lib/supabase';
+import { assertMarketplaceListingUnpaid } from '../lib/marketplace-listing-service';
 import type { Post } from '../types';
 
 function parseImageUrls(val: any): string[] {
@@ -71,17 +72,19 @@ export default function MyListingsScreen() {
       // 2. Fetch escrow transactions where this user is the seller
       const { data: soldTxs } = await supabase
         .from('escrow_transactions')
-        .select('id, item_id, item_type, amount, status, created_at')
-        .eq('seller_id', user.id)
-        .in('status', ['paid', 'shipped', 'delivered', 'completed']);
+        .select('id, item_id, item_type, amount, status, paid_at, created_at')
+        .eq('seller_id', user.id);
 
-      if (soldTxs && soldTxs.length > 0) {
-        const soldItemIds = new Set(soldTxs.map((t) => t.item_id).filter(Boolean));
+      const paidStatuses = new Set(['paid', 'funds_held', 'disputed', 'shipped', 'delivered', 'completed', 'refunded']);
+      const paidTxs = (soldTxs || []).filter((tx) => tx.paid_at || paidStatuses.has(tx.status));
+
+      if (paidTxs.length > 0) {
+        const soldItemIds = new Set(paidTxs.map((t) => t.item_id).filter(Boolean));
 
         // Mark matching posts in allListings as sold
         allListings = allListings.map((p) => {
           if (soldItemIds.has(p.id)) {
-            return { ...p, is_sold: true };
+            return { ...p, is_sold: true, is_paid: true };
           }
           return p;
         });
@@ -91,7 +94,7 @@ export default function MyListingsScreen() {
         const missingItemIds = Array.from(soldItemIds).filter((id) => !existingIds.has(id));
 
         for (const itemId of missingItemIds) {
-          const matchingTx = soldTxs.find((t) => t.item_id === itemId);
+          const matchingTx = paidTxs.find((t) => t.item_id === itemId);
           if (!matchingTx) continue;
 
           // Try fetching from posts first
@@ -102,7 +105,7 @@ export default function MyListingsScreen() {
             .maybeSingle();
 
           if (postData) {
-            allListings.push({ ...postData, is_sold: true });
+            allListings.push({ ...postData, is_sold: true, is_paid: true });
           } else {
             // Try fetching from catalog_items
             const { data: catData } = await supabase
@@ -119,6 +122,7 @@ export default function MyListingsScreen() {
                 images: catData.images,
                 category: 'Catalog',
                 is_sold: true,
+                is_paid: true,
                 created_at: catData.created_at || matchingTx.created_at,
                 user_id: user.id,
               });
@@ -153,6 +157,8 @@ export default function MyListingsScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
+            if (!user) throw new Error('You must be logged in to delete a listing.');
+            await assertMarketplaceListingUnpaid(postId, user.id);
             await Promise.allSettled([
               supabase.from('comments').delete().eq('post_id', postId),
               supabase.from('post_likes').delete().eq('post_id', postId),
@@ -316,7 +322,7 @@ export default function MyListingsScreen() {
               <Feather name="edit-2" size={16} color={theme.colors.TEXT_PRIMARY} />
             </TouchableOpacity>
 
-            <TouchableOpacity
+            {!item.is_paid && <TouchableOpacity
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -332,7 +338,7 @@ export default function MyListingsScreen() {
               onPress={() => handleDeleteListing(item.id)}
             >
               <Feather name="trash-2" size={16} color="#EF4444" />
-            </TouchableOpacity>
+            </TouchableOpacity>}
           </View>
         </View>
       </TouchableOpacity>

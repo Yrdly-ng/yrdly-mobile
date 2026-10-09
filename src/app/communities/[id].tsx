@@ -204,6 +204,7 @@ export default function CommunityFeedScreen() {
 
   const [community, setCommunity] = useState<Community | null>(null);
   const [membership, setMembership] = useState<CommunityMembership | null>(null);
+  const [joinRequest, setJoinRequest] = useState<{ status: 'pending' | 'approved' | 'rejected' } | null>(null);
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -212,16 +213,19 @@ export default function CommunityFeedScreen() {
   // Compose state
   const [composeText, setComposeText] = useState('');
   const [posting, setPosting] = useState(false);
+  const [joining, setJoining] = useState(false);
 
   const load = useCallback(async () => {
     if (!id || !user) return;
-    const [comm, mem, postsData] = await Promise.all([
+    const [comm, mem, request, postsData] = await Promise.all([
       CommunityService.getCommunity(id),
-      CommunityService.getMyMembership(id),
+      CommunityService.getMyMembership(id, user.id),
+      CommunityService.getMyJoinRequest(id, user.id),
       CommunityService.fetchPosts(id),
     ]);
     setCommunity(comm);
     setMembership(mem);
+    setJoinRequest(request);
     // Attach liked_by_me
     if (postsData.length) {
       const { data: likedRows } = await supabase
@@ -263,18 +267,22 @@ export default function CommunityFeedScreen() {
   };
 
   const handleJoin = async () => {
-    if (!user || !community) return;
+    if (!user || !community || joining || joinRequest) return;
+    setJoining(true);
     try {
       if (community.privacy === 'open') {
         await CommunityService.joinCommunity(community.id, user.id);
         showToast({ message: `Joined ${community.name}` });
       } else if (community.privacy === 'request') {
         await CommunityService.requestToJoin(community.id, user.id);
+        setJoinRequest({ status: 'pending' });
         showToast({ message: 'Join request sent!' });
       }
-      load();
+      await load();
     } catch (e: any) {
       showToast({ message: e.message ?? 'Could not join community' });
+    } finally {
+      setJoining(false);
     }
   };
 
@@ -403,10 +411,11 @@ export default function CommunityFeedScreen() {
                   <TouchableOpacity
                     style={[s.joinBtn, { backgroundColor: theme.colors.G }]}
                     onPress={handleJoin}
+                    disabled={joining || !!joinRequest}
                     activeOpacity={0.85}
                   >
                     <Text style={{ color: '#fff', fontFamily: 'Inter-Bold', fontSize: 15 }}>
-                      {community.privacy === 'open' ? 'Join Community' : 'Request to Join'}
+                      {joining ? 'Sending…' : community.privacy === 'open' ? 'Join Community' : joinRequest?.status === 'pending' ? 'Request Pending' : joinRequest?.status === 'rejected' ? 'Request Declined' : 'Request to Join'}
                     </Text>
                   </TouchableOpacity>
                 )}

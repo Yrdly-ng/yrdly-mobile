@@ -32,6 +32,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useIsFocused } from 'expo-router/react-navigation';
 import { supabase } from '../../lib/supabase';
+import { assertMarketplaceListingUnpaid } from '../../lib/marketplace-listing-service';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { Post, User } from '../../types';
 import { formatPrice, timeAgo } from '../../lib/utils';
@@ -309,6 +310,7 @@ function MarketplaceDetailContent() {
           onPress: async () => {
             if (!user || !post) return;
             try {
+              await assertMarketplaceListingUnpaid(post.id, user.id);
               await Promise.allSettled([
                 supabase.from('comments').delete().eq('post_id', post.id),
                 supabase.from('post_likes').delete().eq('post_id', post.id),

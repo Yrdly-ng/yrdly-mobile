@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { StorageService, MobileFile } from '@/lib/storage-service';
 import { UserActivityService } from '@/lib/user-activity-service';
 import { ModerationService } from '@/lib/moderation-service';
+import { assertMarketplaceListingUnpaid } from '@/lib/marketplace-listing-service';
 
 import { Post, Business } from '@/types';
 import { useToast } from '@/components/toast';
@@ -1023,15 +1024,12 @@ export const usePosts = (filter?: LocationFilter | null) => {
         return;
       }
 
-      // Optimistically remove from UI
-      setPosts((prev) => prev.filter((p) => p.id !== postId));
-
       try {
         let table = 'posts';
         // First, get the post to retrieve image and video URLs
         let { data: postData, error: fetchError } = await supabase
           .from('posts')
-          .select('image_urls, video_urls')
+          .select('image_urls, video_urls, category, price')
           .eq('id', postId)
           .single();
 
@@ -1057,6 +1055,10 @@ export const usePosts = (filter?: LocationFilter | null) => {
                   : [],
             video_urls: [],
           } as any;
+        }
+
+        if (table === 'posts' && (['For Sale', 'Giveaway'].includes((postData as any).category) || Number((postData as any).price) > 0)) {
+          await assertMarketplaceListingUnpaid(postId, user.id);
         }
 
         // Clean up child records to satisfy FK constraints if any
@@ -1118,6 +1120,7 @@ export const usePosts = (filter?: LocationFilter | null) => {
       } catch (error: any) {
         console.error('deletePost error:', error);
         showToast({ message: error?.message || 'Failed to delete post.' });
+        throw error;
       }
     },
     [user, showToast]

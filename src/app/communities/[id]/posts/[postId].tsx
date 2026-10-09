@@ -101,7 +101,7 @@ export default function CommunityPostDetailScreen() {
     if (!text.trim() || !user || !post || !id) return;
     setSending(true);
     try {
-      const membership = await CommunityService.getMyMembership(id);
+      const membership = await CommunityService.getMyMembership(id, user.id);
       await CommunityService.createComment({
         postId: post.id,
         communityId: id,
