@@ -6,6 +6,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { setStoredThemePreference } from '../../lib/theme-preference';
+import { openPrivacyPolicy, openTerms } from '../../lib/legal';
 
 function SettingSection({ title, children }: { title: string; children: React.ReactNode }) {
   const s = sStylesheet;
@@ -207,6 +208,20 @@ export default function SettingsScreen() {
             sub="Manage who can't see or contact you"
             value={profile?.blocked_users?.length ? String(profile.blocked_users.length) : '0'}
             onPress={() => router.push('/settings/blocked' as any)}
+          />
+          <SettingDivider />
+          <SettingRow
+            icon={<Feather name="file-text" size={16} color={theme.colors.TEXT_PRIMARY} />}
+            label="Privacy Policy"
+            sub="How we collect and use your data"
+            onPress={openPrivacyPolicy}
+          />
+          <SettingDivider />
+          <SettingRow
+            icon={<Feather name="book" size={16} color={theme.colors.TEXT_PRIMARY} />}
+            label="Terms of Service"
+            sub="Rules for using Yrdly"
+            onPress={openTerms}
           />
         </SettingSection>
 

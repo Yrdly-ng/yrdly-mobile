@@ -3,6 +3,9 @@ import { User } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
+import { Platform } from 'react-native';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -190,18 +193,70 @@ export class AuthService {
   }
 
   // Sign in with Apple
+  // iOS: native Apple sheet + ID token (Guideline 4.8). Android: Supabase web OAuth in an auth session.
   static async signInWithApple() {
     try {
+      if (Platform.OS === 'ios') {
+        const rawNonce = Crypto.randomUUID();
+        const hashedNonce = await Crypto.digestStringAsync(
+          Crypto.CryptoDigestAlgorithm.SHA256,
+          rawNonce
+        );
+        const credential = await AppleAuthentication.signInAsync({
+          requestedScopes: [
+            AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+            AppleAuthentication.AppleAuthenticationScope.EMAIL,
+          ],
+          nonce: hashedNonce,
+        });
+        if (!credential.identityToken) throw new Error('Apple did not return an identity token');
+
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: 'apple',
+          token: credential.identityToken,
+          nonce: rawNonce,
+        });
+        if (error) throw error;
+
+        // Apple only shares the user's name on the very first sign-in, so persist it now.
+        const fullName = [credential.fullName?.givenName, credential.fullName?.familyName]
+          .filter(Boolean)
+          .join(' ');
+        if (fullName) {
+          await supabase.auth.updateUser({ data: { full_name: fullName, name: fullName } });
+        }
+
+        return { data, error: null };
+      }
+
+      const redirectTo = this.getRedirectUrl();
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
-        options: {
-          redirectTo: this.getRedirectUrl(),
-        },
+        options: { redirectTo, skipBrowserRedirect: true },
       });
-
       if (error) throw error;
+
+      if (data?.url) {
+        const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+        if (result.type === 'success' && result.url) {
+          const code = new URLSearchParams(result.url.split('?')[1] || '').get('code');
+          if (code) {
+            await supabase.auth.exchangeCodeForSession(code);
+          } else {
+            const hashParams = new URLSearchParams(result.url.split('#')[1] || '');
+            const access_token = hashParams.get('access_token');
+            const refresh_token = hashParams.get('refresh_token');
+            if (access_token && refresh_token) {
+              await supabase.auth.setSession({ access_token, refresh_token });
+            }
+          }
+        }
+      }
+
       return { data, error: null };
-    } catch (error) {
+    } catch (error: any) {
+      // User closed the Apple sheet — not an error worth showing.
+      if (error?.code === 'ERR_REQUEST_CANCELED') return { data: null, error: null };
       console.error('Apple sign in error:', error);
       return { data: null, error };
     }

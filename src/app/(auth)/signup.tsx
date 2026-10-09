@@ -25,6 +25,7 @@ import { ONBOARDING_THEME } from '@/constants/onboarding-theme';
 import { AuthService } from '@/lib/auth-service';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/use-supabase-auth';
+import { openPrivacyPolicy, openTerms } from '@/lib/legal';
 import { Ionicons } from '@expo/vector-icons';
 
 const { colors } = ONBOARDING_THEME;
@@ -155,6 +156,18 @@ export default function SignUpScreen() {
               </View>
 
               <PrimaryBtn label="Create Account" onClick={handleSignUp} disabled={loading} />
+
+              <Text style={[styles.crossLinkText, { textAlign: 'center', marginTop: 12 }]}>
+                By creating an account, you agree to our{' '}
+                <Text style={styles.crossLinkAction} onPress={openTerms}>
+                  Terms of Service
+                </Text>{' '}
+                and{' '}
+                <Text style={styles.crossLinkAction} onPress={openPrivacyPolicy}>
+                  Privacy Policy
+                </Text>
+                .
+              </Text>
 
               <Divider label="or continue with" />
 

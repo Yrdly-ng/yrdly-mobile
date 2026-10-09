@@ -21,3 +21,5 @@ allowBuilds:
   unrs-resolver: true
   "@callstack/liquid-glass": true
   esbuild: true
+  # sentry-cli binary is only needed for source map / dSYM uploads, which are disabled
+  "@sentry/cli": false

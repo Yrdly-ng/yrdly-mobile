@@ -1,4 +1,5 @@
 import '../theme/unistyles';
+import { identifyUser, trackScreen, wrapRoot } from '../lib/monitoring';
 import { UnistylesRuntime } from 'react-native-unistyles';
 import { getStoredThemePreference } from '../lib/theme-preference';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
@@ -62,6 +63,21 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 });
 
 
+
+function MonitoringTracker() {
+  const { user } = useAuth();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    identifyUser(user?.id ?? null);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (pathname) trackScreen(pathname);
+  }, [pathname]);
+
+  return null;
+}
 
 function NotificationsHandler() {
   usePushNotifications();
@@ -237,6 +253,7 @@ function Layout() {
                 <BottomSheetModalProvider>
                   <AuthProvider>
                     <CrispChat />
+                    <MonitoringTracker />
                     <LocationProvider>
                       <NotificationBadgeProvider>
                         <AudioSettingsHandler />
@@ -254,4 +271,4 @@ function Layout() {
   );
 }
 
-export default Layout;
+export default wrapRoot(Layout);

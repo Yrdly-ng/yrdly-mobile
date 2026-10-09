@@ -1,4 +1,5 @@
 import { ErrorMessageFormatter } from './error-messages';
+import { captureError } from './monitoring';
 
 export interface LogErrorOptions {
   context?: string;
@@ -20,8 +21,7 @@ export function logError(
   const stack = error instanceof Error ? error.stack : undefined;
 
   console.error(`[${context}] Error:`, error);
-
-
+  captureError(error, context, extraProps);
 
   if (customMessage) {
     return customMessage;

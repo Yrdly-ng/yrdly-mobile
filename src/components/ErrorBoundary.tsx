@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { captureError } from '../lib/monitoring';
 
 interface Props {
   children: React.ReactNode;
@@ -37,6 +38,9 @@ export class ErrorBoundary extends React.Component<Props, State> {
       JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
     );
     console.error(`${prefix} Component Stack:\n`, info.componentStack);
+    captureError(error, `error_boundary${this.props.screenName ? `:${this.props.screenName}` : ''}`, {
+      componentStack: info.componentStack,
+    });
 
   }
 
