@@ -1,8 +1,6 @@
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Platform } from 'react-native';
-import * as AppleAuthentication from 'expo-apple-authentication';
-import { FunctionsHttpError } from '@supabase/supabase-js';
+import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -21,7 +19,7 @@ export default function DeleteAccountScreen() {
 
     Alert.alert(
       'Are you absolutely sure?',
-      'This cannot be undone. Your profile, posts and comments will be permanently deleted and you will be signed out.',
+      'This action cannot be undone. All your data, messages, posts, and transactions will be permanently deleted.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -30,39 +28,17 @@ export default function DeleteAccountScreen() {
           onPress: async () => {
             setLoading(true);
             try {
-              // Sign in with Apple accounts must have their Apple token revoked on deletion;
-              // a fresh authorization code lets the server do that.
-              let appleAuthorizationCode: string | undefined;
-              const { data: sessionData } = await supabase.auth.getSession();
-              const providers: string[] = sessionData.session?.user.app_metadata?.providers ?? [];
-              if (Platform.OS === 'ios' && providers.includes('apple')) {
-                try {
-                  const credential = await AppleAuthentication.signInAsync();
-                  appleAuthorizationCode = credential.authorizationCode ?? undefined;
-                } catch (e: any) {
-                  if (e?.code === 'ERR_REQUEST_CANCELED') {
-                    setLoading(false);
-                    return;
-                  }
-                }
-              }
+              // Mark the user profile as delete_requested
+              const { error } = await supabase
+                .from('users')
+                .update({ delete_requested: true, delete_requested_at: new Date().toISOString() })
+                .eq('id', user.id);
 
-              const { error } = await supabase.functions.invoke('delete-account', {
-                body: { appleAuthorizationCode },
-              });
-
-              if (error) {
-                let message = error.message;
-                if (error instanceof FunctionsHttpError) {
-                  const body = await error.context.json().catch(() => null);
-                  if (body?.error) message = body.error;
-                }
-                throw new Error(message);
-              }
+              if (error) throw error;
 
               Alert.alert(
-                'Account Deleted',
-                'Your account has been deleted. You will be signed out now.',
+                'Request Submitted',
+                'Your account deletion request has been submitted. You will be signed out now. The process will complete within 30 days.',
                 [
                   {
                     text: 'OK',
@@ -73,7 +49,7 @@ export default function DeleteAccountScreen() {
                 ]
               );
             } catch (err: any) {
-              Alert.alert('Could not delete account', err.message || 'Please try again.');
+              Alert.alert('Error', err.message || 'Failed to submit deletion request.');
               setLoading(false);
             }
           },
@@ -99,12 +75,12 @@ export default function DeleteAccountScreen() {
           </View>
           <Text style={s.warningTitle}>Warning</Text>
           <Text style={s.warningText}>
-            Deleting your account permanently removes your profile, posts and comments, and you
-            will no longer be able to sign in.
+            Submitting an account deletion request will schedule your account and all associated
+            data (posts, messages, transaction history) to be permanently deleted from our servers.
           </Text>
           <Text style={s.warningText}>
-            This action is irreversible. Records of completed payments are kept only where the law
-            requires it. Orders with money still in escrow must be completed first.
+            This action is irreversible. For security reasons, the deletion process may take up to
+            30 days to complete, but you will lose access to your account immediately.
           </Text>
         </View>
 
@@ -116,7 +92,7 @@ export default function DeleteAccountScreen() {
           {loading ? (
             <ActivityIndicator color={theme.colors.TEXT_PRIMARY} />
           ) : (
-            <Text style={s.deleteBtnText}>Delete My Account</Text>
+            <Text style={s.deleteBtnText}>Request Account Deletion</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
