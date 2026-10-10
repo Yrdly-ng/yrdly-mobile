@@ -1,4 +1,3 @@
-import '../theme/unistyles';
 import { UnistylesRuntime } from 'react-native-unistyles';
 import { getStoredThemePreference } from '../lib/theme-preference';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
@@ -6,7 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ToastProvider } from '@/components/toast';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import { Stack, useRouter, useSegments, usePathname, useGlobalSearchParams } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { usePushNotifications } from '../hooks/use-push-notifications';
 import { AuthProvider, useAuth } from '../hooks/use-supabase-auth';
@@ -17,7 +16,6 @@ import * as SplashScreen from 'expo-splash-screen';
 import AnimatedSplashScreen from '../components/AnimatedSplashScreen';
 
 import { setAudioModeAsync } from 'expo-audio';
-import { OfflineBanner } from '../components/OfflineBanner';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import CrispChat from '../components/CrispChat';
 import { useFonts } from 'expo-font';
@@ -36,32 +34,10 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
-import { View, Text } from 'react-native';
-
-const ErrorFallback = ({ error }: { error: any }) => (
-  <View
-    style={{
-      flex: 1,
-      backgroundColor: '#0A0A0A',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: 32,
-    }}
-  >
-    <Text style={{ color: '#EF4444', fontSize: 22, fontWeight: '800', marginBottom: 12 }}>
-      Something went wrong
-    </Text>
-    <Text style={{ color: '#9CA3AF', textAlign: 'center' }}>
-      {error instanceof Error ? error.message : String(error)}
-    </Text>
-  </View>
-);
 
 SplashScreen.preventAutoHideAsync().catch(() => {
   // already hidden, ignore
 });
-
-
 
 function NotificationsHandler() {
   usePushNotifications();
@@ -168,7 +144,6 @@ function RootNavigationGuard({
 
   return (
     <ErrorBoundary>
-
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
@@ -190,23 +165,21 @@ function RootNavigationGuard({
 }
 
 function Layout() {
-  // Hydrate saved theme async AFTER mount - avoids sync SecureStore SIGABRT (see YRDLY-2026-10-06 IPS)
+  // Read saved preferences after mount, keeping storage out of module initialization.
   useEffect(() => {
-    getStoredThemePreference().then((pref) => {
-      if (pref && UnistylesRuntime.themeName !== pref) {
-        UnistylesRuntime.setTheme(pref);
-      }
-    }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    SplashScreen.hideAsync().catch(() => {});
+    getStoredThemePreference()
+      .then((pref) => {
+        if (pref && UnistylesRuntime.themeName !== pref) {
+          UnistylesRuntime.setTheme(pref);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const [authLoading, setAuthLoading] = useState(true);
   const [appFullyTransitioned, setAppFullyTransitioned] = useState(false);
 
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     Outfit: Outfit_400Regular,
     'Outfit-Light': Outfit_300Light,
     'Outfit-Regular': Outfit_400Regular,
@@ -222,36 +195,51 @@ function Layout() {
     'Inter-Bold': Inter_700Bold,
   });
 
+  useEffect(() => {
+    if (fontError) console.warn('[Yrdly] Failed to load fonts:', fontError);
+  }, [fontError]);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       {!appFullyTransitioned && (
         <AnimatedSplashScreen
-          ready={fontsLoaded && !authLoading}
+          ready={(fontsLoaded || Boolean(fontError)) && !authLoading}
           onFinished={() => setAppFullyTransitioned(true)}
         />
       )}
       <SafeAreaProvider>
         <ToastProvider position="bottom">
-            <KeyboardProvider>
-              <ThemeProvider>
-                <BottomSheetModalProvider>
-                  <AuthProvider>
-                    <CrispChat />
-                    <LocationProvider>
-                      <NotificationBadgeProvider>
-                        <AudioSettingsHandler />
-                        <NotificationsHandler />
-                        <RootNavigationGuard onAuthLoadingChange={setAuthLoading} />
-                      </NotificationBadgeProvider>
-                    </LocationProvider>
-                  </AuthProvider>
-                </BottomSheetModalProvider>
-              </ThemeProvider>
-            </KeyboardProvider>
+          <KeyboardProvider>
+            <ThemeProvider>
+              <BottomSheetModalProvider>
+                <AuthProvider>
+                  <CrispChat />
+                  <LocationProvider>
+                    <NotificationBadgeProvider>
+                      <AudioSettingsHandler />
+                      <NotificationsHandler />
+                      <RootNavigationGuard onAuthLoadingChange={setAuthLoading} />
+                    </NotificationBadgeProvider>
+                  </LocationProvider>
+                </AuthProvider>
+              </BottomSheetModalProvider>
+            </ThemeProvider>
+          </KeyboardProvider>
         </ToastProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
 
-export default Layout;
+export default function RootLayout() {
+  useEffect(() => {
+    // This also runs if a startup provider fails and the boundary shows its fallback.
+    SplashScreen.hideAsync().catch(() => {});
+  }, []);
+
+  return (
+    <ErrorBoundary screenName="startup">
+      <Layout />
+    </ErrorBoundary>
+  );
+}
