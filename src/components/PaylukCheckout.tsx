@@ -2,11 +2,14 @@ import React, { useRef } from 'react';
 import { Modal, StyleSheet, View, TouchableOpacity, Text, ActivityIndicator, StatusBar } from 'react-native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { Feather } from '@expo/vector-icons';
+import { paylukCheckoutHtml } from '../lib/payluk-checkout-html';
 
 interface PaylukCheckoutProps {
   paymentToken: string;
   publicKey: string;
-  amount: number;
+  reference: string;
+  customerId: string;
+  redirectUrl: string;
   onSuccess: () => void;
   onCancel: () => void;
   onError: (msg: string) => void;
@@ -27,102 +30,16 @@ interface PaylukCheckoutProps {
 export function PaylukCheckout({
   paymentToken,
   publicKey,
-  amount,
+  reference,
+  customerId,
+  redirectUrl,
   onSuccess,
   onCancel,
   onError,
 }: PaylukCheckoutProps) {
   const webViewRef = useRef<WebView>(null);
 
-  const html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <title>Payluk Checkout</title>
-  <script src="https://checkout.payluk.ng/escrow-checkout.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/payluk-escrow-inline-checkout"></script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background: #0d0d0d;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    }
-    #status {
-      color: #82db7e;
-      font-size: 15px;
-      text-align: center;
-      padding: 20px;
-    }
-  </style>
-</head>
-<body>
-  <div id="status">Initialising secure payment...</div>
-  <script>
-    function postMsg(obj) {
-      if (window.ReactNativeWebView) {
-        window.ReactNativeWebView.postMessage(JSON.stringify(obj));
-      }
-    }
-
-    function initCheckout() {
-      try {
-        var SDK = window.EscrowCheckout || window.PaylukInlineCheckout || window.PaylukCheckout || window.Payluk;
-        if (!SDK) {
-          postMsg({ type: 'payluk_error', message: 'Payluk Checkout SDK failed to load' });
-          return;
-        }
-
-        if (typeof SDK === 'function') {
-          SDK({
-            publicKey: ${JSON.stringify(publicKey)},
-            session: ${JSON.stringify(paymentToken)},
-            brand: 'Yrdly',
-            callback: function (res) {
-              postMsg({ type: 'payluk_success', paymentId: res && res.paymentId });
-            },
-            onClose: function () {
-              postMsg({ type: 'payluk_cancel' });
-            }
-          });
-        } else if (SDK.pay) {
-          SDK.pay({
-            publicKey: ${JSON.stringify(publicKey)},
-            paymentToken: ${JSON.stringify(paymentToken)},
-            amount: ${amount},
-            currency: 'NGN',
-            onSuccess: function () {
-              postMsg({ type: 'payluk_success' });
-            },
-            onCancel: function () {
-              postMsg({ type: 'payluk_cancel' });
-            },
-            onError: function (err) {
-              postMsg({ type: 'payluk_error', message: err && err.message ? err.message : 'Payment error' });
-            }
-          });
-        } else {
-          postMsg({ type: 'payluk_error', message: 'Payluk SDK has no valid initialization method' });
-        }
-      } catch (e) {
-        postMsg({ type: 'payluk_error', message: e && e.message ? e.message : 'Failed to initialise checkout' });
-      }
-    }
-
-    if (document.readyState === 'complete') {
-      initCheckout();
-    } else {
-      window.addEventListener('load', initCheckout);
-    }
-  </script>
-</body>
-</html>
-`;
+  const html = paylukCheckoutHtml({ publicKey, paymentToken, reference, customerId, redirectUrl });
 
   const handleMessage = (event: WebViewMessageEvent) => {
     try {
@@ -140,7 +57,7 @@ export function PaylukCheckout({
   };
 
   return (
-    <Modal animationType="slide" visible presentationStyle="fullScreen" statusBarTranslucent>
+    <Modal animationType="slide" visible presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onCancel}>
       <StatusBar barStyle="light-content" backgroundColor="#0d0d0d" />
       <View style={styles.container}>
         {/* Header */}
@@ -160,6 +77,8 @@ export function PaylukCheckout({
           ref={webViewRef}
           source={{ html }}
           onMessage={handleMessage}
+          onError={() => onError('Secure checkout could not load. Check your order before paying again.')}
+          onHttpError={() => onError('Secure checkout is unavailable. Check your order before paying again.')}
           javaScriptEnabled
           domStorageEnabled
           startInLoadingState

@@ -110,7 +110,7 @@ export function useTypingDetection(conversationId: string) {
           // Get user name
           try {
             const { data: userData } = await supabase
-              .from('users')
+              .from('public_profiles')
               .select('name')
               .eq('id', user_id)
               .single();

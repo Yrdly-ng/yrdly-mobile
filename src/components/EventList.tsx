@@ -94,7 +94,7 @@ export function EventList({ searchQuery = '', sortOption = 'newest' }: EventList
         let postsQuery = supabase
           .from('posts')
           .select(
-            '*, users!posts_user_id_fkey(name, avatar_url), attendees:post_attendees(user_id)'
+            '*, users:public_profiles!posts_user_id_fkey(name, avatar_url)'
           )
           .eq('category', 'Event')
           .or(`event_date.gte.${isoYesterday},event_date.is.null`)
@@ -112,7 +112,7 @@ export function EventList({ searchQuery = '', sortOption = 'newest' }: EventList
         // ── New events from events table ──
         let eventsQuery = supabase
           .from('events')
-          .select(`*, organizer:users!events_organizer_id_fkey(id, name, avatar_url)`)
+          .select(`*, organizer:public_profiles!events_organizer_id_fkey(id, name, avatar_url)`)
           .eq('status', 'PUBLISHED')
           .eq('is_archived', false)
           .or(`end_time.gte.${isoNow},start_time.gte.${isoYesterday}`)

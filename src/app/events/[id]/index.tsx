@@ -34,14 +34,14 @@ import { Image } from 'expo-image';
 import ImageViewing from 'react-native-image-viewing';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
 import * as ExpoLinking from 'expo-linking';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../hooks/use-supabase-auth';
 import { Event, TicketTier } from '../../../types/events';
 import { getEventById } from '../../../lib/event-service';
-import { api } from '../../../lib/api';
+import { api, WEB_APP_URL } from '../../../lib/api';
+import { PaylukCheckout } from '../../../components/PaylukCheckout';
 import { formatPrice } from '../../../lib/utils';
 import { AttendeeAvatars } from '../../../components/AttendeeAvatars';
 import { VerifiedBadge } from '../../../components/VerifiedBadge';
@@ -120,6 +120,11 @@ export default function EventDetailScreen() {
   const [attendeeEmail, setAttendeeEmail] = useState('');
   const [attendeePhone, setAttendeePhone] = useState('');
   const [purchasing, setPurchasing] = useState(false);
+  const purchaseInFlight = useRef(false);
+  const verifyInFlight = useRef(false);
+  const [ticketCheckout, setTicketCheckout] = useState<{
+    paymentToken: string; transactionId: string; txRef: string; customerId: string; tierName: string;
+  } | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [userHasTickets, setUserHasTickets] = useState(false);
 
@@ -437,87 +442,57 @@ export default function EventDetailScreen() {
     );
   };
 
+  const verifyTicketCheckout = async () => {
+    if (!ticketCheckout || verifyInFlight.current) return;
+    verifyInFlight.current = true;
+    const checkout = ticketCheckout;
+    setTicketCheckout(null);
+    setPurchasing(true);
+    try {
+      const result = await api.post<{ success: boolean }>('/api/events/tickets/verify', { tx_ref: checkout.txRef });
+      if (!result.success) throw new Error('Payment has not been confirmed.');
+      setSelectedTier(null);
+      showTicketSuccess(checkout.tierName);
+    } catch {
+      Alert.alert('Payment awaiting confirmation', 'Check My Tickets before paying again. Your ticket will appear after payment is verified.', [
+        { text: 'My Tickets', onPress: () => router.push('/my-tickets' as any) },
+      ]);
+    } finally {
+      verifyInFlight.current = false;
+      setPurchasing(false);
+    }
+  };
+
   const handlePurchase = async () => {
-    if (!event || !selectedTier) return;
+    if (!event || !selectedTier || purchaseInFlight.current) return;
     if (!attendeeName.trim() || !attendeeEmail.trim()) {
       Alert.alert('Error', 'Please enter your name and email.');
       return;
     }
+    if (selectedTier.price > 0 && !process.env.EXPO_PUBLIC_PAYLUK_PUBLIC_KEY) {
+      Alert.alert('Payments unavailable', 'Secure checkout is unavailable. Please try again later.');
+      return;
+    }
+    purchaseInFlight.current = true;
     setPurchasing(true);
     try {
-      const callbackUrl = ExpoLinking.createURL('payment-verify');
-      const tierName = selectedTier.name;
-      const res = await api.post<any>('/api/events/tickets/purchase', {
-        event_id: event.id,
-        tier_id: selectedTier.id,
-        attendee_name: attendeeName,
-        attendee_email: attendeeEmail,
-        attendee_phone: attendeePhone,
-        callbackUrl,
-        quantity,
+      const result = await api.post('/api/events/tickets/purchase', {
+        event_id: event.id, tier_id: selectedTier.id, attendee_name: attendeeName,
+        attendee_email: attendeeEmail, attendee_phone: attendeePhone, quantity,
       });
-
-      if (selectedTier.price === 0) {
+      if (!result.success) throw new Error('Could not start checkout.');
+      if (result.free || result.alreadyPaid) {
+        const tierName = selectedTier.name;
         setSelectedTier(null);
-        setTimeout(() => showTicketSuccess(tierName), 100);
-      } else {
-        const browserResult = await WebBrowser.openAuthSessionAsync(res.payment_link, callbackUrl);
-        if (browserResult.type === 'success' && browserResult.url) {
-          const urlObj = new URL(browserResult.url);
-          const status = urlObj.searchParams.get('status');
-          if (status === 'cancelled') {
-            Alert.alert('Cancelled', 'Payment was cancelled.');
-          } else {
-            // Proactively verify ticket with backend to handle cases where webhook hasn't fired yet
-            try {
-              const txRefToVerify = urlObj.searchParams.get('trxref') || res.tx_ref;
-              const verifyRes = await api.post<any>('/api/events/tickets/verify', {
-                tx_ref: txRefToVerify,
-              });
-              if (verifyRes.success) {
-                setSelectedTier(null);
-                setTimeout(() => showTicketSuccess(tierName), 100);
-              } else {
-                Alert.alert('Error', verifyRes.error || 'Failed to verify ticket.');
-              }
-            } catch (err: any) {
-              Alert.alert('Error', err?.message || 'Failed to verify ticket.');
-            }
-          }
-        } else if (browserResult.type === 'cancel') {
-          // If the user manually closes the webview, proactively check if payment succeeded anyway
-          setPurchasing(true); // Keep the loading state while verifying
-          try {
-            // Add a 3s delay to allow Paystack's backend state to update to 'success'
-            await new Promise((resolve) => setTimeout(resolve, 3000));
-            const verifyRes = await api.post<any>('/api/events/tickets/verify', {
-              tx_ref: res.tx_ref,
-            });
-            if (verifyRes.success) {
-              setSelectedTier(null);
-              setTimeout(() => showTicketSuccess(tierName), 100);
-            }
-          } catch (err: any) {
-            const errMsg = err?.response?.data?.error || err?.message;
-            if (errMsg === 'payment_failed' || errMsg === 'Verification failed') {
-              Alert.alert(
-                'Payment Incomplete',
-                'If you completed the payment before closing, your ticket will appear in "My Tickets" once verified.'
-              );
-            } else {
-              Alert.alert(
-                'Notice',
-                'Payment might have succeeded but ticket generation failed: ' + errMsg
-              );
-            }
-          } finally {
-            setPurchasing(false);
-          }
-        }
-      }
-    } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Could not process ticket purchase.');
+        showTicketSuccess(tierName);
+      } else if (result.paylukPaymentToken && result.buyerPaylukId && result.tx_ref && result.transactionId) {
+        setTicketCheckout({ paymentToken: result.paylukPaymentToken, transactionId: result.transactionId,
+          customerId: result.buyerPaylukId, txRef: result.tx_ref, tierName: selectedTier.name });
+      } else throw new Error('Checkout setup is incomplete. Please contact support.');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Could not process ticket purchase.');
     } finally {
+      purchaseInFlight.current = false;
       setPurchasing(false);
     }
   };
@@ -1432,6 +1407,22 @@ export default function EventDetailScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {ticketCheckout && (
+        <PaylukCheckout
+          paymentToken={ticketCheckout.paymentToken}
+          publicKey={process.env.EXPO_PUBLIC_PAYLUK_PUBLIC_KEY || ''}
+          reference={ticketCheckout.transactionId}
+          customerId={ticketCheckout.customerId}
+          redirectUrl={`${WEB_APP_URL}/api/events/tickets/verify?tx_ref=${encodeURIComponent(ticketCheckout.txRef)}`}
+          onSuccess={verifyTicketCheckout}
+          onCancel={() => {
+            setTicketCheckout(null);
+            Alert.alert('Checkout closed', 'Check My Tickets if you completed payment. An unpaid reservation remains held until checkout is safely cancelled.');
+          }}
+          onError={message => { setTicketCheckout(null); Alert.alert('Checkout unavailable', message); }}
+        />
+      )}
 
       {isGalleryVisible && imageUrls.length > 0 && (
         <ImageViewing

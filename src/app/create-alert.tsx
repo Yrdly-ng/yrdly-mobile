@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 import { useAuth } from '../hooks/use-supabase-auth';
 
 const SEVERITY_COLORS = {
@@ -68,8 +68,7 @@ export default function CreateAlertScreen() {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-      const { error } = await supabase.from('safety_alerts').insert({
-        user_id: user.id,
+      await api.post('/api/safety-alerts', {
         title,
         description: desc,
         severity,
@@ -78,10 +77,7 @@ export default function CreateAlertScreen() {
         ...(alertState ? { state: alertState } : {}),
         ...(alertLga ? { lga: alertLga } : {}),
         ...(action ? { action } : {}),
-        status: 'pending',
       });
-
-      if (error) throw error;
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setPublished(true);

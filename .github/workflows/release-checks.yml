@@ -1,0 +1,55 @@
+name: Coordinated release checks
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [fix/coordinated-release-oct-2026]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - run: npm install --global pnpm@11.2.2
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test:release
+
+  native-bundles:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [android, ios]
+    env:
+      CI: '1'
+      EXPO_NO_DOTENV: '1'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_SUPABASE_URL: https://qa-bundle.invalid
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_bundle_placeholder
+      EXPO_PUBLIC_WEB_APP_URL: https://qa-bundle.invalid
+      EXPO_PUBLIC_PAYLUK_PUBLIC_KEY: pk_test_bundle_placeholder
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - run: npm install --global pnpm@11.2.2
+      - run: pnpm install --frozen-lockfile
+      - name: Compile native JavaScript bundle without contacting production
+        run: pnpm exec expo export --platform ${{ matrix.platform }} --output-dir /tmp/yrdly-${{ matrix.platform }}-bundle --max-workers 2

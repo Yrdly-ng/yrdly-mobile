@@ -1,3 +1,4 @@
+import { isPaidPrice, MINIMUM_PRICE_MESSAGE } from '@/lib/price-policy';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect } from 'react';
 import {
@@ -32,7 +33,6 @@ import { logError } from '../lib/error-logger';
 import { EventCard } from '../components/EventCard';
 import { ImageCarousel } from '../components/ImageCarousel';
 import { useCategories } from '../hooks/use-categories';
-import { ModerationService } from '../lib/moderation-service';
 import { api } from '../lib/api';
 
 const STEPS = ['Basic Info', 'Date & Time', 'Location', 'Tickets', 'Photos', 'Review'];
@@ -185,7 +185,7 @@ export default function CreateEventScreen() {
   const addTier = () => {
     setTiers((prev) => [
       ...prev,
-      { id: Date.now().toString(), name: 'VIP Ticket', price: '1000', isFree: false, capacity: '50' },
+      { id: Date.now().toString(), name: 'VIP Ticket', price: '1200', isFree: false, capacity: '50' },
     ]);
   };
 
@@ -198,7 +198,7 @@ export default function CreateEventScreen() {
     setTiers((prev) =>
       prev.map((t) => {
         if (t.id !== id) return t;
-        if (field === 'isFree') return { ...t, isFree: value, price: value ? '0' : t.price };
+        if (field === 'isFree') return { ...t, isFree: value, price: value ? '0' : (Number(t.price) >= 1200 ? t.price : '1200') };
         return { ...t, [field]: value };
       })
     );
@@ -208,7 +208,7 @@ export default function CreateEventScreen() {
     eventName.trim() && eventCategory,
     true, // date/time always valid due to Date object
     isOnline ? true : !!venue.trim(),
-    tiers.length > 0 && tiers.every((t) => t.name.trim()),
+    tiers.length > 0 && tiers.every((t) => t.name.trim() && (t.isFree || isPaidPrice(Number(t.price)))),
     attachedFiles.some((f) => f.type?.startsWith('image/')),
     true,
   ][step];
@@ -229,6 +229,10 @@ export default function CreateEventScreen() {
   const handleNext = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
+    if ((step === 3 || step === STEPS.length - 1) && tiers.some(t => !t.isFree && !isPaidPrice(Number(t.price)))) {
+      Alert.alert('Invalid ticket price', MINIMUM_PRICE_MESSAGE);
+      return;
+    }
     // Enforce payout account check at step 3 (Tickets step) before moving forward
     if (step === 3) {
       const hasPaidTicket = tiers.some((t) => !t.isFree && (parseFloat(t.price) || 0) > 0);
@@ -333,20 +337,6 @@ export default function CreateEventScreen() {
           endTime.getMinutes()
         ).toISOString();
 
-        // 1. Moderate Text Before Uploading Media
-        let modStatus = 'approved';
-        let modReason = '';
-        const textToModerate = [eventName.trim(), desc.trim()].filter(Boolean).join(' ');
-        if (textToModerate) {
-          const textMod = await ModerationService.checkText(textToModerate);
-          if (!textMod.isSafe) {
-            modStatus = 'pending';
-            modReason = textMod.reason || 'Flagged text content';
-          }
-        }
-
-        // Moderate uploaded images
-
         // Call backend API to create event, validate payout account for paid tiers, and cross-post to community feed
         const formattedTicketTiers = tiers.map((t) => ({
           name: t.name.trim(),
@@ -381,21 +371,9 @@ export default function CreateEventScreen() {
           throw new Error(res?.error || res?.message || 'Failed to create event.');
         }
 
-        if (modStatus === 'pending' && res.eventId) {
-          await supabase.from('moderation_queue').insert({
-            content_id: res.eventId,
-            table_name: 'events',
-            user_id: user.id,
-            status: 'pending',
-            reason: modReason,
-            text_content: textToModerate,
-            image_urls: imageUrls,
-          });
-        }
-
         setPublishing(false);
         setUploadProgress(0);
-        setModerationStatus(modStatus as any);
+        setModerationStatus(res.moderationStatus === 'approved' ? 'approved' : 'pending');
         setPublished(true);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch (err: any) {

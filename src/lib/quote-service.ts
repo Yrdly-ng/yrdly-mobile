@@ -1,3 +1,4 @@
+import { isPaidPrice, MINIMUM_PRICE_MESSAGE } from '@/lib/price-policy';
 import { supabase } from './supabase';
 import type { QuoteRequest, QuoteMessage } from '../types';
 
@@ -76,6 +77,7 @@ export class QuoteService {
       expires_at?: string;
     }
   ): Promise<QuoteRequest> {
+    if (!isPaidPrice(p.estimated_price)) throw new Error(MINIMUM_PRICE_MESSAGE);
     const { data, error } = await supabase
       .from('quote_requests')
       .update({
@@ -101,45 +103,6 @@ export class QuoteService {
       .single();
     if (error) throw error;
     return data;
-  }
-
-  static async convertQuoteToBooking(
-    quoteId: string,
-    appointmentTime: string
-  ): Promise<{ booking: any; quote: QuoteRequest }> {
-    const quote = await this.getQuote(quoteId);
-    if (!quote) throw new Error('Quote not found');
-    if (quote.expires_at && new Date(quote.expires_at).getTime() < Date.now()) {
-      await this.updateStatus(quoteId, 'expired');
-      throw new Error('This estimate has expired and cannot be converted');
-    }
-    const { data: services } = await supabase
-      .from('service_offerings')
-      .select('id, duration_minutes')
-      .eq('business_id', quote.business_id)
-      .eq('is_active', true)
-      .limit(1);
-    const serviceId = services?.[0]?.id;
-    if (!serviceId) throw new Error('No active service for business');
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    const { BookingService } = await import('./booking-service');
-    const booking = await BookingService.createBookingRequest({
-      customerId: user!.id,
-      businessId: quote.business_id,
-      serviceId,
-      appointmentTime,
-      staffId: quote.staff_id,
-      quoteId,
-    });
-    const { data: updated } = await supabase
-      .from('quote_requests')
-      .update({ status: 'converted', converted_booking_id: booking.id })
-      .eq('id', quoteId)
-      .select('*')
-      .single();
-    return { booking, quote: updated };
   }
 
   static async listMessages(quoteId: string): Promise<QuoteMessage[]> {

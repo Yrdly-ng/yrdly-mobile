@@ -1,5 +1,5 @@
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { supabase } from '../../lib/supabase';
+import { api } from '../../lib/api';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import * as Haptics from 'expo-haptics';
 
@@ -32,6 +32,7 @@ export default function TicketScannerScreen() {
   const [scanned, setScanned] = useState(false);
   const [manualCode, setManualCode] = useState('');
   const [verifying, setVerifying] = useState(false);
+  const scanInFlight = useRef(false);
   const [lastResult, setLastResult] = useState<{
     success: boolean;
     message: string;
@@ -45,93 +46,31 @@ export default function TicketScannerScreen() {
   }, [permission]);
 
   const verifyTicketCode = async (code: string) => {
-    if (!code || verifying) return;
     const cleanCode = code.trim();
-    if (!cleanCode) return;
-
+    if (!cleanCode || scanInFlight.current) return;
+    if (!user || !eventId) {
+      setLastResult({ success: false, message: 'Open the scanner from an event you organize and sign in again.' });
+      return;
+    }
+    scanInFlight.current = true;
     setVerifying(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
     try {
-      // 1. Fetch ticket by ID or code
-      const { data: ticket, error } = await supabase
-        .from('tickets')
-        .select(
-          `
-          *,
-          buyer:users!tickets_buyer_id_fkey(name, avatar_url, email),
-          event:events!tickets_event_id_fkey(id, title, organizer_id),
-          tier:ticket_tiers(name, price)
-        `
-        )
-        .or(`id.eq.${cleanCode},ticket_code.eq.${cleanCode}`)
-        .maybeSingle();
-
-      if (error || !ticket) {
-        setLastResult({ success: false, message: 'Invalid Ticket. Code not found in database.' });
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        return;
-      }
-
-      // 2. Verify organizer authorization if eventId filter is provided
-      if (eventId && ticket.event_id !== eventId) {
-        setLastResult({ success: false, message: 'Ticket belongs to a different event.' });
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        return;
-      }
-
-      if (user && ticket.event?.organizer_id && ticket.event.organizer_id !== user.id) {
-        setLastResult({
-          success: false,
-          message: 'Unauthorized: You are not the organizer of this event.',
-        });
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        return;
-      }
-
-      // 3. Check if ticket is already checked in
-      if (ticket.status === 'USED' || ticket.is_used || ticket.checked_in) {
-        const timeStr = ticket.checked_in_at
-          ? new Date(ticket.checked_in_at).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            })
-          : 'earlier';
-        setLastResult({
-          success: false,
-          message: `ALREADY SCANNED!\nThis ticket was checked in at ${timeStr}.`,
-          ticket,
-        });
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        return;
-      }
-
-      // 4. Mark ticket as checked in / used
-      const nowIso = new Date().toISOString();
-      const { error: updateError } = await supabase
-        .from('tickets')
-        .update({
-          status: 'USED',
-          is_used: true,
-          checked_in: true,
-          checked_in_at: nowIso,
-        })
-        .eq('id', ticket.id);
-
-      if (updateError) {
-        throw updateError;
-      }
-
+      // The server authorizes the organizer and atomically consumes a PAID ticket.
+      const result = await api.post<{
+        valid: boolean; attendee_name?: string; tier_name?: string; message?: string;
+      }>('/api/events/checkin', { ticket_code: cleanCode, event_id: eventId });
+      if (!result.valid) throw new Error(result.message || 'Ticket could not be validated.');
       setLastResult({
         success: true,
-        message: `VALID TICKET!\nAttendee: ${ticket.buyer?.name || 'Attendee'}\nTier: ${ticket.tier?.name || 'General Admission'}`,
-        ticket,
+        message: `VALID TICKET!\nAttendee: ${result.attendee_name || 'Attendee'}\nTier: ${result.tier_name || 'General Admission'}`,
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (e: any) {
-      console.error('Verify ticket error:', e);
-      setLastResult({ success: false, message: e.message || 'Error verifying ticket.' });
+    } catch (error: any) {
+      setLastResult({ success: false, message: error.message || 'Ticket could not be validated. Please try again.' });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
+      scanInFlight.current = false;
       setVerifying(false);
     }
   };

@@ -119,7 +119,7 @@ function MarketplaceDetailContent() {
     try {
       const { data, error } = await supabase
         .from('posts')
-        .select(`*, user:users!posts_user_id_fkey(*)`)
+        .select(`*, user:public_profiles!posts_user_id_fkey(*)`)
         .eq('id', id)
         .single();
 

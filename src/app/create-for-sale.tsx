@@ -1,3 +1,4 @@
+import { isPaidPrice, MINIMUM_PRICE_MESSAGE } from '@/lib/price-policy';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect } from 'react';
 import {
@@ -32,7 +33,7 @@ import { logError } from '../lib/error-logger';
 import * as FileSystem from 'expo-file-system/legacy';
 import { formatPrice } from '../lib/utils';
 import { useCategories } from '../hooks/use-categories';
-import { ModerationService } from '../lib/moderation-service';
+import { api } from '../lib/api';
 
 const STEPS = ['Photos', 'Details', 'Description', 'Review'];
 const CONDITIONS = ['New', 'Used – Like New', 'Used – Good', 'Fair'];
@@ -176,12 +177,16 @@ export default function CreateForSaleScreen() {
 
   const canNext = [
     attachedFiles.some((f) => f.type?.startsWith('image/')),
-    title.trim() && (listingType === 'Giveaway' || price.trim()) && category && condition,
+    title.trim() && (listingType === 'Giveaway' || isPaidPrice(Number(price))) && category && condition,
     desc.trim(),
     true,
   ][step];
 
   const handleNext = async () => {
+    if (listingType !== 'Giveaway' && (step === 1 || step === STEPS.length - 1) && !isPaidPrice(Number(price))) {
+      Alert.alert('Invalid price', MINIMUM_PRICE_MESSAGE);
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (step < STEPS.length - 1) {
       setStep((s) => s + 1);
@@ -266,23 +271,7 @@ export default function CreateForSaleScreen() {
           : null;
         const coverDims = coverFile ? (imageDimsMap[coverFile.uri] ?? null) : null;
 
-        // 1. Moderate Text Before Uploading Media
-        let modStatus = 'approved';
-        let modReason = '';
-        const textToModerate = [title.trim(), desc.trim()].filter(Boolean).join(' ');
-        if (textToModerate) {
-          const textMod = await ModerationService.checkText(textToModerate);
-          if (!textMod.isSafe) {
-            modStatus = 'pending';
-            modReason = textMod.reason || 'Flagged text content';
-          }
-        }
-
-        // Moderate uploaded images
-
-        const { data: newPost, error } = await supabase
-          .from('posts')
-          .insert({
+        const { data: newPost } = await api.post('/api/posts', { post: {
             user_id: user.id,
             author_name: profile.name || 'Seller',
             author_image: profile.avatar_url || '',
@@ -298,7 +287,6 @@ export default function CreateForSaleScreen() {
             image_height: coverDims?.h ?? null,
             is_sold: false,
             visibility: visibility,
-            moderation_status: modStatus,
             state: postState || null,
             lga: postLga || null,
             ward: postWard || null,
@@ -307,32 +295,13 @@ export default function CreateForSaleScreen() {
             timestamp: new Date().toISOString(),
             liked_by: [],
             comment_count: 0,
-          })
-          .select('id')
-          .single();
+          } });
 
         setListing(false);
         setUploadProgress(0);
-        if (error) {
-          const userMsg = logError(error, { context: 'create_for_sale_db_insert' });
-          Alert.alert('Listing Failed', userMsg);
-        } else {
-          if (modStatus === 'pending' && newPost) {
-            await supabase.from('moderation_queue').insert({
-              content_id: newPost.id,
-              table_name: 'posts',
-              user_id: user.id,
-              status: 'pending',
-              reason: modReason,
-              text_content: textToModerate,
-              image_urls: imageUrls,
-            });
-          }
-          setModerationStatus(modStatus as any);
-          setListed(true);
-
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
+        setModerationStatus(newPost?.moderation_status === 'approved' ? 'approved' : 'pending');
+        setListed(true);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch (err: any) {
         setListing(false);
         setUploadProgress(0);
@@ -589,7 +558,7 @@ export default function CreateForSaleScreen() {
                 <Text style={stylesheet.label}>Price (₦)</Text>
                 <TextInput
                   style={[stylesheet.input, { fontFamily: 'Outfit-Bold', fontSize: 18 }]}
-                  placeholder="₦ 0"
+                  placeholder="Minimum ₦1,200"
                   placeholderTextColor={theme.colors.MUTED}
                   keyboardType="numeric"
                   value={price ? Number(price).toLocaleString('en-US') : ''}

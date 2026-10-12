@@ -103,45 +103,6 @@ export class UserReviewService {
   }
 
   /**
-   * Update seller's rating and review count directly on the users table
-   */
-  static async updateSellerRating(sellerId: string): Promise<void> {
-    try {
-      const { data: reviews, error } = await supabase
-        .from('user_reviews')
-        .select(
-          `
-          rating,
-          escrow_transactions!inner(status)
-        `
-        )
-        .eq('seller_id', sellerId)
-        .in('escrow_transactions.status', ['completed', 'delivered']);
-
-      if (error) throw error;
-
-      if (!reviews || reviews.length === 0) {
-        await supabase.from('users').update({ rating: null, review_count: 0 }).eq('id', sellerId);
-        return;
-      }
-
-      const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
-      const averageRating = totalRating / reviews.length;
-
-      await supabase
-        .from('users')
-        .update({
-          rating: Math.round(averageRating * 10) / 10,
-          review_count: reviews.length,
-        })
-        .eq('id', sellerId);
-    } catch (error) {
-      console.error('Error updating seller rating:', error);
-      throw new Error('Failed to update seller rating');
-    }
-  }
-
-  /**
    * Get all reviews for a seller
    */
   static async getSellerReviews(sellerId: string): Promise<any[]> {
@@ -151,7 +112,7 @@ export class UserReviewService {
         .select(
           `
           *,
-          buyer:users!user_reviews_buyer_id_fkey(
+          buyer:public_profiles!user_reviews_buyer_id_fkey(
             id,
             name,
             avatar_url

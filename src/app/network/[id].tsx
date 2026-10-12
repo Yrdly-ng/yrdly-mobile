@@ -81,7 +81,7 @@ export default function NetworkScreen() {
 
         if (userIds.length > 0) {
           const { data: usersData } = await supabase
-            .from('users')
+            .from('public_profiles')
             .select('id, name, username, avatar_url, phone_verified')
             .in('id', userIds);
 

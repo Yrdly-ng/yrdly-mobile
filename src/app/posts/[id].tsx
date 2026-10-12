@@ -108,7 +108,7 @@ function PostDetailContent() {
     if (!id) return;
     const { data, error } = await supabase
       .from('posts')
-      .select('*, user:users!posts_user_id_fkey(id, name, avatar_url, location, created_at)')
+      .select('*, user:public_profiles!posts_user_id_fkey(id, name, avatar_url, location, created_at)')
       .eq('id', id)
       .single();
 
@@ -125,7 +125,7 @@ function PostDetailContent() {
     if (!id) return;
     const { data, error } = await supabase
       .from('comments')
-      .select('*, user:users!comments_user_id_fkey(name, avatar_url, phone_verified)')
+      .select('*, user:public_profiles!comments_user_id_fkey(name, avatar_url, phone_verified)')
       .eq('post_id', id)
       .order('timestamp', { ascending: true });
 

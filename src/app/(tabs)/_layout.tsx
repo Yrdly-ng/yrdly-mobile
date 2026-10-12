@@ -285,7 +285,7 @@ export default function TabLayout() {
           let senderName = 'Someone';
           if (msg.sender_id) {
             const { data: senderData } = await supabase
-              .from('users')
+              .from('public_profiles')
               .select('name')
               .eq('id', msg.sender_id)
               .maybeSingle();

@@ -57,41 +57,21 @@ export default function PayoutsScreen() {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
       try {
-        const [txRes, payoutRes, bankRes, balRes] = await Promise.all([
-          supabase
-            .from('escrow_transactions')
-            .select('seller_amount, status')
-            .eq('seller_id', user.id),
-          supabase
-            .from('payout_requests')
-            .select('id, amount, status, requested_at, processed_at')
-            .eq('seller_id', user.id)
-            .order('requested_at', { ascending: false }),
-          api.get('/api/seller/setup-account').catch(() => ({ account: null })),
-          api.get('/api/seller/payouts/balance').catch(() => null),
+        const [txRes, history, bankRes, ledger] = await Promise.all([
+          supabase.from('escrow_transactions').select('seller_amount,status')
+            .eq('seller_id', user.id).eq('payment_provider', 'payluk').neq('item_type', 'ticket')
+            .in('status', ['paid', 'shipped', 'delivered']),
+          api.get<{ payouts: PayoutRequest[] }>('/api/seller/payouts/history'),
+          api.get('/api/seller/setup-account'),
+          api.get<{ availableBalance: number; totalEarnings: number }>('/api/seller/payouts/balance'),
         ]);
-
-        const txs = txRes.data ?? [];
-        const pyts = payoutRes.data ?? [];
-
-        const earned = txs
-          .filter((t: any) => t.status === 'completed')
-          .reduce((sum: number, t: any) => sum + (t.seller_amount ?? 0), 0);
-        const pendingE = txs
-          .filter((t: any) => ['pending', 'paid', 'shipped', 'delivered'].includes(t.status))
-          .reduce((sum: number, t: any) => sum + (t.seller_amount ?? 0), 0);
-
-        const paidOut = pyts
-          .filter((p: any) => ['pending', 'processing', 'completed'].includes(p.status))
-          .reduce((sum: number, p: any) => sum + (p.amount ?? 0), 0);
-
-        const fallbackBalance = Math.max(0, earned - paidOut);
-        const serverAvailable = balRes && typeof balRes.availableBalance === 'number' ? balRes.availableBalance : fallbackBalance;
-
-        setLifetimeEarned(earned);
-        setPendingEscrow(pendingE);
-        setBalance(serverAvailable);
-        setPayouts(pyts as PayoutRequest[]);
+        if (txRes.error || !Number.isFinite(ledger.availableBalance) || !Number.isFinite(ledger.totalEarnings)) {
+          throw new Error('Balance unavailable');
+        }
+        setLifetimeEarned(ledger.totalEarnings);
+        setPendingEscrow((txRes.data || []).reduce((sum, row) => sum + Number(row.seller_amount || 0), 0));
+        setBalance(ledger.availableBalance);
+        setPayouts(history.payouts);
 
         if (bankRes.account) {
           setBankInfo(bankRes.account);
@@ -100,6 +80,11 @@ export default function PayoutsScreen() {
         }
       } catch (e) {
         console.error(e);
+        setBalance(0);
+        setLifetimeEarned(0);
+        setPendingEscrow(0);
+        setBankInfo(null);
+        Alert.alert('Payouts unavailable', 'Your balance could not be verified. Pull down to refresh before withdrawing.');
       } finally {
         setLoading(false);
         setRefreshing(false);

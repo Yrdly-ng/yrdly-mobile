@@ -88,6 +88,8 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
+    "test:release": "node --test tests/release-contract.test.cjs",
+    "typecheck": "tsc --noEmit",
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",

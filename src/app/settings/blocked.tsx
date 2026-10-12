@@ -39,7 +39,7 @@ export default function BlockedUsersScreen() {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('users')
+        .from('public_profiles')
         .select('id, name, username, avatar_url')
         .in('id', profile.blocked_users);
 

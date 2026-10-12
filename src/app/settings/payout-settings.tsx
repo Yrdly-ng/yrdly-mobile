@@ -1,5 +1,5 @@
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -37,6 +37,7 @@ export default function PayoutSettingsScreen() {
   const [accountNumber, setAccountNumber] = useState('');
   const [resolvedName, setResolvedName] = useState('');
   const [saving, setSaving] = useState(false);
+  const resolutionAttempt = useRef(0);
 
   const fetchExisting = useCallback(async () => {
     setLoading(true);
@@ -57,9 +58,9 @@ export default function PayoutSettingsScreen() {
 
   const fetchBanks = useCallback(async () => {
     try {
-      const data = await api.get('/api/paystack/banks');
-      if (data.status) {
-        setBanks(data.data);
+      const data = await api.get('/api/seller/banks');
+      if (data.success) {
+        setBanks(data.banks);
       }
     } catch (e) {
       console.error(e);
@@ -81,21 +82,24 @@ export default function PayoutSettingsScreen() {
   }, [fetchExisting, fetchBanks]);
 
   const resolveBank = async (bankCode: string, acctNum: string) => {
+    const attempt = ++resolutionAttempt.current;
     setStep('verifying');
     setResolvedName('');
     try {
-      const data = await api.post('/api/paystack/resolve-account', {
+      const data = await api.post('/api/seller/resolve-account', {
         accountNumber: acctNum,
         bankCode,
       });
+      if (attempt !== resolutionAttempt.current) return;
       if (data.success) {
         setResolvedName(data.accountName);
-        setTimeout(() => setStep('confirmed'), 1000);
+        setStep('confirmed');
       } else {
         setStep('account');
         Alert.alert('Verification Failed', 'Could not verify this account number.');
       }
     } catch (e: any) {
+      if (attempt !== resolutionAttempt.current) return;
       setStep('account');
       Alert.alert(
         'Verification Failed',
@@ -105,12 +109,11 @@ export default function PayoutSettingsScreen() {
   };
 
   const handleAcctChange = (val: string) => {
+    resolutionAttempt.current++;
     const num = val.replace(/\D/g, '').slice(0, 10);
     setAccountNumber(num);
-    if (step === 'confirmed') setStep('account');
-    if (num.length === 10 && selectedBank) {
-      resolveBank(selectedBank.code, num);
-    }
+    setResolvedName('');
+    setStep('account');
   };
 
   const handleSave = async () => {
@@ -250,6 +253,7 @@ export default function PayoutSettingsScreen() {
                   <TouchableOpacity
                     style={s.bankListItem}
                     onPress={() => {
+                      resolutionAttempt.current++;
                       setSelectedBank(item);
                       setStep('account');
                       setAccountNumber('');
@@ -306,6 +310,16 @@ export default function PayoutSettingsScreen() {
               {step === 'confirmed' && <Feather name="check" size={20} color={theme.colors.G} />}
             </View>
             <Text style={s.acctCount}>{accountNumber.length}/10 digits</Text>
+
+            {step === 'account' && (
+              <TouchableOpacity
+                style={s.saveFinalBtn}
+                disabled={accountNumber.length !== 10 || !selectedBank}
+                onPress={() => resolveBank(selectedBank.code, accountNumber)}
+              >
+                <Text style={s.saveFinalBtnTxt}>Verify Account</Text>
+              </TouchableOpacity>
+            )}
 
             {step === 'verifying' && (
               <View style={s.verifyingBox}>

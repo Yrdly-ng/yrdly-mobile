@@ -18,6 +18,9 @@ import { supabase } from '../lib/supabase';
 import { assertMarketplaceListingUnpaid } from '../lib/marketplace-listing-service';
 import type { Post } from '../types';
 
+// is_paid is derived from the seller's transactions, not a posts column.
+type Listing = Post & { is_paid?: boolean };
+
 function parseImageUrls(val: any): string[] {
   if (!val) return [];
   if (Array.isArray(val)) {
@@ -49,7 +52,7 @@ export default function MyListingsScreen() {
   const router = useRouter();
   const { user } = useAuth();
 
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'active' | 'sold'>('active');
@@ -131,7 +134,7 @@ export default function MyListingsScreen() {
         }
       }
 
-      setPosts(allListings as Post[]);
+      setPosts(allListings as Listing[]);
     } catch (e) {
       console.error('fetchListings error:', e);
     } finally {
@@ -191,7 +194,7 @@ export default function MyListingsScreen() {
     }
   };
 
-  const renderListing = ({ item }: { item: Post }) => {
+  const renderListing = ({ item }: { item: Listing }) => {
     const imageUrls = [
       ...parseImageUrls(item.image_urls),
       ...parseImageUrls(item.image_url),

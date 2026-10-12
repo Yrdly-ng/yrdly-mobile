@@ -117,7 +117,7 @@ export default function MessagesTab() {
       let usersMap = new Map();
       if (otherUserIds.length > 0) {
         const { data: usersData } = await supabase
-          .from('users')
+          .from('public_profiles')
           .select('id, name, username, avatar_url')
           .in('id', otherUserIds);
 
@@ -215,7 +215,7 @@ export default function MessagesTab() {
         }
 
         const { data: people, error: peopleError } = await supabase
-          .from('users')
+          .from('public_profiles')
           .select('id, name, avatar_url')
           .in('id', userIds)
           .order('name');

@@ -374,7 +374,7 @@ export default function BusinessProfileScreen() {
           let oData = null;
           if (bData.owner_id) {
             const { data: uData } = await supabase
-              .from('users')
+              .from('public_profiles')
               .select('name, avatar_url')
               .eq('id', bData.owner_id)
               .single();
@@ -397,7 +397,7 @@ export default function BusinessProfileScreen() {
     const fetchReviews = async () => {
       const { data } = await supabase
         .from('business_reviews')
-        .select(`*, users!business_reviews_user_id_fkey(name, avatar_url)`)
+        .select(`*, users:public_profiles!business_reviews_user_id_fkey(name, avatar_url)`)
         .eq('business_id', id)
         .order('created_at', { ascending: false });
       if (data) setReviews(data);

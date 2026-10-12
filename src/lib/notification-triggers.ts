@@ -14,7 +14,7 @@ export class NotificationTriggers {
     try {
       // Get sender's name
       const { data: senderData } = await supabase
-        .from('users')
+        .from('public_profiles')
         .select('name')
         .eq('id', fromUserId)
         .single();
@@ -43,7 +43,7 @@ export class NotificationTriggers {
     try {
       // Get acceptor's name
       const { data: acceptorData } = await supabase
-        .from('users')
+        .from('public_profiles')
         .select('name')
         .eq('id', toUserId)
         .single();
@@ -72,7 +72,7 @@ export class NotificationTriggers {
     try {
       // Get follower's name
       const { data: followerData } = await supabase
-        .from('users')
+        .from('public_profiles')
         .select('name')
         .eq('id', followerId)
         .single();
@@ -104,13 +104,6 @@ export class NotificationTriggers {
     messageContent: string
   ) {
     try {
-      console.log('Creating message notification:', {
-        toUserId,
-        fromUserId,
-        conversationId,
-        messageContent,
-      });
-
       // Debounce: Check for recent notifications in the last 60 seconds to prevent spam
       const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
       const { data: recentNotifs } = await supabase
@@ -124,13 +117,12 @@ export class NotificationTriggers {
         .limit(1);
 
       if (recentNotifs && recentNotifs.length > 0) {
-        console.log('Skipping message notification (debounced)');
         return;
       }
 
       // Get sender's name
       const { data: senderData } = await supabase
-        .from('users')
+        .from('public_profiles')
         .select('name')
         .eq('id', fromUserId)
         .single();
@@ -139,8 +131,6 @@ export class NotificationTriggers {
         const messagePreview =
           messageContent.length > 50 ? messageContent.substring(0, 50) + '...' : messageContent;
 
-        console.log('Sender data found:', senderData);
-        console.log('Creating notification for user:', toUserId);
 
         await NotificationService.createNotification({
           userId: toUserId,
@@ -156,8 +146,6 @@ export class NotificationTriggers {
             messagePreview,
           },
         });
-      } else {
-        console.log('No sender data found for user:', fromUserId);
       }
     } catch (error) {
       console.error('Error creating message notification:', error);
@@ -179,7 +167,7 @@ export class NotificationTriggers {
       if (postData && postData.user_id !== likerId) {
         // Get liker's name
         const { data: likerData } = await supabase
-          .from('users')
+          .from('public_profiles')
           .select('name')
           .eq('id', likerId)
           .single();
@@ -239,7 +227,7 @@ export class NotificationTriggers {
       if (postData && postData.user_id !== commenterId) {
         // Get commenter's name
         const { data: commenterData } = await supabase
-          .from('users')
+          .from('public_profiles')
           .select('name')
           .eq('id', commenterId)
           .single();
@@ -281,7 +269,7 @@ export class NotificationTriggers {
       if (itemData && itemData.user_id !== buyerId) {
         // Get buyer's name
         const { data: buyerData } = await supabase
-          .from('users')
+          .from('public_profiles')
           .select('name')
           .eq('id', buyerId)
           .single();
@@ -313,7 +301,7 @@ export class NotificationTriggers {
     try {
       // Get mentioner's name
       const { data: mentionerData } = await supabase
-        .from('users')
+        .from('public_profiles')
         .select('name')
         .eq('id', mentionerId)
         .single();
@@ -347,7 +335,7 @@ export class NotificationTriggers {
     try {
       // Get inviter's name
       const { data: inviterData } = await supabase
-        .from('users')
+        .from('public_profiles')
         .select('name')
         .eq('id', inviterId)
         .single();
@@ -394,7 +382,7 @@ export class NotificationTriggers {
     try {
       // Get buyer's name
       const { data: buyerData } = await supabase
-        .from('users')
+        .from('public_profiles')
         .select('name')
         .eq('id', buyerId)
         .single();
@@ -537,7 +525,7 @@ export class NotificationTriggers {
     bookingId: string;
   }) {
     try {
-      const type = params.isLate ? 'booking_late_cancelled' : 'booking_cancelled';
+      const type = 'booking_cancelled';
       const title = params.isLate ? 'Late Booking Cancellation' : 'Booking Cancelled';
       const message = params.isLate
         ? `${params.cancellerName} cancelled the booking for "${params.serviceName}" (< 5h notice). A strike has been recorded.`

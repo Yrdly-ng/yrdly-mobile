@@ -51,7 +51,7 @@ export default function ReviewScreen() {
           .select(
             `
             id, seller_id,
-            seller:users!escrow_transactions_seller_id_fkey(id, name, avatar_url),
+            seller:public_profiles!escrow_transactions_seller_id_fkey(id, name, avatar_url),
             post_item:posts(id, title, image_urls, image_url),
             catalog_item:catalog_items(id, title, images)
           `

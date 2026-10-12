@@ -91,7 +91,7 @@ export default function OtherUserProfileScreen() {
   const fetchProfileAndPosts = useCallback(async () => {
     if (!id) return;
     try {
-      const { data: pData } = await supabase.from('users').select('*').eq('id', id).maybeSingle();
+      const { data: pData } = await supabase.from('public_profiles').select('*').eq('id', id).maybeSingle();
       if (pData) {
         setProfile(pData);
         setAvatarError(false); // Reset error state on new fetch
@@ -120,7 +120,7 @@ export default function OtherUserProfileScreen() {
         .select(
           `
           *,
-          user:users!posts_user_id_fkey(
+          user:public_profiles!posts_user_id_fkey(
             id,
             name,
             avatar_url,

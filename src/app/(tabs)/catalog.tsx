@@ -230,7 +230,7 @@ function MarketplaceSection({
               filter_condition: filterCondition !== 'Any' ? filterCondition : null,
               sort_order: filterSort,
             })
-            .select('*, user:users!posts_user_id_fkey(id,name,avatar_url)');
+            .select('*, user:public_profiles!posts_user_id_fkey(id,name,avatar_url)');
 
           if (search?.trim()) {
             q = q.ilike('title', `%${search.trim()}%`);
@@ -246,7 +246,7 @@ function MarketplaceSection({
         } else {
           q = supabase
             .from('posts')
-            .select('*, user:users!posts_user_id_fkey(id,name,avatar_url)')
+            .select('*, user:public_profiles!posts_user_id_fkey(id,name,avatar_url)')
             .in('category', ['For Sale', 'Giveaway'])
             .or('is_sold.eq.false,is_sold.is.null');
           if (category !== 'All') {
@@ -837,7 +837,7 @@ function EventsSection({
             try {
               const { data: ticketsData } = await supabase
                 .from('tickets')
-                .select('event_id, buyer:users(id, name, avatar_url)')
+                .select('event_id, buyer:public_profiles!tickets_buyer_id_fkey(id, name, avatar_url)')
                 .in('event_id', eventIds);
 
               if (ticketsData) {

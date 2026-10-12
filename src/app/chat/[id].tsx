@@ -1,3 +1,5 @@
+import { privateMediaReference } from '@/lib/private-media';
+import { usePrivateMedia } from '@/hooks/use-private-media';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
@@ -147,6 +149,7 @@ function ChatContent() {
   } | null>(null);
   const [avatarError, setAvatarError] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  const mediaUrls = usePrivateMedia(messages.map(message => message.media_url).filter((value): value is string => !!value), user?.id, isFocused);
   const [loading, setLoading] = useState(true);
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
@@ -233,7 +236,7 @@ function ChatContent() {
       });
       if (paramParticipantId) {
         const { data: u } = await supabase
-          .from('users')
+          .from('public_profiles')
           .select('name, avatar_url, username')
           .eq('id', paramParticipantId)
           .single();
@@ -277,7 +280,7 @@ function ChatContent() {
 
       if (otherId) {
         const { data: u } = await supabase
-          .from('users')
+          .from('public_profiles')
           .select('name, avatar_url, username')
           .eq('id', otherId)
           .single();
@@ -603,36 +606,8 @@ function ChatContent() {
     if (!user || !id) return;
     setUploadingMedia(true);
     try {
-      const ext = asset.uri.split('.').pop()?.toLowerCase() || 'jpg';
-      const isVideo = asset.type === 'video';
-      const filename = `${user.id}/${Date.now()}.${ext}`;
-
-      const bucketName = isVideo ? 'chat-videos' : 'chat-images';
-      const mimeExt = ext === 'jpg' ? 'jpeg' : ext;
-
-      let fileBody: ArrayBuffer | Blob;
-      if (isVideo) {
-        const response = await fetch(asset.uri);
-        fileBody = await response.blob();
-      } else {
-        const base64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: 'base64' });
-        fileBody = decode(base64);
-      }
-
-      const { error: uploadError } = await supabase.storage
-        .from(bucketName)
-        .upload(filename, fileBody, {
-          contentType: isVideo ? `video/${mimeExt}` : `image/${mimeExt}`,
-        });
-
-      if (uploadError) throw uploadError;
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from(bucketName).getPublicUrl(filename);
-
       let currentConvId = id;
-      const mediaText = isVideo ? 'Sent a video 📹' : 'Sent an image 📸';
+      const mediaText = asset.type?.startsWith('video/') || asset.type === 'video' ? 'Sent a video 📹' : 'Sent an image 📸';
 
       if (id === 'new') {
         const { type, participant_id, item_id, item_title, item_image, item_price, business_id, business_name, business_image } = params;
@@ -668,12 +643,38 @@ function ChatContent() {
         currentConvId = newConv.id;
       }
 
+      const ext = asset.uri.split('.').pop()?.toLowerCase() || 'jpg';
+      const isVideo = asset.type?.startsWith('video/') || asset.type === 'video';
+      const filename = `chat/${currentConvId}/${user.id}-${Date.now()}.${ext}`;
+
+      const bucketName = isVideo ? 'chat-videos' : 'chat-images';
+      const mimeExt = ext === 'jpg' ? 'jpeg' : ext;
+
+      let fileBody: ArrayBuffer | Blob;
+      if (isVideo) {
+        const response = await fetch(asset.uri);
+        fileBody = await response.blob();
+      } else {
+        const base64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: 'base64' });
+        fileBody = decode(base64);
+      }
+
+      const { error: uploadError } = await supabase.storage
+        .from(bucketName)
+        .upload(filename, fileBody, {
+          contentType: isVideo ? `video/${mimeExt}` : `image/${mimeExt}`,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const mediaReference = privateMediaReference(bucketName, filename);
+
       const payload: Record<string, unknown> = {
         sender_id: user.id,
         created_at: new Date().toISOString(),
         text: '',
         conversation_id: currentConvId,
-        media_url: publicUrl,
+        media_url: mediaReference,
         media_type: isVideo ? 'video' : 'image',
       };
 
@@ -855,9 +856,9 @@ function ChatContent() {
 
     const isMine = item.sender_id === user?.id;
     const msgText = item.text || item.content || '';
-    const imgUrl = item.media_type === 'image' ? item.media_url : null;
-    const vidUrl = item.media_type === 'video' ? item.media_url : null;
-    const hasMedia = !!imgUrl || !!vidUrl;
+    const imgUrl = item.media_type === 'image' ? mediaUrls[item.media_url] : null;
+    const vidUrl = item.media_type === 'video' ? mediaUrls[item.media_url] : null;
+    const hasMedia = !!item.media_url;
 
     return (
       <View style={[stylesheet.msgRow, isMine ? stylesheet.msgRowRight : stylesheet.msgRowLeft]}>
@@ -884,6 +885,7 @@ function ChatContent() {
             hasMedia && msgText && { paddingHorizontal: 4, paddingVertical: 4, paddingBottom: 6 },
           ]}
         >
+          {hasMedia && !imgUrl && !vidUrl && <Text style={stylesheet.bubbleText}>Attachment unavailable or loading…</Text>}
           {imgUrl && (
             <TouchableOpacity
               onPress={() => openViewer(imgUrl)}

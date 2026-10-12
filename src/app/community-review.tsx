@@ -23,7 +23,7 @@ export default function CommunityApprovalsScreen() {
 
   const load = useCallback(async () => {
     const { data, error } = await supabase.from('communities')
-      .select('*, creator:users!communities_created_by_fkey(name, phone_verified)')
+      .select('*, creator:public_profiles!communities_created_by_fkey(name, phone_verified)')
       .eq('approval_status', 'pending').order('created_at', { ascending: true });
     if (error) Alert.alert('Could not load submissions', error.message);
     setItems((data ?? []) as ReviewItem[]);

@@ -84,7 +84,7 @@ export default function CatalogItemScreen() {
             if (bizData.owner_id) {
               try {
                 const { data: uData } = await supabase
-                  .from('users')
+                  .from('public_profiles')
                   .select('name, avatar_url')
                   .eq('id', bizData.owner_id)
                   .maybeSingle();
