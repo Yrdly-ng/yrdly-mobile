@@ -68,7 +68,7 @@ function RootNavigationGuard({
   onAuthLoadingChange: (loading: boolean) => void;
 }) {
   const { user, profile, loading } = useAuth();
-  const segments = useSegments();
+  const segments: string[] = useSegments();
   const router = useRouter();
 
   const [profileWaitTime, setProfileWaitTime] = useState(0);
@@ -128,7 +128,7 @@ function RootNavigationGuard({
       } else {
         // Onboarding complete — redirect out of auth/onboarding/root to tabs
         const isRoot =
-          (segments as any).length === 0 ||
+          segments.length === 0 ||
           (segments[0] as string) === 'index' ||
           (segments[0] as string) === '';
         const isResetPassword =
