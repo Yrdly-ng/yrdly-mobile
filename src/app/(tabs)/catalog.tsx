@@ -58,12 +58,7 @@ function DiscoverSection({ search }: { search: string }) {
   const initialMode =
     params.circleMode === 'circle' || params.mode === 'circle' ? 'circle' : 'nearby';
 
-  return (
-    <DiscoverPeopleSection
-      search={search}
-      initialMode={initialMode}
-    />
-  );
+  return <DiscoverPeopleSection search={search} initialMode={initialMode} />;
 }
 
 // ─── CATEGORY DROPDOWN COMPONENT ───────────────────────────────────────────────
@@ -192,7 +187,8 @@ function MarketplaceSection({
   currentLoc: Location.LocationObject | null;
   search: string;
 }) {
-  const { theme } = useUnistyles(); const sStylesheet = stylesheet;
+  const { theme } = useUnistyles();
+  const sStylesheet = stylesheet;
   const { activeFilter } = useLocation();
 
   const router = useRouter();
@@ -753,7 +749,7 @@ function CatalogEventCard({ item, router, theme, sStylesheet }: any) {
           <View style={sStylesheet.eventCardMetaItem}>
             <Ionicons name="people-outline" size={12} color={theme.colors.LABEL} />
             <Text style={sStylesheet.eventCardMetaText}>
-              {(item.attendee_count ?? item.attendees?.length ?? 0)} going
+              {item.attendee_count ?? item.attendees?.length ?? 0} going
             </Text>
           </View>
         </View>
@@ -770,7 +766,8 @@ function EventsSection({
   currentLoc: Location.LocationObject | null;
   search: string;
 }) {
-  const { theme } = useUnistyles(); const sStylesheet = stylesheet;
+  const { theme } = useUnistyles();
+  const sStylesheet = stylesheet;
   const { activeFilter } = useLocation();
 
   const router = useRouter();
@@ -837,7 +834,9 @@ function EventsSection({
             try {
               const { data: ticketsData } = await supabase
                 .from('tickets')
-                .select('event_id, buyer:public_profiles!tickets_buyer_id_fkey(id, name, avatar_url)')
+                .select(
+                  'event_id, buyer:public_profiles!tickets_buyer_id_fkey(id, name, avatar_url)'
+                )
                 .in('event_id', eventIds);
 
               if (ticketsData) {
@@ -929,7 +928,8 @@ function PlacesSection({
   currentLoc: Location.LocationObject | null;
   search: string;
 }) {
-  const { theme } = useUnistyles(); const sStylesheet = stylesheet;
+  const { theme } = useUnistyles();
+  const sStylesheet = stylesheet;
   const { activeFilter } = useLocation();
 
   const router = useRouter();
@@ -950,8 +950,11 @@ function PlacesSection({
 
   useFocusEffect(
     useCallback(() => {
+      let active = true;
+      let latestRequest = 0;
       async function fetchPlaces() {
-        let q = supabase.from('businesses').select('*');
+        const request = ++latestRequest;
+        let q = supabase.from('businesses').select('*').eq('is_active', true);
         if (category !== 'All') {
           // Because businesses might have slightly different saved categories, use a broad ilike
           const searchCategory = category.split(' & ')[0]; // E.g., 'Beauty & Salon' -> 'Beauty'
@@ -969,11 +972,22 @@ function PlacesSection({
           q = q.ilike('name', `%${search.trim()}%`);
         }
         const { data, error } = await q.limit(20);
+        if (!active || request !== latestRequest) return;
         if (error) console.error('Places fetch error:', error);
-        if (data) setBusinesses(data as Business[]);
+        setBusinesses((data || []) as Business[]);
         setLoading(false);
       }
-      fetchPlaces();
+      void fetchPlaces();
+      const channel = supabase
+        .channel('places-active-businesses')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'businesses' }, () => {
+          void fetchPlaces();
+        })
+        .subscribe();
+      return () => {
+        active = false;
+        void supabase.removeChannel(channel);
+      };
     }, [category, activeFilter, search])
   );
 
@@ -1083,7 +1097,8 @@ function PlacesSection({
 
 // ─── MAIN EXPLORE TAB ────────────────────────────────────────────────────────
 export default function CatalogTab() {
-  const { theme } = useUnistyles(); const sStylesheet = stylesheet;
+  const { theme } = useUnistyles();
+  const sStylesheet = stylesheet;
 
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -1097,7 +1112,13 @@ export default function CatalogTab() {
   );
 
   useEffect(() => {
-    if (params.tab && (params.tab === 'Marketplace' || params.tab === 'Events' || params.tab === 'Businesses' || params.tab === 'Discover')) {
+    if (
+      params.tab &&
+      (params.tab === 'Marketplace' ||
+        params.tab === 'Events' ||
+        params.tab === 'Businesses' ||
+        params.tab === 'Discover')
+    ) {
       setActiveTab(params.tab as TabType);
     }
   }, [params.tab]);
@@ -1256,9 +1277,7 @@ export default function CatalogTab() {
       </View>
 
       {/* ── Tab Content ── */}
-      {activeTab === 'Discover' && (
-        <DiscoverSection search={debouncedSearch} />
-      )}
+      {activeTab === 'Discover' && <DiscoverSection search={debouncedSearch} />}
       {activeTab === 'Marketplace' && (
         <MarketplaceSection currentLoc={currentLoc} search={debouncedSearch} />
       )}

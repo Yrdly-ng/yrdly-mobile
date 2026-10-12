@@ -35,7 +35,8 @@ const CATS = [
 ];
 
 export default function BusinessEditScreen() {
-  const { theme } = useUnistyles(); const sStylesheet = stylesheet;
+  const { theme } = useUnistyles();
+  const sStylesheet = stylesheet;
 
   const { id } = useLocalSearchParams<{ id?: string }>();
   const router = useRouter();
@@ -287,7 +288,7 @@ export default function BusinessEditScreen() {
           {/* Cover */}
           <View style={sStylesheet.coverContainer}>
             <Image
-              source={{ uri: coverUri || 'https://via.placeholder.com/700x240' }}
+              source={coverUri ? { uri: coverUri } : require('../../../assets/images/logo.png')}
               style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}
               contentFit="cover"
             />
@@ -306,7 +307,7 @@ export default function BusinessEditScreen() {
           <View style={sStylesheet.logoSection}>
             <View style={sStylesheet.logoWrap}>
               <Image
-                source={{ uri: logoUri || 'https://via.placeholder.com/150' }}
+                source={logoUri ? { uri: logoUri } : require('../../../assets/images/logo.png')}
                 style={sStylesheet.logoImg}
                 contentFit="cover"
               />

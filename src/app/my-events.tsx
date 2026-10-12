@@ -18,7 +18,8 @@ import { supabase } from '../lib/supabase';
 import type { Event } from '../types/events';
 
 export default function MyEventsScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const router = useRouter();
   const { user } = useAuth();
@@ -155,7 +156,9 @@ export default function MyEventsScreen() {
                 paddingVertical: 8,
                 borderRadius: 12,
               }}
-              onPress={() => router.push({ pathname: '/events/scan', params: { eventId: item.id } })}
+              onPress={() =>
+                router.push({ pathname: '/events/scan', params: { eventId: item.id } })
+              }
             >
               <Ionicons name="qr-code" size={16} color={theme.colors.TEXT_PRIMARY} />
               <Text style={stylesheet.scanBtnText}>Scan Attendee Tickets</Text>
@@ -335,7 +338,7 @@ const _stylesheet = StyleSheet.create((theme) => ({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 2,
+    elevation: 0,
   },
   eventImageWrapper: {
     height: 140,
@@ -370,7 +373,7 @@ const _stylesheet = StyleSheet.create((theme) => ({
     flexDirection: 'row',
     justifyContent: 'space-between',
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: 0,
     padding: 12,
   },
   statBox: {

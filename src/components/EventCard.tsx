@@ -86,7 +86,8 @@ function fmtDate(dateStr: string): { day: string; month: string; full: string; t
 
 // ── Compact card (horizontal scroll "More Events") ───────────────────────────
 export function EventCardCompact({ event, onPress }: EventCardProps) {
-  const { theme } = useUnistyles(); const c = cStylesheet;
+  const { theme } = useUnistyles();
+  const c = cStylesheet;
 
   const { user } = useAuth();
   const isOwner = user?.id === event.user_id;
@@ -274,7 +275,8 @@ export function EventCardCompact({ event, onPress }: EventCardProps) {
 
 // ── Full featured hero card ──────────────────────────────────────────────────
 export function EventCard({ event, onPress }: EventCardProps) {
-  const { theme } = useUnistyles(); const f = fStylesheet;
+  const { theme } = useUnistyles();
+  const f = fStylesheet;
 
   const { user } = useAuth();
   const router = useRouter();
@@ -474,11 +476,13 @@ export function EventCard({ event, onPress }: EventCardProps) {
               const label = priceInfo.isFree
                 ? 'Free Entry'
                 : priceInfo.hasTiers
-                ? `From ${formatPrice(priceInfo.minPrice)}`
-                : formatPrice(priceInfo.minPrice);
+                  ? `From ${formatPrice(priceInfo.minPrice)}`
+                  : formatPrice(priceInfo.minPrice);
               return (
                 <View style={f.priceWrap}>
-                  <Text style={[f.price, { color: !priceInfo.isFree ? theme.colors.G : '#22c55e' }]}>
+                  <Text
+                    style={[f.price, { color: !priceInfo.isFree ? theme.colors.G : '#22c55e' }]}
+                  >
                     {label}
                   </Text>
                 </View>
@@ -515,7 +519,7 @@ export function EventCard({ event, onPress }: EventCardProps) {
 // ── Compact card styles ───────────────────────────────────────────────────────
 const COMPACT_W = width * 0.56;
 const cStylesheet = UnistylesStyleSheet.create((theme) => ({
-  card: { width: COMPACT_W, borderRadius: 20, overflow: 'hidden', borderWidth: 1 },
+  card: { width: COMPACT_W, borderRadius: 20, overflow: 'hidden', borderWidth: 0 },
   imgWrap: { width: '100%', height: 140, position: 'relative' },
   dateBubble: {
     position: 'absolute',
@@ -584,7 +588,7 @@ const cStylesheet = UnistylesStyleSheet.create((theme) => ({
 // ── Full card styles ──────────────────────────────────────────────────────────
 const fStylesheet = UnistylesStyleSheet.create((theme) => ({
   wrap: { marginHorizontal: 16, marginBottom: 16 },
-  card: { borderRadius: 24, overflow: 'hidden', borderWidth: 1 },
+  card: { borderRadius: 24, overflow: 'hidden', borderWidth: 0 },
   imgWrap: { width: '100%', height: 200, position: 'relative' },
   overlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.28)' },
   dateBubble: {

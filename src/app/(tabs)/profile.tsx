@@ -36,11 +36,11 @@ function timeAgo(dateString: string): string {
     const d = new Date(dateString);
     const diff = Date.now() - d.getTime();
     const mins = Math.floor(diff / 60_000);
-    const hrs  = Math.floor(mins / 60);
+    const hrs = Math.floor(mins / 60);
     const days = Math.floor(hrs / 24);
-    if (mins < 1)   return 'Just now';
-    if (mins < 60)  return `${mins}m ago`;
-    if (hrs  < 24)  return `${hrs}h ago`;
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    if (hrs < 24) return `${hrs}h ago`;
     if (days === 1) return 'Yesterday';
     return `${days}d ago`;
   } catch {
@@ -49,11 +49,12 @@ function timeAgo(dateString: string): string {
 }
 
 function isMediaPost(p: Post): boolean {
-  return !!p.image_url || !!(p.image_urls?.length) || !!(p.video_urls?.length);
+  return !!p.image_url || !!p.image_urls?.length || !!p.video_urls?.length;
 }
 
 function PressableCard({ style, onPress, children, activeOpacity = 0.85, ...props }: any) {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const scale = useSharedValue(1);
 
@@ -84,7 +85,8 @@ function PressableCard({ style, onPress, children, activeOpacity = 0.85, ...prop
 }
 
 export default function ProfileTab() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const insets = useSafeAreaInsets();
   const { user, profile } = useAuth();
@@ -103,7 +105,7 @@ export default function ProfileTab() {
   const [refreshing, setRefreshing] = useState(false);
 
   const mediaPosts = useMemo(() => posts.filter(isMediaPost), [posts]);
-  const textPosts  = useMemo(() => posts.filter((p) => !isMediaPost(p)), [posts]);
+  const textPosts = useMemo(() => posts.filter((p) => !isMediaPost(p)), [posts]);
 
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
@@ -398,6 +400,7 @@ export default function ProfileTab() {
                 }}
               >
                 <Avatar
+                  viewable
                   url={avatarUri}
                   name={profile?.name}
                   size={200}
@@ -407,7 +410,9 @@ export default function ProfileTab() {
               </View>
             </View>
             <TouchableOpacity
-              onPress={() => { router.push('/profile/edit'); }}
+              onPress={() => {
+                router.push('/profile/edit');
+              }}
               style={{
                 position: 'absolute',
                 bottom: 0,
@@ -494,7 +499,9 @@ export default function ProfileTab() {
             alignItems: 'center',
             alignSelf: 'flex-start',
           }}
-          onPress={() => { router.push('/profile/edit'); }}
+          onPress={() => {
+            router.push('/profile/edit');
+          }}
           activeOpacity={0.8}
         >
           <Text style={{ color: theme.colors.MUTED, fontSize: 13, fontFamily: 'Inter-Medium' }}>
@@ -715,7 +722,7 @@ export default function ProfileTab() {
   );
 
   const activeGridData = activeTab === 'posts' ? mediaPosts : savedPosts;
-  const isLoading      = activeTab === 'saved' ? loadingSaved : loadingPosts;
+  const isLoading = activeTab === 'saved' ? loadingSaved : loadingPosts;
 
   return (
     <View style={[stylesheet.root, { paddingTop: insets.top }]}>
@@ -726,7 +733,7 @@ export default function ProfileTab() {
           ListHeaderComponent={listHeader}
           renderItem={({ item }) => {
             const locationParts = [item.ward, item.lga].filter(Boolean);
-            const locationStr   = locationParts.length ? locationParts.join(', ') : null;
+            const locationStr = locationParts.length ? locationParts.join(', ') : null;
             return (
               <TouchableOpacity
                 style={{

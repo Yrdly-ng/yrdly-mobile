@@ -28,11 +28,11 @@ function timeAgo(dateString: string): string {
     const d = new Date(dateString);
     const diff = Date.now() - d.getTime();
     const mins = Math.floor(diff / 60_000);
-    const hrs  = Math.floor(mins / 60);
+    const hrs = Math.floor(mins / 60);
     const days = Math.floor(hrs / 24);
-    if (mins < 1)   return 'Just now';
-    if (mins < 60)  return `${mins}m ago`;
-    if (hrs  < 24)  return `${hrs}h ago`;
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    if (hrs < 24) return `${hrs}h ago`;
     if (days === 1) return 'Yesterday';
     return `${days}d ago`;
   } catch {
@@ -41,7 +41,7 @@ function timeAgo(dateString: string): string {
 }
 
 function isMediaPost(p: Post): boolean {
-  return !!p.image_url || !!(p.image_urls?.length) || !!(p.video_urls?.length);
+  return !!p.image_url || !!p.image_urls?.length || !!p.video_urls?.length;
 }
 
 interface UserProfile {
@@ -64,7 +64,8 @@ interface UserProfile {
 }
 
 export default function OtherUserProfileScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -86,12 +87,16 @@ export default function OtherUserProfileScreen() {
   const [hasMarketplace, setHasMarketplace] = useState(false);
 
   const mediaPosts = useMemo(() => posts.filter(isMediaPost), [posts]);
-  const textPosts  = useMemo(() => posts.filter((p) => !isMediaPost(p)), [posts]);
+  const textPosts = useMemo(() => posts.filter((p) => !isMediaPost(p)), [posts]);
 
   const fetchProfileAndPosts = useCallback(async () => {
     if (!id) return;
     try {
-      const { data: pData } = await supabase.from('public_profiles').select('*').eq('id', id).maybeSingle();
+      const { data: pData } = await supabase
+        .from('public_profiles')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
       if (pData) {
         setProfile(pData);
         setAvatarError(false); // Reset error state on new fetch
@@ -427,13 +432,11 @@ export default function OtherUserProfileScreen() {
                 onPress: async () => {
                   try {
                     if (!currentProfile) return;
-                    await supabase
-                      .from('reports')
-                      .insert({
-                        reporter_id: currentProfile.id,
-                        reported_user_id: profile.id,
-                        reason: 'Inappropriate profile',
-                      });
+                    await supabase.from('reports').insert({
+                      reporter_id: currentProfile.id,
+                      reported_user_id: profile.id,
+                      reason: 'Inappropriate profile',
+                    });
                     Alert.alert('User reported');
                   } catch (e) {}
                 },
@@ -456,6 +459,7 @@ export default function OtherUserProfileScreen() {
           <View style={stylesheet.heroTopRow}>
             <View style={stylesheet.avatarWrap}>
               <Avatar
+                viewable
                 url={profile.avatar_url}
                 name={profile.name}
                 size={200}
@@ -688,7 +692,12 @@ export default function OtherUserProfileScreen() {
                           {post.text}
                         </Text>
                         <View
-                          style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 10 }}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            marginTop: 8,
+                            gap: 10,
+                          }}
                         >
                           <Text
                             style={{
@@ -710,7 +719,11 @@ export default function OtherUserProfileScreen() {
                                 }}
                               />
                               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                                <Ionicons name="location-outline" size={11} color={theme.colors.LABEL} />
+                                <Ionicons
+                                  name="location-outline"
+                                  size={11}
+                                  color={theme.colors.LABEL}
+                                />
                                 <Text
                                   numberOfLines={1}
                                   style={{
@@ -739,7 +752,11 @@ export default function OtherUserProfileScreen() {
                               </Text>
                             </View>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                              <Ionicons name="chatbubble-outline" size={12} color={theme.colors.LABEL} />
+                              <Ionicons
+                                name="chatbubble-outline"
+                                size={12}
+                                color={theme.colors.LABEL}
+                              />
                               <Text
                                 style={{
                                   fontFamily: 'Inter-Regular',

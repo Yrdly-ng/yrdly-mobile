@@ -7,6 +7,7 @@ import {
   ScrollView,
   Platform,
   LogBox,
+  useWindowDimensions,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 
@@ -17,15 +18,16 @@ import { SceneBg, GlassCard, StepBar, PrimaryBtn } from '@/components/onboarding
 import { ONBOARDING_THEME } from '@/constants/onboarding-theme';
 import { AuthService } from '@/lib/auth-service';
 import { useAuth } from '@/hooks/use-supabase-auth';
-import { Ionicons } from '@expo/vector-icons';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { resolveCoords } from '@/lib/geocoding-service';
 
 const { colors, radii } = ONBOARDING_THEME;
 
 export default function Profile2Screen() {
-  const { theme } = useUnistyles(); const styles = stylesheet;
+  const { theme } = useUnistyles();
+  const styles = stylesheet;
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const { user, updateProfile } = useAuth();
 
   const [location, setLocation] = useState('');
@@ -88,7 +90,7 @@ export default function Profile2Screen() {
           >
             <View style={{ flex: 1, minHeight: 40 }} />
 
-            <GlassCard>
+            <GlassCard style={{ marginHorizontal: 0, paddingHorizontal: width < 360 ? 16 : 24 }}>
               <View style={styles.titleBox}>
                 <Text style={styles.cardTitle}>Where do you live?</Text>
                 <Text style={styles.cardSubtitle}>
@@ -167,8 +169,9 @@ export default function Profile2Screen() {
                     components: 'country:ng',
                   }}
                   styles={{
-                    container: { flex: 0 },
-                    textInput: styles.input,
+                    container: { flex: 0, width: '100%' },
+                    textInputContainer: { width: '100%' },
+                    textInput: [styles.input, { fontSize: width < 360 ? 14 : 16 }],
                     listView: styles.listView,
                     row: styles.row,
                     description: styles.description,
@@ -177,20 +180,6 @@ export default function Profile2Screen() {
                     placeholderTextColor: colors.LABEL,
                   }}
                 />
-              </View>
-
-              {/* Privacy Note */}
-              <View style={styles.privacyCard}>
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={16}
-                  color={colors.G}
-                  style={{ marginTop: 1 }}
-                />
-                <Text style={styles.privacyText}>
-                  Exact house numbers are kept private. Neighbours only see your general
-                  neighbourhood area.
-                </Text>
               </View>
 
               <View style={{ marginTop: 12, zIndex: 1 }}>
@@ -218,12 +207,12 @@ const stylesheet = UnistylesStyleSheet.create((theme) => ({
     flex: 1,
   },
   topBar: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
     paddingTop: 12,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
     paddingBottom: 40,
   },
   titleBox: {
@@ -256,7 +245,14 @@ const stylesheet = UnistylesStyleSheet.create((theme) => ({
     borderColor: colors.GLASS_BORDER,
     borderRadius: radii.input,
     paddingHorizontal: 16,
-    height: 48,
+    minHeight: 52,
+    height: 52,
+    paddingVertical: 12,
+    marginBottom: 0,
+    flex: 1,
+    minWidth: 0,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   listView: {
     backgroundColor: 'rgba(15,15,15,0.96)',
@@ -275,23 +271,5 @@ const stylesheet = UnistylesStyleSheet.create((theme) => ({
     color: theme.colors.TEXT_PRIMARY,
     fontFamily: 'Inter-Regular',
     fontSize: 14,
-  },
-  privacyCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    backgroundColor: colors.SURFACE,
-    borderWidth: 1,
-    borderColor: colors.GLASS_BORDER,
-    borderRadius: radii.card,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  privacyText: {
-    flex: 1,
-    fontFamily: 'Inter-Regular',
-    fontSize: 12,
-    color: colors.LABEL,
-    lineHeight: 18,
   },
 }));

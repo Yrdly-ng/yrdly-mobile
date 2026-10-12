@@ -12,10 +12,12 @@ import {
   RefreshControl,
   Animated,
   Pressable,
+  AppState,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { Avatar } from './Avatar';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAppTheme } from '../context/ThemeContext';
 import { useLocation } from '../context/LocationContext';
@@ -34,7 +36,8 @@ interface CategoryTile {
 }
 
 export function BusinessHub({ searchQuery }: BusinessHubProps) {
-  const { theme } = useUnistyles(); const s = sStylesheet;
+  const { theme } = useUnistyles();
+  const s = sStylesheet;
 
   const { isDarkMode } = useAppTheme();
   const router = useRouter();
@@ -46,7 +49,9 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
+  const latestFetch = useRef(0);
   const fetchBusinesses = useCallback(async (isRefresh = false) => {
+    const request = ++latestFetch.current;
     if (!isRefresh) setLoading(true);
     try {
       let q = supabase
@@ -57,40 +62,39 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
 
       const { data, error } = await q;
       if (error) throw error;
-      setBusinesses((data as Business[]) || []);
+      if (request === latestFetch.current) setBusinesses((data as Business[]) || []);
     } catch (e) {
       console.error('Error fetching businesses:', e);
+      if (request === latestFetch.current) setBusinesses([]);
     } finally {
-      if (!isRefresh) setLoading(false);
+      if (request === latestFetch.current) setLoading(false);
     }
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      void fetchBusinesses();
+    }, [fetchBusinesses])
+  );
+
   useEffect(() => {
-    fetchBusinesses();
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void fetchBusinesses(true);
+    });
+    return () => subscription.remove();
   }, [fetchBusinesses]);
 
-  // Realtime: patch rating & review_count when any business row updates
   useEffect(() => {
     const channel = supabase
-      .channel('business-ratings')
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'businesses' },
-        (payload) => {
-          if (payload.new?.id) {
-            setBusinesses((prev) =>
-              prev.map((b) =>
-                b.id === payload.new.id ? { ...b, ...(payload.new as Partial<Business>) } : b
-              )
-            );
-          }
-        }
-      )
+      .channel('business-hub-updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'businesses' }, () => {
+        void fetchBusinesses(true);
+      })
       .subscribe();
     return () => {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
-  }, []);
+  }, [fetchBusinesses]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -146,7 +150,11 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
               key={k}
               style={[
                 s.skeletonCard,
-                { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER },
+                {
+                  backgroundColor: theme.colors.SURFACE,
+                  borderColor: theme.colors.GLASS_BORDER,
+                  borderWidth: theme.colors.DARK === '#FFFFFF' ? 0 : 1,
+                },
               ]}
             >
               <Skeleton width="100%" height={150} />
@@ -205,20 +213,24 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
         onPress={() => router.push(`/businesses/${item.id}` as any)}
         style={[
           s.bizCard,
-          { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER },
+          {
+            backgroundColor: theme.colors.SURFACE,
+            borderColor: theme.colors.GLASS_BORDER,
+            borderWidth: theme.colors.DARK === '#FFFFFF' ? 0 : 1,
+          },
         ]}
       >
         <View style={[s.bizImgContainer, { backgroundColor: theme.colors.DARK }]}>
-          <Image
-            source={{
-              uri:
-                item.logo ||
-                item.cover_image ||
-                item.image_urls?.[0] ||
-                'https://via.placeholder.com/150',
-            }}
+          <Avatar
+            url={
+              (item as any).logo_url ||
+              item.logo ||
+              item.cover_image ||
+              item.image_urls?.[0] ||
+              null
+            }
+            name={item.name}
             style={s.bizImg}
-            contentFit="cover"
           />
         </View>
         <View style={s.bizInfo}>

@@ -76,11 +76,19 @@ const MarketVideo = React.memo(({ url, shouldPlay }: { url: string; shouldPlay: 
     }
   }, [shouldPlay, player]);
 
-  return <VideoView style={s.mainImage} player={player} fullscreenOptions={{ enable: true }} allowsPictureInPicture />;
+  return (
+    <VideoView
+      style={s.mainImage}
+      player={player}
+      fullscreenOptions={{ enable: true }}
+      allowsPictureInPicture
+    />
+  );
 });
 
 function MarketplaceDetailContent() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
   const insets = useSafeAreaInsets();
 
   const router = useRouter();
@@ -178,7 +186,7 @@ function MarketplaceDetailContent() {
 
   useEffect(() => {
     if (!post || !post.lat || !post.lng || !loc) return;
-    
+
     let active = true;
     const fetchEta = async () => {
       try {
@@ -191,9 +199,11 @@ function MarketplaceDetailContent() {
         console.warn('Failed to fetch ETA:', err);
       }
     };
-    
+
     fetchEta();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [post, loc]);
 
   const handleMessageSeller = async () => {
@@ -264,7 +274,6 @@ function MarketplaceDetailContent() {
     }
   }, [post, router]);
 
-
   const handleShare = async () => {
     if (!post) return;
     try {
@@ -316,7 +325,11 @@ function MarketplaceDetailContent() {
                 supabase.from('post_likes').delete().eq('post_id', post.id),
                 supabase.from('saved_posts').delete().eq('post_id', post.id),
                 supabase.from('notifications').delete().eq('post_id', post.id),
-                supabase.from('moderation_queue').delete().eq('content_id', post.id).eq('table_name', 'posts'),
+                supabase
+                  .from('moderation_queue')
+                  .delete()
+                  .eq('content_id', post.id)
+                  .eq('table_name', 'posts'),
               ]);
               const { error } = await supabase.from('posts').delete().eq('id', post.id);
               if (error) throw error;
@@ -339,13 +352,11 @@ function MarketplaceDetailContent() {
           style: 'destructive',
           onPress: async () => {
             if (!user || !post) return;
-            await supabase
-              .from('reports')
-              .insert({
-                reporter_id: user.id,
-                reported_post_id: post.id,
-                reason: 'Inappropriate content',
-              });
+            await supabase.from('reports').insert({
+              reporter_id: user.id,
+              reported_post_id: post.id,
+              reason: 'Inappropriate content',
+            });
             Alert.alert('Success', 'Item reported to admins.');
           },
         },
@@ -754,8 +765,15 @@ function MarketplaceDetailContent() {
             {eta && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
                 <Ionicons name="navigate-outline" size={14} color={theme.colors.G} />
-                <Text style={{ fontFamily: 'Inter-Regular', fontSize: 13, color: theme.colors.TEXT_PRIMARY }}>
-                  {Math.ceil(eta.duration_in_traffic_seconds / 60)} min drive · {(eta.distance_meters / 1000).toFixed(1)} km
+                <Text
+                  style={{
+                    fontFamily: 'Inter-Regular',
+                    fontSize: 13,
+                    color: theme.colors.TEXT_PRIMARY,
+                  }}
+                >
+                  {Math.ceil(eta.duration_in_traffic_seconds / 60)} min drive ·{' '}
+                  {(eta.distance_meters / 1000).toFixed(1)} km
                 </Text>
               </View>
             )}
@@ -1020,39 +1038,46 @@ function MarketplaceDetailContent() {
                 Edit Listing
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={async () => {
-                const newSold = !post.is_sold;
-                const { error } = await supabase
-                  .from('posts')
-                  .update({ is_sold: newSold })
-                  .eq('id', post.id);
-                if (!error) {
-                  setPost((prev) => (prev ? { ...prev, is_sold: newSold } : null));
-                }
-              }}
-              style={{
-                flex: 1,
-                height: 52,
-                borderRadius: 16,
-                backgroundColor: post.is_sold ? 'rgba(255,92,92,0.1)' : 'rgba(130,219,126,0.1)',
-                borderWidth: 1,
-                borderColor: post.is_sold ? 'rgba(255,92,92,0.3)' : 'rgba(130,219,126,0.3)',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Text
+            {!post.is_sold && (
+              <TouchableOpacity
+                onPress={async () => {
+                  const newSold = true;
+                  const { error } = await supabase
+                    .from('posts')
+                    .update({ is_sold: newSold })
+                    .eq('id', post.id)
+                    .eq('user_id', user?.id || '')
+                    .select('id')
+                    .single();
+                  if (!error) {
+                    setPost((prev) => (prev ? { ...prev, is_sold: newSold } : null));
+                  } else {
+                    Alert.alert('Could not mark as sold', error.message || 'Please try again.');
+                  }
+                }}
                 style={{
-                  color: post.is_sold ? '#FF5C5C' : theme.colors.G,
-                  fontFamily: 'Outfit-Bold',
-                  fontWeight: '700',
-                  fontSize: 15,
+                  flex: 1,
+                  height: 52,
+                  borderRadius: 16,
+                  backgroundColor: post.is_sold ? 'rgba(255,92,92,0.1)' : 'rgba(130,219,126,0.1)',
+                  borderWidth: 1,
+                  borderColor: post.is_sold ? 'rgba(255,92,92,0.3)' : 'rgba(130,219,126,0.3)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                {post.is_sold ? 'Mark Active' : 'Mark as Sold'}
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  style={{
+                    color: post.is_sold ? '#FF5C5C' : theme.colors.G,
+                    fontFamily: 'Outfit-Bold',
+                    fontWeight: '700',
+                    fontSize: 15,
+                  }}
+                >
+                  Mark as Sold
+                </Text>
+              </TouchableOpacity>
+            )}
           </>
         ) : (
           <>
@@ -1170,7 +1195,8 @@ const _stylesheet = StyleSheet.create((theme) => ({
 }));
 
 export default function MarketplaceDetailScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   return (
     <ErrorBoundary screenName="MarketplaceDetail">
