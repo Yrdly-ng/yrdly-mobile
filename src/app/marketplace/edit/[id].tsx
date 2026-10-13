@@ -25,10 +25,8 @@ import { useAuth } from '../../../hooks/use-supabase-auth';
 import { usePosts } from '../../../hooks/use-posts';
 import { StorageService } from '../../../lib/storage-service';
 import { Post } from '../../../types';
-import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
+import { GooglePlacesAutocomplete } from '@/components/PlacesAutocomplete';
 import { useCategories } from '../../../hooks/use-categories';
-
-const GOOGLE_MAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
 const CONDITIONS = ['New', 'Like New', 'Good', 'Fair', 'Poor'];
 
@@ -506,7 +504,6 @@ export default function EditMarketplaceItemScreen() {
                 setAddress(data.description);
               }}
               query={{
-                key: GOOGLE_MAPS_KEY,
                 language: 'en',
                 components: 'country:ng',
               }}

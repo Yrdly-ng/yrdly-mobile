@@ -13,7 +13,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
+import { GooglePlacesAutocomplete } from '@/components/PlacesAutocomplete';
 import { api } from '../lib/api';
 import { useAuth } from '../hooks/use-supabase-auth';
 
@@ -305,7 +305,6 @@ export default function CreateAlertScreen() {
                 }
               }}
               query={{
-                key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '',
                 language: 'en',
                 components: 'country:ng',
               }}

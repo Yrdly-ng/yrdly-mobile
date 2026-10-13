@@ -25,7 +25,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/use-supabase-auth';
 import { StorageService, MobileFile } from '../lib/storage-service';
 import { DateTimePickerModal } from '../components/DateTimePickerModal';
-import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
+import { GooglePlacesAutocomplete } from '@/components/PlacesAutocomplete';
 import { resolveCoords } from '../lib/geocoding-service';
 import * as FileSystem from 'expo-file-system/legacy';
 import { formatPrice } from '../lib/utils';
@@ -672,7 +672,6 @@ export default function CreateEventScreen() {
                       }
                     }}
                     query={{
-                      key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '',
                       language: 'en',
                       components: 'country:ng', // Limit to Nigeria
                     }}

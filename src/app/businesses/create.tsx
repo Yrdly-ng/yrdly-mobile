@@ -21,7 +21,7 @@ import { StorageService } from '../../lib/storage-service';
 import { resolveCoords } from '../../lib/geocoding-service';
 import ImagePicker from 'react-native-image-crop-picker';
 import { OpeningHoursPicker } from '../../components/OpeningHoursPicker';
-import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
+import { GooglePlacesAutocomplete } from '@/components/PlacesAutocomplete';
 
 const CATS = [
   { name: 'Restaurant & Café', icon: 'restaurant-outline' },
@@ -379,7 +379,6 @@ export default function BusinessEditScreen() {
                 }
               }}
               query={{
-                key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '',
                 language: 'en',
                 components: 'country:ng',
               }}

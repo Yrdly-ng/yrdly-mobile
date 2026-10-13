@@ -18,7 +18,7 @@ import { SceneBg, GlassCard, StepBar, PrimaryBtn } from '@/components/onboarding
 import { ONBOARDING_THEME } from '@/constants/onboarding-theme';
 import { AuthService } from '@/lib/auth-service';
 import { useAuth } from '@/hooks/use-supabase-auth';
-import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
+import { GooglePlacesAutocomplete } from '@/components/PlacesAutocomplete';
 import { resolveCoords } from '@/lib/geocoding-service';
 
 const { colors, radii } = ONBOARDING_THEME;
@@ -164,7 +164,6 @@ export default function Profile2Screen() {
                   onNotFound={() => console.warn('[GooglePlaces] onNotFound')}
                   debounce={400}
                   query={{
-                    key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '',
                     language: 'en',
                     components: 'country:ng',
                   }}

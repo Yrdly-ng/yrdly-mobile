@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
+import { GooglePlacesAutocomplete } from '@/components/PlacesAutocomplete';
 import DateTimePicker from '@react-native-community/datetimepicker';
 export const EVENT_CATEGORIES = [
   'Party',
@@ -576,7 +576,6 @@ export function CreateEventForm({
                 }
               }}
               query={{
-                key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
                 language: 'en',
                 components: 'country:ng',
               }}

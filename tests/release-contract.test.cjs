@@ -20,6 +20,151 @@ const { privateMediaReference, parsePrivateMediaReference, mediaConversationId }
   load('private-media');
 const { parseWithdrawalQuote } = load('payout-quote');
 const { createBookingPayments } = load('booking-payments');
+
+function loadPlacesAdapter(enabled) {
+  let identity = null,
+    authCallback,
+    effect,
+    cleanup,
+    resolveInitial;
+  let user = { id: 'owned-user' };
+  let unsubscribed = false;
+  const initial = new Promise((resolve) => {
+    resolveInitial = resolve;
+  });
+  const react = {
+    forwardRef: (fn) => fn,
+    createElement: (type, props) => ({ type, props, key: props?.key }),
+    useState: () => [
+      identity,
+      (next) => {
+        identity = next;
+      },
+    ],
+    useMemo: (fn) => fn(),
+    useEffect: (fn) => {
+      effect = fn;
+    },
+  };
+  const jsx = (type, props, key) => ({ type, props, key });
+  const mocks = {
+    react,
+    'react/jsx-runtime': { jsx, jsxs: jsx },
+    'react-native-google-places-autocomplete': { GooglePlacesAutocomplete: 'NativePlaces' },
+    '@/hooks/use-supabase-auth': { useAuth: () => ({ user }) },
+    '@/lib/api': { WEB_APP_URL: 'https://qa.example.invalid' },
+    '@/lib/supabase': {
+      supabase: {
+        auth: {
+          getSession: () => initial,
+          onAuthStateChange: (callback) => {
+            authCallback = callback;
+            return {
+              data: {
+                subscription: {
+                  unsubscribe: () => {
+                    unsubscribed = true;
+                  },
+                },
+              },
+            };
+          },
+        },
+      },
+    },
+  };
+  const output = ts.transpileModule(readFileSync('src/components/PlacesAutocomplete.tsx', 'utf8'), {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+      jsx: ts.JsxEmit.ReactJSX,
+    },
+  }).outputText;
+  const module = { exports: {} };
+  vm.runInNewContext(output, {
+    module,
+    exports: module.exports,
+    require: (id) => {
+      assert.ok(Object.hasOwn(mocks, id), `Unexpected native import: ${id}`);
+      return mocks[id];
+    },
+    process: {
+      env: {
+        EXPO_PUBLIC_MAPS_PROXY_ENABLED: enabled ? 'true' : 'false',
+        EXPO_PUBLIC_GOOGLE_MAPS_API_KEY: 'public-test-only',
+      },
+    },
+  });
+  const props = { placeholder: 'Address', query: { language: 'en', components: 'country:ng' } };
+  const outer = module.exports.GooglePlacesAutocomplete(props, null);
+  return {
+    outer,
+    render: () => outer.type(outer.props, null),
+    start: () => {
+      cleanup = effect();
+    },
+    session: (token, id = 'owned-user') =>
+      authCallback(
+        token ? 'TOKEN_REFRESHED' : 'SIGNED_OUT',
+        token ? { user: { id }, access_token: token } : null
+      ),
+    resolveInitial: (token) =>
+      resolveInitial({
+        data: { session: token ? { user: { id: 'owned-user' }, access_token: token } : null },
+      }),
+    switchUser: (id) => {
+      user = id ? { id } : null;
+    },
+    stop: () => {
+      cleanup();
+      return unsubscribed;
+    },
+  };
+}
+
+test('disabled Maps routing preserves the existing native key and query', () => {
+  const adapter = loadPlacesAdapter(false);
+  assert.equal(adapter.outer.type, 'NativePlaces');
+  assert.equal(adapter.outer.props.requestUrl, undefined);
+  assert.equal(adapter.outer.props.query.key, 'public-test-only');
+  assert.equal(adapter.outer.props.query.components, 'country:ng');
+});
+
+test('Maps routing follows token refresh, logout and account switches without restoring stale sessions', async () => {
+  const adapter = loadPlacesAdapter(true);
+  let input = adapter.render();
+  adapter.start();
+  assert.equal(input.props.textInputProps.editable, false);
+  adapter.session('first-token');
+  input = adapter.render();
+  assert.equal(input.props.requestUrl.url, 'https://qa.example.invalid/api/maps');
+  assert.equal(input.props.requestUrl.useOnPlatform, 'all');
+  assert.equal(input.props.requestUrl.headers.Authorization, 'Bearer first-token');
+  assert.equal(input.props.query.key, 'server-proxy');
+  assert.equal(input.props.textInputProps.editable, true);
+  adapter.session('refreshed-token');
+  input = adapter.render();
+  assert.equal(input.props.requestUrl.headers.Authorization, 'Bearer refreshed-token');
+  adapter.switchUser('second-user');
+  input = adapter.render();
+  assert.equal(input.props.textInputProps.editable, false);
+  assert.equal(input.props.requestUrl.headers.Authorization, undefined);
+  assert.equal(input.key, 'second-user');
+  adapter.session('second-token', 'second-user');
+  input = adapter.render();
+  assert.equal(input.props.requestUrl.headers.Authorization, 'Bearer second-token');
+  adapter.session(null);
+  adapter.switchUser(null);
+  adapter.resolveInitial('stale-first-token');
+  await Promise.resolve();
+  await Promise.resolve();
+  input = adapter.render();
+  assert.equal(input.key, 'signed-out');
+  assert.equal(input.props.textInputProps.editable, false);
+  assert.equal(input.props.requestUrl.headers.Authorization, undefined);
+  assert.equal(adapter.stop(), true);
+});
+
 const response = (status, json) =>
   new Response(JSON.stringify(json), {
     status,
