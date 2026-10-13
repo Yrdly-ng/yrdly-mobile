@@ -26,6 +26,7 @@ import { useAuth } from '../hooks/use-supabase-auth';
 import { StorageService, MobileFile } from '../lib/storage-service';
 import { DateTimePickerModal } from '../components/DateTimePickerModal';
 import { GooglePlacesAutocomplete } from '@/components/PlacesAutocomplete';
+import { useVideoEditor, discardEditedVideo } from '@/hooks/use-video-editor';
 import { resolveCoords } from '../lib/geocoding-service';
 import * as FileSystem from 'expo-file-system/legacy';
 import { formatPrice } from '../lib/utils';
@@ -72,6 +73,9 @@ export default function CreateEventScreen() {
   const [postLng, setPostLng] = useState<number | null>(null);
 
   const [attachedFiles, setAttachedFiles] = useState<MobileFile[]>([]);
+  const { editVideo, videoEditor, isEditingVideo } = useVideoEditor();
+  const pickingMedia = React.useRef(false);
+  const [picking, setPicking] = useState(false);
   const [coverIndex, setCoverIndex] = useState(0);
   const [posting, setPosting] = useState(false);
   const [imageDimsMap, setImageDimsMap] = useState<{ [uri: string]: { w: number; h: number } }>({});
@@ -107,6 +111,8 @@ export default function CreateEventScreen() {
   }));
 
   const pickMedia = async (type: 'photo' | 'video') => {
+    if (pickingMedia.current || isEditingVideo || publishing) return;
+    pickingMedia.current = true; setPicking(true);
     try {
       const isPhoto = type === 'photo';
       const options: any = { mediaType: type };
@@ -147,11 +153,16 @@ export default function CreateEventScreen() {
             }
           }
 
-          const file: MobileFile = {
+          let file: MobileFile = {
             uri: asset.path,
             name: asset.filename || `media_${Date.now()}`,
             type,
           };
+          if (type.startsWith('video/')) {
+            const edited = await editVideo(file, 40 * 1024 * 1024).catch(error => { Alert.alert('Video unavailable', error instanceof Error ? error.message : 'Please choose another video.'); return null; });
+            if (!edited) { videoCount--; continue; }
+            file = edited;
+          }
           validFiles.push(file);
 
           if (type.startsWith('image/') && asset.width && asset.height) {
@@ -171,7 +182,18 @@ export default function CreateEventScreen() {
       if (e.message !== 'User cancelled image selection' && e.message !== 'User cancelled') {
         Alert.alert('Error', e.message || 'Failed to pick media');
       }
-    }
+    } finally { pickingMedia.current = false; setPicking(false); }
+  };
+
+  const editAttachedVideo = async (file: MobileFile) => {
+    if (publishing || pickingMedia.current || isEditingVideo) return;
+    try {
+      const edited = await editVideo(file, 40 * 1024 * 1024);
+      if (edited) {
+        setAttachedFiles(previous => previous.map(current => current.uri === file.uri ? edited : current));
+        if (edited.uri !== file.uri) void discardEditedVideo(file);
+      }
+    } catch (error) { Alert.alert('Video unavailable', error instanceof Error ? error.message : 'Please try again.'); }
   };
 
   const pickImages = () => {
@@ -227,6 +249,7 @@ export default function CreateEventScreen() {
   }, [user]);
 
   const handleNext = async () => {
+    if (pickingMedia.current || isEditingVideo) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     if ((step === 3 || step === STEPS.length - 1) && tiers.some(t => !t.isFree && !isPaidPrice(Number(t.price)))) {
@@ -375,6 +398,7 @@ export default function CreateEventScreen() {
         setUploadProgress(0);
         setModerationStatus(res.moderationStatus === 'approved' ? 'approved' : 'pending');
         setPublished(true);
+        for (const file of attachedFiles) void discardEditedVideo(file);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch (err: any) {
         setPublishing(false);
@@ -463,6 +487,7 @@ export default function CreateEventScreen() {
       style={[stylesheet.container, { backgroundColor: theme.colors.DARK, paddingTop: insets.top }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      {videoEditor}
       <View style={stylesheet.header}>
         <TouchableOpacity onPress={handleBack} style={stylesheet.backBtn}>
           <Ionicons name="chevron-back" size={20} color={theme.colors.TEXT_PRIMARY} />
@@ -809,7 +834,7 @@ export default function CreateEventScreen() {
                 >
                   <Image source={{ uri: f.uri }} style={stylesheet.photoImg} />
                   {f.type?.startsWith('video/') && !posting && (
-                    <View
+                    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Edit video" onPress={() => void editAttachedVideo(f)}
                       style={{
                         position: 'absolute',
                         top: 0,
@@ -822,7 +847,7 @@ export default function CreateEventScreen() {
                       }}
                     >
                       <Ionicons name="play-circle" size={32} color={theme.colors.TEXT_PRIMARY} />
-                    </View>
+                    </TouchableOpacity>
                   )}
                   {posting && (
                     <View
@@ -851,6 +876,7 @@ export default function CreateEventScreen() {
                       style={stylesheet.removePhoto}
                       onPress={() => {
                         setAttachedFiles((f) => f.filter((_, idx) => idx !== i));
+                        void discardEditedVideo(f);
                         if (coverIndex === i) setCoverIndex(0);
                         else if (coverIndex > i) setCoverIndex((c) => c - 1);
                       }}
@@ -865,7 +891,7 @@ export default function CreateEventScreen() {
                 </TouchableOpacity>
               ))}
               {attachedFiles.length < 5 && (
-                <TouchableOpacity style={stylesheet.addPhotoBox} onPress={pickImages}>
+                <TouchableOpacity disabled={picking || isEditingVideo || publishing} style={stylesheet.addPhotoBox} onPress={pickImages}>
                   <Feather name="image" size={24} color={theme.colors.LABEL} />
                   <Text
                     style={{
@@ -1224,7 +1250,7 @@ export default function CreateEventScreen() {
       <View style={[stylesheet.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
         <TouchableOpacity
           style={[stylesheet.btnPrimary, !canNext && stylesheet.btnDisabled]}
-          disabled={!canNext || publishing}
+          disabled={!canNext || publishing || picking || isEditingVideo}
           onPress={handleNext}
         >
           {publishing ? (

@@ -60,6 +60,7 @@
     "react-native-keyboard-controller": "1.21.9",
     "react-native-map-clustering": "^4.0.0",
     "react-native-maps": "1.27.2",
+    "react-native-media-toolkit": "2.4.0",
     "react-native-nitro-modules": "^0.36.1",
     "react-native-qrcode-svg": "^6.3.21",
     "react-native-reanimated": "4.5.1",
@@ -88,7 +89,7 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
-    "test:release": "node --test tests/release-contract.test.cjs",
+    "test:release": "node --test tests/release-contract.test.cjs tests/video-editing.test.cjs",
     "typecheck": "tsc --noEmit",
     "start": "expo start",
     "android": "expo run:android",

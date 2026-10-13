@@ -30,6 +30,7 @@ import { useAppTheme } from '../../context/ThemeContext';
 import { formatPrice } from '../../lib/utils';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { setActiveConversationId } from '../../lib/active-chat-tracker';
+import { useVideoEditor, discardEditedVideo } from '@/hooks/use-video-editor';
 
 interface Message {
   id: string;
@@ -154,6 +155,8 @@ function ChatContent() {
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
   const [uploadingMedia, setUploadingMedia] = useState(false);
+  const { editVideo, videoEditor, isEditingVideo } = useVideoEditor();
+  const pickingMedia = useRef(false);
   const [viewerImages, setViewerImages] = useState<{ uri: string }[]>([]);
   const [viewerVisible, setViewerVisible] = useState(false);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
@@ -427,7 +430,7 @@ function ChatContent() {
   }, [id, meta, fetchMessages]);
 
   const sendMessage = async () => {
-    if (!inputText.trim() || !user || !id || sending) return;
+    if (!inputText.trim() || !user || !id || sending || isEditingVideo || pickingMedia.current) return;
     setSending(true);
     const body = inputText.trim();
     setInputText('');
@@ -564,7 +567,8 @@ function ChatContent() {
   };
 
   const handlePickMedia = async (type: 'photo' | 'video') => {
-    if (sending || uploadingMedia) return;
+    if (sending || uploadingMedia || isEditingVideo || pickingMedia.current) return;
+    pickingMedia.current = true;
     try {
       const isPhoto = type === 'photo';
       const options: any = { mediaType: type };
@@ -581,17 +585,24 @@ function ChatContent() {
 
       if (image) {
         const selected = image as any;
-        uploadAndSendMedia({
+        let media = {
           uri: selected.path,
           type: selected.mime || (selected.path.endsWith('.mp4') ? 'video/mp4' : 'image/jpeg'),
-        });
+          name: selected.filename || (type === 'video' ? 'video.mp4' : 'photo.jpg'),
+        };
+        if (type === 'video') {
+          const edited = await editVideo(media, 15 * 1024 * 1024);
+          if (!edited) return;
+          media = edited;
+        }
+        await uploadAndSendMedia(media);
       }
     } catch (e: any) {
       if (e.message !== 'User cancelled image selection' && e.message !== 'User cancelled') {
         console.log('ImagePicker error:', e);
         Alert.alert('Error', e.message || 'Failed to pick media');
       }
-    }
+    } finally { pickingMedia.current = false; }
   };
 
   const pickMedia = () => {
@@ -699,6 +710,7 @@ function ChatContent() {
         await NotificationTriggers.onMessageSent(toUserId, user.id, currentConvId, mediaText);
       }
 
+      if (asset.uri && asset.type?.startsWith('video/')) void discardEditedVideo({ uri: asset.uri, type: asset.type, name: 'video.mp4' });
       if (id === 'new') {
         router.replace({ pathname: '/chat/[id]', params: { id: currentConvId } });
         return;
@@ -1140,6 +1152,7 @@ function ChatContent() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={0}
     >
+      {videoEditor}
       {/* Header */}
       <View
         style={{
