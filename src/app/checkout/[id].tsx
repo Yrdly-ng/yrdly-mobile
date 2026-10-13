@@ -3,7 +3,7 @@ import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/use-supabase-auth';
-import { api } from '../../lib/api';
+import { api, WEB_APP_URL } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 import { formatPrice } from '../../lib/utils';
 import { MARKETPLACE_CONSTANTS } from '../../lib/constants';
@@ -29,7 +29,7 @@ interface ItemDetails {
   image_urls?: string[];
   image_url?: string;
   user_id: string;
-  seller?: { id: string; name: string; email: string };
+  seller?: { id: string; name: string };
   condition?: string;
   area?: string;
 }
@@ -39,7 +39,8 @@ interface InitializeResponse {
   success: boolean;
   transactionId: string;
   totalAmount: number; // Server-authoritative; use instead of recomputing locally
-  paymentLink?: string; // Undefined for Payluk and free items
+  alreadyPaid?: boolean;
+  buyerPaylukId?: string;
   paylukEscrowId?: string; // Present when Payluk is active
   paylukPaymentToken?: string;
 }
@@ -63,6 +64,9 @@ export default function CheckoutScreen() {
   const [paylukTotalAmount, setPaylukTotalAmount] = useState<number>(0); // server-authoritative
   const [showCheckout, setShowCheckout] = useState(false);
   const [paylukToken, setPaylukToken] = useState<string | null>(null);
+  const [buyerPaylukId, setBuyerPaylukId] = useState('');
+  const initializationInFlight = useRef(false);
+  const verificationInFlight = useRef(false);
 
   // 1. Fetch item + seller info
   const fetchItem = useCallback(async () => {
@@ -81,8 +85,8 @@ export default function CheckoutScreen() {
         if (!business) throw new Error('Business not found');
 
         const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('id, name, email')
+          .from('public_profiles')
+          .select('id, name')
           .eq('id', business.owner_id)
           .single();
 
@@ -94,7 +98,7 @@ export default function CheckoutScreen() {
           price: data.price,
           image_urls: data.images,
           user_id: business.owner_id,
-          seller: { id: userData.id, name: business.name || userData.name, email: userData.email },
+          seller: { id: userData.id, name: business.name || userData.name },
           condition: 'New',
           area: 'Nigeria',
         });
@@ -103,7 +107,7 @@ export default function CheckoutScreen() {
         const { data, error } = await supabase
           .from('posts')
           .select(
-            'id, title, price, image_url, image_urls, condition, location, user_id, user:users!posts_user_id_fkey(id, name, email)'
+            'id, title, price, image_url, image_urls, condition, location, user_id, user:public_profiles!posts_user_id_fkey(id, name)'
           )
           .eq('id', id)
           .single();
@@ -127,47 +131,27 @@ export default function CheckoutScreen() {
     fetchItem();
   }, [fetchItem]);
 
-  // ── Payluk: open Inline Checkout SDK ────────────────────────────────────
-  const enterPaylukFlow = useCallback((transactionId: string, totalAmount: number, paymentToken: string) => {
-    console.log('[Checkout] enterPaylukFlow — transactionId:', transactionId, 'token:', paymentToken);
-    setPaylukTransactionId(transactionId);
-    setPaylukTotalAmount(totalAmount);
-    setPaylukToken(paymentToken);
-    setShowCheckout(true);
-    setStage('payluk_checkout');
-  }, []);
-
-  // ── Payluk SDK callbacks ─────────────────────────────────────────────────
-  const handleCheckoutSuccess = useCallback(() => {
+  // An SDK callback is only a signal to verify; the server decides payment state.
+  const handleCheckoutSuccess = useCallback(async () => {
+    if (!paylukTransactionId || verificationInFlight.current) return;
+    verificationInFlight.current = true;
     setShowCheckout(false);
-    console.log('[Checkout] SDK success — subscribing to realtime for tx:', paylukTransactionId);
-    // The webhook will update the DB; subscribe to realtime to catch it
-    const channel = supabase
-      .channel(`tx-paid-${paylukTransactionId}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'escrow_transactions', filter: `id=eq.${paylukTransactionId}` },
-        (payload) => {
-          if (payload.new?.status === 'paid' || payload.new?.status === 'PAID') {
-            supabase.removeChannel(channel);
-            router.replace({
-              pathname: '/checkout/success',
-              params: { transactionId: paylukTransactionId, itemTitle: item?.title, amount: String(paylukTotalAmount) },
-            } as any);
-          }
-        }
-      )
-      .subscribe();
-
-    // Fallback: navigate after 8 seconds even if realtime is delayed
-    setTimeout(() => {
-      supabase.removeChannel(channel);
-      router.replace({
-        pathname: '/checkout/success',
-        params: { transactionId: paylukTransactionId, itemTitle: item?.title, amount: String(paylukTotalAmount) },
-      } as any);
-    }, 8000);
-  }, [paylukTransactionId, paylukTotalAmount, item]);
+    setStage('loading');
+    try {
+      const result = await api.post<{ success: boolean; amount: number }>('/api/payment/verify', { txRef: paylukTransactionId });
+      if (!result.success) throw new Error('Payment has not been confirmed.');
+      router.replace({ pathname: '/checkout/success', params: {
+        transactionId: paylukTransactionId, itemTitle: item?.title, amount: String(result.amount),
+      } } as any);
+    } catch {
+      setStage('summary');
+      Alert.alert('Payment awaiting confirmation', 'Your payment has not been confirmed yet. Check this order before attempting another payment.', [
+        { text: 'View Order', onPress: () => router.replace(`/transactions/${paylukTransactionId}` as any) },
+      ]);
+    } finally {
+      verificationInFlight.current = false;
+    }
+  }, [paylukTransactionId, item?.title, router]);
 
   const handleCheckoutCancel = useCallback(() => {
     setShowCheckout(false);
@@ -186,94 +170,56 @@ export default function CheckoutScreen() {
 
   // 2. Initialize payment via web API
   const handleInitializePayment = async () => {
-    if (!item || !user || !profile) {
-      console.log('[Checkout] handleInitializePayment — missing state:', {
-        item: !!item,
-        user: !!user,
-        profile: !!profile,
-      });
-      return;
-    }
-
+    if (!item || !user || !profile || initializationInFlight.current) return;
     if (item.user_id === user.id) {
       Alert.alert('Error', "You can't buy your own item.");
       return;
     }
-
-    console.log(
-      '[Checkout] handleInitializePayment — itemId:',
-      item.id,
-      'sellerId:',
-      item.user_id,
-      'price:',
-      item.price,
-      'itemType:',
-      type
-    );
+    if (item.price > 0 && item.price < MARKETPLACE_CONSTANTS.MIN_PRICE) {
+      Alert.alert('Price unavailable', 'Paid purchases must be at least ₦1,200. Please contact the seller.');
+      return;
+    }
+    if (item.price > 0 && !PAYLUK_PUBLIC_KEY) {
+      Alert.alert('Payments unavailable', 'Secure checkout is unavailable. Please try again later.');
+      return;
+    }
+    initializationInFlight.current = true;
     setStage('loading');
     setErrorMsg('');
     try {
-      const payload = {
-        itemId: item.id,
-        buyerId: user.id,
-        sellerId: item.user_id,
-        price: item.price ?? 0,
-        buyerEmail: user.email || 'no-email@yrdly.ng',
-        buyerName: profile?.name ?? user.user_metadata?.name ?? 'Yrdly User',
-        itemTitle: item.title,
-        sellerName: item.seller?.name ?? 'Seller',
-        itemType: type === 'catalog_item' ? 'catalog_item' : 'post',
-      };
-      console.log('[Checkout] POST /api/payment/initialize payload:', JSON.stringify(payload));
-
-      const result = await api.post<InitializeResponse>('/api/payment/initialize', payload);
-      console.log('[Checkout] /api/payment/initialize response:', JSON.stringify(result));
-
-      // ── Payluk path: paylukPaymentToken present ──
-      if (result.paylukPaymentToken) {
-        console.log('[Checkout] → Payluk SDK path. token:', result.paylukPaymentToken, 'tx:', result.transactionId);
-        enterPaylukFlow(result.transactionId, result.totalAmount, result.paylukPaymentToken);
-        return;
-      }
-
-      // ── Free item path: no paymentLink ──
-      if (!result.paymentLink) {
-        console.log('[Checkout] → Free item path. transactionId:', result.transactionId);
-        router.replace({
-          pathname: '/checkout/success',
-          params: {
-            transactionId: result.transactionId,
-            itemTitle: item.title,
-            amount: String(item.price),
-          },
-        } as any);
-        return;
-      }
-
-      // ── Fallback error ──
-      console.log(
-        '[Checkout] → Unexpected: paymentLink present but no Payluk. result:',
-        JSON.stringify(result)
-      );
-      setStage('error');
-      setErrorMsg('Unexpected response from server. Please try again.');
+      const result = await api.post<InitializeResponse>('/api/payment/initialize', {
+        itemId: item.id, buyerId: user.id, sellerId: item.user_id,
+        price: item.price ?? 0, itemType: type === 'catalog_item' ? 'catalog_item' : 'post',
+      });
+      if (!result.success || !result.transactionId) throw new Error('Could not initialize payment.');
+      if (result.alreadyPaid || result.totalAmount === 0) {
+        router.replace({ pathname: '/checkout/success', params: {
+          transactionId: result.transactionId, itemTitle: item.title, amount: String(result.totalAmount),
+        } } as any);
+      } else if (result.paylukPaymentToken && result.buyerPaylukId) {
+        setPaylukTransactionId(result.transactionId);
+        setPaylukTotalAmount(result.totalAmount);
+        setPaylukToken(result.paylukPaymentToken);
+        setBuyerPaylukId(result.buyerPaylukId);
+        setShowCheckout(true);
+        setStage('payluk_checkout');
+      } else throw new Error('Checkout setup is incomplete. Please contact support.');
     } catch (e: any) {
-      console.log('[Checkout] handleInitializePayment error:', e?.message, e);
       if (e?.message === 'PHONE_VERIFICATION_REQUIRED') {
+        setStage('summary');
         router.push('/verify-phone' as any);
         return;
       }
-
       setStage('error');
-      let msg = e?.message ?? 'Could not initialize payment.';
-      if (msg === 'SELLER_PHONE_UNVERIFIED') {
-        msg = 'The seller has not verified their phone number. Payment cannot proceed.';
-      }
-      setErrorMsg(msg);
+      setErrorMsg(e?.message === 'SELLER_PHONE_UNVERIFIED'
+        ? 'The seller has not verified their phone number. Payment cannot proceed.'
+        : e?.message || 'Could not initialize payment.');
+    } finally {
+      initializationInFlight.current = false;
     }
   };
 
-  const commission = item ? Math.round(item.price * COMMISSION_RATE) : 0;
+  const commission = item ? Math.round(item.price * COMMISSION_RATE * 100) / 100 : 0;
   const totalAmount = paylukTotalAmount > 0 ? paylukTotalAmount : (item?.price ?? 0) + commission;
   const thumbnail = item?.image_urls?.[0] || item?.image_url;
 
@@ -292,7 +238,9 @@ export default function CheckoutScreen() {
     <PaylukCheckout
       paymentToken={paylukToken}
       publicKey={PAYLUK_PUBLIC_KEY}
-      amount={totalAmount}
+      reference={paylukTransactionId!}
+      customerId={buyerPaylukId}
+      redirectUrl={`${WEB_APP_URL}/payment/verify?tx_ref=${paylukTransactionId}`}
       onSuccess={handleCheckoutSuccess}
       onCancel={handleCheckoutCancel}
       onError={handleCheckoutError}

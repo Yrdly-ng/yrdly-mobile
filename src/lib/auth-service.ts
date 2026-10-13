@@ -272,7 +272,7 @@ export class AuthService {
       const clean = username.replace(/^@/, '').trim().toLowerCase();
       if (!clean) return true;
 
-      let query = supabase.from('users').select('id').ilike('username', clean);
+      let query = supabase.from('public_profiles').select('id').ilike('username', clean);
 
       if (excludeUserId) {
         query = query.neq('id', excludeUserId);
@@ -386,30 +386,6 @@ export class AuthService {
       return { canDelete: true };
     } catch (e) {
       return { canDelete: true };
-    }
-  }
-
-  // Promote user to admin (admin-only)
-  static async promoteToAdmin(userId: string) {
-    try {
-      const currentUser = await this.getCurrentUser();
-      if (!currentUser) throw new Error('Not authenticated');
-
-      const profile = await this.getUserProfile(currentUser.id);
-      if (profile?.role !== 'admin' && !profile?.is_admin) {
-        throw new Error('Not authorized to promote users');
-      }
-
-      const { error } = await supabase
-        .from('users')
-        .update({ role: 'admin', is_admin: true })
-        .eq('id', userId);
-
-      if (error) throw error;
-      return { error: null };
-    } catch (error) {
-      console.error('Promote to admin error:', error);
-      return { error };
     }
   }
 

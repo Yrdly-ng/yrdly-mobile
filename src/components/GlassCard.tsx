@@ -43,6 +43,7 @@ export function GlassCard({
           {
             borderRadius: effectiveRadius,
             borderColor: theme.colors.GLASS_BORDER,
+            borderWidth: theme.colors.DARK === '#FFFFFF' ? 0 : 0.5,
           },
           style as any,
         ]}
@@ -69,6 +70,7 @@ export function GlassCard({
           borderRadius: effectiveRadius,
           backgroundColor: theme.colors.DARK === '#FFFFFF' ? '#FFFFFF' : theme.colors.GLASS_BG,
           borderColor: theme.colors.GLASS_BORDER,
+          borderWidth: theme.colors.DARK === '#FFFFFF' ? 0 : 0.5,
         },
         style as any,
         contentStyle as any,
@@ -92,4 +94,3 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
 });
-

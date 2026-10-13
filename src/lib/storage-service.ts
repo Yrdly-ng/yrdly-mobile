@@ -1,3 +1,4 @@
+import { PRIVATE_MEDIA_BUCKETS, privateMediaReference, type PrivateMediaBucket } from './private-media';
 /**
  * Mobile Storage Service
  *
@@ -127,6 +128,7 @@ export class StorageService {
 
   /** Get the public URL for a stored file */
   static getPublicUrl(bucket: string, path: string): string {
+    if (PRIVATE_MEDIA_BUCKETS.includes(bucket as PrivateMediaBucket)) return privateMediaReference(bucket as PrivateMediaBucket, path);
     const { data } = supabase.storage.from(bucket).getPublicUrl(path);
     return data.publicUrl;
   }
@@ -223,7 +225,9 @@ export class StorageService {
     file: MobileFile
   ): Promise<{ url: string | null; error: any }> {
     const ext = file.name.split('.').pop() ?? 'jpg';
-    const path = `${conversationId}/${Date.now()}.${ext}`;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { url: null, error: new Error('Sign in required') };
+    const path = `chat/${conversationId}/${user.id}-${Date.now()}.${ext}`;
 
     const { data, error } = await this.uploadFile('chat-images', path, file, {
       cacheControl: '86400',
@@ -314,7 +318,9 @@ export class StorageService {
     file: MobileFile
   ): Promise<{ url: string | null; error: any }> {
     const ext = file.name.split('.').pop() ?? 'mp4';
-    const path = `${conversationId}/${Date.now()}.${ext}`;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { url: null, error: new Error('Sign in required') };
+    const path = `chat/${conversationId}/${user.id}-${Date.now()}.${ext}`;
     const mimeType = this.getMimeType(file.name, file.type);
 
     const { data, error } = await this.uploadFile('chat-videos', path, file, {
@@ -364,40 +370,12 @@ export class StorageService {
   }
 
   /** Upload a report image */
-  static async uploadReportImage(
-    userId: string,
-    file: MobileFile
-  ): Promise<{ url: string | null; error: any }> {
-    const ext = file.name.split('.').pop() ?? 'jpg';
+  static async uploadReportImage(userId: string, file: MobileFile): Promise<{ url: string | null; error: any }> {
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const path = `reports/${userId}/${Date.now()}_${Math.random().toString(36).substring(2, 8)}_${safeName}`;
-    const mimeType = this.getMimeType(file.name, file.type);
-
-    const { data, error } = await this.uploadFile('post-images', path, file, {
-      contentType: mimeType,
-      cacheControl: '604800',
+    const path = `${userId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${safeName}`;
+    const { error } = await this.uploadFile('reports', path, file, {
+      contentType: this.getMimeType(file.name, file.type), cacheControl: '600',
     });
-
-    if (error) {
-      console.error('[StorageService] uploadReportImage failed:', error);
-      // Retry with upsert
-      try {
-        const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: 'base64' });
-        const arrayBuffer = decode(base64);
-        const { data: d2, error: e2 } = await supabase.storage
-          .from('post-images')
-          .upload(path, arrayBuffer, {
-            cacheControl: '604800',
-            upsert: true,
-            contentType: mimeType,
-          });
-        if (e2) return { url: null, error: e2 };
-        return { url: this.getPublicUrl('post-images', d2?.path ?? path), error: null };
-      } catch (err) {
-        return { url: null, error: err };
-      }
-    }
-
-    return { url: this.getPublicUrl('post-images', path), error: null };
+    return error ? { url: null, error } : { url: privateMediaReference('reports', path), error: null };
   }
 }

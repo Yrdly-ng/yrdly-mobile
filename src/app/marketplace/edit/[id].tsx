@@ -1,3 +1,5 @@
+import { api } from '@/lib/api';
+import { isPaidPrice, MINIMUM_PRICE_MESSAGE } from '@/lib/price-policy';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -22,12 +24,9 @@ import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../hooks/use-supabase-auth';
 import { usePosts } from '../../../hooks/use-posts';
 import { StorageService } from '../../../lib/storage-service';
-import { parseSafePrice } from '../../../lib/utils';
 import { Post } from '../../../types';
-import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
+import { GooglePlacesAutocomplete } from '@/components/PlacesAutocomplete';
 import { useCategories } from '../../../hooks/use-categories';
-
-const GOOGLE_MAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
 const CONDITIONS = ['New', 'Like New', 'Good', 'Fair', 'Poor'];
 
@@ -70,7 +69,7 @@ export default function EditMarketplaceItemScreen() {
       setTitle(data.title || '');
       setText(data.text || '');
       setPrice(data.price?.toString() || '');
-      setCategory(data.category || '');
+      setCategory(data.sub_category || '');
       setCondition(data.condition || CONDITIONS[0]);
       setAddress(data.location?.address || '');
 
@@ -129,11 +128,15 @@ export default function EditMarketplaceItemScreen() {
       return;
     }
 
+    const parsedPrice = post?.category === 'Giveaway' ? 0 : Number(price);
+    if (post?.category !== 'Giveaway' && !isPaidPrice(parsedPrice)) {
+      Alert.alert('Invalid price', MINIMUM_PRICE_MESSAGE);
+      return;
+    }
     setIsSubmitting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      const parsedPrice = parseSafePrice(price);
 
       const uploadedUrls: string[] = [];
       for (let i = 0; i < newImages.length; i++) {
@@ -155,15 +158,14 @@ export default function EditMarketplaceItemScreen() {
         title: title.trim(),
         text: text.trim(),
         price: parsedPrice,
-        category,
+        category: post?.category === 'Giveaway' ? 'Giveaway' : 'For Sale',
+        sub_category: category,
         condition,
         image_urls: finalImages,
         // location: address.trim() ? { address: address.trim() } : (post as any)?.location,
       };
 
-      const { error } = await supabase.from('posts').update(updateData).eq('id', id);
-
-      if (error) throw error;
+      await api.patch('/api/posts', { id, post: updateData });
 
       Alert.alert('Updated! 🎉', 'Your listing has been successfully updated.', [
         { text: 'View Listing', onPress: () => router.replace(`/marketplace/${id}` as any) },
@@ -502,7 +504,6 @@ export default function EditMarketplaceItemScreen() {
                 setAddress(data.description);
               }}
               query={{
-                key: GOOGLE_MAPS_KEY,
                 language: 'en',
                 components: 'country:ng',
               }}

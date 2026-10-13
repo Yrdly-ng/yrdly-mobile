@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { api } from './api';
 
 export class ModerationService {
   /**
@@ -8,16 +8,7 @@ export class ModerationService {
     if (!text || text.trim() === '') return { isSafe: true };
 
     try {
-      const { data, error } = await supabase.functions.invoke('moderate-content', {
-        body: { type: 'text', content: text },
-      });
-
-      if (error) {
-        console.error('[ModerationService] Error checking text:', error);
-        return { isSafe: false, reason: 'moderation_error' };
-      }
-
-      return data;
+      return await api.post('/api/moderation/check', { type: 'text', content: text });
     } catch (e) {
       console.error('[ModerationService] Exception checking text:', e);
       return { isSafe: false, reason: 'moderation_error' };

@@ -43,7 +43,8 @@ const BADGE_COLORS: Record<BadgeType, { bg: string; text: string; icon: string }
 };
 
 export function MarketplaceItemCard({ item, onPress, onMessageSeller, onBuyNow }: Props) {
-  const { theme } = useUnistyles(); const stylesheet = sStylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = sStylesheet;
 
   const { user } = useAuth();
   const { isDarkMode } = useAppTheme();
@@ -107,7 +108,11 @@ export function MarketplaceItemCard({ item, onPress, onMessageSeller, onBuyNow }
         onPressOut={onPressOut}
         style={[
           stylesheet.card,
-          { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER },
+          {
+            backgroundColor: theme.colors.SURFACE,
+            borderColor: theme.colors.GLASS_BORDER,
+            borderWidth: theme.colors.DARK === '#FFFFFF' ? 0 : 1,
+          },
         ]}
       >
         {/* Image */}

@@ -16,6 +16,7 @@ import { BookingService, CANCELLATION_WINDOW_HOURS } from '../../lib/booking-ser
 import { NotificationTriggers } from '../../lib/notification-triggers';
 import { supabase } from '../../lib/supabase';
 import { Booking } from '../../types';
+import { BookingPaymentButton, BookingReceiptButton } from '../../components/BookingPaymentButton';
 
 export default function BookingDetailScreen() {
   const { theme } = useUnistyles(); const s = stylesheet;
@@ -32,7 +33,7 @@ export default function BookingDetailScreen() {
       setLoading(true);
       const { data, error } = await supabase
         .from('bookings')
-        .select('*, service:service_offerings(*), business:businesses(*), customer:users(*)')
+        .select('*, service:service_offerings(*), business:businesses(*), customer:public_profiles!bookings_customer_id_fkey(*)')
         .eq('id', id)
         .single();
 
@@ -235,6 +236,12 @@ export default function BookingDetailScreen() {
               Payment: {(booking.payment_status || 'unpaid').toUpperCase()}
             </Text>
           </View>
+          {isCustomer && !isPast && ['requested', 'confirmed'].includes(booking.status) &&
+            (!booking.payment_status || booking.payment_status === 'unpaid') &&
+            (booking.quote_id || booking.service?.escrow_enabled || booking.service?.requires_full_payment || booking.service?.deposit_required) &&
+            <BookingPaymentButton bookingId={booking.id} onConfirmed={() => { void fetchBooking(); }} />}
+          {isCustomer && ['deposit_paid', 'fully_paid', 'escrow_held'].includes(booking.payment_status || '') &&
+            <BookingReceiptButton bookingId={booking.id} onConfirmed={() => { void fetchBooking(); }} />}
         </View>
 
         {/* Flag Warnings */}

@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleProp, ViewStyle, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleProp, ViewStyle, StyleSheet } from 'react-native';
 import { Image, ImageStyle } from 'expo-image';
 import { useUnistyles } from 'react-native-unistyles';
+import ImageViewing from 'react-native-image-viewing';
 import { StorageService } from '../lib/storage-service';
 
 interface AvatarProps {
   url?: string | null;
+  viewable?: boolean;
   name?: string | null;
   size?: number; // Logical size for optimized image dimension (default: 150)
   style?: StyleProp<ViewStyle & ImageStyle>;
@@ -15,6 +17,7 @@ interface AvatarProps {
 
 export function Avatar({
   url,
+  viewable = false,
   name,
   size = 150,
   style,
@@ -22,10 +25,11 @@ export function Avatar({
   fallbackTextStyle,
 }: AvatarProps) {
   const { theme } = useUnistyles();
-  const [error, setError] = useState(false);
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   // Guard against file:// URLs from broken uploads saving local URIs
-  const isValidUrl = !!url && !url.startsWith('file://') && !error;
+  const isValidUrl = !!url && !url.startsWith('file://') && failedUrl !== url;
 
   const finalUrl = isValidUrl ? StorageService.getOptimizedImageUrl(url, size) || url : null;
 
@@ -36,13 +40,33 @@ export function Avatar({
   const dimension = styleObj.width || styleObj.height || size;
 
   if (isValidUrl && finalUrl) {
-    return (
+    const picture = (
       <Image
         source={{ uri: finalUrl }}
-        style={style as any}
+        style={viewable ? { width: '100%', height: '100%' } : (style as any)}
         contentFit="cover"
-        onError={() => setError(true)}
+        recyclingKey={url}
+        onError={() => setFailedUrl(url || null)}
       />
+    );
+    if (!viewable) return picture;
+    return (
+      <>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`View ${name || 'user'}'s profile picture`}
+          onPress={() => setViewerOpen(true)}
+          style={[style as any, { overflow: 'hidden' }]}
+        >
+          {picture}
+        </Pressable>
+        <ImageViewing
+          images={[{ uri: url! }]}
+          imageIndex={0}
+          visible={viewerOpen}
+          onRequestClose={() => setViewerOpen(false)}
+        />
+      </>
     );
   }
 

@@ -14,7 +14,7 @@ import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/use-supabase-auth';
-import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
+import { GooglePlacesAutocomplete } from '@/components/PlacesAutocomplete';
 import { resolveCoords } from '../../lib/geocoding-service';
 
 export default function LocationSettingsScreen() {
@@ -171,7 +171,6 @@ export default function LocationSettingsScreen() {
               }
             }}
             query={{
-              key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '',
               language: 'en',
               components: 'country:ng',
             }}

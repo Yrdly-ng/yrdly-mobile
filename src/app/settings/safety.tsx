@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { SafetyAlert } from '../../types';
-import { PushNotificationService } from '../../lib/push-notification-service';
+import { api } from '../../lib/api';
 import { isResolved } from '../../constants/alerts';
 
 export default function SafetyAlertsScreen() {
@@ -26,7 +26,7 @@ export default function SafetyAlertsScreen() {
       setLoading(true);
       let query = supabase.from('safety_alerts').select(`
           *,
-          user:users (id, name, avatar_url)
+          user:public_profiles (id, name, avatar_url)
         `);
 
       if (view === 'pending') {
@@ -49,37 +49,9 @@ export default function SafetyAlertsScreen() {
 
   const handleApprove = async (alert: SafetyAlert) => {
     try {
-      const { error } = await supabase
-        .from('safety_alerts')
-        .update({ status: 'approved' })
-        .eq('id', alert.id);
-
-      if (error) throw error;
-
-      // Remove from UI
-      setAlerts((prev) => prev.filter((a) => a.id !== alert.id));
-
-      // Trigger push notification to affected area users
-      // Query users in the affected LGA/State
-      let query = supabase.from('users').select('id');
-      if (alert.lga) {
-        query = query.eq('lga', alert.lga);
-      } else if (alert.state) {
-        query = query.eq('state', alert.state);
-      }
-
-      const { data: usersToNotify } = await query;
-
-      if (usersToNotify && usersToNotify.length > 0) {
-        const userIds = usersToNotify.map((u) => u.id);
-        await PushNotificationService.sendToUsers(userIds, {
-          title: `⚠️ ${alert.type.toUpperCase()}: ${alert.title}`,
-          body: alert.description,
-          type: 'safety_alert',
-        });
-      }
-
-      Alert.alert('Approved', 'Alert published and notifications sent.');
+      await api.patch('/api/safety-alerts', { id: alert.id, status: 'approved' });
+      setAlerts(previous => previous.filter(item => item.id !== alert.id));
+      Alert.alert('Approved', 'Alert published.');
     } catch (err) {
       console.error(err);
       Alert.alert('Error', 'Failed to approve alert');
@@ -88,12 +60,7 @@ export default function SafetyAlertsScreen() {
 
   const handleReject = async (alertId: string) => {
     try {
-      const { error } = await supabase
-        .from('safety_alerts')
-        .update({ status: 'rejected' })
-        .eq('id', alertId);
-
-      if (error) throw error;
+      await api.patch('/api/safety-alerts', { id: alertId, status: 'rejected' });
 
       setAlerts((prev) => prev.filter((a) => a.id !== alertId));
     } catch (err) {
@@ -104,12 +71,7 @@ export default function SafetyAlertsScreen() {
 
   const handleResolve = async (alert: SafetyAlert) => {
     try {
-      const { error } = await supabase
-        .from('safety_alerts')
-        .update({ is_resolved: true, resolved_at: new Date().toISOString() })
-        .eq('id', alert.id);
-
-      if (error) throw error;
+      await api.patch('/api/safety-alerts', { id: alert.id, action: 'resolve' });
 
       setAlerts((prev) => prev.filter((a) => a.id !== alert.id));
       Alert.alert('Resolved', 'Alert marked as resolved.');

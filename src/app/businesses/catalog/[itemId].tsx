@@ -22,7 +22,8 @@ import ImageViewing from 'react-native-image-viewing';
 import type { Business, CatalogItem } from '../../../types';
 
 export default function CatalogItemScreen() {
-  const { theme } = useUnistyles(); const sStylesheet = stylesheet;
+  const { theme } = useUnistyles();
+  const sStylesheet = stylesheet;
 
   const { itemId } = useLocalSearchParams<{ itemId: string }>();
   const { isDarkMode } = useAppTheme();
@@ -84,7 +85,7 @@ export default function CatalogItemScreen() {
             if (bizData.owner_id) {
               try {
                 const { data: uData } = await supabase
-                  .from('users')
+                  .from('public_profiles')
                   .select('name, avatar_url')
                   .eq('id', bizData.owner_id)
                   .maybeSingle();
@@ -138,7 +139,7 @@ export default function CatalogItemScreen() {
   const handleMessage = useCallback(async () => {
     if (!business || !user) return;
     if (user.id === business.owner_id) return;
-    
+
     if (!business.owner_id) {
       Alert.alert('Cannot Message', 'This business does not have an owner associated with it.');
       return;
@@ -162,7 +163,8 @@ export default function CatalogItemScreen() {
 
       if (existing) {
         if (item || !existing.item_id) {
-          const imageUrl = item?.images?.[0] || business.image_urls?.[0] || business.cover_image || '';
+          const imageUrl =
+            item?.images?.[0] || business.image_urls?.[0] || business.cover_image || '';
           const targetId = item ? item.id : null;
           const itemTitle = item ? `${item.title} (${business.name})` : business.name;
           await supabase
@@ -178,7 +180,8 @@ export default function CatalogItemScreen() {
         }
         router.push(`/chat/${existing.id}` as any);
       } else {
-        const imageUrl = item?.images?.[0] || business.image_urls?.[0] || business.cover_image || '';
+        const imageUrl =
+          item?.images?.[0] || business.image_urls?.[0] || business.cover_image || '';
         const chatType = item ? 'briefcase' : 'business';
         const itemParam = item ? `&item_id=${item.id}` : '';
         router.push(
@@ -374,7 +377,7 @@ export default function CatalogItemScreen() {
     rawImages = [(item as any).image_url];
   }
 
-  const images = rawImages.length > 0 ? rawImages : ['https://via.placeholder.com/400'];
+  const images = rawImages;
   const imageViewerImages = images.map((img) => ({ uri: img }));
   const screenWidth = Dimensions.get('window').width;
 
@@ -392,6 +395,13 @@ export default function CatalogItemScreen() {
       >
         {/* Header Images Swipeable */}
         <View style={sStylesheet.imageContainer}>
+          {images.length === 0 && (
+            <Image
+              source={require('../../../../assets/images/logo.png')}
+              style={{ width: '100%', height: '100%' }}
+              contentFit="contain"
+            />
+          )}
           <ScrollView
             horizontal
             pagingEnabled
@@ -620,8 +630,6 @@ export default function CatalogItemScreen() {
               {item.description}
             </Text>
           )}
-
-
 
           {/* Action Buttons */}
           {(!isOwner || business?.phone) && (

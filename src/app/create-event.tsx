@@ -1,3 +1,4 @@
+import { isPaidPrice, MINIMUM_PRICE_MESSAGE } from '@/lib/price-policy';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect } from 'react';
 import {
@@ -24,7 +25,8 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/use-supabase-auth';
 import { StorageService, MobileFile } from '../lib/storage-service';
 import { DateTimePickerModal } from '../components/DateTimePickerModal';
-import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
+import { GooglePlacesAutocomplete } from '@/components/PlacesAutocomplete';
+import { useVideoEditor, discardEditedVideo } from '@/hooks/use-video-editor';
 import { resolveCoords } from '../lib/geocoding-service';
 import * as FileSystem from 'expo-file-system/legacy';
 import { formatPrice } from '../lib/utils';
@@ -32,7 +34,6 @@ import { logError } from '../lib/error-logger';
 import { EventCard } from '../components/EventCard';
 import { ImageCarousel } from '../components/ImageCarousel';
 import { useCategories } from '../hooks/use-categories';
-import { ModerationService } from '../lib/moderation-service';
 import { api } from '../lib/api';
 
 const STEPS = ['Basic Info', 'Date & Time', 'Location', 'Tickets', 'Photos', 'Review'];
@@ -72,6 +73,9 @@ export default function CreateEventScreen() {
   const [postLng, setPostLng] = useState<number | null>(null);
 
   const [attachedFiles, setAttachedFiles] = useState<MobileFile[]>([]);
+  const { editVideo, videoEditor, isEditingVideo } = useVideoEditor();
+  const pickingMedia = React.useRef(false);
+  const [picking, setPicking] = useState(false);
   const [coverIndex, setCoverIndex] = useState(0);
   const [posting, setPosting] = useState(false);
   const [imageDimsMap, setImageDimsMap] = useState<{ [uri: string]: { w: number; h: number } }>({});
@@ -107,6 +111,8 @@ export default function CreateEventScreen() {
   }));
 
   const pickMedia = async (type: 'photo' | 'video') => {
+    if (pickingMedia.current || isEditingVideo || publishing) return;
+    pickingMedia.current = true; setPicking(true);
     try {
       const isPhoto = type === 'photo';
       const options: any = { mediaType: type };
@@ -147,11 +153,16 @@ export default function CreateEventScreen() {
             }
           }
 
-          const file: MobileFile = {
+          let file: MobileFile = {
             uri: asset.path,
             name: asset.filename || `media_${Date.now()}`,
             type,
           };
+          if (type.startsWith('video/')) {
+            const edited = await editVideo(file, 40 * 1024 * 1024).catch(error => { Alert.alert('Video unavailable', error instanceof Error ? error.message : 'Please choose another video.'); return null; });
+            if (!edited) { videoCount--; continue; }
+            file = edited;
+          }
           validFiles.push(file);
 
           if (type.startsWith('image/') && asset.width && asset.height) {
@@ -171,7 +182,18 @@ export default function CreateEventScreen() {
       if (e.message !== 'User cancelled image selection' && e.message !== 'User cancelled') {
         Alert.alert('Error', e.message || 'Failed to pick media');
       }
-    }
+    } finally { pickingMedia.current = false; setPicking(false); }
+  };
+
+  const editAttachedVideo = async (file: MobileFile) => {
+    if (publishing || pickingMedia.current || isEditingVideo) return;
+    try {
+      const edited = await editVideo(file, 40 * 1024 * 1024);
+      if (edited) {
+        setAttachedFiles(previous => previous.map(current => current.uri === file.uri ? edited : current));
+        if (edited.uri !== file.uri) void discardEditedVideo(file);
+      }
+    } catch (error) { Alert.alert('Video unavailable', error instanceof Error ? error.message : 'Please try again.'); }
   };
 
   const pickImages = () => {
@@ -185,7 +207,7 @@ export default function CreateEventScreen() {
   const addTier = () => {
     setTiers((prev) => [
       ...prev,
-      { id: Date.now().toString(), name: 'VIP Ticket', price: '1000', isFree: false, capacity: '50' },
+      { id: Date.now().toString(), name: 'VIP Ticket', price: '1200', isFree: false, capacity: '50' },
     ]);
   };
 
@@ -198,7 +220,7 @@ export default function CreateEventScreen() {
     setTiers((prev) =>
       prev.map((t) => {
         if (t.id !== id) return t;
-        if (field === 'isFree') return { ...t, isFree: value, price: value ? '0' : t.price };
+        if (field === 'isFree') return { ...t, isFree: value, price: value ? '0' : (Number(t.price) >= 1200 ? t.price : '1200') };
         return { ...t, [field]: value };
       })
     );
@@ -208,7 +230,7 @@ export default function CreateEventScreen() {
     eventName.trim() && eventCategory,
     true, // date/time always valid due to Date object
     isOnline ? true : !!venue.trim(),
-    tiers.length > 0 && tiers.every((t) => t.name.trim()),
+    tiers.length > 0 && tiers.every((t) => t.name.trim() && (t.isFree || isPaidPrice(Number(t.price)))),
     attachedFiles.some((f) => f.type?.startsWith('image/')),
     true,
   ][step];
@@ -227,8 +249,13 @@ export default function CreateEventScreen() {
   }, [user]);
 
   const handleNext = async () => {
+    if (pickingMedia.current || isEditingVideo) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
+    if ((step === 3 || step === STEPS.length - 1) && tiers.some(t => !t.isFree && !isPaidPrice(Number(t.price)))) {
+      Alert.alert('Invalid ticket price', MINIMUM_PRICE_MESSAGE);
+      return;
+    }
     // Enforce payout account check at step 3 (Tickets step) before moving forward
     if (step === 3) {
       const hasPaidTicket = tiers.some((t) => !t.isFree && (parseFloat(t.price) || 0) > 0);
@@ -333,20 +360,6 @@ export default function CreateEventScreen() {
           endTime.getMinutes()
         ).toISOString();
 
-        // 1. Moderate Text Before Uploading Media
-        let modStatus = 'approved';
-        let modReason = '';
-        const textToModerate = [eventName.trim(), desc.trim()].filter(Boolean).join(' ');
-        if (textToModerate) {
-          const textMod = await ModerationService.checkText(textToModerate);
-          if (!textMod.isSafe) {
-            modStatus = 'pending';
-            modReason = textMod.reason || 'Flagged text content';
-          }
-        }
-
-        // Moderate uploaded images
-
         // Call backend API to create event, validate payout account for paid tiers, and cross-post to community feed
         const formattedTicketTiers = tiers.map((t) => ({
           name: t.name.trim(),
@@ -381,22 +394,11 @@ export default function CreateEventScreen() {
           throw new Error(res?.error || res?.message || 'Failed to create event.');
         }
 
-        if (modStatus === 'pending' && res.eventId) {
-          await supabase.from('moderation_queue').insert({
-            content_id: res.eventId,
-            table_name: 'events',
-            user_id: user.id,
-            status: 'pending',
-            reason: modReason,
-            text_content: textToModerate,
-            image_urls: imageUrls,
-          });
-        }
-
         setPublishing(false);
         setUploadProgress(0);
-        setModerationStatus(modStatus as any);
+        setModerationStatus(res.moderationStatus === 'approved' ? 'approved' : 'pending');
         setPublished(true);
+        for (const file of attachedFiles) void discardEditedVideo(file);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch (err: any) {
         setPublishing(false);
@@ -485,6 +487,7 @@ export default function CreateEventScreen() {
       style={[stylesheet.container, { backgroundColor: theme.colors.DARK, paddingTop: insets.top }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      {videoEditor}
       <View style={stylesheet.header}>
         <TouchableOpacity onPress={handleBack} style={stylesheet.backBtn}>
           <Ionicons name="chevron-back" size={20} color={theme.colors.TEXT_PRIMARY} />
@@ -694,7 +697,6 @@ export default function CreateEventScreen() {
                       }
                     }}
                     query={{
-                      key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '',
                       language: 'en',
                       components: 'country:ng', // Limit to Nigeria
                     }}
@@ -832,7 +834,7 @@ export default function CreateEventScreen() {
                 >
                   <Image source={{ uri: f.uri }} style={stylesheet.photoImg} />
                   {f.type?.startsWith('video/') && !posting && (
-                    <View
+                    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Edit video" onPress={() => void editAttachedVideo(f)}
                       style={{
                         position: 'absolute',
                         top: 0,
@@ -845,7 +847,7 @@ export default function CreateEventScreen() {
                       }}
                     >
                       <Ionicons name="play-circle" size={32} color={theme.colors.TEXT_PRIMARY} />
-                    </View>
+                    </TouchableOpacity>
                   )}
                   {posting && (
                     <View
@@ -874,6 +876,7 @@ export default function CreateEventScreen() {
                       style={stylesheet.removePhoto}
                       onPress={() => {
                         setAttachedFiles((f) => f.filter((_, idx) => idx !== i));
+                        void discardEditedVideo(f);
                         if (coverIndex === i) setCoverIndex(0);
                         else if (coverIndex > i) setCoverIndex((c) => c - 1);
                       }}
@@ -888,7 +891,7 @@ export default function CreateEventScreen() {
                 </TouchableOpacity>
               ))}
               {attachedFiles.length < 5 && (
-                <TouchableOpacity style={stylesheet.addPhotoBox} onPress={pickImages}>
+                <TouchableOpacity disabled={picking || isEditingVideo || publishing} style={stylesheet.addPhotoBox} onPress={pickImages}>
                   <Feather name="image" size={24} color={theme.colors.LABEL} />
                   <Text
                     style={{
@@ -1247,7 +1250,7 @@ export default function CreateEventScreen() {
       <View style={[stylesheet.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
         <TouchableOpacity
           style={[stylesheet.btnPrimary, !canNext && stylesheet.btnDisabled]}
-          disabled={!canNext || publishing}
+          disabled={!canNext || publishing || picking || isEditingVideo}
           onPress={handleNext}
         >
           {publishing ? (

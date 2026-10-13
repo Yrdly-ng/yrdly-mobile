@@ -1,3 +1,4 @@
+import { isPaidPrice, MINIMUM_PRICE_MESSAGE } from './price-policy';
 import { supabase } from './supabase';
 import type { CatalogItem } from '@/types';
 import { StorageService, MobileFile } from '@/lib/storage-service';
@@ -19,6 +20,7 @@ export class CatalogService {
     },
     imageFiles?: MobileFile[]
   ): Promise<string> {
+    if (itemData.price !== undefined && !isPaidPrice(itemData.price)) throw new Error(MINIMUM_PRICE_MESSAGE);
     try {
       // Verify business ownership
       const { data: business, error: businessError } = await supabase
@@ -114,6 +116,7 @@ export class CatalogService {
     newImageFiles?: MobileFile[],
     existingImages?: string[]
   ): Promise<void> {
+    if (itemData.price !== undefined && !isPaidPrice(itemData.price)) throw new Error(MINIMUM_PRICE_MESSAGE);
     try {
       // Verify business ownership
       const { data: business, error: businessError } = await supabase

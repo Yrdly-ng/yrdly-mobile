@@ -1,3 +1,4 @@
+import { brandedSupabaseUrl } from './supabase-url';
 import { createClient } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
@@ -91,7 +92,7 @@ const SecureStoreAdapter = {
   },
 };
 
-export const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+export const supabaseUrl = brandedSupabaseUrl(process.env.EXPO_PUBLIC_SUPABASE_URL || '');
 export const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
 if (!supabaseUrl || !supabaseAnonKey) {

@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Image } from 'expo-image';
+import { BusinessImage } from '@/components/BusinessImage';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../../components/Avatar';
@@ -323,7 +324,8 @@ const stylesheet = StyleSheet.create((theme) => ({
 }));
 
 export default function BusinessProfileScreen() {
-  const { theme } = useUnistyles(); const sStylesheet = stylesheet;
+  const { theme } = useUnistyles();
+  const sStylesheet = stylesheet;
 
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
@@ -374,7 +376,7 @@ export default function BusinessProfileScreen() {
           let oData = null;
           if (bData.owner_id) {
             const { data: uData } = await supabase
-              .from('users')
+              .from('public_profiles')
               .select('name, avatar_url')
               .eq('id', bData.owner_id)
               .single();
@@ -397,7 +399,7 @@ export default function BusinessProfileScreen() {
     const fetchReviews = async () => {
       const { data } = await supabase
         .from('business_reviews')
-        .select(`*, users!business_reviews_user_id_fkey(name, avatar_url)`)
+        .select(`*, users:public_profiles!business_reviews_user_id_fkey(name, avatar_url)`)
         .eq('business_id', id)
         .order('created_at', { ascending: false });
       if (data) setReviews(data);
@@ -486,7 +488,12 @@ export default function BusinessProfileScreen() {
             (!c.business_id || c.business_id === business.id)
         );
 
-        const bizImg = business.logo || business.logo_url || business.image_urls?.[0] || business.cover_image || '';
+        const bizImg =
+          business.logo ||
+          business.logo_url ||
+          business.image_urls?.[0] ||
+          business.cover_image ||
+          '';
 
         if (existing) {
           router.push({
@@ -621,13 +628,8 @@ export default function BusinessProfileScreen() {
     );
   }
 
-  const coverImg =
-    business.cover_image || business.image_urls?.[0] || 'https://via.placeholder.com/600x300';
-  const logoImg =
-    (business as any).logo_url ||
-    business.logo ||
-    business.owner_avatar ||
-    'https://via.placeholder.com/150';
+  const coverImg = business.cover_image || business.image_urls?.[0] || null;
+  const logoImg = (business as any).logo_url || business.logo || null;
 
   return (
     <View style={sStylesheet.root}>
@@ -657,7 +659,11 @@ export default function BusinessProfileScreen() {
                   activeOpacity={0.8}
                 >
                   <Image
-                    source={{ uri: catalogSheet.images?.[0] || 'https://via.placeholder.com/150' }}
+                    source={
+                      catalogSheet.images?.[0]
+                        ? { uri: catalogSheet.images[0] }
+                        : require('../../../assets/images/logo.png')
+                    }
                     style={sStylesheet.sheetImg}
                     contentFit="cover"
                   />
@@ -666,7 +672,14 @@ export default function BusinessProfileScreen() {
                     <Text style={sStylesheet.sheetPrice}>
                       ₦{catalogSheet.price.toLocaleString()}
                     </Text>
-                    <Text style={{ fontFamily: 'Inter', fontSize: 12, color: theme.colors.G, marginTop: 2 }}>
+                    <Text
+                      style={{
+                        fontFamily: 'Inter',
+                        fontSize: 12,
+                        color: theme.colors.G,
+                        marginTop: 2,
+                      }}
+                    >
                       View details & photos →
                     </Text>
                   </View>
@@ -693,9 +706,7 @@ export default function BusinessProfileScreen() {
                   >
                     <Ionicons name="eye-outline" size={16} color={theme.colors.MUTED} />
                   </View>
-                  <Text
-                    style={[sStylesheet.sheetActionTxt, { color: theme.colors.TEXT_PRIMARY }]}
-                  >
+                  <Text style={[sStylesheet.sheetActionTxt, { color: theme.colors.TEXT_PRIMARY }]}>
                     View Item Details
                   </Text>
                 </TouchableOpacity>
@@ -863,8 +874,8 @@ export default function BusinessProfileScreen() {
       >
         {/* Cover banner */}
         <View style={sStylesheet.coverContainer}>
-          <Image
-            source={{ uri: coverImg }}
+          <BusinessImage
+            uri={coverImg}
             style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}
             contentFit="cover"
           />
@@ -905,7 +916,7 @@ export default function BusinessProfileScreen() {
         <View style={sStylesheet.infoPad}>
           {/* Avatar overlapping banner */}
           <View style={sStylesheet.avatarOverlapWrap}>
-            <Image source={{ uri: logoImg }} style={sStylesheet.avatarImage} contentFit="cover" />
+            <BusinessImage uri={logoImg} style={sStylesheet.avatarImage} contentFit="contain" />
           </View>
 
           {/* Name + verified */}
@@ -1057,7 +1068,7 @@ export default function BusinessProfileScreen() {
                       <View style={sStylesheet.catalogImgBox}>
                         <Image
                           source={{
-                            uri: item.images?.[0] || 'https://via.placeholder.com/300x200',
+                            uri: item.images?.[0],
                           }}
                           style={sStylesheet.catalogImg}
                           contentFit="cover"
@@ -1132,10 +1143,10 @@ export default function BusinessProfileScreen() {
               {reviews.map((r) => {
                 return (
                   <View key={r.id} style={sStylesheet.reviewItem}>
-                    <Image
-                      source={{ uri: r.users?.avatar_url || 'https://via.placeholder.com/80' }}
+                    <Avatar
+                      url={r.users?.avatar_url}
+                      name={r.users?.name}
                       style={sStylesheet.reviewAvatar}
-                      contentFit="cover"
                     />
                     <View style={sStylesheet.reviewBody}>
                       <View style={sStylesheet.reviewNameRow}>
@@ -1196,4 +1207,3 @@ export default function BusinessProfileScreen() {
     </View>
   );
 }
-

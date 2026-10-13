@@ -1,3 +1,4 @@
+import { api } from '@/lib/api';
 import { useState, useEffect, useCallback } from 'react';
 import { DeviceEventEmitter } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -66,7 +67,7 @@ export const usePosts = (filter?: LocationFilter | null) => {
           .select(
             `
           *,
-          user:users!posts_user_id_fkey(
+          user:public_profiles!posts_user_id_fkey(
             id,
             name,
             avatar_url,
@@ -83,7 +84,7 @@ export const usePosts = (filter?: LocationFilter | null) => {
           .select(
             `
           *,
-          organizer:users!events_organizer_id_fkey(
+          organizer:public_profiles!events_organizer_id_fkey(
             id,
             name,
             avatar_url,
@@ -322,7 +323,7 @@ export const usePosts = (filter?: LocationFilter | null) => {
               // Fetch user data for the new post
               try {
                 const { data: userData, error: userError } = await supabase
-                  .from('users')
+                  .from('public_profiles')
                   .select('id, name, username, avatar_url, location, created_at')
                   .eq('id', newPost.user_id)
                   .single();
@@ -360,7 +361,7 @@ export const usePosts = (filter?: LocationFilter | null) => {
             const fetchUserData = async () => {
               try {
                 const { data: userData, error: userError } = await supabase
-                  .from('users')
+                  .from('public_profiles')
                   .select('id, name, username, avatar_url, location, created_at')
                   .eq('id', updatedPost.user_id)
                   .single();
@@ -454,7 +455,7 @@ export const usePosts = (filter?: LocationFilter | null) => {
             const fetchUserData = async () => {
               try {
                 const { data: userData, error: userError } = await supabase
-                  .from('users')
+                  .from('public_profiles')
                   .select('id, name, username, avatar_url, location, created_at')
                   .eq('id', newEvent.organizer_id)
                   .single();
@@ -701,20 +702,6 @@ export const usePosts = (filter?: LocationFilter | null) => {
           }
         };
 
-        // 1. Moderate Text Before Uploading Media
-        let moderationStatus = 'approved';
-        let moderationReason = '';
-        const textToModerate = [postData.text, postData.title, postData.description]
-          .filter(Boolean)
-          .join(' ');
-        if (textToModerate) {
-          const textMod = await ModerationService.checkText(textToModerate);
-          if (!textMod.isSafe) {
-            moderationStatus = 'pending';
-            moderationReason = textMod.reason || 'Flagged text content';
-          }
-        }
-
         // Add new images if any are uploaded
         if (hasImages) {
           const uploadedUrls = await uploadImages(
@@ -769,7 +756,6 @@ export const usePosts = (filter?: LocationFilter | null) => {
           video_urls: videoUrls.length > 0 ? videoUrls : undefined,
           timestamp: postIdToUpdate ? postData.timestamp : new Date().toISOString(),
           category: postData.category || 'General',
-          moderation_status: moderationStatus,
           // Location stamping — only set on new posts, preserve on edits
           ...(postIdToUpdate
             ? { updated_at: new Date().toISOString(), is_edited: true }
@@ -792,85 +778,16 @@ export const usePosts = (filter?: LocationFilter | null) => {
               }),
         };
 
-        if (postIdToUpdate) {
-          const { data: updatedPost, error } = await supabase
-            .from('posts')
-            .update(finalPostData)
-            .eq('id', postIdToUpdate)
-            .select(`*, user:users!posts_user_id_fkey(id, name, avatar_url, created_at)`)
-            .single();
-
-          if (error) throw error;
-          if (updatedPost) {
-            if (moderationStatus === 'approved') {
-              setPosts((prev) =>
-                prev.map((p) => (p.id === updatedPost.id ? (updatedPost as Post) : p))
-              );
-            } else {
-              // If it became pending after an edit, remove it from the local feed
-              setPosts((prev) => prev.filter((p) => p.id !== updatedPost.id));
-            }
-
-            if (moderationStatus === 'pending') {
-              await supabase.from('moderation_queue').insert({
-                content_id: updatedPost.id,
-                table_name: 'posts',
-                user_id: user.id,
-                status: 'pending',
-                reason: moderationReason,
-                text_content: textToModerate,
-                image_urls: imageUrls,
-              });
-            }
-          }
-          if (moderationStatus === 'pending') {
-            showToast({
-              message: 'Your post was flagged and is pending admin review.',
-            });
-          } else {
-            showToast({ message: 'Post updated successfully.' });
-          }
-        } else {
-          const { data: newPost, error } = await supabase
-            .from('posts')
-            .insert({
-              ...finalPostData,
-              comment_count: 0,
-              liked_by: [],
-            })
-            .select(`*, user:users!posts_user_id_fkey(id, name, avatar_url, created_at)`)
-            .single();
-
-          if (error) throw error;
-          if (newPost) {
-            if (moderationStatus === 'approved') {
-              setPosts((prev) => {
-                if (prev.some((p) => p.id === newPost.id)) return prev;
-                return [newPost as Post, ...prev];
-              });
-            }
-
-            if (moderationStatus === 'pending') {
-              await supabase.from('moderation_queue').insert({
-                content_id: newPost.id,
-                table_name: 'posts',
-                user_id: user.id,
-                status: 'pending',
-                reason: moderationReason,
-                text_content: textToModerate,
-                image_urls: imageUrls,
-              });
-            }
-          }
-
-          if (moderationStatus === 'pending') {
-            showToast({
-              message: 'Your post was flagged and is pending admin review.',
-            });
-          } else {
-            showToast({ message: 'Post created successfully.' });
-          }
-        }
+        const result = postIdToUpdate
+          ? await api.patch('/api/posts', { id: postIdToUpdate, post: finalPostData })
+          : await api.post('/api/posts', { post: finalPostData });
+        const savedPost = result.data as Post;
+        const moderationStatus = savedPost.moderation_status === 'approved' ? 'approved' : 'pending';
+        setPosts(previous => {
+          const remaining = previous.filter(post => post.id !== savedPost.id);
+          return moderationStatus === 'approved' ? [savedPost, ...remaining] : remaining;
+        });
+        showToast({ message: moderationStatus === 'pending' ? 'Your post is pending admin review.' : 'Post saved successfully.' });
 
         // Update user activity after successful post creation/update
         if (user) {

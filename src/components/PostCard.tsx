@@ -5,7 +5,7 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Dimensions,
+  useWindowDimensions,
   Image as RNImage,
   FlatList,
   Share,
@@ -39,7 +39,6 @@ import { supabase } from '../lib/supabase';
 import { StorageService } from '../lib/storage-service';
 import { Avatar } from './Avatar';
 import { useToast } from './toast';
-const { width } = Dimensions.get('window');
 
 interface PostCardProps {
   post: Post;
@@ -126,7 +125,7 @@ const PostVideo = React.memo(function PostVideo({
       <VideoView
         player={player}
         style={{ width: '100%', height: '100%' }}
-        contentFit="cover"
+        contentFit="contain"
         nativeControls={false}
         onFirstFrameRender={() => setIsReady(true)}
       />
@@ -134,7 +133,7 @@ const PostVideo = React.memo(function PostVideo({
         <Image
           source={{ uri: post.video_thumbnail_url }}
           style={{ position: 'absolute', width: '100%', height: '100%', zIndex: 1 }}
-          contentFit="cover"
+          contentFit="contain"
         />
       )}
       <TouchableOpacity
@@ -186,6 +185,7 @@ export const PostCard = React.memo(
     onOpenImageViewer,
     onDelete,
   }: PostCardProps) {
+    const { width } = useWindowDimensions();
     const router = useRouter();
     const { user: currentUser, profile, updateProfile } = useAuth();
     const { showToast } = useToast();
@@ -911,7 +911,7 @@ export const PostCard = React.memo(
                         uri: StorageService.getOptimizedImageUrl(item.url, 800) || item.url,
                       }}
                       style={{ width: '100%', height: '100%' }}
-                      contentFit="cover"
+                      contentFit="contain"
                     />
 
                     <Animated.View style={[stylesheet.heartOverlay, heartAnimatedStyle]}>

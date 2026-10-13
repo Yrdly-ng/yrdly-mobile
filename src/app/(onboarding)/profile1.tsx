@@ -31,7 +31,8 @@ import { Ionicons } from '@expo/vector-icons';
 const { colors, radii } = ONBOARDING_THEME;
 
 export default function Profile1Screen() {
-  const { theme } = useUnistyles(); const styles = stylesheet;
+  const { theme } = useUnistyles();
+  const styles = stylesheet;
   const router = useRouter();
   const { user, profile, updateProfile } = useAuth();
   const { phoneSkipped } = useLocalSearchParams();
@@ -296,7 +297,7 @@ export default function Profile1Screen() {
 
                 <View style={styles.bioBox}>
                   <TextInput
-                    placeholder="Short bio (optional)"
+                    placeholder="Bio"
                     placeholderTextColor={colors.LABEL}
                     value={bio}
                     onChangeText={(v) => v.length <= 140 && setBio(v)}
@@ -308,11 +309,7 @@ export default function Profile1Screen() {
                 </View>
               </View>
 
-              <PrimaryBtn
-                label="Next: Choose Neighbourhood →"
-                onClick={handleNextStep1}
-                loading={isSaving}
-              />
+              <PrimaryBtn label="Next" onClick={handleNextStep1} loading={isSaving} />
             </GlassCard>
           </ScrollView>
         </KeyboardAvoidingView>

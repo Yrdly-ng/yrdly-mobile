@@ -134,11 +134,36 @@ export class CommunityService {
   }
 
   static async listMyCommunitySubmissions(userId: string): Promise<Community[]> {
-    const { data, error } = await supabase.from('communities').select('*')
-      .eq('created_by', userId).in('approval_status', ['pending', 'rejected'])
-      .order('created_at', { ascending: false });
+    const [submitted, dismissed] = await Promise.all([
+      supabase
+        .from('communities')
+        .select('*')
+        .eq('created_by', userId)
+        .in('approval_status', ['pending', 'rejected'])
+        .order('created_at', { ascending: false }),
+      supabase.from('community_submission_dismissals').select('community_id').eq('user_id', userId),
+    ]);
+    if (submitted.error) throw submitted.error;
+    if (dismissed.error) throw dismissed.error;
+    const hidden = new Set((dismissed.data ?? []).map((row) => row.community_id));
+    return (submitted.data ?? []).filter((row) => !hidden.has(row.id)) as Community[];
+  }
+
+  static async dismissCommunitySubmission(communityId: string, userId: string): Promise<void> {
+    const { error } = await supabase
+      .from('community_submission_dismissals')
+      .insert({ user_id: userId, community_id: communityId });
+    if (error && error.code !== '23505') throw error;
+  }
+
+  static async pendingSubmissionNames(userId: string): Promise<string[]> {
+    const { data, error } = await supabase
+      .from('communities')
+      .select('name')
+      .eq('created_by', userId)
+      .eq('approval_status', 'pending');
     if (error) throw error;
-    return (data ?? []) as Community[];
+    return (data ?? []).map((row) => row.name.trim().replace(/\s+/g, ' ').toLowerCase());
   }
 
   static async submitCommunity(input: {
@@ -149,43 +174,95 @@ export class CommunityService {
     bannerFile?: MobileFile | null;
     privacy: CommunityPrivacy;
   }): Promise<Community> {
+    const normalizedName = input.name.trim().replace(/\s+/g, ' ').toLowerCase();
+    const { data: pending, error: pendingError } = await supabase
+      .from('communities')
+      .select('name')
+      .eq('created_by', input.createdBy)
+      .eq('approval_status', 'pending');
+    if (pendingError) throw pendingError;
+    if (
+      pending?.some((row) => row.name.trim().replace(/\s+/g, ' ').toLowerCase() === normalizedName)
+    ) {
+      throw new Error('This community is already awaiting approval.');
+    }
     const submissionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    const avatarUrl = input.avatarFile ? await this.uploadCommunityImage(input.createdBy, submissionId, 'avatar', input.avatarFile) : null;
-    const bannerUrl = input.bannerFile ? await this.uploadCommunityImage(input.createdBy, submissionId, 'banner', input.bannerFile) : null;
-    const slugBase = input.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'community';
-    const { data, error } = await supabase.from('communities').insert({
-      name: input.name.trim(),
-      slug: `${slugBase}-${Date.now().toString(36)}`,
-      description: input.description.trim(),
-      avatar_url: avatarUrl,
-      banner_url: bannerUrl,
-      type: 'interest',
-      privacy: input.privacy,
-      created_by: input.createdBy,
-      is_official: false,
-      approval_status: 'pending',
-    }).select('*').single();
+    const avatarUrl = input.avatarFile
+      ? await this.uploadCommunityImage(input.createdBy, submissionId, 'avatar', input.avatarFile)
+      : null;
+    const bannerUrl = input.bannerFile
+      ? await this.uploadCommunityImage(input.createdBy, submissionId, 'banner', input.bannerFile)
+      : null;
+    const slugBase =
+      input.name
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 48) || 'community';
+    const { data, error } = await supabase
+      .from('communities')
+      .insert({
+        name: input.name.trim(),
+        slug: `${slugBase}-${Date.now().toString(36)}`,
+        description: input.description.trim(),
+        avatar_url: avatarUrl,
+        banner_url: bannerUrl,
+        type: 'interest',
+        privacy: input.privacy,
+        created_by: input.createdBy,
+        is_official: false,
+        approval_status: 'pending',
+      })
+      .select('*')
+      .single();
+    if (error?.code === '23505') throw new Error('This community is already awaiting approval.');
     if (error) throw error;
     return data as Community;
   }
 
-  private static async uploadCommunityImage(userId: string, submissionId: string, kind: 'avatar' | 'banner', file: MobileFile): Promise<string> {
+  private static async uploadCommunityImage(
+    userId: string,
+    submissionId: string,
+    kind: 'avatar' | 'banner',
+    file: MobileFile
+  ): Promise<string> {
     if (!file.type?.startsWith('image/')) throw new Error('Choose an image file.');
-    if ((file.size ?? 0) > 10 * 1024 * 1024) throw new Error('Each image must be 10 MB or smaller.');
-    const extension = file.name.split('.').pop()?.replace(/[^a-z0-9]/gi, '') || 'jpg';
+    if ((file.size ?? 0) > 10 * 1024 * 1024)
+      throw new Error('Each image must be 10 MB or smaller.');
+    const extension =
+      file.name
+        .split('.')
+        .pop()
+        ?.replace(/[^a-z0-9]/gi, '') || 'jpg';
     const path = `${userId}/${submissionId}/${kind}.${extension}`;
-    const { error } = await StorageService.uploadFile('community-images', path, file, { contentType: file.type, cacheControl: '31536000' });
+    const { error } = await StorageService.uploadFile('community-images', path, file, {
+      contentType: file.type,
+      cacheControl: '31536000',
+    });
     if (error) throw error;
     return StorageService.getPublicUrl('community-images', path);
   }
 
-  static async reviewCommunity(communityId: string, reviewerId: string, decision: 'approved' | 'rejected', rejectionReason?: string): Promise<void> {
-    const { error } = await supabase.from('communities').update({
-      approval_status: decision,
-      reviewed_by: reviewerId,
-      reviewed_at: new Date().toISOString(),
-      rejection_reason: decision === 'rejected' ? (rejectionReason?.trim() || 'Does not meet community guidelines.') : null,
-    }).eq('id', communityId).eq('approval_status', 'pending');
+  static async reviewCommunity(
+    communityId: string,
+    reviewerId: string,
+    decision: 'approved' | 'rejected',
+    rejectionReason?: string
+  ): Promise<void> {
+    const { error } = await supabase
+      .from('communities')
+      .update({
+        approval_status: decision,
+        reviewed_by: reviewerId,
+        reviewed_at: new Date().toISOString(),
+        rejection_reason:
+          decision === 'rejected'
+            ? rejectionReason?.trim() || 'Does not meet community guidelines.'
+            : null,
+      })
+      .eq('id', communityId)
+      .eq('approval_status', 'pending');
     if (error) throw error;
   }
 
@@ -197,7 +274,10 @@ export class CommunityService {
   }
 
   /** Get current user's membership for a community */
-  static async getMyMembership(communityId: string, userId: string): Promise<CommunityMembership | null> {
+  static async getMyMembership(
+    communityId: string,
+    userId: string
+  ): Promise<CommunityMembership | null> {
     const { data, error } = await supabase
       .from('community_memberships')
       .select('*')
@@ -209,7 +289,10 @@ export class CommunityService {
   }
 
   /** Get the current user's request status for a community. */
-  static async getMyJoinRequest(communityId: string, userId: string): Promise<CommunityJoinRequest | null> {
+  static async getMyJoinRequest(
+    communityId: string,
+    userId: string
+  ): Promise<CommunityJoinRequest | null> {
     const { data, error } = await supabase
       .from('community_join_requests')
       .select('id, community_id, user_id, status, created_at')
@@ -258,7 +341,11 @@ export class CommunityService {
   static async setMuted(communityId: string, userId: string, muted: boolean): Promise<void> {
     const { error } = await supabase
       .from('community_memberships')
-      .update({ is_muted: muted, muted_at: muted ? new Date().toISOString() : null, updated_at: new Date().toISOString() })
+      .update({
+        is_muted: muted,
+        muted_at: muted ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      })
       .eq('community_id', communityId)
       .eq('user_id', userId);
     if (error) throw error;
@@ -271,10 +358,12 @@ export class CommunityService {
     const PAGE = 20;
     const { data, error } = await supabase
       .from('community_posts')
-      .select(`
+      .select(
+        `
         *,
-        author:users!community_posts_author_id_fkey(id, name, avatar_url, phone_verified)
-      `)
+        author:public_profiles!community_posts_author_id_fkey(id, name, avatar_url, phone_verified)
+      `
+      )
       .eq('community_id', communityId)
       .eq('moderation_status', 'approved')
       .order('is_pinned', { ascending: false })
@@ -354,14 +443,29 @@ export class CommunityService {
       .maybeSingle();
 
     if (existing) {
-      await supabase.from('community_post_likes').delete().eq('post_id', postId).eq('user_id', userId);
-      await supabase.from('community_posts').update({ like_count: supabase.rpc('greatest', { a: 0 }) }).eq('id', postId);
+      await supabase
+        .from('community_post_likes')
+        .delete()
+        .eq('post_id', postId)
+        .eq('user_id', userId);
+      await supabase
+        .from('community_posts')
+        .update({ like_count: supabase.rpc('greatest', { a: 0 }) })
+        .eq('id', postId);
       // decrement via rpc not available inline; use raw update
-      await supabase.rpc('community_toggle_post_like', { p_post_id: postId, p_user_id: userId, p_action: 'unlike' });
+      await supabase.rpc('community_toggle_post_like', {
+        p_post_id: postId,
+        p_user_id: userId,
+        p_action: 'unlike',
+      });
       return { liked: false };
     } else {
       await supabase.from('community_post_likes').insert({ post_id: postId, user_id: userId });
-      await supabase.rpc('community_toggle_post_like', { p_post_id: postId, p_user_id: userId, p_action: 'like' });
+      await supabase.rpc('community_toggle_post_like', {
+        p_post_id: postId,
+        p_user_id: userId,
+        p_action: 'like',
+      });
       return { liked: true };
     }
   }
@@ -377,7 +481,7 @@ export class CommunityService {
   static async fetchComments(postId: string): Promise<CommunityComment[]> {
     const { data, error } = await supabase
       .from('community_comments')
-      .select('*, author:users!community_comments_author_id_fkey(id, name, avatar_url)')
+      .select('*, author:public_profiles!community_comments_author_id_fkey(id, name, avatar_url)')
       .eq('post_id', postId)
       .is('parent_comment_id', null)
       .eq('moderation_status', 'approved')
@@ -399,7 +503,9 @@ export class CommunityService {
   }): Promise<CommunityComment> {
     const { isSafe, reason } = await ModerationService.checkText(params.content);
     const moderationStatus = !isSafe
-      ? reason === 'moderation_error' ? 'moderation_error' : 'pending'
+      ? reason === 'moderation_error'
+        ? 'moderation_error'
+        : 'pending'
       : 'approved';
 
     const { data, error } = await supabase
@@ -465,7 +571,7 @@ export class CommunityService {
 
     const { data, error } = await supabase
       .from('community_posts')
-      .select('*, author:users!community_posts_author_id_fkey(id, name, avatar_url)')
+      .select('*, author:public_profiles!community_posts_author_id_fkey(id, name, avatar_url)')
       .eq('community_id', ward.parent_community_id)
       .eq('moderation_status', 'approved')
       .order('created_at', { ascending: false })
@@ -493,7 +599,11 @@ export class CommunityService {
     if (error) throw error;
   }
 
-  static async updateMemberRole(communityId: string, userId: string, role: MemberRole): Promise<void> {
+  static async updateMemberRole(
+    communityId: string,
+    userId: string,
+    role: MemberRole
+  ): Promise<void> {
     const { error } = await supabase
       .from('community_memberships')
       .update({ role, updated_at: new Date().toISOString() })
@@ -548,7 +658,7 @@ export class CommunityService {
   static async listJoinRequests(communityId: string) {
     const { data, error } = await supabase
       .from('community_join_requests')
-      .select('*, user:users!community_join_requests_user_id_fkey(id, name, avatar_url)')
+      .select('*, user:public_profiles!community_join_requests_user_id_fkey(id, name, avatar_url)')
       .eq('community_id', communityId)
       .eq('status', 'pending')
       .order('created_at', { ascending: true });
@@ -556,10 +666,18 @@ export class CommunityService {
     return data ?? [];
   }
 
-  static async approveJoinRequest(communityId: string, userId: string, reviewerId: string): Promise<void> {
+  static async approveJoinRequest(
+    communityId: string,
+    userId: string,
+    reviewerId: string
+  ): Promise<void> {
     await supabase
       .from('community_join_requests')
-      .update({ status: 'approved', reviewed_by: reviewerId, reviewed_at: new Date().toISOString() })
+      .update({
+        status: 'approved',
+        reviewed_by: reviewerId,
+        reviewed_at: new Date().toISOString(),
+      })
       .eq('community_id', communityId)
       .eq('user_id', userId);
 
@@ -572,10 +690,18 @@ export class CommunityService {
     });
   }
 
-  static async rejectJoinRequest(communityId: string, userId: string, reviewerId: string): Promise<void> {
+  static async rejectJoinRequest(
+    communityId: string,
+    userId: string,
+    reviewerId: string
+  ): Promise<void> {
     await supabase
       .from('community_join_requests')
-      .update({ status: 'rejected', reviewed_by: reviewerId, reviewed_at: new Date().toISOString() })
+      .update({
+        status: 'rejected',
+        reviewed_by: reviewerId,
+        reviewed_at: new Date().toISOString(),
+      })
       .eq('community_id', communityId)
       .eq('user_id', userId);
   }

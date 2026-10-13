@@ -1,5 +1,5 @@
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,9 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { supabase } from '../../lib/supabase';
 import { api } from '../../lib/api';
+import { ApiError } from '../../lib/api-client';
+import { parseWithdrawalQuote } from '../../lib/payout-quote';
 import { useAuth } from '../../hooks/use-supabase-auth';
 
 export default function WithdrawScreen() {
@@ -31,40 +32,27 @@ export default function WithdrawScreen() {
   const [amount, setAmount] = useState('');
   const [confirming, setConfirming] = useState(false);
 
-  const fee = 0;
+  const withdrawalInFlight = useRef(false);
   const numAmount = Number(amount) || 0;
-  const net = Math.max(0, numAmount - fee);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
-      const [txRes, payoutRes, bankRes] = await Promise.all([
-        supabase
-          .from('escrow_transactions')
-          .select('seller_amount, status')
-          .eq('seller_id', user.id),
-        supabase.from('payout_requests').select('amount, status').eq('seller_id', user.id),
-        api.get('/api/seller/setup-account').catch(() => ({ account: null })),
+      const [ledger, bankRes] = await Promise.all([
+        api.get<{ availableBalance: number }>('/api/seller/payouts/balance'),
+        api.get('/api/seller/setup-account'),
       ]);
-
-      const txs = txRes.data ?? [];
-      const pyts = payoutRes.data ?? [];
-
-      const earned = txs
-        .filter((t: any) => t.status === 'completed')
-        .reduce((sum: number, t: any) => sum + (t.seller_amount ?? 0), 0);
-      const paidOut = pyts
-        .filter((p: any) => ['pending', 'processing', 'completed'].includes(p.status))
-        .reduce((sum: number, p: any) => sum + (p.amount ?? 0), 0);
-
-      setBalance(Math.max(0, earned - paidOut));
+      setBalance(Math.max(0, ledger.availableBalance));
 
       if (bankRes.account) {
         setBankInfo(bankRes.account);
       }
     } catch (e) {
       console.error(e);
+      setBalance(0);
+      setBankInfo(null);
+      Alert.alert('Balance unavailable', 'Your withdrawable balance could not be verified. Please refresh before withdrawing.');
     } finally {
       setLoading(false);
     }
@@ -88,8 +76,8 @@ export default function WithdrawScreen() {
       return;
     }
 
-    if (!numAmount || numAmount <= 0 || numAmount > balance) {
-      Alert.alert('Invalid Amount', 'Please enter an amount within your available balance.');
+    if (previewing || !Number.isFinite(numAmount) || numAmount < 1000 || numAmount > balance || !bankInfo) {
+      Alert.alert('Invalid Amount', 'Choose a linked bank and an amount within your balance. At least ₦1,000 plus the transfer fee is needed.');
       return;
     }
 
@@ -101,12 +89,7 @@ export default function WithdrawScreen() {
         throw new Error(displayMsg);
       }
 
-      setPreviewData({
-        amount: res.amount ?? numAmount,
-        fee: res.fee ?? 0,
-        totalDebit: res.totalDebit ?? numAmount,
-        netToBank: res.netToBank ?? numAmount,
-      });
+      setPreviewData(parseWithdrawalQuote(res, numAmount, balance));
       setStep('confirm');
     } catch (e: any) {
       Alert.alert('Withdrawal Preview Failed', e.message || 'Failed to preview withdrawal');
@@ -121,23 +104,28 @@ export default function WithdrawScreen() {
       return;
     }
 
-    const { data, error } = await supabase.auth.getSession();
-    if (error || !data.session) {
-      Alert.alert('Sign in required', 'Your session has expired. Please sign in again.');
-      return;
-    }
-
+    if (withdrawalInFlight.current || !previewData || previewData.amount !== numAmount) return;
+    withdrawalInFlight.current = true;
     setConfirming(true);
     try {
-      await api.post('/api/seller/payouts/request', { amount: numAmount });
+      const result = await api.post<{ success: boolean; amountSentToBank: number }>('/api/seller/payouts/request', { amount: numAmount });
+      if (!result.success) throw new Error('Withdrawal has not been confirmed. Contact support before retrying.');
       router.replace({
         pathname: '/settings/withdraw-success',
-        params: { amount: numAmount },
+        params: { amount: result.amountSentToBank },
       } as any);
     } catch (e: any) {
-      Alert.alert('Withdrawal Failed', e.message || 'Failed to request withdrawal');
+      if (!(e instanceof ApiError) || e.status >= 500) {
+        setPreviewData(null);
+        Alert.alert('Check withdrawal status', 'The transfer has not been confirmed. Check your payout history or contact support before requesting another withdrawal.', [
+          { text: 'View payouts', onPress: () => router.replace('/settings/payouts') },
+        ]);
+        return;
+      }
+      Alert.alert('Withdrawal not processed', e.message || 'Please refresh your balance before retrying.');
       setStep('amount');
     } finally {
+      withdrawalInFlight.current = false;
       setConfirming(false);
     }
   };
@@ -262,10 +250,10 @@ export default function WithdrawScreen() {
             <Text style={s.amtNaira}>₦</Text>
             <TextInput
               value={amount}
-              onChangeText={(v) => setAmount(v.replace(/\D/g, ''))}
+              onChangeText={(v) => { setAmount(v.replace(/[^\d.]/g, '')); setPreviewData(null); }}
               placeholder="0"
               placeholderTextColor={theme.colors.LABEL}
-              keyboardType="number-pad"
+              keyboardType="decimal-pad"
               style={s.amtInput}
             />
           </View>
@@ -320,12 +308,12 @@ export default function WithdrawScreen() {
             </View>
             <View style={s.feeRow}>
               <Text style={s.feeRowL}>Transfer fee</Text>
-              <Text style={s.feeRowR}>{fee === 0 ? 'Free' : `₦${fee}`}</Text>
+              <Text style={s.feeRowR}>Quoted before confirmation</Text>
             </View>
             <View style={s.feeDiv} />
             <View style={s.feeRow}>
               <Text style={s.feeRowNetL}>You receive</Text>
-              <Text style={s.feeRowNetR}>₦{net.toLocaleString()}</Text>
+              <Text style={s.feeRowNetR}>Confirmed in the next step</Text>
             </View>
           </View>
         )}
@@ -340,7 +328,7 @@ export default function WithdrawScreen() {
             },
           ]}
           onPress={handleContinue}
-          disabled={previewing || !numAmount || numAmount <= 0 || numAmount > balance}
+          disabled={previewing || !Number.isFinite(numAmount) || numAmount < 1000 || numAmount > balance || !bankInfo}
         >
           {previewing ? (
             <ActivityIndicator color="#000" />

@@ -85,8 +85,8 @@ export default function TransactionsScreen() {
           id, item_id, item_type, amount, status, created_at, buyer_id, seller_id,
           post_item:posts(id, title, text, image_urls, image_url),
           catalog_item:catalog_items(id, title, images),
-          buyer:users!escrow_transactions_buyer_id_fkey(name, avatar_url),
-          seller:users!escrow_transactions_seller_id_fkey(name, avatar_url)
+          buyer:public_profiles!escrow_transactions_buyer_id_fkey(name, avatar_url),
+          seller:public_profiles!escrow_transactions_seller_id_fkey(name, avatar_url)
         `
           )
           .eq(field, user.id)

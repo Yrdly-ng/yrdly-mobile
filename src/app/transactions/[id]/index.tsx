@@ -220,8 +220,8 @@ export default function TransactionDetailScreen() {
           disputes:disputes!disputes_transaction_id_fkey(id, refund_amount, seller_amount, status, resolved_at, created_at),
           post_item:posts(id, title, text, image_urls, image_url, price),
           catalog_item:catalog_items(id, title, images, price),
-          buyer:users!escrow_transactions_buyer_id_fkey(id, name, avatar_url),
-          seller:users!escrow_transactions_seller_id_fkey(id, name, avatar_url)
+          buyer:public_profiles!escrow_transactions_buyer_id_fkey(id, name, avatar_url),
+          seller:public_profiles!escrow_transactions_seller_id_fkey(id, name, avatar_url)
         `
         )
         .eq('id', id)
@@ -393,16 +393,7 @@ export default function TransactionDetailScreen() {
           onPress: async () => {
             setActionLoading(true);
             try {
-              const { error } = await supabase
-                .from('escrow_transactions')
-                .update({
-                  status: 'shipped',
-                  shipped_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                })
-                .eq('id', tx.id)
-                .eq('seller_id', user.id);
-              if (error) throw error;
+              await api.post(`/api/transactions/${tx.id}/status`, { action: 'shipped' });
               await fetchTx();
               Alert.alert('Done!', 'Status updated to Item Sent.');
             } catch (e: any) {
@@ -434,17 +425,7 @@ export default function TransactionDetailScreen() {
                 // Payluk path: call backend which will call Payluk's confirm-payment API
                 await api.post('/api/payluk/confirm-delivery', { transactionId: tx.id });
               } else {
-                // Paystack / legacy path: direct DB update (existing behaviour)
-                const { error } = await supabase
-                  .from('escrow_transactions')
-                  .update({
-                    status: 'completed',
-                    completed_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                  })
-                  .eq('id', tx.id)
-                  .eq('buyer_id', user.id);
-                if (error) throw error;
+                throw new Error('This historical payment needs support reconciliation.');
               }
               await fetchTx();
               Alert.alert('🎉 Done!', 'Funds have been released to the seller. Thank you!');
@@ -452,9 +433,6 @@ export default function TransactionDetailScreen() {
               const msg: string = e?.message ?? '';
               if (msg === 'DELIVERY_RECORDED_FAILED') {
                 Alert.alert('Action Completed', 'payment processed, please contact support');
-              } else if (msg.includes('Action not allowed')) {
-                await fetchTx();
-                Alert.alert('🎉 Done!', 'Funds have been released to the seller. Thank you!');
               } else {
                 Alert.alert('Error', msg || 'Could not confirm receipt. Please try again.');
               }

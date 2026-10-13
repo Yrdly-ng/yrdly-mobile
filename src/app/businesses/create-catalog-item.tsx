@@ -1,3 +1,4 @@
+import { isPaidPrice, MINIMUM_PRICE_MESSAGE } from '@/lib/price-policy';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect } from 'react';
 import {
@@ -112,6 +113,8 @@ export default function CreateCatalogItemScreen() {
     if (!title.trim() || !price.trim()) {
       return Alert.alert('Error', 'Please enter a title and price.');
     }
+
+    if (!isPaidPrice(Number(price))) return Alert.alert('Invalid price', MINIMUM_PRICE_MESSAGE);
 
     if (!isEditMode && (!businessId || typeof businessId !== 'string')) {
       return Alert.alert('Error', 'Invalid business context.');

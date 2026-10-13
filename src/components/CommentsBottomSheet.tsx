@@ -52,7 +52,8 @@ import { CommentInput, CommentInputRef } from './CommentInput';
 
 export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBottomSheetProps>(
   ({ postId, onCommentAdded }, ref) => {
-    const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+    const { theme } = useUnistyles();
+    const stylesheet = _stylesheet;
 
     const router = useRouter();
     const { user, profile } = useAuth();
@@ -124,7 +125,9 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
       if (!postId) return;
       const { data, error } = await supabase
         .from('posts')
-        .select('*, user:users!posts_user_id_fkey(id, name, avatar_url, location, created_at)')
+        .select(
+          '*, user:public_profiles!posts_user_id_fkey(id, name, avatar_url, location, created_at)'
+        )
         .eq('id', postId)
         .single();
 
@@ -138,7 +141,7 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
       setLoading(true);
       const { data, error } = await supabase
         .from('comments')
-        .select('*, user:users!comments_user_id_fkey(name, avatar_url, phone_verified)')
+        .select('*, user:public_profiles!comments_user_id_fkey(name, avatar_url, phone_verified)')
         .eq('post_id', postId)
         .order('timestamp', { ascending: true });
 
@@ -376,23 +379,11 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
         keyboardBlurBehavior="none"
         android_keyboardInputMode="adjustResize"
       >
-        <LiquidGlassView
-          {...({
-            intensity: 80,
-            tint: theme.colors.DARK === '#050505' ? 'dark' : 'light',
-            fallbackColor:
-              theme.colors.DARK === '#050505' ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.85)',
-          } as any)}
-        >
-          <View style={stylesheet.header}>
-            <Text style={[stylesheet.headerTitle, { color: theme.colors.TEXT_PRIMARY }]}>
-              Comments
-            </Text>
-            <View
-              style={[stylesheet.headerDivider, { backgroundColor: theme.colors.GLASS_BORDER }]}
-            />
-          </View>
-        </LiquidGlassView>
+        <View style={[stylesheet.header, { backgroundColor: theme.colors.DARK }]}>
+          <Text style={[stylesheet.headerTitle, { color: theme.colors.TEXT_PRIMARY }]}>
+            Comments
+          </Text>
+        </View>
 
         {loading && comments.length === 0 ? (
           <View style={stylesheet.center}>
@@ -430,11 +421,6 @@ const _stylesheet = UnistylesStyleSheet.create((theme) => ({
   headerTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  headerDivider: {
-    width: '100%',
-    height: 1,
   },
   center: {
     flex: 1,

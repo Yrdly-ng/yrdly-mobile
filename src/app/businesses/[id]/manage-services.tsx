@@ -1,3 +1,4 @@
+import { isPaidPrice, MINIMUM_PRICE_MESSAGE } from '@/lib/price-policy';
 import React, { useState } from 'react';
 import {
   View,
@@ -56,6 +57,8 @@ export default function ManageServicesScreen() {
     if (!name.trim()) return Alert.alert('Error', 'Service name is required');
     const duration = parseInt(durationMinutes, 10);
     if (isNaN(duration) || duration <= 0) return Alert.alert('Error', 'Valid duration in minutes is required');
+
+    if (price.trim() && !isPaidPrice(Number(price), true)) return Alert.alert('Invalid price', MINIMUM_PRICE_MESSAGE);
 
     setSaving(true);
     try {

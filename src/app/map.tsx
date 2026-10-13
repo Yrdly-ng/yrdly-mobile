@@ -335,34 +335,13 @@ export default function MapScreen() {
   const fetchMarkers = async () => {
     const found: MapMarker[] = [];
     if (user?.id) {
-      const { data: me } = await supabase
-        .from('users')
-        .select('friends')
-        .eq('id', user.id)
-        .single();
-      if (me?.friends && me.friends.length > 0) {
-        const { data: frds } = await supabase
-          .from('users')
-          .select('id, name, avatar_url, current_location')
-          .in('id', me.friends)
-          .or('share_location.is.null,share_location.eq.true')
-          .not('current_location', 'is', null);
-        (frds || []).forEach((f: any) => {
-          const lat = parseFloat(f.current_location?.lat ?? f.current_location?.geopoint?.latitude);
-          const lng = parseFloat(
-            f.current_location?.lng ?? f.current_location?.geopoint?.longitude
-          );
-          if (!isNaN(lat) && !isNaN(lng))
-            found.push({
-              id: `friend-${f.id}`,
-              type: 'friend',
-              lat,
-              lng,
-              title: f.name,
-              subtitle: 'Friend',
-              targetId: f.id,
-              avatar_url: f.avatar_url,
-            });
+      const { data: sharedFriends } = await api.post('/api/profiles/friend-locations', {});
+      for (const friend of sharedFriends || []) {
+        const lat = Number(friend.current_location?.lat ?? friend.current_location?.geopoint?.latitude);
+        const lng = Number(friend.current_location?.lng ?? friend.current_location?.geopoint?.longitude);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) found.push({
+          id: `friend-${friend.id}`, type: 'friend', lat, lng, title: friend.name,
+          subtitle: 'Friend', targetId: friend.id, avatar_url: friend.avatar_url,
         });
       }
     }
