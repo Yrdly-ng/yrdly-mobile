@@ -94,7 +94,6 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
           setComments((prev) => prev.filter((c) => c.id !== item.id));
           if (post) {
             const newCount = Math.max((post.comment_count || 1) - 1, 0);
-            await supabase.from('posts').update({ comment_count: newCount }).eq('id', postId);
             setPost((prev) => (prev ? { ...prev, comment_count: newCount } : null));
             DeviceEventEmitter.emit('post_updated', {
               postId,
@@ -223,10 +222,9 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
         const { error } = await supabase.from('comments').insert(payload);
         if (error) throw error;
 
-        // Update post comment count
+        // Update the local count; the database trigger owns the stored counter.
         if (post) {
           const newCount = (post.comment_count || 0) + 1;
-          await supabase.from('posts').update({ comment_count: newCount }).eq('id', postId);
           setPost({ ...post, comment_count: newCount });
           DeviceEventEmitter.emit('post_updated', {
             postId,
@@ -236,7 +234,7 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
 
         // Trigger notification
         const { NotificationTriggers } = await import('../lib/notification-triggers');
-        await NotificationTriggers.onPostCommented(postId, user.id, text.trim());
+        void NotificationTriggers.onPostCommented(postId, user.id, text.trim()).catch(() => {});
 
         onCommentAdded?.();
       } catch (e) {

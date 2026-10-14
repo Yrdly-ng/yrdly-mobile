@@ -8,7 +8,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   useWindowDimensions,
   View,
@@ -29,6 +28,8 @@ import {
   type VideoMetadata,
 } from '@/lib/video-editing';
 import { VideoEditSlider } from './VideoEditSlider';
+import { VideoTrimTimeline } from './VideoTrimTimeline';
+import { CropFrame } from './CropFrame';
 
 interface Props {
   file: MobileFile;
@@ -48,9 +49,8 @@ export default function VideoEditModal({ file, maxBytes, onFinish }: Props) {
   const [start, setStart] = useState(0);
   const [end, setEnd] = useState(0);
   const [crop, setCrop] = useState<VideoCrop>({ x: 0, y: 0, width: 1, height: 1 });
-  const [shape, setShape] = useState('Original');
-  const [customWidth, setCustomWidth] = useState('1');
-  const [customHeight, setCustomHeight] = useState('1');
+  const [shape, setShape] = useState('Freeform');
+  const [mode, setMode] = useState<'trim' | 'crop'>('trim');
   const [zoom, setZoom] = useState(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -69,7 +69,14 @@ export default function VideoEditModal({ file, maxBytes, onFinish }: Props) {
     ? Math.min(screen.width - 48, (screen.height * 0.32 * metadata.width) / metadata.height, 600)
     : screen.width - 48;
   const frameHeight = metadata ? (frameWidth * metadata.height) / metadata.width : 220;
-  const drag = useRef({ crop, original: crop, width: frameWidth, height: frameHeight, busy });
+  const drag = useRef({
+    crop,
+    original: crop,
+    width: frameWidth,
+    height: frameHeight,
+    busy,
+    distance: 0,
+  });
   useLayoutEffect(() => {
     drag.current = { ...drag.current, crop, width: frameWidth, height: frameHeight, busy };
   }, [crop, frameWidth, frameHeight, busy]);
@@ -79,17 +86,55 @@ export default function VideoEditModal({ file, maxBytes, onFinish }: Props) {
     PanResponder.create({
       onStartShouldSetPanResponder: () => !drag.current.busy && Boolean(metadataRef.current),
       onMoveShouldSetPanResponder: () => !drag.current.busy && Boolean(metadataRef.current),
-      onPanResponderGrant: () => {
+      onPanResponderGrant: (event) => {
         drag.current.original = drag.current.crop;
+        const touches = event.nativeEvent.touches;
+        drag.current.distance =
+          touches.length > 1
+            ? Math.hypot(touches[0].pageX - touches[1].pageX, touches[0].pageY - touches[1].pageY)
+            : 0;
       },
-      onPanResponderMove: (_event, gesture) =>
+      onPanResponderMove: (event, gesture) => {
+        const touches = event.nativeEvent.touches;
+        if (touches.length > 1) {
+          const distance = Math.hypot(
+            touches[0].pageX - touches[1].pageX,
+            touches[0].pageY - touches[1].pageY
+          );
+          if (!drag.current.distance) {
+            drag.current.distance = distance;
+            drag.current.original = drag.current.crop;
+            return;
+          }
+          const original = drag.current.original;
+          const factor = Math.max(
+            0.05 / Math.min(original.width, original.height),
+            Math.min(
+              1 / Math.max(original.width, original.height),
+              drag.current.distance / Math.max(distance, 1)
+            )
+          );
+          const width = original.width * factor,
+            height = original.height * factor;
+          setCrop(
+            moveVideoCrop(
+              { ...original, width, height },
+              original.x + (original.width - width) / 2,
+              original.y + (original.height - height) / 2
+            )
+          );
+          setZoom(Math.min(8, Math.max(1, 1 / Math.max(width, height))));
+          return;
+        }
+        if (drag.current.distance) return;
         setCrop(
           moveVideoCrop(
             drag.current.original,
             drag.current.original.x + gesture.dx / drag.current.width,
             drag.current.original.y + gesture.dy / drag.current.height
           )
-        ),
+        );
+      },
     })
   );
 
@@ -100,8 +145,6 @@ export default function VideoEditModal({ file, maxBytes, onFinish }: Props) {
         if (!mounted.current) return;
         setMetadata(data);
         setEnd(data.duration);
-        setCustomWidth(String(data.width));
-        setCustomHeight(String(data.height));
       })
       .catch((failure) => {
         if (mounted.current)
@@ -131,35 +174,26 @@ export default function VideoEditModal({ file, maxBytes, onFinish }: Props) {
     };
   }, [player, start, end]);
 
-  const customAspect = Number(customWidth) / Number(customHeight);
-  const customValid =
-    shape !== 'Custom' ||
-    (Number(customWidth) > 0 &&
-      Number(customHeight) > 0 &&
-      Number.isFinite(customAspect) &&
-      customAspect >= 0.1 &&
-      customAspect <= 10);
-  function updateFraming(
-    label: string,
-    nextZoom: number,
-    ratioWidth = customWidth,
-    ratioHeight = customHeight
-  ) {
+  const customValid = true;
+  function updateFraming(label: string, nextZoom: number) {
     if (!metadata) return;
-    const ratio = Number(ratioWidth) / Number(ratioHeight);
-    if (
-      label === 'Custom' &&
-      (!Number.isFinite(ratio) ||
-        Number(ratioWidth) <= 0 ||
-        Number(ratioHeight) <= 0 ||
-        ratio < 0.1 ||
-        ratio > 10)
-    )
+    if (label === 'Freeform') {
+      setCrop((previous) => {
+        const scale = zoom / nextZoom;
+        const factor = Math.min(scale, 1 / Math.max(previous.width, previous.height));
+        const width = Math.max(0.05, previous.width * factor),
+          height = Math.max(0.05, previous.height * factor);
+        return moveVideoCrop(
+          { ...previous, width, height },
+          previous.x + (previous.width - width) / 2,
+          previous.y + (previous.height - height) / 2
+        );
+      });
       return;
+    }
     const aspect =
-      label === 'Custom'
-        ? ratio
-        : (VIDEO_ASPECTS.find((value) => value.label === label)?.value ?? null);
+      VIDEO_ASPECTS.find((option) => option.label === label)?.value ??
+      metadata.width / metadata.height;
     const next = centeredVideoCrop(metadata.width, metadata.height, aspect, 1 / nextZoom);
     setCrop((previous) =>
       moveVideoCrop(
@@ -172,10 +206,10 @@ export default function VideoEditModal({ file, maxBytes, onFinish }: Props) {
 
   const cancel = () => {
     controller.current?.abort();
+    mounted.current = false;
     player.pause();
     onFinish(null);
   };
-  const minimum = metadata ? Math.min(0.25, metadata.duration) : 0.25;
   const pixels = metadata
     ? videoCropPixels(metadata, crop, Math.max(metadata.width, metadata.height))
     : null;
@@ -223,7 +257,7 @@ export default function VideoEditModal({ file, maxBytes, onFinish }: Props) {
                 Edit video
               </Text>
               <Text style={{ color: theme.colors.MUTED }}>
-                Trim your clip and drag the crop frame.
+                Drag the ends to trim. Tap Crop to change the framing.
               </Text>
             </View>
             <TouchableOpacity
@@ -242,7 +276,7 @@ export default function VideoEditModal({ file, maxBytes, onFinish }: Props) {
           >
             <View style={styles.preview}>
               <View
-                {...pan.panHandlers}
+                {...(mode === 'crop' ? pan.panHandlers : {})}
                 style={{ width: frameWidth, height: frameHeight, overflow: 'hidden' }}
               >
                 <VideoView
@@ -253,7 +287,7 @@ export default function VideoEditModal({ file, maxBytes, onFinish }: Props) {
                   contentFit="contain"
                   surfaceType="textureView"
                 />
-                {metadata && (
+                {metadata && mode === 'crop' && (
                   <View pointerEvents="none" style={StyleSheet.absoluteFill}>
                     <View
                       style={[
@@ -302,6 +336,21 @@ export default function VideoEditModal({ file, maxBytes, onFinish }: Props) {
                     />
                   </View>
                 )}
+                {metadata && mode === 'crop' && (
+                  <CropFrame
+                    crop={crop}
+                    width={frameWidth}
+                    height={frameHeight}
+                    disabled={busy}
+                    aspect={
+                      shape === 'Freeform'
+                        ? null
+                        : VIDEO_ASPECTS.find((option) => option.label === shape)?.value ||
+                          metadata.width / metadata.height
+                    }
+                    onChange={setCrop}
+                  />
+                )}
                 {!metadata && !error && (
                   <ActivityIndicator
                     accessibilityLabel="Loading video"
@@ -335,117 +384,98 @@ export default function VideoEditModal({ file, maxBytes, onFinish }: Props) {
                     {(end - start).toFixed(2)}s · {pixels?.outputWidth} × {pixels?.outputHeight}px
                   </Text>
                 </View>
-                <VideoEditSlider
-                  label="Start seconds"
-                  minimum={0}
-                  maximum={metadata.duration}
-                  value={start}
-                  disabled={busy}
-                  onChange={(value) => {
-                    const next = Math.min(value, end - minimum);
-                    setStart(next);
-                    seekVideo(player, next);
-                  }}
-                />
-                <VideoEditSlider
-                  label="End seconds"
-                  minimum={0}
-                  maximum={metadata.duration}
-                  value={end}
-                  disabled={busy}
-                  onChange={(value) => setEnd(Math.max(start + minimum, value))}
-                />
-                <View style={styles.presets}>
-                  {[...VIDEO_ASPECTS.map((option) => option.label), 'Custom'].map((label) => (
+                <View style={styles.row}>
+                  {(['trim', 'crop'] as const).map((tab) => (
                     <TouchableOpacity
-                      key={label}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: shape === label, disabled: busy }}
-                      disabled={busy}
-                      onPress={() => {
-                        setShape(label);
-                        setZoom(1);
-                        updateFraming(label, 1);
-                      }}
+                      key={tab}
+                      onPress={() => setMode(tab)}
                       style={[
                         styles.button,
-                        {
-                          backgroundColor: shape === label ? theme.colors.G : theme.colors.SURFACE,
-                        },
+                        { backgroundColor: mode === tab ? '#82DB7E' : '#29312B' },
                       ]}
                     >
-                      <Text
-                        style={{
-                          color: shape === label ? '#08120b' : theme.colors.TEXT_PRIMARY,
-                          fontFamily: 'Outfit-Medium',
-                        }}
-                      >
-                        {label}
+                      <Text style={{ color: mode === tab ? '#102114' : '#FFFFFF' }}>
+                        {tab === 'trim' ? 'Trim' : 'Crop'}
                       </Text>
                     </TouchableOpacity>
                   ))}
+                  <TouchableOpacity
+                    disabled={busy}
+                    onPress={() => {
+                      setStart(0);
+                      setEnd(metadata.duration);
+                      setCrop({ x: 0, y: 0, width: 1, height: 1 });
+                      setShape('Freeform');
+                      setZoom(1);
+                    }}
+                    style={button}
+                  >
+                    <Text style={text}>Reset</Text>
+                  </TouchableOpacity>
                 </View>
-                {shape === 'Custom' && (
-                  <View style={styles.row}>
-                    <TextInput
-                      accessibilityLabel="Custom ratio width"
-                      keyboardType="decimal-pad"
-                      value={customWidth}
-                      onChangeText={(value) => {
-                        setCustomWidth(value);
-                        updateFraming(shape, zoom, value, customHeight);
-                      }}
-                      editable={!busy}
-                      style={[styles.input, text, { backgroundColor: theme.colors.SURFACE }]}
-                    />
-                    <Text style={text}>:</Text>
-                    <TextInput
-                      accessibilityLabel="Custom ratio height"
-                      keyboardType="decimal-pad"
-                      value={customHeight}
-                      onChangeText={(value) => {
-                        setCustomHeight(value);
-                        updateFraming(shape, zoom, customWidth, value);
-                      }}
-                      editable={!busy}
-                      style={[styles.input, text, { backgroundColor: theme.colors.SURFACE }]}
-                    />
-                  </View>
-                )}
-                <VideoEditSlider
-                  label="Zoom to crop"
-                  minimum={1}
-                  maximum={4}
-                  value={zoom}
-                  disabled={busy}
-                  onChange={(value) => {
-                    setZoom(value);
-                    updateFraming(shape, value);
-                  }}
-                />
-                <View style={styles.presets}>
-                  {(
-                    [
-                      ['Left', -0.02, 0],
-                      ['Up', 0, -0.02],
-                      ['Down', 0, 0.02],
-                      ['Right', 0.02, 0],
-                    ] as const
-                  ).map(([label, x, y]) => (
-                    <TouchableOpacity
-                      key={label}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Move crop ${label.toLowerCase()}`}
+                {mode === 'trim' ? (
+                  <VideoTrimTimeline
+                    uri={file.uri}
+                    duration={metadata.duration}
+                    start={start}
+                    end={end}
+                    disabled={busy}
+                    onChange={(nextStart, nextEnd) => {
+                      setStart(nextStart);
+                      setEnd(nextEnd);
+                    }}
+                    onSeek={(seconds) => {
+                      player.pause();
+                      seekVideo(player, seconds);
+                    }}
+                  />
+                ) : (
+                  <>
+                    <View style={styles.presets}>
+                      {['Freeform', ...VIDEO_ASPECTS.map((option) => option.label)].map((label) => (
+                        <TouchableOpacity
+                          key={label}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: shape === label, disabled: busy }}
+                          disabled={busy}
+                          onPress={() => {
+                            setShape(label);
+                            setZoom(1);
+                            if (label === 'Freeform') return;
+                            updateFraming(label, 1);
+                          }}
+                          style={[
+                            styles.button,
+                            {
+                              backgroundColor:
+                                shape === label ? theme.colors.G : theme.colors.SURFACE,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={{
+                              color: shape === label ? '#08120b' : theme.colors.TEXT_PRIMARY,
+                              fontFamily: 'Outfit-Medium',
+                            }}
+                          >
+                            {label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    <VideoEditSlider
+                      label="Zoom to crop"
+                      minimum={1}
+                      maximum={4}
+                      value={zoom}
                       disabled={busy}
-                      style={button}
-                      onPress={() =>
-                        setCrop((value) => moveVideoCrop(value, value.x + x, value.y + y))
-                      }
-                    >
-                      <Text style={text}>{label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                      onChange={(value) => {
+                        setZoom(value);
+                        updateFraming(shape, value);
+                      }}
+                    />
+                  </>
+                )}
               </>
             )}
             {!customValid && (
@@ -492,7 +522,7 @@ export default function VideoEditModal({ file, maxBytes, onFinish }: Props) {
                 },
               ]}
             >
-              <Text style={{ color: '#08120b', fontFamily: 'Outfit-Bold' }}>Apply edits</Text>
+              <Text style={{ color: '#08120b', fontFamily: 'Outfit-Bold' }}>Confirm</Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>

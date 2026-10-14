@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useCommunityConnections, CommunityFilterTab } from '../hooks/useCommunityConnections';
 import { DiscoverUserCard } from './DiscoverUserCard';
+import { CommunitiesContent } from './CommunitiesContent';
 
 export interface DiscoverPeopleSectionProps {
   search?: string;
@@ -24,10 +25,12 @@ export function DiscoverPeopleSection({
   search = '',
   initialMode = 'nearby',
 }: DiscoverPeopleSectionProps) {
-  const { theme } = useUnistyles(); const sStylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const sStylesheet = _stylesheet;
   const router = useRouter();
 
-  const [mode, setMode] = useState<'nearby' | 'circle'>(initialMode);
+  const [visitedCommunities, setVisitedCommunities] = useState(false);
+  const [mode, setMode] = useState<'nearby' | 'communities' | 'circle'>(initialMode);
 
   useEffect(() => {
     setMode(initialMode);
@@ -81,11 +84,21 @@ export function DiscoverPeopleSection({
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={sStylesheet.toggleButton}
-          onPress={() => router.push('/communities' as any)}
+          style={[
+            sStylesheet.toggleButton,
+            mode === 'communities' && sStylesheet.toggleButtonActive,
+          ]}
+          onPress={() => {
+            setVisitedCommunities(true);
+            setMode('communities');
+          }}
           activeOpacity={0.8}
         >
-          <Text style={sStylesheet.toggleText}>Communities</Text>
+          <Text
+            style={[sStylesheet.toggleText, mode === 'communities' && sStylesheet.toggleTextActive]}
+          >
+            Communities
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -94,7 +107,9 @@ export function DiscoverPeopleSection({
           activeOpacity={0.8}
         >
           <View style={sStylesheet.tabLabelRow}>
-            <Text style={[sStylesheet.toggleText, mode === 'circle' && sStylesheet.toggleTextActive]}>
+            <Text
+              style={[sStylesheet.toggleText, mode === 'circle' && sStylesheet.toggleTextActive]}
+            >
               My circle
             </Text>
             {requests.length > 0 && <View style={sStylesheet.badgeDot} />}
@@ -102,6 +117,9 @@ export function DiscoverPeopleSection({
         </TouchableOpacity>
       </View>
 
+      <View style={{ flex: 1, display: mode === 'communities' ? 'flex' : 'none' }}>
+        {visitedCommunities && <CommunitiesContent embedded visible={mode === 'communities'} />}
+      </View>
       {/* ── MODE 1: NEARBY ── */}
       {mode === 'nearby' && (
         <View style={sStylesheet.modeContent}>
@@ -185,12 +203,20 @@ export function DiscoverPeopleSection({
           {requests.length > 0 && (
             <View style={sStylesheet.sectionBlock}>
               <Text style={sStylesheet.sectionHeader}>REQUESTS ({requests.length})</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 12 }}
+              >
                 {requests.map((req) => (
                   <View key={req.id} style={sStylesheet.requestCard}>
-                    <TouchableOpacity onPress={() => router.push(`/profile/${req.from_user?.id}` as any)}>
+                    <TouchableOpacity
+                      onPress={() => router.push(`/profile/${req.from_user?.id}` as any)}
+                    >
                       <Image
-                        source={req.from_user?.avatar_url ? { uri: req.from_user.avatar_url } : undefined}
+                        source={
+                          req.from_user?.avatar_url ? { uri: req.from_user.avatar_url } : undefined
+                        }
                         style={sStylesheet.requestAvatar}
                         contentFit="cover"
                       />
@@ -248,7 +274,9 @@ export function DiscoverPeopleSection({
             {filteredFriends.length === 0 ? (
               <View style={sStylesheet.emptyCircleBlock}>
                 <Text style={sStylesheet.emptyCircleText}>
-                  {circleSearchQuery ? 'No matching friends found' : 'No friends yet. Discover neighbors in the Nearby tab!'}
+                  {circleSearchQuery
+                    ? 'No matching friends found'
+                    : 'No friends yet. Discover neighbors in the Nearby tab!'}
                 </Text>
               </View>
             ) : (
@@ -266,9 +294,7 @@ export function DiscoverPeopleSection({
                   />
                   <View style={sStylesheet.friendInfo}>
                     <Text style={sStylesheet.friendName}>{friend.user?.name || 'Anonymous'}</Text>
-                    <Text style={sStylesheet.friendHandle}>
-                      @{friend.user?.username || 'user'}
-                    </Text>
+                    <Text style={sStylesheet.friendHandle}>@{friend.user?.username || 'user'}</Text>
                   </View>
                   <Ionicons name="ellipsis-horizontal" size={18} color={theme.colors.MUTED} />
                 </TouchableOpacity>
@@ -287,7 +313,11 @@ export function DiscoverPeopleSection({
                 Build your local circle on YRDLY to share events, items, and recommendations.
               </Text>
             </View>
-            <TouchableOpacity style={sStylesheet.inviteBtn} onPress={handleInvite} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={sStylesheet.inviteBtn}
+              onPress={handleInvite}
+              activeOpacity={0.8}
+            >
               <Text style={sStylesheet.inviteBtnText}>Invite</Text>
             </TouchableOpacity>
           </View>

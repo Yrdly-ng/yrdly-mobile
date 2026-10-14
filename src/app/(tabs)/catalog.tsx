@@ -18,6 +18,7 @@ import {
 import { Image } from 'expo-image';
 import { Avatar } from '../../components/Avatar';
 import { MarketplaceFavorite } from '../../components/MarketplaceFavorite';
+import { useCachedRecords } from '@/hooks/use-cached-records';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -195,7 +196,6 @@ function MarketplaceSection({
 
   const router = useRouter();
   const [category, setCategory] = useState('All');
-  const [items, setItems] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [showFilter, setShowFilter] = useState(false);
 
@@ -205,6 +205,19 @@ function MarketplaceSection({
   const [filterCondition, setFilterCondition] = useState('Any');
   const [filterSort, setFilterSort] = useState('Newest');
   const [filterDistance, setFilterDistance] = useState('Any'); // UI only for now
+  const [items, setItems, isCached] = useCachedRecords<Post>(
+    'marketplace',
+    JSON.stringify([
+      category,
+      activeFilter,
+      search,
+      filterCondition,
+      filterPriceMin,
+      filterPriceMax,
+      filterSort,
+      filterDistance,
+    ])
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -328,6 +341,13 @@ function MarketplaceSection({
       ) : (
         <FlatList
           data={items}
+          ListHeaderComponent={
+            isCached ? (
+              <Text style={{ color: theme.colors.MUTED, fontSize: 12 }}>
+                Saved listings · prices and availability refresh when connected
+              </Text>
+            ) : null
+          }
           keyExtractor={(i) => i.id}
           numColumns={2}
           showsVerticalScrollIndicator={false}
@@ -702,7 +722,7 @@ function CatalogEventCard({ item, router, theme, sStylesheet }: any) {
           style={sStylesheet.eventCardImg}
           contentFit="cover"
         />
-        
+
         <View style={sStylesheet.eventCardDate}>
           <Text style={sStylesheet.eventCardDateText}>
             {new Date(item.start_time || item.date).toLocaleDateString('en-US', {
@@ -933,7 +953,10 @@ function PlacesSection({
   const { activeFilter } = useLocation();
 
   const router = useRouter();
-  const [businesses, setBusinesses] = useState<Business[]>([]);
+  const [businesses, setBusinesses, businessesCached] = useCachedRecords<Business>(
+    'businesses',
+    JSON.stringify([activeFilter, search])
+  );
   const [loading, setLoading] = useState(true);
   const PLACE_CATS = [
     'All',
@@ -954,7 +977,11 @@ function PlacesSection({
       let latestRequest = 0;
       async function fetchPlaces() {
         const request = ++latestRequest;
-        let q = supabase.from('businesses').select('*').eq('is_active', true);
+        let q = supabase
+          .from('businesses')
+          .select('*')
+          .eq('is_active', true)
+          .eq('moderation_status', 'approved');
         if (category !== 'All') {
           // Because businesses might have slightly different saved categories, use a broad ilike
           const searchCategory = category.split(' & ')[0]; // E.g., 'Beauty & Salon' -> 'Beauty'
@@ -974,7 +1001,7 @@ function PlacesSection({
         const { data, error } = await q.limit(20);
         if (!active || request !== latestRequest) return;
         if (error) console.error('Places fetch error:', error);
-        setBusinesses((data || []) as Business[]);
+        if (!error && data) setBusinesses(data as Business[]);
         setLoading(false);
       }
       void fetchPlaces();
@@ -1020,6 +1047,13 @@ function PlacesSection({
       ) : (
         <FlatList
           data={businesses}
+          ListHeaderComponent={
+            businessesCached ? (
+              <Text style={{ color: theme.colors.MUTED, fontSize: 12 }}>
+                Saved businesses · details refresh when connected
+              </Text>
+            ) : null
+          }
           keyExtractor={(i) => i.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100, gap: 12 }}
@@ -1032,7 +1066,12 @@ function PlacesSection({
               >
                 <View style={sStylesheet.placePhotoWrap}>
                   <Avatar
-                    url={(item as any).logo_url || item.logo || item.cover_image || item.image_urls?.[0]}
+                    url={
+                      (item as any).logo_url ||
+                      item.logo ||
+                      item.cover_image ||
+                      item.image_urls?.[0]
+                    }
                     name={item.name}
                     style={sStylesheet.placePhoto}
                   />
@@ -1571,7 +1610,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(15,23,18,0.88)',
     justifyContent: 'center',
     alignItems: 'center',
   },

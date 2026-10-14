@@ -24,6 +24,7 @@ import { useAuth } from '../../hooks/use-supabase-auth';
 import { usePosts } from '../../hooks/use-posts';
 import { PostCard } from '../../components/PostCard';
 import { Post } from '../../types';
+import { postMemory } from '@/lib/post-memory';
 import { timeAgo } from '../../lib/utils';
 
 import { StorageService } from '../../lib/storage-service';
@@ -32,7 +33,8 @@ import { CommentInput, CommentInputRef } from '../../components/CommentInput';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 
 function PostDetailContent() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const router = useRouter();
   const { id, focusComments } = useLocalSearchParams<{ id: string; focusComments?: string }>();
@@ -41,12 +43,12 @@ function PostDetailContent() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
 
-  const [post, setPost] = useState<Post | null>(null);
+  const [post, setPost] = useState<Post | null>(() => postMemory.get(id));
   const [comments, setComments] = useState<CommentType[]>([]);
   const [loading, setLoading] = useState(true);
   const [replyingTo, setReplyingTo] = useState<{ id: string; name: string } | null>(null);
 
-  const { deletePost } = usePosts();
+  const { deletePost } = usePosts(undefined, false);
 
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<CommentInputRef>(null);
@@ -96,6 +98,10 @@ function PostDetailContent() {
         if (post) {
           const newCount = Math.max((post.comment_count || 1) - 1, 0);
           setPost((prev) => (prev ? { ...prev, comment_count: newCount } : null));
+          DeviceEventEmitter.emit('post_updated', {
+            postId: id,
+            updates: { comment_count: newCount },
+          });
         }
       } catch (e) {
         console.error('Delete comment error:', e);
@@ -106,15 +112,22 @@ function PostDetailContent() {
 
   const fetchPost = useCallback(async () => {
     if (!id) return;
+    const snapshot = postMemory.get(id);
+    if (snapshot) setPost(snapshot);
     const { data, error } = await supabase
       .from('posts')
-      .select('*, user:public_profiles!posts_user_id_fkey(id, name, avatar_url, location, created_at)')
+      .select(
+        '*, user:public_profiles!posts_user_id_fkey(id, name, avatar_url, location, created_at)'
+      )
       .eq('id', id)
       .single();
 
     if (!error && data) {
       setPost(data);
+      postMemory.put(data);
     } else {
+      setPost(null);
+      postMemory.remove(id);
       Alert.alert('Post Unavailable', 'This post is no longer available.', [
         { text: 'OK', onPress: () => router.back() },
       ]);
@@ -147,6 +160,16 @@ function PostDetailContent() {
   }, [id, user?.id]);
 
   useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener('post_updated', ({ postId, updates }) => {
+      if (postId === id) {
+        postMemory.update(id, updates);
+        setPost((previous) => (previous ? { ...previous, ...updates } : previous));
+      }
+    });
+    return () => subscription.remove();
+  }, [id]);
+
+  useEffect(() => {
     fetchPost();
     fetchComments();
 
@@ -162,7 +185,11 @@ function PostDetailContent() {
           filter: `post_id=eq.${id}`,
         },
         (payload) => {
-          setComments((prev) => [...prev, payload.new as CommentType]);
+          setComments((prev) =>
+            prev.some((comment) => comment.id === payload.new.id)
+              ? prev
+              : [...prev, payload.new as CommentType]
+          );
           setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
         }
       )
@@ -220,7 +247,6 @@ function PostDetailContent() {
       // Update post comment count
       if (post) {
         const newCount = (post.comment_count || 0) + 1;
-        await supabase.from('posts').update({ comment_count: newCount }).eq('id', id);
         setPost({ ...post, comment_count: newCount });
         DeviceEventEmitter.emit('post_updated', {
           postId: id,
@@ -230,7 +256,7 @@ function PostDetailContent() {
 
       // Trigger notification
       const { NotificationTriggers } = await import('../../lib/notification-triggers');
-      await NotificationTriggers.onPostCommented(id, user.id, text.trim());
+      void NotificationTriggers.onPostCommented(id, user.id, text.trim()).catch(() => {});
 
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     } catch (e) {
@@ -376,7 +402,9 @@ function PostDetailContent() {
         )}
       </View>
 
-      <View style={{ flex: 1 }}>  {loading && !post ? (
+      <View style={{ flex: 1 }}>
+        {' '}
+        {loading && !post ? (
           <View style={stylesheet.center}>
             <ActivityIndicator size="large" color={theme.colors.G} />
           </View>
@@ -389,7 +417,15 @@ function PostDetailContent() {
             ListHeaderComponent={
               <View style={stylesheet.listHeader}>
                 {post ? (
-                  <PostCard post={post} isVisible={isFocused} />
+                  <PostCard
+                    post={post}
+                    expanded
+                    isVisible={isFocused}
+                    onComment={() => {
+                      inputRef.current?.focus();
+                      flatListRef.current?.scrollToEnd({ animated: true });
+                    }}
+                  />
                 ) : (
                   <ActivityIndicator size="small" color={theme.colors.G} style={{ padding: 20 }} />
                 )}
@@ -417,7 +453,6 @@ function PostDetailContent() {
             }
           />
         )}
-
         {/* Input */}
         <CommentInput
           ref={inputRef}
@@ -455,7 +490,8 @@ const _stylesheet = StyleSheet.create((theme) => ({
 }));
 
 export default function PostDetailScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   return (
     <ErrorBoundary screenName="PostDetail">

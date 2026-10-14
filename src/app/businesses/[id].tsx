@@ -534,9 +534,9 @@ export default function BusinessProfileScreen() {
     if (!business) return;
     try {
       await Share.share({
-        message: `Check out ${business.name} on YRDLY! ${business.category ? `They are a ${business.category}. ` : ''}View their profile here: https://yrdly.app/businesses/${business.id}`,
+        message: `Check out ${business.name} on YRDLY! ${business.category ? `They are a ${business.category}. ` : ''}View their profile here: https://app.yrdly.ng/businesses/${business.id}`,
         title: `Share ${business.name}`,
-        url: `https://yrdly.app/businesses/${business.id}`,
+        url: `https://app.yrdly.ng/businesses/${business.id}`,
       });
     } catch (error: any) {
       Alert.alert('Error', error.message);

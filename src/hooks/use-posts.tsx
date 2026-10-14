@@ -1,7 +1,8 @@
 import { api } from '@/lib/api';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { DeviceEventEmitter } from 'react-native';
-import * as FileSystem from 'expo-file-system/legacy';
+import { localCache } from '@/lib/local-cache';
+import NetInfo from '@react-native-community/netinfo';
 // Removed Firebase imports - now using Supabase
 import { useAuth } from '@/hooks/use-supabase-auth';
 import { supabase } from '@/lib/supabase';
@@ -15,50 +16,60 @@ import { useToast } from '@/components/toast';
 
 import { LocationFilter } from '@/context/LocationContext';
 
-export const usePosts = (filter?: LocationFilter | null) => {
+export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
   const { user, profile } = useAuth();
   const { showToast } = useToast();
   const [posts, setPosts] = useState<Post[]>([]);
+  const [postsOwner, setPostsOwner] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const PAGE_SIZE = 15;
+  const requestVersion = useRef(0);
+  const [isCached, setIsCached] = useState(false);
 
   const filterState = filter?.state;
   const filterLga = filter?.lga;
   const filterWard = filter?.ward;
+  const blockedKey = JSON.stringify(profile?.blocked_users || []);
 
   const fetchPosts = useCallback(
     async (pageNum: number = 0, isLoadMore: boolean = false) => {
+      if (!enabled) {
+        setLoading(false);
+        return;
+      }
       // Generate a cache key based on filters
       let filterString: string | undefined = undefined;
       if (filterWard) filterString = `ward=eq.${filterWard}`;
       else if (filterLga) filterString = `lga=eq.${filterLga}`;
       else if (filterState) filterString = `state=eq.${filterState}`;
 
-      const cacheFile =
-        FileSystem.documentDirectory +
-        (filterString
-          ? `yrdly_posts_cache_${filterString.replace(/\W/g, '_')}.json`
-          : 'yrdly_posts_cache_all.json');
-
+      const owner = user?.id;
+      const cacheKey = filterString || 'all';
+      const request = ++requestVersion.current;
+      const startedAt = Date.now();
+      if (!owner) {
+        setPosts([]);
+        setLoading(false);
+        return;
+      }
       if (!isLoadMore) {
-        try {
-          // 1. Try to load from cache first to instantly populate the UI
-          const fileInfo = await FileSystem.getInfoAsync(cacheFile);
-          if (fileInfo.exists) {
-            const cachedData = await FileSystem.readAsStringAsync(cacheFile);
-            if (cachedData) {
-              const parsedCache = JSON.parse(cachedData) as Post[];
-              // Filter out cached events to prevent zombie events from rendering while DB is fresh
-              const filteredCache = parsedCache.filter((p) => p.category !== 'Event');
-              setPosts(filteredCache);
-            }
-          }
-        } catch (e) {
-          // Ignore cache read errors
+        const cached = await localCache.read<Post[]>(owner, 'feed', cacheKey);
+        if (request !== requestVersion.current) return;
+        if (cached) {
+          setPosts(cached.value);
+          setPostsOwner(owner);
+          setIsCached(true);
         }
+      }
+      const network = await NetInfo.fetch();
+      if (request !== requestVersion.current) return;
+      if (network.isConnected === false) {
+        setLoading(false);
+        setIsFetchingMore(false);
+        return;
       }
 
       try {
@@ -127,7 +138,7 @@ export const usePosts = (filter?: LocationFilter | null) => {
 
         if (postsRes.error) {
           console.error('Fetch posts error:', postsRes.error);
-          FileSystem.writeAsStringAsync(cacheFile, JSON.stringify([])).catch(() => {});
+          setIsCached(true);
           setLoading(false);
           return;
         }
@@ -135,6 +146,8 @@ export const usePosts = (filter?: LocationFilter | null) => {
         if (eventsRes.error) {
           console.warn('Fetch events warning:', eventsRes.error);
         }
+
+        if (request !== requestVersion.current) return;
 
         // Filter private posts: only author and accepted friends can view
         let myFriendsList: string[] = [];
@@ -152,6 +165,7 @@ export const usePosts = (filter?: LocationFilter | null) => {
           } catch (e) {}
         }
 
+        if (request !== requestVersion.current) return;
         const blocked = profile?.blocked_users || [];
         const unblockedPosts = (postsRes.data || []).filter((p) => !blocked.includes(p.user_id));
         const unblockedEvents = (eventsRes.data || []).filter(
@@ -239,20 +253,36 @@ export const usePosts = (filter?: LocationFilter | null) => {
         } else {
           setPosts(merged);
           // 2. Save fresh data back to cache
-          FileSystem.writeAsStringAsync(cacheFile, JSON.stringify(merged)).catch(() => {});
+          // Persist only approved public metadata, never private/friends-only posts.
+          void localCache.write(
+            owner,
+            'feed',
+            cacheKey,
+            merged.filter(
+              (p) =>
+                p.category !== 'Event' &&
+                p.visibility === 'public' &&
+                p.moderation_status === 'approved'
+            ),
+            startedAt
+          );
         }
 
+        setPostsOwner(owner);
+        setIsCached(false);
         setLoading(false);
         setIsFetchingMore(false);
       } catch (error) {
+        if (request !== requestVersion.current) return;
         setLoading(false);
         setIsFetchingMore(false);
       }
     },
-    [filterState, filterLga, filterWard]
+    [enabled, filterState, filterLga, filterWard, user?.id, blockedKey]
   );
 
   useEffect(() => {
+    if (!enabled) return;
     setPage(0);
     setHasMore(true);
     fetchPosts(0, false);
@@ -279,6 +309,7 @@ export const usePosts = (filter?: LocationFilter | null) => {
           filter: filterString,
         },
         (payload) => {
+          void localCache.invalidate('feed');
           if (payload.eventType === 'INSERT') {
             const newPost = payload.new as Post;
 
@@ -404,6 +435,7 @@ export const usePosts = (filter?: LocationFilter | null) => {
           filter: filterString,
         },
         (payload) => {
+          void localCache.invalidate('feed');
           if (payload.eventType === 'INSERT') {
             const newEvent = payload.new as any;
             if (newEvent.status !== 'PUBLISHED') return;
@@ -531,14 +563,16 @@ export const usePosts = (filter?: LocationFilter | null) => {
       .subscribe();
 
     return () => {
+      requestVersion.current++;
       supabase.removeChannel(channel);
     };
-  }, [filterState, filterLga, filterWard]);
+  }, [enabled, fetchPosts]);
 
   // Listen for ANY user's profile changes (avatar, name) via realtime
   // This ensures that when ANY user updates their avatar, all their posts in the feed
   // update immediately — past, present and future posts.
   useEffect(() => {
+    if (!enabled) return;
     const channelName = `users-profile-changes-${Math.random().toString(36).substring(7)}`;
     const userChannel = supabase
       .channel(channelName)
@@ -584,10 +618,12 @@ export const usePosts = (filter?: LocationFilter | null) => {
     return () => {
       supabase.removeChannel(userChannel);
     };
-  }, []);
+  }, [enabled, user?.id]);
 
   useEffect(() => {
+    if (!enabled) return;
     const sub = DeviceEventEmitter.addListener('post_deleted', (deletedId: string) => {
+      void localCache.invalidate('feed');
       setPosts((prev) => prev.filter((p) => p.id !== deletedId));
     });
     return () => sub.remove();
@@ -597,7 +633,8 @@ export const usePosts = (filter?: LocationFilter | null) => {
     async (
       files: MobileFile[],
       path: 'posts' | 'event_images' | 'businesses' | 'avatars',
-      onProgress?: (progress: number) => void
+      onProgress?: (progress: number) => void,
+      signal?: AbortSignal
     ): Promise<string[]> => {
       if (!user) return [];
 
@@ -626,7 +663,8 @@ export const usePosts = (filter?: LocationFilter | null) => {
                   progressMap.forEach((p) => (totalProgress += p));
                   onProgress(totalProgress / files.length);
                 }
-              }
+              },
+              signal
             );
             if (error) {
               return null;
@@ -652,7 +690,11 @@ export const usePosts = (filter?: LocationFilter | null) => {
       postIdToUpdate?: string,
       imageFiles?: MobileFile[],
       videoFiles?: MobileFile[],
-      onProgress?: (progress: number) => void
+      onProgress?: (progress: number) => void,
+      options?: {
+        signal?: AbortSignal;
+        onStage?: (stage: 'uploading' | 'processing' | 'complete') => void;
+      }
     ) => {
       if (!user || !profile) {
         showToast({ message: 'You must be logged in.' });
@@ -702,42 +744,49 @@ export const usePosts = (filter?: LocationFilter | null) => {
           }
         };
 
-        // Add new images if any are uploaded
-        if (hasImages) {
-          const uploadedUrls = await uploadImages(
-            imageFiles,
-            postData.category === 'Event' ? 'event_images' : 'posts',
-            (p) => {
-              imageProgress = p;
-              updateOverallProgress();
-            }
-          );
-
-          // Moderate uploaded images
-          if (uploadedUrls.length > 0) {
-            imageUrls = [...imageUrls, ...uploadedUrls];
-          }
-        }
-
-        // Upload videos if provided (new posts only)
-        let videoUrls: string[] = [];
-        if (hasVideos) {
-          const progressMap = new Map<number, number>();
-          const uploadedVideos = await Promise.all(
-            videoFiles.map((file, index) =>
-              StorageService.uploadPostVideo(user.id, file, (p) => {
-                progressMap.set(index, p);
-                let totalProgress = 0;
-                progressMap.forEach((v) => (totalProgress += v));
-                videoProgress = totalProgress / videoFiles.length;
-                updateOverallProgress();
-              })
-            )
-          );
-          const failedVideo = uploadedVideos.find((res) => res.error);
-          if (failedVideo) throw new Error('Failed to upload one or more videos.');
-          videoUrls = uploadedVideos.map((res) => res.url).filter(Boolean) as string[];
-        }
+        options?.onStage?.('uploading');
+        const [newImages, videoResults] = await Promise.all([
+          hasImages
+            ? uploadImages(
+                imageFiles,
+                postData.category === 'Event' ? 'event_images' : 'posts',
+                (progress) => {
+                  imageProgress = progress;
+                  updateOverallProgress();
+                },
+                options?.signal
+              )
+            : Promise.resolve([]),
+          hasVideos
+            ? (async () => {
+                const progressMap = new Map<number, number>();
+                return Promise.all(
+                  videoFiles.map((file, index) =>
+                    StorageService.uploadPostVideo(
+                      user.id,
+                      file,
+                      (progress) => {
+                        progressMap.set(index, progress);
+                        videoProgress =
+                          Array.from(progressMap.values()).reduce((a, b) => a + b, 0) /
+                          videoFiles.length;
+                        updateOverallProgress();
+                      },
+                      options?.signal
+                    )
+                  )
+                );
+              })()
+            : Promise.resolve([]),
+        ]);
+        if (options?.signal?.aborted) throw new Error('Upload cancelled. Your draft is safe.');
+        imageUrls = [...imageUrls, ...newImages];
+        if (videoResults.some((result) => result.error))
+          throw new Error('A video could not be uploaded. Your draft is safe.');
+        const videoUrls = videoResults
+          .map((result) => result.url)
+          .filter((url): url is string => !!url);
+        options?.onStage?.('processing');
 
         // Clean up the data to remove undefined values and exclude imageFiles
         const cleanedPostData = Object.fromEntries(
@@ -782,18 +831,25 @@ export const usePosts = (filter?: LocationFilter | null) => {
           ? await api.patch('/api/posts', { id: postIdToUpdate, post: finalPostData })
           : await api.post('/api/posts', { post: finalPostData });
         const savedPost = result.data as Post;
-        const moderationStatus = savedPost.moderation_status === 'approved' ? 'approved' : 'pending';
-        setPosts(previous => {
-          const remaining = previous.filter(post => post.id !== savedPost.id);
+        const moderationStatus =
+          savedPost.moderation_status === 'approved' ? 'approved' : 'pending';
+        setPosts((previous) => {
+          const remaining = previous.filter((post) => post.id !== savedPost.id);
           return moderationStatus === 'approved' ? [savedPost, ...remaining] : remaining;
         });
-        showToast({ message: moderationStatus === 'pending' ? 'Your post is pending admin review.' : 'Post saved successfully.' });
+        showToast({
+          message:
+            moderationStatus === 'pending'
+              ? 'Your post is pending admin review.'
+              : 'Post saved successfully.',
+        });
 
         // Update user activity after successful post creation/update
         if (user) {
-          await UserActivityService.updateUserActivity(user.id);
+          void UserActivityService.updateUserActivity(user.id).catch(() => {});
         }
 
+        options?.onStage?.('complete');
         return { moderationStatus };
       } catch (error) {
         showToast({ message: 'Failed to save post.' });
@@ -920,7 +976,7 @@ export const usePosts = (filter?: LocationFilter | null) => {
 
         // Update user activity after successful business creation/update
         if (user) {
-          await UserActivityService.updateUserActivity(user.id);
+          void UserActivityService.updateUserActivity(user.id).catch(() => {});
         }
 
         return { moderationStatus };
@@ -974,7 +1030,11 @@ export const usePosts = (filter?: LocationFilter | null) => {
           } as any;
         }
 
-        if (table === 'posts' && (['For Sale', 'Giveaway'].includes((postData as any).category) || Number((postData as any).price) > 0)) {
+        if (
+          table === 'posts' &&
+          (['For Sale', 'Giveaway'].includes((postData as any).category) ||
+            Number((postData as any).price) > 0)
+        ) {
           await assertMarketplaceListingUnpaid(postId, user.id);
         }
 
@@ -985,12 +1045,20 @@ export const usePosts = (filter?: LocationFilter | null) => {
             supabase.from('post_likes').delete().eq('post_id', postId),
             supabase.from('saved_posts').delete().eq('post_id', postId),
             supabase.from('notifications').delete().eq('post_id', postId),
-            supabase.from('moderation_queue').delete().eq('content_id', postId).eq('table_name', 'posts'),
+            supabase
+              .from('moderation_queue')
+              .delete()
+              .eq('content_id', postId)
+              .eq('table_name', 'posts'),
           ]);
         } else if (table === 'events') {
           await Promise.allSettled([
             supabase.from('notifications').delete().eq('event_id', postId),
-            supabase.from('moderation_queue').delete().eq('content_id', postId).eq('table_name', 'events'),
+            supabase
+              .from('moderation_queue')
+              .delete()
+              .eq('content_id', postId)
+              .eq('table_name', 'events'),
           ]);
         }
 
@@ -1118,18 +1186,7 @@ export const usePosts = (filter?: LocationFilter | null) => {
     (postId: string, updates: Partial<Post>) => {
       setPosts((prev) => {
         const next = prev.map((p) => (p.id === postId ? { ...p, ...updates } : p));
-        let filterString: string | undefined = undefined;
-        if (filterWard) filterString = `ward=eq.${filterWard}`;
-        else if (filterLga) filterString = `lga=eq.${filterLga}`;
-        else if (filterState) filterString = `state=eq.${filterState}`;
-
-        const cacheFile =
-          FileSystem.documentDirectory +
-          (filterString
-            ? `yrdly_posts_cache_${filterString.replace(/\W/g, '_')}.json`
-            : 'yrdly_posts_cache_all.json');
-
-        FileSystem.writeAsStringAsync(cacheFile, JSON.stringify(next)).catch(() => {});
+        void localCache.invalidate('feed');
         return next;
       });
     },
@@ -1137,7 +1194,8 @@ export const usePosts = (filter?: LocationFilter | null) => {
   );
 
   return {
-    posts,
+    posts: postsOwner === user?.id ? posts : [],
+    isCached,
     loading,
     hasMore,
     isFetchingMore,

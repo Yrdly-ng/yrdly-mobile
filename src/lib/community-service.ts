@@ -93,14 +93,27 @@ export class CommunityService {
 
   /** List communities the current user is a member of */
   static async listMyCommunities(): Promise<Community[]> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.user) return [];
     const { data, error } = await supabase
       .from('community_memberships')
-      .select('community:communities(*)')
+      .select('community:communities!inner(*)')
+      .eq('user_id', session.user.id)
+      .eq('community.approval_status', 'approved')
       .eq('status', 'active')
       .order('joined_at', { ascending: false });
 
     if (error) throw error;
-    return (data ?? []).map((row: any) => row.community as Community);
+    return Array.from(
+      new Map(
+        (data ?? [])
+          .map((row: any) => row.community as Community)
+          .filter((community) => community?.approval_status === 'approved')
+          .map((community) => [community.id, community])
+      ).values()
+    );
   }
 
   /** Discover open/request communities directory — defaults to nearby state + interest groups */
@@ -268,7 +281,12 @@ export class CommunityService {
 
   /** Load a community by id (respects RLS invite-only) */
   static async getCommunity(id: string): Promise<Community | null> {
-    const { data, error } = await supabase.from('communities').select('*').eq('id', id).single();
+    const { data, error } = await supabase
+      .from('communities')
+      .select('*')
+      .eq('id', id)
+      .eq('approval_status', 'approved')
+      .single();
     if (error) return null;
     return data as Community;
   }

@@ -37,6 +37,7 @@ import { useAuth } from '../hooks/use-supabase-auth';
 
 import { supabase } from '../lib/supabase';
 import { StorageService } from '../lib/storage-service';
+import { postMemory } from '@/lib/post-memory';
 import { Avatar } from './Avatar';
 import { useToast } from './toast';
 
@@ -47,6 +48,7 @@ interface PostCardProps {
   onComment?: () => void;
   onShare?: () => void;
   isVisible?: boolean;
+  expanded?: boolean;
   onOpenImageViewer?: (images: { uri: string }[], index: number) => void;
   onDelete?: (postId: string) => void;
 }
@@ -59,14 +61,21 @@ const PostVideo = React.memo(function PostVideo({
   isVisible,
   isVideoMuted,
   setIsVideoMuted,
+  expanded = false,
+  onOpen,
+  onAspect,
 }: {
   post: Post;
   videoUrl?: string;
   isVisible?: boolean;
   isVideoMuted: boolean;
   setIsVideoMuted: (muted: boolean) => void;
+  expanded?: boolean;
+  onOpen?: () => void;
+  onAspect?: (aspect: number) => void;
 }) {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
   const [isReady, setIsReady] = useState(false);
   const [progress, setProgress] = useState(0);
   const isFocused = useIsFocused();
@@ -82,6 +91,21 @@ const PostVideo = React.memo(function PostVideo({
     }
   });
 
+  useEffect(() => {
+    const listener = DeviceEventEmitter.addListener('yrdly_audio_playing', (source: string) => {
+      if (source !== targetUrl) player.pause();
+    });
+    return () => listener.remove();
+  }, [player, targetUrl]);
+  useEffect(() => {
+    if (!isVideoMuted && isVisible !== false && isFocused)
+      DeviceEventEmitter.emit('yrdly_audio_playing', targetUrl);
+  }, [isVideoMuted, isVisible, isFocused, targetUrl]);
+
+  useEventListener(player, 'sourceLoad', (event) => {
+    const track = event.availableVideoTracks[0];
+    if (track?.size?.width && track?.size?.height) onAspect?.(track.size.width / track.size.height);
+  });
   useEventListener(player, 'timeUpdate', (payload) => {
     if (player.duration > 0) {
       setProgress(payload.currentTime / player.duration);
@@ -126,9 +150,17 @@ const PostVideo = React.memo(function PostVideo({
         player={player}
         style={{ width: '100%', height: '100%' }}
         contentFit="contain"
-        nativeControls={false}
+        nativeControls={expanded}
         onFirstFrameRender={() => setIsReady(true)}
       />
+      {!expanded && (
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Open video post"
+          onPress={onOpen}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+        />
+      )}
       {!isReady && post.video_thumbnail_url && (
         <Image
           source={{ uri: post.video_thumbnail_url }}
@@ -144,12 +176,26 @@ const PostVideo = React.memo(function PostVideo({
         }}
         activeOpacity={0.8}
       >
-        <Ionicons
-          name={isVideoMuted ? 'volume-mute' : 'volume-medium'}
-          size={20}
-          color={theme.colors.TEXT_PRIMARY}
-        />
+        <Ionicons name={isVideoMuted ? 'volume-mute' : 'volume-medium'} size={20} color="#FFFFFF" />
       </TouchableOpacity>
+      {!expanded && (
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Play or pause video"
+          onPress={() => (player.playing ? player.pause() : player.play())}
+          style={{
+            position: 'absolute',
+            left: 12,
+            bottom: 12,
+            zIndex: 3,
+            backgroundColor: 'rgba(0,0,0,0.75)',
+            padding: 10,
+            borderRadius: 24,
+          }}
+        >
+          <Ionicons name="play" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
 
       <View
         style={{
@@ -184,6 +230,7 @@ export const PostCard = React.memo(
     isVisible,
     onOpenImageViewer,
     onDelete,
+    expanded = false,
   }: PostCardProps) {
     const { width } = useWindowDimensions();
     const router = useRouter();
@@ -191,7 +238,8 @@ export const PostCard = React.memo(
     const { showToast } = useToast();
 
     const [imageHeights, setImageHeights] = useState<Record<string, number>>({});
-    const imageDisplayWidth = width - 64;
+    const [mediaWidth, setMediaWidth] = useState(width);
+    const imageDisplayWidth = mediaWidth;
     const [isExpanded, setIsExpanded] = useState(false);
 
     const [likesCount, setLikesCount] = useState(post.liked_by?.length || 0);
@@ -200,29 +248,49 @@ export const PostCard = React.memo(
     );
     const [shareCount, setShareCount] = useState(post.share_count || 0);
     const [isBookmarked, setIsBookmarked] = useState(false);
+    const bookmarkPending = useRef(false),
+      likePending = useRef(false);
+    const bookmarkRevision = useRef(0);
 
-    const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+    const { theme } = useUnistyles();
+    const stylesheet = _stylesheet;
 
     // Sync state when post prop changes (crucial for FlashList cell recycling)
     useEffect(() => {
       setLikesCount(post.liked_by?.length || 0);
       setIsLiked(currentUser ? (post.liked_by || []).includes(currentUser.id) : false);
       setShareCount(post.share_count || 0);
-
-      if (currentUser) {
-        supabase
+    }, [post.liked_by, currentUser?.id, post.id]);
+    useEffect(() => {
+      let active = true;
+      const revision = ++bookmarkRevision.current;
+      setIsBookmarked(false);
+      if (currentUser)
+        void supabase
           .from('post_bookmarks')
           .select('id')
           .eq('post_id', post.id)
           .eq('user_id', currentUser.id)
           .maybeSingle()
-          .then(({ data }) => setIsBookmarked(!!data));
-      }
-    }, [post.liked_by, currentUser, post.id]);
+          .then(({ data }) => {
+            if (active && revision === bookmarkRevision.current) setIsBookmarked(!!data);
+          });
+      const listener = DeviceEventEmitter.addListener('post_bookmark_updated', (event) => {
+        if (event.postId === post.id && event.userId === currentUser?.id) {
+          bookmarkRevision.current++;
+          setIsBookmarked(event.saved);
+        }
+      });
+      return () => {
+        active = false;
+        listener.remove();
+      };
+    }, [post.id, currentUser?.id]);
 
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const [isVideoMuted, setIsVideoMuted] = useState(true);
     const [videoAspectRatio, setVideoAspectRatio] = useState<number | null>(null);
+    const [videoAspects, setVideoAspects] = useState<Record<string, number>>({});
 
     useEffect(() => {
       if (!post.video_urls?.[0]) return;
@@ -245,14 +313,14 @@ export const PostCard = React.memo(
       }
     }, [post.video_urls, post.video_thumbnail_url, post.image_width, post.image_height]);
 
-    const MIN_VIDEO_ASPECT = 4 / 5; // 0.8 portrait (tallest allowed in feed)
-    const MAX_VIDEO_ASPECT = 16 / 9; // 1.777 landscape (widest allowed in feed)
     const effectiveVideoAspect =
       videoAspectRatio &&
       !isNaN(videoAspectRatio) &&
       isFinite(videoAspectRatio) &&
       videoAspectRatio > 0
-        ? Math.min(Math.max(videoAspectRatio, MIN_VIDEO_ASPECT), MAX_VIDEO_ASPECT)
+        ? expanded
+          ? videoAspectRatio
+          : Math.min(Math.max(videoAspectRatio, 0.5), 3)
         : 4 / 5;
 
     const lastTapRef = useRef(0);
@@ -304,7 +372,7 @@ export const PostCard = React.memo(
       urls.forEach((url: string) => {
         if (!url || imageHeights[url]) return;
 
-        if (post.image_width && post.image_height) {
+        if (url === urls[0] && post.image_width && post.image_height) {
           const displayHeight = (post.image_height / post.image_width) * imageDisplayWidth;
           setImageHeights((prev) => ({ ...prev, [url]: displayHeight }));
           return;
@@ -326,16 +394,14 @@ export const PostCard = React.memo(
     }, [urls, post.image_width, post.image_height, imageDisplayWidth]);
 
     // Clamp rendered height: min 4:5 portrait, max 1.91:1 landscape
-    const MIN_ASPECT = 4 / 5; // height = width * 1.25  (tallest)
-    const MAX_ASPECT = 1.91; // height = width / 1.91  (widest)
     const getImageHeight = (url: string): number => {
-      const containerWidth = width - 40;
+      const containerWidth = mediaWidth;
 
       // First prefer exact dimensions if available for this specific post
-      if (post.image_width && post.image_height) {
+      if (url === urls[0] && post.image_width && post.image_height) {
         const aspect = post.image_width / post.image_height;
         if (!isNaN(aspect) && isFinite(aspect) && aspect > 0) {
-          const clampedAspect = Math.min(Math.max(aspect, MIN_ASPECT), MAX_ASPECT);
+          const clampedAspect = expanded ? aspect : Math.min(Math.max(aspect, 0.5), 3);
           return containerWidth / clampedAspect;
         }
       }
@@ -345,7 +411,7 @@ export const PostCard = React.memo(
       if (rawHeight && rawHeight > 0) {
         const rawAspect = containerWidth / rawHeight;
         if (!isNaN(rawAspect) && isFinite(rawAspect) && rawAspect > 0) {
-          const clampedAspect = Math.min(Math.max(rawAspect, MIN_ASPECT), MAX_ASPECT);
+          const clampedAspect = expanded ? rawAspect : Math.min(Math.max(rawAspect, 0.5), 3);
           return containerWidth / clampedAspect;
         }
       }
@@ -392,6 +458,9 @@ export const PostCard = React.memo(
         singleTapTimerRef.current = setTimeout(() => {
           if ((post.category === 'For Sale' || post.category === 'Event') && onPress) {
             onPress();
+          } else if (!expanded) {
+            postMemory.put(post);
+            router.push(`/posts/${post.id}` as any);
           } else if (onOpenImageViewer) {
             onOpenImageViewer(
               urls.map((u: string) => ({ uri: u })),
@@ -403,7 +472,8 @@ export const PostCard = React.memo(
     };
 
     const handleLike = async () => {
-      if (!currentUser) return;
+      if (!currentUser || likePending.current) return;
+      likePending.current = true;
 
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       const newIsLiked = !isLiked;
@@ -425,19 +495,19 @@ export const PostCard = React.memo(
           setLikesCount(data.likes_count);
         }
 
+        postMemory.update(post.id, { liked_by: newLikedBy });
         DeviceEventEmitter.emit('post_updated', {
           postId: post.id,
           updates: { liked_by: newLikedBy },
         });
 
-        // Trigger notification
-        if (newIsLiked) {
-          const { NotificationTriggers } = await import('../lib/notification-triggers');
-          await NotificationTriggers.onPostLiked(post.id, currentUser.id);
-        } else {
-          const { NotificationTriggers } = await import('../lib/notification-triggers');
-          await NotificationTriggers.onPostUnliked(post.id, currentUser.id);
-        }
+        void import('../lib/notification-triggers')
+          .then(({ NotificationTriggers }) =>
+            newIsLiked
+              ? NotificationTriggers.onPostLiked(post.id, currentUser.id)
+              : NotificationTriggers.onPostUnliked(post.id, currentUser.id)
+          )
+          .catch(() => {});
       } catch (e) {
         console.error('Error liking post:', e);
         // Revert optimistic update on failure
@@ -447,27 +517,39 @@ export const PostCard = React.memo(
           postId: post.id,
           updates: { liked_by: post.liked_by || [] },
         });
+      } finally {
+        likePending.current = false;
       }
     };
 
     const handleBookmark = async () => {
-      if (!currentUser) return;
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      const newBookmarked = !isBookmarked;
-      setIsBookmarked(newBookmarked);
-
-      if (newBookmarked) {
-        showToast({ message: 'Saved' });
-        const { error } = await supabase
-          .from('post_bookmarks')
-          .insert({ post_id: post.id, user_id: currentUser.id });
-        if (error) setIsBookmarked(false);
-      } else {
-        const { error } = await supabase
-          .from('post_bookmarks')
-          .delete()
-          .match({ post_id: post.id, user_id: currentUser.id });
-        if (error) setIsBookmarked(true);
+      if (!currentUser || bookmarkPending.current) return;
+      bookmarkPending.current = true;
+      bookmarkRevision.current++;
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      const next = !isBookmarked;
+      setIsBookmarked(next);
+      try {
+        const result = next
+          ? await supabase
+              .from('post_bookmarks')
+              .insert({ post_id: post.id, user_id: currentUser.id })
+          : await supabase
+              .from('post_bookmarks')
+              .delete()
+              .match({ post_id: post.id, user_id: currentUser.id });
+        if (result.error && !(next && result.error.code === '23505')) throw result.error;
+        DeviceEventEmitter.emit('post_bookmark_updated', {
+          postId: post.id,
+          userId: currentUser.id,
+          saved: next,
+        });
+        if (next) showToast({ message: 'Saved' });
+      } catch {
+        setIsBookmarked(!next);
+        showToast({ message: 'Could not update saved post. Try again.' });
+      } finally {
+        bookmarkPending.current = false;
       }
     };
 
@@ -525,7 +607,11 @@ export const PostCard = React.memo(
                   supabase.from('post_likes').delete().eq('post_id', post.id),
                   supabase.from('saved_posts').delete().eq('post_id', post.id),
                   supabase.from('notifications').delete().eq('post_id', post.id),
-                  supabase.from('moderation_queue').delete().eq('content_id', post.id).eq('table_name', 'posts'),
+                  supabase
+                    .from('moderation_queue')
+                    .delete()
+                    .eq('content_id', post.id)
+                    .eq('table_name', 'posts'),
                 ]);
                 const { error } = await supabase.from('posts').delete().eq('id', post.id);
                 if (error) throw error;
@@ -548,13 +634,11 @@ export const PostCard = React.memo(
           style: 'destructive',
           onPress: async () => {
             if (!currentUser) return;
-            await supabase
-              .from('reports')
-              .insert({
-                reporter_id: currentUser.id,
-                reported_post_id: post.id,
-                reason: 'Inappropriate content',
-              });
+            await supabase.from('reports').insert({
+              reporter_id: currentUser.id,
+              reported_post_id: post.id,
+              reason: 'Inappropriate content',
+            });
             Alert.alert('Success', 'Post reported to admins.');
           },
         },
@@ -584,7 +668,13 @@ export const PostCard = React.memo(
 
     const handleShare = async () => {
       try {
-        const shareUrl = `https://app.yrdly.ng/posts/${post.id}`;
+        const shareKind =
+          post.category === 'For Sale' || post.category === 'Giveaway'
+            ? 'marketplace'
+            : post.category === 'Event'
+              ? 'events'
+              : 'posts';
+        const shareUrl = `https://app.yrdly.ng/${shareKind}/${post.id}`;
         const title =
           post.title || (post.text ? post.text.substring(0, 60) : 'Check this post out');
 
@@ -851,7 +941,10 @@ export const PostCard = React.memo(
 
         {/* Media Carousel (Unified Images & Videos) */}
         {mediaItems.length > 0 && (
-          <View style={{ position: 'relative', marginHorizontal: 20, marginBottom: 12 }}>
+          <View
+            onLayout={(event) => setMediaWidth(event.nativeEvent.layout.width)}
+            style={{ position: 'relative', marginBottom: 12 }}
+          >
             <FlatList
               data={mediaItems}
               horizontal
@@ -859,22 +952,23 @@ export const PostCard = React.memo(
               showsHorizontalScrollIndicator={false}
               keyExtractor={(item, index) => `${item.type}-${index}-${item.url}`}
               onMomentumScrollEnd={(e) => {
-                const slide = Math.round(e.nativeEvent.contentOffset.x / (width - 40));
+                const slide = Math.round(e.nativeEvent.contentOffset.x / mediaWidth);
                 if (slide !== activeImageIndex) setActiveImageIndex(slide);
               }}
               renderItem={({ item, index }) => {
+                const aspect = videoAspects[item.url] || effectiveVideoAspect;
                 const containerHeight =
                   item.type === 'video'
-                    ? (width - 40) / effectiveVideoAspect
+                    ? mediaWidth / (expanded ? aspect : Math.min(3, Math.max(0.5, aspect)))
                     : getImageHeight(item.url);
 
                 if (item.type === 'video') {
                   return (
                     <View
                       style={{
-                        width: width - 40,
+                        width: mediaWidth,
                         height: containerHeight,
-                        borderRadius: 16,
+                        borderRadius: 0,
                         overflow: 'hidden',
                         backgroundColor: theme.colors.DARK,
                       }}
@@ -882,6 +976,25 @@ export const PostCard = React.memo(
                       <PostVideo
                         post={post}
                         videoUrl={item.url}
+                        onAspect={(aspect) =>
+                          setVideoAspects((previous) =>
+                            previous[item.url] === aspect
+                              ? previous
+                              : { ...previous, [item.url]: aspect }
+                          )
+                        }
+                        expanded={expanded}
+                        onOpen={() => {
+                          if (
+                            (post.category === 'For Sale' || post.category === 'Event') &&
+                            onPress
+                          ) {
+                            onPress();
+                            return;
+                          }
+                          postMemory.put(post);
+                          router.push(`/posts/${post.id}` as any);
+                        }}
                         isVisible={isVisible !== false && activeImageIndex === index}
                         isVideoMuted={isVideoMuted}
                         setIsVideoMuted={setIsVideoMuted}
@@ -899,11 +1012,11 @@ export const PostCard = React.memo(
                     activeOpacity={0.95}
                     onPress={() => handleImageTap(imageIndex)}
                     style={{
-                      width: width - 40,
+                      width: mediaWidth,
                       height: containerHeight,
-                      borderRadius: 16,
+                      borderRadius: 0,
                       overflow: 'hidden',
-                      backgroundColor: theme.colors.SURFACE_ALT,
+                      backgroundColor: 'transparent',
                     }}
                   >
                     <Image
@@ -912,6 +1025,13 @@ export const PostCard = React.memo(
                       }}
                       style={{ width: '100%', height: '100%' }}
                       contentFit="contain"
+                      onLoad={(event) => {
+                        if (event.source.width && event.source.height)
+                          setImageHeights((previous) => ({
+                            ...previous,
+                            [item.url]: (mediaWidth * event.source.height) / event.source.width,
+                          }));
+                      }}
                     />
 
                     <Animated.View style={[stylesheet.heartOverlay, heartAnimatedStyle]}>
@@ -985,7 +1105,12 @@ export const PostCard = React.memo(
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 24 }}>
             <TouchableOpacity
-              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 4 }}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 6,
+                paddingHorizontal: 4,
+              }}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               activeOpacity={0.6}
               onPress={(e) => {
@@ -1014,7 +1139,12 @@ export const PostCard = React.memo(
 
             {post.category !== 'For Sale' ? (
               <TouchableOpacity
-                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 4 }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingVertical: 6,
+                  paddingHorizontal: 4,
+                }}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 activeOpacity={0.6}
                 onPress={(e) => {
@@ -1038,7 +1168,12 @@ export const PostCard = React.memo(
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 4 }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingVertical: 6,
+                  paddingHorizontal: 4,
+                }}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 activeOpacity={0.6}
                 onPress={(e) => {
@@ -1061,7 +1196,12 @@ export const PostCard = React.memo(
             )}
 
             <TouchableOpacity
-              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 4 }}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 6,
+                paddingHorizontal: 4,
+              }}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               activeOpacity={0.6}
               onPress={(e) => {

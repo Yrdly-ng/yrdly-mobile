@@ -1,4 +1,8 @@
-import { PRIVATE_MEDIA_BUCKETS, privateMediaReference, type PrivateMediaBucket } from './private-media';
+import {
+  PRIVATE_MEDIA_BUCKETS,
+  privateMediaReference,
+  type PrivateMediaBucket,
+} from './private-media';
 /**
  * Mobile Storage Service
  *
@@ -17,6 +21,17 @@ export interface MobileFile {
   size?: number;
 }
 
+let activeUploads = 0;
+const uploadWaiters: Array<() => void> = [];
+async function acquireUploadSlot() {
+  if (activeUploads >= 3) await new Promise<void>((resolve) => uploadWaiters.push(resolve));
+  else activeUploads++;
+  return () => {
+    const next = uploadWaiters.shift();
+    if (next) next();
+    else activeUploads--;
+  };
+}
 export class StorageService {
   // Infer MIME type from file extension
   private static getMimeType(fileName: string, fallbackType?: string): string {
@@ -59,14 +74,16 @@ export class StorageService {
     bucket: string,
     path: string,
     file: MobileFile,
-    options?: { cacheControl?: string; contentType?: string },
+    options?: { cacheControl?: string; contentType?: string; signal?: AbortSignal },
     onProgress?: (progress: number) => void
   ): Promise<{ data: any; error: any }> {
+    const release = await acquireUploadSlot();
     try {
       if (!file?.uri) {
         return { data: null, error: new Error('No file URI provided') };
       }
 
+      if (options?.signal?.aborted) throw new Error('Upload cancelled');
       const mimeType = options?.contentType || this.getMimeType(file.name, file.type);
 
       const { data: sessionData } = await supabase.auth.getSession();
@@ -96,7 +113,21 @@ export class StorageService {
         }
       );
 
-      const response = await uploadTask.uploadAsync();
+      const cancel = () => {
+        void uploadTask.cancelAsync().catch(() => {});
+      };
+      options?.signal?.addEventListener('abort', cancel, { once: true });
+      // Give large files time on mobile data, but never leave an upload hanging indefinitely.
+      const timeout = setTimeout(cancel, 15 * 60 * 1000);
+      let response;
+      try {
+        if (options?.signal?.aborted) throw new Error('Upload cancelled');
+        response = await uploadTask.uploadAsync();
+        if (options?.signal?.aborted) throw new Error('Upload cancelled');
+      } finally {
+        clearTimeout(timeout);
+        options?.signal?.removeEventListener('abort', cancel);
+      }
 
       if (!response) {
         return { data: null, error: new Error('No response from upload task') };
@@ -108,7 +139,7 @@ export class StorageService {
           const parsed = JSON.parse(response.body);
           errorMsg = parsed.message || parsed.error || errorMsg;
         } catch (e) {}
-        console.error('[StorageService] Upload error:', errorMsg);
+        console.warn('[StorageService] Upload rejected', { status: response.status });
         return { data: null, error: new Error(errorMsg) };
       }
 
@@ -121,14 +152,16 @@ export class StorageService {
 
       return { data, error: null };
     } catch (error) {
-      console.error('[StorageService] uploadFile error:', error);
       return { data: null, error };
+    } finally {
+      release();
     }
   }
 
   /** Get the public URL for a stored file */
   static getPublicUrl(bucket: string, path: string): string {
-    if (PRIVATE_MEDIA_BUCKETS.includes(bucket as PrivateMediaBucket)) return privateMediaReference(bucket as PrivateMediaBucket, path);
+    if (PRIVATE_MEDIA_BUCKETS.includes(bucket as PrivateMediaBucket))
+      return privateMediaReference(bucket as PrivateMediaBucket, path);
     const { data } = supabase.storage.from(bucket).getPublicUrl(path);
     return data.publicUrl;
   }
@@ -179,7 +212,8 @@ export class StorageService {
   static async uploadPostImage(
     postId: string,
     file: MobileFile,
-    onProgress?: (progress: number) => void
+    onProgress?: (progress: number) => void,
+    signal?: AbortSignal
   ): Promise<{ url: string | null; error: any }> {
     const ext = file.name.split('.').pop() ?? 'jpg';
     const path = `posts/${postId}/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
@@ -190,6 +224,7 @@ export class StorageService {
       file,
       {
         cacheControl: '604800',
+        signal,
       },
       onProgress
     );
@@ -225,7 +260,9 @@ export class StorageService {
     file: MobileFile
   ): Promise<{ url: string | null; error: any }> {
     const ext = file.name.split('.').pop() ?? 'jpg';
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return { url: null, error: new Error('Sign in required') };
     const path = `chat/${conversationId}/${user.id}-${Date.now()}.${ext}`;
 
@@ -282,7 +319,8 @@ export class StorageService {
     const { data, error } = await this.uploadFile('dispute-evidence', path, file, {
       cacheControl: '3600',
     });
-    if (error || !data) return { path: null, error: error || new Error('Upload returned no object') };
+    if (error || !data)
+      return { path: null, error: error || new Error('Upload returned no object') };
 
     return { path: data.path || path, error: null };
   }
@@ -291,10 +329,11 @@ export class StorageService {
   static async uploadPostVideo(
     userId: string,
     file: MobileFile,
-    onProgress?: (progress: number) => void
+    onProgress?: (progress: number) => void,
+    signal?: AbortSignal
   ): Promise<{ url: string | null; error: any }> {
     const ext = file.name.split('.').pop() ?? 'mp4';
-    const path = `${userId}/${Date.now()}.${ext}`;
+    const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 12)}.${ext}`;
     const mimeType = this.getMimeType(file.name, file.type);
 
     const { data, error } = await this.uploadFile(
@@ -304,6 +343,7 @@ export class StorageService {
       {
         contentType: mimeType,
         cacheControl: '604800',
+        signal,
       },
       onProgress
     );
@@ -318,7 +358,9 @@ export class StorageService {
     file: MobileFile
   ): Promise<{ url: string | null; error: any }> {
     const ext = file.name.split('.').pop() ?? 'mp4';
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return { url: null, error: new Error('Sign in required') };
     const path = `chat/${conversationId}/${user.id}-${Date.now()}.${ext}`;
     const mimeType = this.getMimeType(file.name, file.type);
@@ -370,12 +412,18 @@ export class StorageService {
   }
 
   /** Upload a report image */
-  static async uploadReportImage(userId: string, file: MobileFile): Promise<{ url: string | null; error: any }> {
+  static async uploadReportImage(
+    userId: string,
+    file: MobileFile
+  ): Promise<{ url: string | null; error: any }> {
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const path = `${userId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${safeName}`;
     const { error } = await this.uploadFile('reports', path, file, {
-      contentType: this.getMimeType(file.name, file.type), cacheControl: '600',
+      contentType: this.getMimeType(file.name, file.type),
+      cacheControl: '600',
     });
-    return error ? { url: null, error } : { url: privateMediaReference('reports', path), error: null };
+    return error
+      ? { url: null, error }
+      : { url: privateMediaReference('reports', path), error: null };
   }
 }

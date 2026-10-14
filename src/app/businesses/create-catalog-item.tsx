@@ -30,7 +30,8 @@ const CATS = [
 ];
 
 export default function CreateCatalogItemScreen() {
-  const { theme } = useUnistyles(); const sStylesheet = stylesheet;
+  const { theme } = useUnistyles();
+  const sStylesheet = stylesheet;
 
   const router = useRouter();
   const { business_id: businessId, id: itemId } = useLocalSearchParams<{
@@ -90,9 +91,9 @@ export default function CreateCatalogItemScreen() {
         mediaType: 'photo',
         cropping: true,
         freeStyleCropEnabled: true,
-        compressImageQuality: 1,
-        compressImageMaxWidth: 4096,
-        compressImageMaxHeight: 4096,
+        compressImageQuality: 0.88,
+        compressImageMaxWidth: 2048,
+        compressImageMaxHeight: 2048,
       });
       if (image) {
         setImageUris((prev) => [...prev, image.path]);

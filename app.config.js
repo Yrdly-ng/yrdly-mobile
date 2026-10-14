@@ -139,6 +139,7 @@ module.exports = {
           cameraPermission: "Yrdly needs camera access to take photos for disputes."
         }
       ],
+      ["expo-sqlite", { useSQLCipher: true }],
       "expo-video",
       "expo-audio",
       "./plugins/withAROptional.js",

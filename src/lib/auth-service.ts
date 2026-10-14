@@ -1,3 +1,4 @@
+import { checkActiveSession, endRevokedSession } from './session-policy';
 import { supabase } from './supabase';
 import { User } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
@@ -84,12 +85,18 @@ export class AuthService {
       });
 
       if (error) {
-        const errMsg = (error.message || "").toLowerCase();
-        if (errMsg.includes("already registered") || errMsg.includes("already in use") || errMsg.includes("user_already_exists")) {
+        const errMsg = (error.message || '').toLowerCase();
+        if (
+          errMsg.includes('already registered') ||
+          errMsg.includes('already in use') ||
+          errMsg.includes('user_already_exists')
+        ) {
           return {
             user: null,
             session: null,
-            error: new Error("An account with this email address already exists. Please log in instead."),
+            error: new Error(
+              'An account with this email address already exists. Please log in instead.'
+            ),
           };
         }
         throw error;
@@ -99,7 +106,9 @@ export class AuthService {
         return {
           user: null,
           session: null,
-          error: new Error("An account with this email address already exists. Please log in instead."),
+          error: new Error(
+            'An account with this email address already exists. Please log in instead.'
+          ),
         };
       }
 
@@ -120,6 +129,10 @@ export class AuthService {
 
       if (error) throw error;
 
+      if (data.user && (await checkActiveSession(true)) === false) {
+        await endRevokedSession();
+        throw new Error('This session has been replaced by a newer sign-in.');
+      }
       if (data.user) {
         const { data: profile } = await supabase
           .from('users')
@@ -127,11 +140,19 @@ export class AuthService {
           .eq('id', data.user.id)
           .maybeSingle();
 
-        if (profile && (profile.is_suspended || profile.is_banned || profile.status === 'suspended' || profile.status === 'banned')) {
-          await supabase.auth.signOut();
+        if (
+          profile &&
+          (profile.is_suspended ||
+            profile.is_banned ||
+            profile.status === 'suspended' ||
+            profile.status === 'banned')
+        ) {
+          await supabase.auth.signOut({ scope: 'local' });
           return {
             user: null,
-            error: new Error('Your account has been suspended or banned. You cannot log in or transact.'),
+            error: new Error(
+              'Your account has been suspended or banned. You cannot log in or transact.'
+            ),
           };
         }
       }
@@ -210,7 +231,7 @@ export class AuthService {
   // Sign out
   static async signOut() {
     try {
-      const { error } = await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
       if (error) throw error;
       return { error: null };
     } catch (error) {
@@ -230,8 +251,12 @@ export class AuthService {
         if (error.message !== 'Auth session missing!') {
           console.error('Get current session error:', error);
         }
-        // Return session user if it exists despite the error (e.g. offline refresh failure)
-        return session?.user ?? null;
+      }
+      // A cached token is useful offline, but must pass the server's session
+      // policy before restoring authenticated access when connected.
+      if (session && (await checkActiveSession()) === false) {
+        await endRevokedSession();
+        return null;
       }
       return session?.user ?? null;
     } catch (error: any) {
@@ -422,7 +447,24 @@ export class AuthService {
   // Listen to auth state changes
   static onAuthStateChange(callback: (event: string, session: any) => void) {
     return supabase.auth.onAuthStateChange((event, session) => {
-      callback(event, session);
+      // Auth callbacks run under Supabase's lock. Defer network work until it is released.
+      setTimeout(() => {
+        void (async () => {
+          if (
+            session &&
+            (await supabase.auth.getSession()).data.session?.access_token !== session.access_token
+          )
+            return;
+          if (session && event !== 'INITIAL_SESSION') {
+            const active = await checkActiveSession(event === 'SIGNED_IN');
+            if (active === false) {
+              await endRevokedSession();
+              return;
+            }
+          }
+          callback(event, session);
+        })();
+      }, 0);
     });
   }
 }

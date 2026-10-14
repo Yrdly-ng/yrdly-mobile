@@ -1,7 +1,7 @@
 import { privateMediaReference } from '@/lib/private-media';
 import { usePrivateMedia } from '@/hooks/use-private-media';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -21,7 +21,12 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import ImagePicker from 'react-native-image-crop-picker';
 import { useIsFocused } from 'expo-router/react-navigation';
 import * as FileSystem from 'expo-file-system/legacy';
-import { decode } from 'base64-arraybuffer';
+import * as Crypto from 'expo-crypto';
+import { StorageService, type MobileFile } from '@/lib/storage-service';
+import NetInfo from '@react-native-community/netinfo';
+import { discardEditedImage } from '@/hooks/use-image-editor';
+import { localCache } from '@/lib/local-cache';
+import { checkActiveSession } from '@/lib/session-policy';
 import ImageViewing from 'react-native-image-viewing';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { supabase } from '../../lib/supabase';
@@ -42,6 +47,11 @@ interface Message {
   created_at: string;
   is_read?: boolean;
   deleted_by?: string[];
+  conversation_id?: string;
+  local_status?: 'sending' | 'sent' | 'failed';
+  local_asset?: MobileFile;
+  delivered_by?: string[];
+  read_by?: string[];
 }
 
 interface ConversationMeta {
@@ -111,7 +121,8 @@ const ChatVideo = React.memo(
 );
 
 function ChatContent() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const { isDarkMode } = useAppTheme();
   const router = useRouter();
@@ -127,6 +138,10 @@ function ChatContent() {
   const paramBusinessId = params.business_id as string | undefined;
   const paramBusinessName = params.business_name as string | undefined;
   const paramBusinessImage = params.business_image as string | undefined;
+  const outboxKey =
+    id === 'new'
+      ? JSON.stringify(['new', paramParticipantId, paramType, paramBusinessId, paramItemId])
+      : id;
   const { user, profile, updateProfile } = useAuth();
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
@@ -150,10 +165,33 @@ function ChatContent() {
   } | null>(null);
   const [avatarError, setAvatarError] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
-  const mediaUrls = usePrivateMedia(messages.map(message => message.media_url).filter((value): value is string => !!value), user?.id, isFocused);
+  const mediaUrls = usePrivateMedia(
+    messages.map((message) => message.media_url).filter((value): value is string => !!value),
+    user?.id,
+    isFocused
+  );
   const [loading, setLoading] = useState(true);
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
+  const pendingMessages = useRef(new Map<string, Message>());
+  const inFlightMessages = useRef(new Set<string>());
+  const newConversationId = useRef<string | null>(null);
+  const conversationCreation = useRef<Promise<string> | null>(null);
+  const requestContext = useRef(`${user?.id || ''}:${outboxKey}`);
+  const submitting = useRef(false);
+  useLayoutEffect(() => {
+    requestContext.current = `${user?.id || ''}:${outboxKey}`;
+  }, [user?.id, outboxKey]);
+  const currentOwner = useRef(user?.id);
+  useLayoutEffect(() => {
+    currentOwner.current = user?.id;
+  }, [user?.id]);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const autoScroll = useRef(true);
+  const receiptInFlight = useRef(new Set<string>());
+  const seenRead = useRef(new Set<string>());
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const uploadController = useRef<AbortController | null>(null);
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const { editVideo, videoEditor, isEditingVideo } = useVideoEditor();
   const pickingMedia = useRef(false);
@@ -222,8 +260,43 @@ function ChatContent() {
     };
   }, []);
 
+  useEffect(() => {
+    pendingMessages.current.clear();
+    inFlightMessages.current.clear();
+    receiptInFlight.current.clear();
+    seenRead.current.clear();
+    setMessages([]);
+    setOtherUser(null);
+    setMeta(null);
+    setInputText('');
+    setEditingMessage(null);
+    autoScroll.current = true;
+    newConversationId.current = null;
+    conversationCreation.current = null;
+    if (!user?.id || !id) return;
+    let active = true;
+    void localCache.read<Message[]>(user.id, 'outbox', outboxKey, 7 * 86400000).then((cached) => {
+      if (!active || !cached) return;
+      const pending = cached.value.map((message) => ({
+        ...message,
+        local_status: 'failed' as const,
+      }));
+      pending.forEach((message) => pendingMessages.current.set(message.id, message));
+      setMessages((previous) =>
+        Array.from(
+          new Map([...pending, ...previous].map((message) => [message.id, message])).values()
+        ).sort((a, b) => a.created_at.localeCompare(b.created_at))
+      );
+    });
+    return () => {
+      active = false;
+      uploadController.current?.abort();
+    };
+  }, [user?.id, outboxKey]);
+
   const fetchMeta = useCallback(async () => {
     if (!id || !user) return;
+    const context = requestContext.current;
     if (id === 'new') {
       setMeta({
         id: 'new',
@@ -243,6 +316,7 @@ function ChatContent() {
           .select('name, avatar_url, username')
           .eq('id', paramParticipantId)
           .single();
+        if (context !== requestContext.current) return;
         if (u) {
           setOtherUser(u);
           setAvatarError(false);
@@ -253,32 +327,51 @@ function ChatContent() {
     }
 
     const { data } = await supabase.from('conversations').select('*').eq('id', id).single();
+    if (context !== requestContext.current) return;
     if (data) {
       if (data.type === 'group') {
         setLoading(false);
-        Alert.alert('Group chats are unavailable', 'Use Communities to talk with people around shared interests.');
+        Alert.alert(
+          'Group chats are unavailable',
+          'Use Communities to talk with people around shared interests.'
+        );
         router.replace('/(tabs)/messages' as any);
         return;
       }
 
       let resolvedMeta: ConversationMeta = { ...data };
       const otherId = data.participant_ids?.find((pid: string) => pid !== user.id);
-      
+
       // If business chat and missing business name/image, attempt lookup
       if ((data.type === 'business' || data.type === 'briefcase' || data.business_id) && otherId) {
         if (!resolvedMeta.business_name || !resolvedMeta.business_image) {
           const query = data.business_id
-            ? supabase.from('businesses').select('id, name, logo, logo_url, cover_image, image_urls').eq('id', data.business_id).maybeSingle()
-            : supabase.from('businesses').select('id, name, logo, logo_url, cover_image, image_urls').eq('owner_id', otherId).maybeSingle();
+            ? supabase
+                .from('businesses')
+                .select('id, name, logo, logo_url, cover_image, image_urls')
+                .eq('id', data.business_id)
+                .maybeSingle()
+            : supabase
+                .from('businesses')
+                .select('id, name, logo, logo_url, cover_image, image_urls')
+                .eq('owner_id', otherId)
+                .maybeSingle();
           const { data: b } = await query;
+          if (context !== requestContext.current) return;
           if (b) {
             resolvedMeta.business_id = b.id;
             resolvedMeta.business_name = resolvedMeta.business_name || b.name;
-            resolvedMeta.business_image = resolvedMeta.business_image || b.logo || b.logo_url || b.image_urls?.[0] || b.cover_image || undefined;
+            resolvedMeta.business_image =
+              resolvedMeta.business_image ||
+              b.logo ||
+              b.logo_url ||
+              b.image_urls?.[0] ||
+              b.cover_image ||
+              undefined;
           }
         }
       }
-      
+
       setMeta(resolvedMeta);
 
       if (otherId) {
@@ -287,6 +380,7 @@ function ChatContent() {
           .select('name, avatar_url, username')
           .eq('id', otherId)
           .single();
+        if (context !== requestContext.current) return;
         if (u) {
           setOtherUser(u);
           setAvatarError(false);
@@ -296,7 +390,7 @@ function ChatContent() {
     setLoading(false);
   }, [
     id,
-    user,
+    user?.id,
     paramType,
     paramParticipantId,
     paramItemId,
@@ -308,37 +402,65 @@ function ChatContent() {
     paramBusinessImage,
   ]);
 
+  const acknowledge = useCallback(
+    async (rows: Message[], read = false) => {
+      const owner = user?.id;
+      if (!owner || !isFocused || AppState.currentState !== 'active') return;
+      const candidates = rows.filter(
+        (message) =>
+          message.sender_id !== owner &&
+          !(read ? message.read_by : message.delivered_by)?.includes(owner) &&
+          !receiptInFlight.current.has(`${read}:${message.id}`) &&
+          (!read || !seenRead.current.has(message.id))
+      );
+      for (let offset = 0; offset < candidates.length; offset += 50) {
+        const batch = candidates.slice(offset, offset + 50);
+        batch.forEach((message) => receiptInFlight.current.add(`${read}:${message.id}`));
+        try {
+          const { error } = await supabase.rpc('acknowledge_messages', {
+            p_message_ids: batch.map((message) => message.id),
+            p_read: read,
+          });
+          if (!error && read) batch.forEach((message) => seenRead.current.add(message.id));
+        } finally {
+          batch.forEach((message) => receiptInFlight.current.delete(`${read}:${message.id}`));
+        }
+      }
+    },
+    [user?.id, isFocused]
+  );
+
   const fetchMessages = useCallback(async () => {
-    if (!id || id === 'new') {
+    const historyId = id === 'new' ? meta?.id : id;
+    if (!historyId || historyId === 'new') {
       setLoading(false);
       return;
     }
 
+    const context = requestContext.current;
     const { data, error } = await supabase
       .from('messages')
       .select('*')
-      .eq('conversation_id', id)
-      .order('created_at', { ascending: true });
+      .eq('conversation_id', historyId)
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(50);
 
+    if (context !== requestContext.current) return;
     if (!error && data) {
-      setMessages(data as Message[]);
+      data.forEach((message) => pendingMessages.current.delete(message.id));
+      persistOutbox();
+      const history = (data as Message[]).reverse();
+      setMessages((previous) =>
+        Array.from(
+          new Map([...previous, ...history].map((message) => [message.id, message])).values()
+        ).sort((a, b) => a.created_at.localeCompare(b.created_at))
+      );
 
-      const unreadIds = data
-        .filter((m: any) => !m.is_read && m.sender_id !== user?.id)
-        .map((m: any) => m.id);
-
-      if (unreadIds.length > 0) {
-        supabase
-          .from('messages')
-          .update({ is_read: true })
-          .in('id', unreadIds)
-          .then(({ error }) => {
-            if (error) console.error('MARK AS READ ERROR:', error);
-          });
-      }
+      void acknowledge(history);
     }
     setLoading(false);
-  }, [id, user?.id]);
+  }, [id, meta?.id, user?.id, isFocused, acknowledge]);
 
   useEffect(() => {
     fetchMeta();
@@ -356,56 +478,41 @@ function ChatContent() {
   }, [id, user, isFocused]);
 
   useEffect(() => {
-    if (!meta || id === 'new') return;
+    const liveId = id === 'new' ? meta?.id : id;
+    if (!meta || !liveId || liveId === 'new' || !isFocused) return;
 
     fetchMessages();
 
     // Realtime subscriptions for messages table
     const ch = supabase
-      .channel(`chat-${id}-${Date.now()}`)
+      .channel(`chat-${liveId}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
-          filter: `conversation_id=eq.${id}`,
+          filter: `conversation_id=eq.${liveId}`,
         },
         (payload) => {
-          setMessages((prev) => {
-            const newMsg = payload.new as Message;
-            if (
-              prev.some(
-                (m) =>
-                  m.id === newMsg.id ||
-                  (m.sender_id === newMsg.sender_id &&
-                    m.text === newMsg.text &&
-                    m.created_at === newMsg.created_at)
-              )
-            )
-              return prev;
-            return [...prev, newMsg];
-          });
-          setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-
-          // Mark as read if it's from the other user
-          const newMsg = payload.new as Message;
-          if (newMsg.sender_id !== user?.id && !newMsg.is_read) {
-            supabase
-              .from('messages')
-              .update({ is_read: true })
-              .eq('id', newMsg.id)
-              .then(({ error }) => {
-                if (error) console.error('MARK AS READ REALTIME ERROR:', error);
-              });
-            supabase
-              .from('notifications')
-              .delete()
-              .eq('user_id', user?.id)
-              .eq('type', 'message')
-              .eq('related_id', id)
-              .then();
+          const confirmedMessage = payload.new as Message;
+          if (pendingMessages.current.has(confirmedMessage.id)) {
+            pendingMessages.current.delete(confirmedMessage.id);
+            persistOutbox();
           }
+          setMessages((previous) => {
+            const confirmed = payload.new as Message;
+            return previous.some((message) => message.id === confirmed.id)
+              ? previous.map((message) =>
+                  message.id === confirmed.id ? { ...confirmed, local_status: 'sent' } : message
+                )
+              : [...previous, confirmed];
+          });
+          if (autoScroll.current)
+            setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+
+          // Arrival proves delivery. Read acknowledgement waits for visible rows.
+          void acknowledge([payload.new as Message]);
         }
       )
       .on(
@@ -414,7 +521,7 @@ function ChatContent() {
           event: 'UPDATE',
           schema: 'public',
           table: 'messages',
-          filter: `conversation_id=eq.${id}`,
+          filter: `conversation_id=eq.${liveId}`,
         },
         (payload) => {
           setMessages((prev) =>
@@ -422,148 +529,334 @@ function ChatContent() {
           );
         }
       )
-      .subscribe();
-
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') void fetchMessages();
+      });
+    const app = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void fetchMessages();
+    });
+    const network = NetInfo.addEventListener((state) => {
+      if (state.isConnected && AppState.currentState === 'active') void fetchMessages();
+    });
     return () => {
+      app.remove();
+      network();
       supabase.removeChannel(ch);
     };
-  }, [id, meta, fetchMessages]);
+  }, [id, meta?.id, fetchMessages, isFocused, user?.id, acknowledge]);
+
+  const createConversation = async (summary: string): Promise<string> => {
+    if (!user || !id) throw new Error('Sign in to send messages.');
+    const creationContext = requestContext.current;
+    let currentConvId = id === 'new' ? newConversationId.current || id : id;
+    if (id === 'new' && !newConversationId.current) {
+      let validItemId = paramItemId || null;
+      if (validItemId) {
+        const [{ data: pData }, { data: cData }] = await Promise.all([
+          supabase.from('posts').select('id').eq('id', validItemId).maybeSingle(),
+          supabase.from('catalog_items').select('id').eq('id', validItemId).maybeSingle(),
+        ]);
+        if (!pData && !cData) {
+          validItemId = null;
+        }
+      }
+
+      const { data: newConv, error: newError } = await supabase
+        .from('conversations')
+        .insert({
+          type: paramType || 'friend',
+          participant_ids: [user.id, paramParticipantId],
+          item_id: validItemId,
+          item_title: paramItemTitle || null,
+          item_image: paramItemImage || null,
+          item_price: paramItemPrice ? Number(paramItemPrice) : null,
+          business_id: paramBusinessId || null,
+          business_name: paramBusinessName || null,
+          business_image: paramBusinessImage || null,
+          last_message_text: summary,
+          updated_at: new Date().toISOString(),
+        })
+        .select('id')
+        .single();
+      if (creationContext !== requestContext.current) throw new Error('Conversation changed.');
+      if (newError) throw newError;
+      if (!newConv) throw new Error('Conversation was not created — server returned no data.');
+      currentConvId = newConv.id;
+      newConversationId.current = newConv.id;
+    }
+
+    return currentConvId;
+  };
+
+  const ensureConversation = (summary: string): Promise<string> => {
+    if (id !== 'new') return Promise.resolve(id);
+    if (newConversationId.current) return Promise.resolve(newConversationId.current);
+    if (!conversationCreation.current)
+      conversationCreation.current = createConversation(summary).finally(() => {
+        conversationCreation.current = null;
+      });
+    return conversationCreation.current;
+  };
+
+  const loadOlder = async () => {
+    if (loadingOlder || !id || id === 'new') return;
+    const first = messages.find(
+      (message) => !message.local_status || message.local_status === 'sent'
+    );
+    if (!first) return;
+    autoScroll.current = false;
+    setLoadingOlder(true);
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', id)
+        .or(
+          `created_at.lt.${first.created_at},and(created_at.eq.${first.created_at},id.lt.${first.id})`
+        )
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+        .limit(50);
+      if (!error && data)
+        setMessages((previous) =>
+          Array.from(
+            new Map(
+              [...data.reverse(), ...previous].map((message) => [message.id, message])
+            ).values()
+          ).sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
+        );
+    } finally {
+      setLoadingOlder(false);
+    }
+  };
+
+  const persistOutbox = () => {
+    if (user?.id)
+      void localCache.write(
+        user.id,
+        'outbox',
+        outboxKey,
+        Array.from(pendingMessages.current.values())
+      );
+  };
+
+  const deliverMessage = async (message: Message) => {
+    if (!user || inFlightMessages.current.has(message.id)) return;
+    inFlightMessages.current.add(message.id);
+    const owner = user.id;
+    const context = requestContext.current;
+    setMessages((previous) =>
+      previous.map((row) => (row.id === message.id ? { ...row, local_status: 'sending' } : row))
+    );
+    try {
+      if (currentOwner.current !== owner || requestContext.current !== context) return;
+      if ((await checkActiveSession()) === false)
+        throw new Error('Your session has ended. Please sign in again.');
+      const currentConvId =
+        message.conversation_id && message.conversation_id !== 'new'
+          ? message.conversation_id
+          : await ensureConversation(message.text || '');
+      if (id === 'new')
+        setMeta((previous) => (previous ? { ...previous, id: currentConvId } : previous));
+      const pending = { ...message, conversation_id: currentConvId };
+      pendingMessages.current.set(message.id, pending);
+      persistOutbox();
+      if (currentOwner.current !== owner || requestContext.current !== context) return;
+      let mediaReference = message.media_url;
+      if (message.local_asset) {
+        const asset = message.local_asset;
+        const isVideo = asset.type.startsWith('video/');
+        const extension =
+          asset.name
+            .split('.')
+            .pop()
+            ?.replace(/[^a-z0-9]/gi, '') || (isVideo ? 'mp4' : 'jpg');
+        const path = `chat/${currentConvId}/${owner}-${message.id}.${extension}`;
+        const bucket = isVideo ? 'chat-videos' : 'chat-images';
+        const controller = new AbortController();
+        uploadController.current = controller;
+        setUploadingMedia(true);
+        setUploadProgress(0);
+        try {
+          const existing = await supabase.storage.from(bucket).createSignedUrl(path, 60);
+          if (!existing.data?.signedUrl) {
+            const upload = await StorageService.uploadFile(
+              bucket,
+              path,
+              asset,
+              { contentType: asset.type, signal: controller.signal },
+              setUploadProgress
+            );
+            if (upload.error) throw upload.error;
+          }
+          if (controller.signal.aborted) throw new Error('Upload cancelled');
+          mediaReference = privateMediaReference(bucket, path);
+        } finally {
+          uploadController.current = null;
+          setUploadingMedia(false);
+        }
+      }
+      if (currentOwner.current !== owner || requestContext.current !== context) return;
+      const payload = {
+        id: message.id,
+        sender_id: owner,
+        text: message.text || '',
+        created_at: message.created_at,
+        conversation_id: currentConvId,
+        ...(mediaReference ? { media_url: mediaReference, media_type: message.media_type } : {}),
+      };
+      const result = await supabase
+        .from('messages')
+        .upsert(payload, { onConflict: 'id', ignoreDuplicates: true })
+        .select()
+        .maybeSingle();
+      if (result.error) throw result.error;
+      // A retry after an uncertain response returns the existing authoritative row.
+      const confirmed =
+        result.data ||
+        (
+          await supabase
+            .from('messages')
+            .select('*')
+            .eq('id', message.id)
+            .eq('sender_id', owner)
+            .eq('conversation_id', currentConvId)
+            .single()
+        ).data;
+      if (!confirmed) throw new Error('Message acknowledgement unavailable. Tap to retry.');
+      if (currentOwner.current !== owner || requestContext.current !== context) return;
+      pendingMessages.current.delete(message.id);
+      persistOutbox();
+      setMessages((previous) =>
+        previous.map((row) =>
+          row.id === message.id ? { ...confirmed, local_status: 'sent' } : row
+        )
+      );
+      void supabase
+        .from('conversations')
+        .update({
+          last_message_text: message.text,
+          updated_at: confirmed.created_at,
+          deleted_by: [],
+        })
+        .eq('id', currentConvId)
+        .then();
+      const recipient = meta?.participant_ids?.find((pid) => pid !== owner) || paramParticipantId;
+      if (message.local_asset) {
+        void discardEditedVideo(message.local_asset);
+        void discardEditedImage(message.local_asset);
+      }
+      if (recipient && result.data) {
+        void import('../../lib/notification-triggers')
+          .then(({ NotificationTriggers }) =>
+            NotificationTriggers.onMessageSent(recipient, owner, currentConvId, message.text || '')
+          )
+          .catch(() => {});
+      }
+      if (id === 'new' && pendingMessages.current.size === 0 && inFlightMessages.current.size === 1)
+        router.replace({ pathname: '/chat/[id]', params: { id: currentConvId } });
+    } catch {
+      if (
+        currentOwner.current !== owner ||
+        requestContext.current !== context ||
+        !pendingMessages.current.has(message.id)
+      )
+        return;
+      const failed = {
+        ...(pendingMessages.current.get(message.id) || message),
+        local_status: 'failed' as const,
+      };
+      pendingMessages.current.set(message.id, failed);
+      persistOutbox();
+      setMessages((previous) => previous.map((row) => (row.id === message.id ? failed : row)));
+    } finally {
+      inFlightMessages.current.delete(message.id);
+    }
+  };
 
   const sendMessage = async () => {
-    if (!inputText.trim() || !user || !id || sending || isEditingVideo || pickingMedia.current) return;
-    setSending(true);
+    if (
+      submitting.current ||
+      !inputText.trim() ||
+      !user ||
+      !id ||
+      sending ||
+      isEditingVideo ||
+      pickingMedia.current
+    )
+      return;
+    submitting.current = true;
+    queueMicrotask(() => {
+      submitting.current = false;
+    });
     const body = inputText.trim();
     setInputText('');
+    if (editingMessage) {
+      setSending(true);
+      try {
+        if (editingMessage) {
+          let newText = body;
+          if (!newText.endsWith('(Edited)')) {
+            newText = newText + ' (Edited)';
+          }
+          const { error: editErr } = await supabase
+            .from('messages')
+            .update({ text: newText })
+            .eq('id', editingMessage.id);
 
-    try {
-      if (editingMessage) {
-        let newText = body;
-        if (!newText.endsWith('(Edited)')) {
-          newText = newText + ' (Edited)';
-        }
-        const { error: editErr } = await supabase
-          .from('messages')
-          .update({ text: newText })
-          .eq('id', editingMessage.id);
+          if (editErr) {
+            const msg = editErr.message?.includes('15 minutes')
+              ? 'You can only edit messages within 15 minutes of sending.'
+              : editErr.message?.includes('sender')
+                ? 'You can only edit your own messages.'
+                : 'Failed to edit message. Please try again.';
+            setInputText(body);
+            Alert.alert('Cannot Edit', msg);
+            setSending(false);
+            return;
+          }
 
-        if (editErr) {
-          const msg = editErr.message?.includes('15 minutes')
-            ? 'You can only edit messages within 15 minutes of sending.'
-            : editErr.message?.includes('sender')
-              ? 'You can only edit your own messages.'
-              : 'Failed to edit message. Please try again.';
-          Alert.alert('Cannot Edit', msg);
+          setMessages((prev) =>
+            prev.map((m) => (m.id === editingMessage.id ? { ...m, text: newText } : m))
+          );
+
+          // Optimistically update conversation if this was the last message
+          const isLatest =
+            messages.length > 0 && messages[messages.length - 1].id === editingMessage.id;
+          if (isLatest) {
+            supabase
+              .from('conversations')
+              .update({ last_message_text: newText })
+              .eq('id', id)
+              .then();
+          }
+
+          setEditingMessage(null);
           setSending(false);
           return;
         }
-
-        setMessages((prev) =>
-          prev.map((m) => (m.id === editingMessage.id ? { ...m, text: newText } : m))
-        );
-
-        // Optimistically update conversation if this was the last message
-        const isLatest =
-          messages.length > 0 && messages[messages.length - 1].id === editingMessage.id;
-        if (isLatest) {
-          supabase.from('conversations').update({ last_message_text: newText }).eq('id', id).then();
-        }
-
-        setEditingMessage(null);
+      } catch {
+        setInputText(body);
+        Alert.alert('Could not edit', 'Please try again.');
+      } finally {
         setSending(false);
-        return;
       }
-      let currentConvId = id;
-      if (id === 'new') {
-        let validItemId = paramItemId || null;
-        if (validItemId) {
-          const [{ data: pData }, { data: cData }] = await Promise.all([
-            supabase.from('posts').select('id').eq('id', validItemId).maybeSingle(),
-            supabase.from('catalog_items').select('id').eq('id', validItemId).maybeSingle(),
-          ]);
-          if (!pData && !cData) {
-            validItemId = null;
-          }
-        }
-
-        const { data: newConv, error: newError } = await supabase
-          .from('conversations')
-          .insert({
-            type: paramType || 'friend',
-            participant_ids: [user.id, paramParticipantId],
-            item_id: validItemId,
-            item_title: paramItemTitle || null,
-            item_image: paramItemImage || null,
-            item_price: paramItemPrice ? Number(paramItemPrice) : null,
-            business_id: paramBusinessId || null,
-            business_name: paramBusinessName || null,
-            business_image: paramBusinessImage || null,
-            last_message_text: body,
-            updated_at: new Date().toISOString(),
-          })
-          .select('id')
-          .single();
-        if (newError) throw newError;
-        if (!newConv) throw new Error('Conversation was not created — server returned no data.');
-        currentConvId = newConv.id;
-      }
-
-      const payload: Record<string, unknown> = {
-        sender_id: user.id,
-        created_at: new Date().toISOString(),
-        text: body,
-        conversation_id: currentConvId,
-      };
-
-      const { data, error } = await supabase.from('messages').insert(payload).select().single();
-      if (error) throw error;
-
-      if (id !== 'new') {
-        await supabase
-          .from('conversations')
-          .update({
-            last_message_text: body,
-            updated_at: new Date().toISOString(),
-            deleted_by: [],
-          })
-          .eq('id', currentConvId);
-      }
-
-      // Trigger notification
-      const toUserId = meta?.participant_ids?.find((pid: string) => pid !== user.id);
-      if (toUserId) {
-        const { NotificationTriggers } = await import('../../lib/notification-triggers');
-        await NotificationTriggers.onMessageSent(toUserId, user.id, currentConvId, body);
-      }
-
-      if (id === 'new') {
-        router.replace({ pathname: '/chat/[id]', params: { id: currentConvId } });
-        return;
-      }
-
-      // We append locally so it shows immediately
-      if (data) {
-        setMessages((prev) => {
-          if (
-            prev.some(
-              (m) =>
-                m.id === data.id ||
-                (m.sender_id === data.sender_id &&
-                  m.text === data.text &&
-                  m.created_at === data.created_at)
-            )
-          )
-            return prev;
-          return [...prev, data as Message];
-        });
-      }
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-    } catch (e: any) {
-      console.error('Send message error:', e);
-      Alert.alert('Message failed', e?.message || 'Could not send message. Please try again.');
-      setInputText(body); // restore on failure
-    } finally {
-      setSending(false);
+      return;
     }
+    const message: Message = {
+      id: Crypto.randomUUID(),
+      sender_id: user.id,
+      text: body,
+      created_at: new Date().toISOString(),
+      conversation_id: id,
+      local_status: 'sending',
+    };
+    pendingMessages.current.set(message.id, message);
+    persistOutbox();
+    autoScroll.current = true;
+    setMessages((previous) => [...previous, message]);
+    requestAnimationFrame(() => flatListRef.current?.scrollToEnd({ animated: true }));
+    void deliverMessage(message);
   };
 
   const handlePickMedia = async (type: 'photo' | 'video') => {
@@ -576,9 +869,9 @@ function ChatContent() {
       if (isPhoto) {
         options.cropping = true;
         options.freeStyleCropEnabled = true;
-        options.compressImageQuality = 1;
-        options.compressImageMaxWidth = 4096;
-        options.compressImageMaxHeight = 4096;
+        options.compressImageQuality = 0.88;
+        options.compressImageMaxWidth = 2048;
+        options.compressImageMaxHeight = 2048;
       }
 
       const image = await ImagePicker.openPicker(options);
@@ -602,7 +895,9 @@ function ChatContent() {
         console.log('ImagePicker error:', e);
         Alert.alert('Error', e.message || 'Failed to pick media');
       }
-    } finally { pickingMedia.current = false; }
+    } finally {
+      pickingMedia.current = false;
+    }
   };
 
   const pickMedia = () => {
@@ -613,130 +908,28 @@ function ChatContent() {
     ]);
   };
 
-  const uploadAndSendMedia = async (asset: { uri: string; type?: string }) => {
-    if (!user || !id) return;
-    setUploadingMedia(true);
-    try {
-      let currentConvId = id;
-      const mediaText = asset.type?.startsWith('video/') || asset.type === 'video' ? 'Sent a video 📹' : 'Sent an image 📸';
-
-      if (id === 'new') {
-        const { type, participant_id, item_id, item_title, item_image, item_price, business_id, business_name, business_image } = params;
-        let validItemId = item_id || null;
-        if (validItemId) {
-          const [{ data: pData }, { data: cData }] = await Promise.all([
-            supabase.from('posts').select('id').eq('id', validItemId).maybeSingle(),
-            supabase.from('catalog_items').select('id').eq('id', validItemId).maybeSingle(),
-          ]);
-          if (!pData && !cData) {
-            validItemId = null;
-          }
-        }
-
-        const { data: newConv, error: newError } = await supabase
-          .from('conversations')
-          .insert({
-            type,
-            participant_ids: [user.id, participant_id],
-            item_id: validItemId,
-            item_title: item_title || null,
-            item_image: item_image || null,
-            item_price: item_price ? Number(item_price) : null,
-            business_id: business_id || null,
-            business_name: business_name || null,
-            business_image: business_image || null,
-            last_message_text: mediaText,
-            updated_at: new Date().toISOString(),
-          })
-          .select('id')
-          .single();
-        if (newError) throw newError;
-        currentConvId = newConv.id;
-      }
-
-      const ext = asset.uri.split('.').pop()?.toLowerCase() || 'jpg';
-      const isVideo = asset.type?.startsWith('video/') || asset.type === 'video';
-      const filename = `chat/${currentConvId}/${user.id}-${Date.now()}.${ext}`;
-
-      const bucketName = isVideo ? 'chat-videos' : 'chat-images';
-      const mimeExt = ext === 'jpg' ? 'jpeg' : ext;
-
-      let fileBody: ArrayBuffer | Blob;
-      if (isVideo) {
-        const response = await fetch(asset.uri);
-        fileBody = await response.blob();
-      } else {
-        const base64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: 'base64' });
-        fileBody = decode(base64);
-      }
-
-      const { error: uploadError } = await supabase.storage
-        .from(bucketName)
-        .upload(filename, fileBody, {
-          contentType: isVideo ? `video/${mimeExt}` : `image/${mimeExt}`,
-        });
-
-      if (uploadError) throw uploadError;
-
-      const mediaReference = privateMediaReference(bucketName, filename);
-
-      const payload: Record<string, unknown> = {
-        sender_id: user.id,
-        created_at: new Date().toISOString(),
-        text: '',
-        conversation_id: currentConvId,
-        media_url: mediaReference,
-        media_type: isVideo ? 'video' : 'image',
-      };
-
-      const { data, error } = await supabase.from('messages').insert(payload).select().single();
-      if (error) throw error;
-
-      if (id !== 'new') {
-        await supabase
-          .from('conversations')
-          .update({
-            last_message_text: mediaText,
-            updated_at: new Date().toISOString(),
-            deleted_by: [],
-          })
-          .eq('id', currentConvId);
-      }
-
-      // Trigger notification
-      const toUserId = meta?.participant_ids?.find((pid: string) => pid !== user.id);
-      if (toUserId) {
-        const { NotificationTriggers } = await import('../../lib/notification-triggers');
-        await NotificationTriggers.onMessageSent(toUserId, user.id, currentConvId, mediaText);
-      }
-
-      if (asset.uri && asset.type?.startsWith('video/')) void discardEditedVideo({ uri: asset.uri, type: asset.type, name: 'video.mp4' });
-      if (id === 'new') {
-        router.replace({ pathname: '/chat/[id]', params: { id: currentConvId } });
-        return;
-      }
-
-      if (data) {
-        setMessages((prev) => {
-          if (
-            prev.some(
-              (m) =>
-                m.id === data.id ||
-                (m.sender_id === data.sender_id &&
-                  m.created_at === data.created_at &&
-                  m.media_url === data.media_url)
-            )
-          )
-            return prev;
-          return [...prev, data as Message];
-        });
-      }
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-    } catch (e) {
-      console.error('Upload media error:', e);
-    } finally {
-      setUploadingMedia(false);
-    }
+  const uploadAndSendMedia = async (asset: { uri: string; type?: string; name?: string }) => {
+    if (!user || !id || uploadingMedia) return;
+    const type = asset.type || 'image/jpeg';
+    const message: Message = {
+      id: Crypto.randomUUID(),
+      sender_id: user.id,
+      created_at: new Date().toISOString(),
+      conversation_id: id,
+      text: '',
+      media_type: type.startsWith('video/') ? 'video' : 'image',
+      local_asset: {
+        uri: asset.uri,
+        type,
+        name: asset.name || (type.startsWith('video/') ? 'video.mp4' : 'photo.jpg'),
+      },
+      local_status: 'sending',
+    };
+    pendingMessages.current.set(message.id, message);
+    persistOutbox();
+    autoScroll.current = true;
+    setMessages((previous) => [...previous, message]);
+    await deliverMessage(message);
   };
 
   const openViewer = (url: string) => {
@@ -868,9 +1061,11 @@ function ChatContent() {
 
     const isMine = item.sender_id === user?.id;
     const msgText = item.text || item.content || '';
-    const imgUrl = item.media_type === 'image' ? mediaUrls[item.media_url] : null;
-    const vidUrl = item.media_type === 'video' ? mediaUrls[item.media_url] : null;
-    const hasMedia = !!item.media_url;
+    const imgUrl =
+      item.media_type === 'image' ? item.local_asset?.uri || mediaUrls[item.media_url] : null;
+    const vidUrl =
+      item.media_type === 'video' ? item.local_asset?.uri || mediaUrls[item.media_url] : null;
+    const hasMedia = !!item.media_url || !!item.local_asset;
 
     return (
       <View style={[stylesheet.msgRow, isMine ? stylesheet.msgRowRight : stylesheet.msgRowLeft]}>
@@ -897,7 +1092,9 @@ function ChatContent() {
             hasMedia && msgText && { paddingHorizontal: 4, paddingVertical: 4, paddingBottom: 6 },
           ]}
         >
-          {hasMedia && !imgUrl && !vidUrl && <Text style={stylesheet.bubbleText}>Attachment unavailable or loading…</Text>}
+          {hasMedia && !imgUrl && !vidUrl && (
+            <Text style={stylesheet.bubbleText}>Attachment unavailable or loading…</Text>
+          )}
           {imgUrl && (
             <TouchableOpacity
               onPress={() => openViewer(imgUrl)}
@@ -988,13 +1185,34 @@ function ChatContent() {
                   minute: '2-digit',
                 })}
               </Text>
-              {isMine && (
-                <Ionicons
-                  name={item.is_read ? 'checkmark-done' : 'checkmark'}
-                  size={14}
-                  color={item.is_read ? theme.colors.TEXT_PRIMARY : theme.colors.LABEL}
-                  style={{ marginLeft: 4 }}
-                />
+              {isMine && (item.local_status === 'sending' || item.local_status === 'failed') ? (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    item.local_status === 'failed' ? 'Retry failed message' : 'Sending message'
+                  }
+                  disabled={item.local_status === 'sending'}
+                  onPress={() => void deliverMessage(item)}
+                  style={{ padding: 6 }}
+                >
+                  <Text style={{ color: '#17351C', fontSize: 11 }}>
+                    {item.local_status === 'failed' ? 'Failed · Retry' : 'Sending…'}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                isMine && (
+                  <Ionicons
+                    accessibilityLabel={
+                      item.is_read ? 'Read' : item.delivered_by?.length ? 'Delivered' : 'Sent'
+                    }
+                    name={
+                      item.is_read || item.delivered_by?.length ? 'checkmark-done' : 'checkmark'
+                    }
+                    size={14}
+                    color={item.is_read ? theme.colors.TEXT_PRIMARY : theme.colors.LABEL}
+                    style={{ marginLeft: 4 }}
+                  />
+                )
               )}
             </View>
           )}
@@ -1138,7 +1356,8 @@ function ChatContent() {
     }
   }, [meta, user, router]);
 
-  const isBusinessChat = meta?.type === 'briefcase' || meta?.type === 'business' || !!meta?.business_id;
+  const isBusinessChat =
+    meta?.type === 'briefcase' || meta?.type === 'business' || !!meta?.business_id;
   const title = isBusinessChat
     ? meta?.business_name || meta?.item_title || otherUser?.name || 'Business'
     : otherUser?.name || 'Chat';
@@ -1358,6 +1577,19 @@ function ChatContent() {
       )}
 
       <View style={{ flex: 1 }}>
+        {uploadingMedia && (
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 12 }}>
+            <Text style={{ color: theme.colors.TEXT_PRIMARY }}>
+              Uploading attachment · {Math.round(uploadProgress * 100)}%
+            </Text>
+            <TouchableOpacity
+              onPress={() => uploadController.current?.abort()}
+              accessibilityRole="button"
+            >
+              <Text style={{ color: theme.colors.G }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         {/* Messages */}
         {loading ? (
           <View style={stylesheet.center}>
@@ -1375,17 +1607,43 @@ function ChatContent() {
           <FlatList
             ref={flatListRef}
             data={messagesWithDates}
+            ListHeaderComponent={
+              id !== 'new' && messages.length >= 50 ? (
+                <TouchableOpacity
+                  disabled={loadingOlder}
+                  onPress={() => void loadOlder()}
+                  style={{ padding: 14, alignItems: 'center' }}
+                >
+                  <Text style={{ color: theme.colors.G }}>
+                    {loadingOlder ? 'Loading…' : 'Load earlier messages'}
+                  </Text>
+                </TouchableOpacity>
+              ) : null
+            }
             keyExtractor={(item) => item.id}
             renderItem={renderMessage}
             contentContainerStyle={stylesheet.msgListContent}
             showsVerticalScrollIndicator={false}
+            onScroll={(event) => {
+              const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+              autoScroll.current =
+                contentSize.height - contentOffset.y - layoutMeasurement.height < 100;
+            }}
+            scrollEventThrottle={100}
+            onViewableItemsChanged={({ viewableItems }) => {
+              void acknowledge(
+                viewableItems.map((row) => row.item as Message).filter((row) => !!row.sender_id),
+                true
+              );
+            }}
+            viewabilityConfig={{ itemVisiblePercentThreshold: 60, minimumViewTime: 500 }}
             onContentSizeChange={() => {
-              if (messagesWithDates.length > 0) {
+              if (autoScroll.current && messagesWithDates.length > 0) {
                 setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 50);
               }
             }}
             onLayout={() => {
-              if (messagesWithDates.length > 0) {
+              if (autoScroll.current && messagesWithDates.length > 0) {
                 setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 50);
               }
             }}
@@ -1605,7 +1863,8 @@ const _stylesheet = StyleSheet.create((theme) => ({
 }));
 
 export default function ChatScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   return (
     <ErrorBoundary screenName="Chat">

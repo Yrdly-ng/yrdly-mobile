@@ -329,7 +329,7 @@ export function EventCard({ event, onPress }: EventCardProps) {
   const handleShare = async () => {
     try {
       const result = await Share.share({
-        message: `Check out "${event.title || 'this event'}" on Yrdly!`,
+        message: `Check out "${event.title || 'this event'}" on Yrdly! https://app.yrdly.ng/events/${event.id}`,
         url: `https://app.yrdly.ng/events/${event.id}`,
       });
       if (result.action === Share.sharedAction) {

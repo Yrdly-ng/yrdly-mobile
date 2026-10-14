@@ -108,7 +108,7 @@ export default function BusinessEditScreen() {
         cropping: true,
         width: 1600,
         height: 900,
-        compressImageQuality: 1,
+        compressImageQuality: 0.88,
         compressImageMaxWidth: 3200,
         compressImageMaxHeight: 1800,
       });
@@ -129,7 +129,7 @@ export default function BusinessEditScreen() {
         cropping: true,
         width: 1000,
         height: 1000,
-        compressImageQuality: 1,
+        compressImageQuality: 0.88,
         compressImageMaxWidth: 2000,
         compressImageMaxHeight: 2000,
       });

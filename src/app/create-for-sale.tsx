@@ -1,3 +1,4 @@
+import { useImageEditor, discardEditedImage } from '@/hooks/use-image-editor';
 import { isPaidPrice, MINIMUM_PRICE_MESSAGE } from '@/lib/price-policy';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect } from 'react';
@@ -40,7 +41,8 @@ const STEPS = ['Photos', 'Details', 'Description', 'Review'];
 const CONDITIONS = ['New', 'Used – Like New', 'Used – Good', 'Fair'];
 
 export default function CreateForSaleScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -48,8 +50,6 @@ export default function CreateForSaleScreen() {
 
   const { categories, loading: categoriesLoading } = useCategories('marketplace');
   const [step, setStep] = useState(0);
-
-
 
   const [listingType, setListingType] = useState('For Sale');
   const [title, setTitle] = useState('');
@@ -61,6 +61,7 @@ export default function CreateForSaleScreen() {
 
   const [attachedFiles, setAttachedFiles] = useState<MobileFile[]>([]);
   const { editVideo, videoEditor, isEditingVideo } = useVideoEditor();
+  const { editImage, imageEditor, isEditingImage } = useImageEditor();
   const pickingMedia = React.useRef(false);
   const [picking, setPicking] = useState(false);
   const [coverIndex, setCoverIndex] = useState(0);
@@ -104,8 +105,9 @@ export default function CreateForSaleScreen() {
   });
 
   const pickMedia = async (type: 'photo' | 'video') => {
-    if (pickingMedia.current || isEditingVideo || listing) return;
-    pickingMedia.current = true; setPicking(true);
+    if (pickingMedia.current || isEditingVideo || isEditingImage || listing) return;
+    pickingMedia.current = true;
+    setPicking(true);
     try {
       const isPhoto = type === 'photo';
       const options: any = { mediaType: type };
@@ -113,9 +115,9 @@ export default function CreateForSaleScreen() {
       if (isPhoto) {
         options.multiple = true;
         options.maxFiles = 10;
-        options.compressImageQuality = 1;
-        options.compressImageMaxWidth = 4096;
-        options.compressImageMaxHeight = 4096;
+        options.compressImageQuality = 0.88;
+        options.compressImageMaxWidth = 2048;
+        options.compressImageMaxHeight = 2048;
       } else {
         options.multiple = true;
         options.maxFiles = 3;
@@ -152,16 +154,34 @@ export default function CreateForSaleScreen() {
             type,
           };
           if (type.startsWith('video/')) {
-            const edited = await editVideo(file, 40 * 1024 * 1024).catch(error => { Alert.alert('Video unavailable', error instanceof Error ? error.message : 'Please choose another video.'); return null; });
-            if (!edited) { videoCount--; continue; }
+            const edited = await editVideo(file, 40 * 1024 * 1024).catch((error) => {
+              Alert.alert(
+                'Video unavailable',
+                error instanceof Error ? error.message : 'Please choose another video.'
+              );
+              return null;
+            });
+            if (!edited) {
+              videoCount--;
+              continue;
+            }
+            file = edited;
+          }
+          if (type.startsWith('image/')) {
+            const edited = await editImage(file);
+            if (!edited) continue;
             file = edited;
           }
           validFiles.push(file);
 
-          if (type.startsWith('image/') && asset.width && asset.height) {
+          if (type.startsWith('image/')) {
+            const { MediaToolkit } = await import('react-native-media-toolkit');
+            const editedMetadata = await MediaToolkit.getMediaMetadata(file.uri);
+            asset.width = editedMetadata.width;
+            asset.height = editedMetadata.height;
             setImageDimsMap((prev) => ({
               ...prev,
-              [asset.path]: { w: asset.width, h: asset.height },
+              [file.uri]: { w: asset.width, h: asset.height },
             }));
           }
         }
@@ -175,18 +195,28 @@ export default function CreateForSaleScreen() {
       if (e.message !== 'User cancelled image selection' && e.message !== 'User cancelled') {
         Alert.alert('Error', e.message || 'Failed to pick media');
       }
-    } finally { pickingMedia.current = false; setPicking(false); }
+    } finally {
+      pickingMedia.current = false;
+      setPicking(false);
+    }
   };
 
   const editAttachedVideo = async (file: MobileFile) => {
-    if (listing || pickingMedia.current || isEditingVideo) return;
+    if (listing || pickingMedia.current || isEditingVideo || isEditingImage) return;
     try {
       const edited = await editVideo(file, 40 * 1024 * 1024);
       if (edited) {
-        setAttachedFiles(previous => previous.map(current => current.uri === file.uri ? edited : current));
+        setAttachedFiles((previous) =>
+          previous.map((current) => (current.uri === file.uri ? edited : current))
+        );
         if (edited.uri !== file.uri) void discardEditedVideo(file);
       }
-    } catch (error) { Alert.alert('Video unavailable', error instanceof Error ? error.message : 'Please try again.'); }
+    } catch (error) {
+      Alert.alert(
+        'Video unavailable',
+        error instanceof Error ? error.message : 'Please try again.'
+      );
+    }
   };
 
   const pickImages = () => {
@@ -199,14 +229,21 @@ export default function CreateForSaleScreen() {
 
   const canNext = [
     attachedFiles.some((f) => f.type?.startsWith('image/')),
-    title.trim() && (listingType === 'Giveaway' || isPaidPrice(Number(price))) && category && condition,
+    title.trim() &&
+      (listingType === 'Giveaway' || isPaidPrice(Number(price))) &&
+      category &&
+      condition,
     desc.trim(),
     true,
   ][step];
 
   const handleNext = async () => {
-    if (pickingMedia.current || isEditingVideo) return;
-    if (listingType !== 'Giveaway' && (step === 1 || step === STEPS.length - 1) && !isPaidPrice(Number(price))) {
+    if (pickingMedia.current || isEditingVideo || isEditingImage) return;
+    if (
+      listingType !== 'Giveaway' &&
+      (step === 1 || step === STEPS.length - 1) &&
+      !isPaidPrice(Number(price))
+    ) {
       Alert.alert('Invalid price', MINIMUM_PRICE_MESSAGE);
       return;
     }
@@ -294,7 +331,8 @@ export default function CreateForSaleScreen() {
           : null;
         const coverDims = coverFile ? (imageDimsMap[coverFile.uri] ?? null) : null;
 
-        const { data: newPost } = await api.post('/api/posts', { post: {
+        const { data: newPost } = await api.post('/api/posts', {
+          post: {
             user_id: user.id,
             author_name: profile.name || 'Seller',
             author_image: profile.avatar_url || '',
@@ -318,13 +356,17 @@ export default function CreateForSaleScreen() {
             timestamp: new Date().toISOString(),
             liked_by: [],
             comment_count: 0,
-          } });
+          },
+        });
 
         setListing(false);
         setUploadProgress(0);
         setModerationStatus(newPost?.moderation_status === 'approved' ? 'approved' : 'pending');
         setListed(true);
-        for (const file of attachedFiles) void discardEditedVideo(file);
+        for (const file of attachedFiles) {
+          void discardEditedVideo(file);
+          void discardEditedImage(file);
+        }
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch (err: any) {
         setListing(false);
@@ -419,6 +461,7 @@ export default function CreateForSaleScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       {videoEditor}
+      {imageEditor}
       <View style={stylesheet.header}>
         <TouchableOpacity onPress={handleBack} style={stylesheet.backBtn}>
           <Ionicons name="chevron-back" size={20} color={theme.colors.TEXT_PRIMARY} />
@@ -468,7 +511,10 @@ export default function CreateForSaleScreen() {
                 >
                   <Image source={{ uri: file.uri }} style={stylesheet.photoImg} />
                   {file.type?.startsWith('video/') && !listing && (
-                    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Edit video" onPress={() => void editAttachedVideo(file)}
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel="Edit video"
+                      onPress={() => void editAttachedVideo(file)}
                       style={{
                         position: 'absolute',
                         top: 0,
@@ -520,7 +566,11 @@ export default function CreateForSaleScreen() {
                   )}
                 </TouchableOpacity>
               ))}
-              <TouchableOpacity disabled={picking || isEditingVideo || listing} style={stylesheet.addPhotoBox} onPress={pickImages}>
+              <TouchableOpacity
+                disabled={picking || isEditingVideo || isEditingImage || listing}
+                style={stylesheet.addPhotoBox}
+                onPress={pickImages}
+              >
                 <Feather name="camera" size={24} color={theme.colors.LABEL} />
               </TouchableOpacity>
             </View>
@@ -934,7 +984,7 @@ export default function CreateForSaleScreen() {
       <View style={[stylesheet.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
         <TouchableOpacity
           style={[stylesheet.btnPrimary, !canNext && stylesheet.btnDisabled]}
-          disabled={!canNext || listing || picking || isEditingVideo}
+          disabled={!canNext || listing || picking || isEditingVideo || isEditingImage}
           onPress={handleNext}
         >
           {listing ? (

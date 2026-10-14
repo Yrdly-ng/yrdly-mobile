@@ -23,7 +23,8 @@ import { AuthService } from '../../lib/auth-service';
 import { ModerationService } from '../../lib/moderation-service';
 
 export default function EditProfileScreen() {
-  const { theme } = useUnistyles(); const s = sStylesheet;
+  const { theme } = useUnistyles();
+  const s = sStylesheet;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -48,7 +49,7 @@ export default function EditProfileScreen() {
         cropping: true,
         width: 1000,
         height: 1000,
-        compressImageQuality: 1,
+        compressImageQuality: 0.88,
         compressImageMaxWidth: 2000,
         compressImageMaxHeight: 2000,
       });

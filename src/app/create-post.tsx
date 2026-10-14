@@ -1,5 +1,7 @@
+import { useImageEditor, discardEditedImage } from '@/hooks/use-image-editor';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { localCache } from '@/lib/local-cache';
 import {
   View,
   Text,
@@ -25,20 +27,27 @@ import { Avatar } from '../components/Avatar';
 import { useVideoEditor, discardEditedVideo } from '../hooks/use-video-editor';
 
 export default function CreatePostScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, profile } = useAuth();
-  const { createPost } = usePosts();
+  const { createPost } = usePosts(undefined, false);
 
   const [text, setText] = useState('');
   const [posting, setPosting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStage, setUploadStage] = useState<'uploading' | 'processing' | 'complete'>(
+    'uploading'
+  );
+  const uploadController = useRef<AbortController | null>(null);
+  useEffect(() => () => uploadController.current?.abort(), []);
   const [posted, setPosted] = useState(false);
   const [moderationStatus, setModerationStatus] = useState<'approved' | 'pending'>('approved');
   const [attachedFiles, setAttachedFiles] = useState<MobileFile[]>([]);
   const { editVideo, videoEditor, isEditingVideo } = useVideoEditor();
+  const { editImage, imageEditor, isEditingImage } = useImageEditor();
   const pickingMedia = React.useRef(false);
   const [picking, setPicking] = useState(false);
   // Keyed by URI so dims stay correct if the user removes images before posting
@@ -46,12 +55,63 @@ export default function CreatePostScreen() {
   const [category, setCategory] = useState('General');
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
+  const draftReady = useRef(false);
+  const draftOwner = useRef<string | null>(null);
+  const postLock = useRef(false);
+  useEffect(() => {
+    draftReady.current = false;
+    draftOwner.current = user?.id ?? null;
+    setText('');
+    setAttachedFiles([]);
+    setVisibility('public');
+    setImageDimsMap({});
+    if (!user?.id) return;
+    let active = true;
+    void localCache
+      .read<{
+        text: string;
+        category: string;
+        visibility: 'public' | 'private';
+        files: MobileFile[];
+      }>(user.id, 'drafts', 'post', 7 * 86400000)
+      .then(async (entry) => {
+        if (!active || draftOwner.current !== user.id) return;
+        if (entry) {
+          setText(entry.value.text);
+          setCategory(entry.value.category);
+          setVisibility(entry.value.visibility);
+          const files = await Promise.all(
+            (entry.value.files || []).map(async (file) =>
+              (await FileSystem.getInfoAsync(file.uri)).exists ? file : null
+            )
+          );
+          if (active) setAttachedFiles(files.filter((file): file is MobileFile => !!file));
+        }
+        if (active) draftReady.current = true;
+      });
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
+  useEffect(() => {
+    if (!user?.id || draftOwner.current !== user.id || !draftReady.current || posted) return;
+    const timeout = setTimeout(() => {
+      void localCache.write(user.id, 'drafts', 'post', {
+        text,
+        category,
+        visibility,
+        files: attachedFiles,
+      });
+    }, 500);
+    return () => clearTimeout(timeout);
+  }, [user?.id, text, category, visibility, attachedFiles, posted]);
 
   const categories = ['General'];
 
   const pickMedia = async (type: 'photo' | 'video') => {
-    if (pickingMedia.current || isEditingVideo || posting) return;
-    pickingMedia.current = true; setPicking(true);
+    if (pickingMedia.current || isEditingVideo || isEditingImage || posting) return;
+    pickingMedia.current = true;
+    setPicking(true);
     try {
       const isPhoto = type === 'photo';
       const options: any = { mediaType: type };
@@ -101,17 +161,35 @@ export default function CreatePostScreen() {
             type,
           };
           if (type.startsWith('video/')) {
-            const edited = await editVideo(file, 40 * 1024 * 1024).catch(error => { Alert.alert('Video unavailable', error instanceof Error ? error.message : 'Please choose another video.'); return null; });
-            if (!edited) { videoCount--; continue; }
+            const edited = await editVideo(file, 40 * 1024 * 1024).catch((error) => {
+              Alert.alert(
+                'Video unavailable',
+                error instanceof Error ? error.message : 'Please choose another video.'
+              );
+              return null;
+            });
+            if (!edited) {
+              videoCount--;
+              continue;
+            }
+            file = edited;
+          }
+          if (type.startsWith('image/')) {
+            const edited = await editImage(file);
+            if (!edited) continue;
             file = edited;
           }
           validFiles.push(file);
 
           // Capture dimensions for images
-          if (type.startsWith('image/') && asset.width && asset.height) {
+          if (type.startsWith('image/')) {
+            const { MediaToolkit } = await import('react-native-media-toolkit');
+            const editedMetadata = await MediaToolkit.getMediaMetadata(file.uri);
+            asset.width = editedMetadata.width;
+            asset.height = editedMetadata.height;
             setImageDimsMap((prev) => ({
               ...prev,
-              [asset.path]: { w: asset.width, h: asset.height },
+              [file.uri]: { w: asset.width, h: asset.height },
             }));
           }
         }
@@ -121,18 +199,28 @@ export default function CreatePostScreen() {
       if (e.message !== 'User cancelled image selection' && e.message !== 'User cancelled') {
         Alert.alert('Error', e.message || 'Failed to pick media');
       }
-    } finally { pickingMedia.current = false; setPicking(false); }
+    } finally {
+      pickingMedia.current = false;
+      setPicking(false);
+    }
   };
 
   const editAttachedVideo = async (file: MobileFile) => {
-    if (posting || pickingMedia.current || isEditingVideo) return;
+    if (posting || pickingMedia.current || isEditingVideo || isEditingImage) return;
     try {
       const edited = await editVideo(file, 40 * 1024 * 1024);
       if (edited) {
-        setAttachedFiles(previous => previous.map(current => current.uri === file.uri ? edited : current));
+        setAttachedFiles((previous) =>
+          previous.map((current) => (current.uri === file.uri ? edited : current))
+        );
         if (edited.uri !== file.uri) void discardEditedVideo(file);
       }
-    } catch (error) { Alert.alert('Video unavailable', error instanceof Error ? error.message : 'Please try again.'); }
+    } catch (error) {
+      Alert.alert(
+        'Video unavailable',
+        error instanceof Error ? error.message : 'Please try again.'
+      );
+    }
   };
 
   const pickImages = () => {
@@ -144,7 +232,7 @@ export default function CreatePostScreen() {
   };
 
   const doPost = async () => {
-    if (pickingMedia.current || isEditingVideo) return;
+    if (postLock.current || pickingMedia.current || isEditingVideo || isEditingImage) return;
     if (!text.trim() && attachedFiles.length === 0) return;
     if (!user || !profile) {
       Alert.alert('Authentication required', 'Please sign in to post.');
@@ -152,6 +240,9 @@ export default function CreatePostScreen() {
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    uploadController.current = new AbortController();
+    setUploadStage('uploading');
+    postLock.current = true;
     setPosting(true);
 
     try {
@@ -172,19 +263,25 @@ export default function CreatePostScreen() {
         undefined,
         images.length > 0 ? images : undefined,
         videos.length > 0 ? videos : undefined,
-        (progress) => setUploadProgress(progress)
+        (progress) => setUploadProgress(progress),
+        { signal: uploadController.current.signal, onStage: setUploadStage }
       );
 
       setPosting(false);
       setUploadProgress(0);
       setPosted(true);
+      void localCache.remove(user.id, 'drafts', 'post');
       for (const video of videos) void discardEditedVideo(video);
+      for (const image of images) void discardEditedImage(image);
       setModerationStatus((result?.moderationStatus as any) || 'approved');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error: any) {
       setPosting(false);
       setUploadProgress(0);
       Alert.alert('Error', error?.message || 'Failed to create post. Please try again.');
+    } finally {
+      postLock.current = false;
+      uploadController.current = null;
     }
   };
 
@@ -237,6 +334,7 @@ export default function CreatePostScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       {videoEditor}
+      {imageEditor}
       <View style={stylesheet.header}>
         <TouchableOpacity onPress={() => router.back()} style={stylesheet.headerBtn}>
           <Text style={stylesheet.cancelText}>Cancel</Text>
@@ -244,7 +342,7 @@ export default function CreatePostScreen() {
         <Text style={stylesheet.headerTitle}>New Post</Text>
         <TouchableOpacity
           onPress={doPost}
-          disabled={!hasContent || posting || picking || isEditingVideo}
+          disabled={!hasContent || posting || picking || isEditingVideo || isEditingImage}
           style={[
             stylesheet.postButton,
             { backgroundColor: hasContent ? theme.colors.G : 'rgba(130,219,126,0.25)' },
@@ -349,6 +447,22 @@ export default function CreatePostScreen() {
           selectionColor={theme.colors.G}
         />
 
+        {posting && (
+          <View
+            style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12 }}
+          >
+            <Text style={{ color: theme.colors.TEXT_PRIMARY }}>
+              {uploadStage === 'processing'
+                ? 'Processing your post…'
+                : `Uploading · ${Math.round(uploadProgress * 100)}%`}
+            </Text>
+            {uploadStage === 'uploading' && (
+              <TouchableOpacity onPress={() => uploadController.current?.abort()}>
+                <Text style={{ color: theme.colors.G }}>Cancel</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
         {attachedFiles.length > 0 && (
           <View style={stylesheet.photosGrid}>
             {attachedFiles.map((file, i) => {
@@ -361,7 +475,10 @@ export default function CreatePostScreen() {
                     recyclingKey={file.uri}
                   />
                   {file.type?.startsWith('video/') && !posting && (
-                    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Edit video" onPress={() => void editAttachedVideo(file)}
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel="Edit video"
+                      onPress={() => void editAttachedVideo(file)}
                       style={{
                         position: 'absolute',
                         top: 0,
@@ -396,7 +513,10 @@ export default function CreatePostScreen() {
                   {!posting && (
                     <TouchableOpacity
                       style={stylesheet.removePhotoBtn}
-                      onPress={() => { setAttachedFiles((p) => p.filter((_, j) => j !== i)); void discardEditedVideo(file); }}
+                      onPress={() => {
+                        setAttachedFiles((p) => p.filter((_, j) => j !== i));
+                        void discardEditedVideo(file);
+                      }}
                     >
                       <Feather name="x" size={14} color={theme.colors.TEXT_PRIMARY} />
                     </TouchableOpacity>
@@ -409,7 +529,11 @@ export default function CreatePostScreen() {
       </ScrollView>
 
       <View style={[stylesheet.toolbar, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-        <TouchableOpacity disabled={picking || isEditingVideo || posting} style={stylesheet.addPhotoBtn} onPress={pickImages}>
+        <TouchableOpacity
+          disabled={picking || isEditingVideo || isEditingImage || posting}
+          style={stylesheet.addPhotoBtn}
+          onPress={pickImages}
+        >
           <Ionicons name="image-outline" size={22} color={theme.colors.G} />
           <Text
             style={{

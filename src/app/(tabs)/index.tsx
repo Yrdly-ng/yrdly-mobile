@@ -1,3 +1,4 @@
+import { postMemory } from '@/lib/post-memory';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import {
@@ -84,7 +85,8 @@ const FeedPostItem = memo(
 );
 
 const QuickPostBox = memo(() => {
-  const { theme } = useUnistyles(); const styles = sStylesheet;
+  const { theme } = useUnistyles();
+  const styles = sStylesheet;
 
   const { user, profile } = useAuth();
   const router = useRouter();
@@ -167,7 +169,8 @@ const QuickPostBox = memo(() => {
 });
 
 export default function HomeTab() {
-  const { theme } = useUnistyles(); const stylesheet = sStylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = sStylesheet;
 
   const { user, profile } = useAuth();
   const { isDarkMode } = useAppTheme();
@@ -177,6 +180,7 @@ export default function HomeTab() {
   const {
     posts: allPosts,
     loading,
+    isCached,
     refreshPosts,
     hasMore,
     isFetchingMore,
@@ -220,6 +224,7 @@ export default function HomeTab() {
 
   const handlePostPress = useCallback(
     (item: Post) => {
+      postMemory.put(item);
       if (item.category === 'For Sale') {
         router.push(`/marketplace/${item.id}`);
       } else if (item.category === 'Event') {
@@ -576,6 +581,18 @@ export default function HomeTab() {
         }
         ListHeaderComponent={
           <View>
+            {isCached && (
+              <Text
+                style={{
+                  color: theme.colors.MUTED,
+                  paddingHorizontal: 20,
+                  paddingVertical: 8,
+                  fontSize: 12,
+                }}
+              >
+                Saved posts · reconnect to refresh
+              </Text>
+            )}
             {activeAlerts.length > 0 && (
               <ScrollView
                 horizontal
@@ -587,7 +604,10 @@ export default function HomeTab() {
                 style={{ marginTop: 16, marginBottom: 8 }}
               >
                 {activeAlerts.map((alert) => (
-                  <View key={alert.id} style={{ width: activeAlerts.length > 1 ? width - 44 : width - 32 }}>
+                  <View
+                    key={alert.id}
+                    style={{ width: activeAlerts.length > 1 ? width - 44 : width - 32 }}
+                  >
                     <AlertBanner
                       alert={alert}
                       style={{ marginBottom: 0 }}

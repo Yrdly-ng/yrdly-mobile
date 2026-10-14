@@ -5,11 +5,9 @@ import { User, Session } from '@supabase/supabase-js';
 import { AuthService, AuthUser } from '@/lib/auth-service';
 import { supabase } from '@/lib/supabase';
 import { getOrCreateDeviceId } from '@/lib/device-id';
-import * as FileSystem from 'expo-file-system/legacy';
 import NetInfo from '@react-native-community/netinfo';
-
-
-const PROFILE_CACHE_FILE = `${FileSystem.documentDirectory}user_profile_cache.json`;
+import { localCache } from '@/lib/local-cache';
+import { watchSession } from '@/lib/session-policy';
 
 interface AuthContextType {
   user: User | null;
@@ -39,315 +37,109 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const profileCreationInProgress = React.useRef(false);
+  useEffect(() => watchSession(), []);
 
   useEffect(() => {
-    let isMounted = true;
-    let profileChannel: any = null;
-
-    // Get initial session
-    const getInitialSession = async () => {
-      try {
-        const currentUser = await AuthService.getCurrentUser();
-        if (isMounted) {
-          setUser(currentUser);
-
-          if (currentUser) {
-            try {
-              let userProfile = null;
-              try {
-                // Try cache first for fast boot
-                const info = await FileSystem.getInfoAsync(PROFILE_CACHE_FILE);
-                if (info.exists) {
-                  const cached = await FileSystem.readAsStringAsync(PROFILE_CACHE_FILE);
-                  const parsed = JSON.parse(cached);
-                  if (parsed && parsed.id === currentUser.id) {
-                    userProfile = parsed;
-                  }
-                }
-              } catch (e) {}
-
-              const netInfo = await NetInfo.fetch();
-              if (netInfo.isConnected) {
-                // Fetch fresh profile in background and update state when ready
-                AuthService.getUserProfile(currentUser.id)
-                  .then((freshProfile) => {
-                    if (freshProfile && isMounted) {
-                      setProfile(freshProfile);
-                      FileSystem.writeAsStringAsync(
-                        PROFILE_CACHE_FILE,
-                        JSON.stringify(freshProfile)
-                      ).catch(() => {});
-                    }
-                  })
-                  .catch((e) => console.warn('Background profile fetch error:', e));
-
-                // Also try quick fetch for initial mount
-                try {
-                  const fetchPromise = AuthService.getUserProfile(currentUser.id);
-                  const timeoutPromise = new Promise<null>((resolve) =>
-                    setTimeout(() => resolve(null), 2000)
-                  );
-                  const quickProfile = await Promise.race([fetchPromise, timeoutPromise]);
-                  if (quickProfile) {
-                    userProfile = quickProfile;
-                  }
-                } catch (e) {}
-              }
-
-              // If no profile exists and not from cache, create one
-              if (!userProfile && !profileCreationInProgress.current) {
-                profileCreationInProgress.current = true;
-                try {
-                  await AuthService.createUserProfile(
-                    currentUser,
-                    currentUser.user_metadata?.name ||
-                      currentUser.user_metadata?.full_name ||
-                      currentUser.user_metadata?.display_name ||
-                      currentUser.user_metadata?.given_name ||
-                      currentUser.email?.split('@')[0] ||
-                      'User'
-                  );
-                  // Fetch the newly created profile
-                  userProfile = await AuthService.getUserProfile(currentUser.id);
-                  if (userProfile) {
-                    FileSystem.writeAsStringAsync(
-                      PROFILE_CACHE_FILE,
-                      JSON.stringify(userProfile)
-                    ).catch(() => {});
-                  }
-                } catch (createError) {
-                  console.error('Error creating user profile on initial load:', createError);
-                  userProfile = {
-                    id: currentUser.id,
-                    name: currentUser.user_metadata?.name || 'User',
-                    email: currentUser.email,
-                    profile_completed: true,
-                  } as AuthUser;
-                } finally {
-                  profileCreationInProgress.current = false;
-                }
-              }
-
-              if (isMounted) {
-                setProfile(userProfile);
-              }
-            } catch (error) {
-              console.error('Error fetching user profile (initial session):', error);
-              // Don't null the profile on transient errors — keep whatever we have
-            }
-          } else {
-            // No user, ensure profile is also null
-            if (isMounted) {
-              setProfile(null);
-            }
-          }
-        }
-      } catch (error) {
-        // Don't log AuthSessionMissingError as it's expected when user is logged out
-        if (error instanceof Error && error.message !== 'Auth session missing!') {
-          console.error('Error getting initial session:', error);
-        }
-        if (isMounted) {
-          setUser(null);
-          setProfile(null);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    const setupProfileRealtime = (userId: string) => {
-      // Clean up existing subscription if present
+    let mounted = true,
+      version = 0;
+    let currentUserId: string | null = null;
+    let profileChannel: ReturnType<typeof supabase.channel> | null = null;
+    const stopProfile = () => {
       if (profileChannel) {
-        supabase.removeChannel(profileChannel);
+        void supabase.removeChannel(profileChannel);
         profileChannel = null;
       }
-      // Set up real-time subscription for profile updates
+    };
+    const applySession = async (nextUser: User | null, quiet = false) => {
+      const request = ++version;
+      const owner = nextUser?.id ?? null;
+      if (owner !== currentUserId) {
+        stopProfile();
+        setProfile(null);
+      }
+      currentUserId = owner;
+      localCache.setAccount(owner);
+      if (!mounted) return;
+      setUser(nextUser);
+      if (!nextUser) {
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+      const cached = await localCache.read<AuthUser>(nextUser.id, 'profile', 'self', 7 * 86400000);
+      if (!mounted || request !== version) return;
+      if (cached) {
+        setProfile(cached.value);
+        setLoading(false);
+      }
+      try {
+        if ((await NetInfo.fetch()).isConnected !== false) {
+          const result = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', nextUser.id)
+            .abortSignal(AbortSignal.timeout(10000))
+            .maybeSingle();
+          if (!mounted || request !== version) return;
+          if (result.error) throw result.error;
+          let fresh = result.data as AuthUser | null;
+          // A timeout or offline cache miss must never be treated as a missing profile.
+          if (!fresh && !profileCreationInProgress.current) {
+            profileCreationInProgress.current = true;
+            try {
+              await AuthService.createUserProfile(
+                nextUser,
+                nextUser.user_metadata?.name || nextUser.user_metadata?.full_name || 'User'
+              );
+              fresh = await AuthService.getUserProfile(nextUser.id);
+            } finally {
+              profileCreationInProgress.current = false;
+            }
+          }
+          if (fresh && mounted && request === version) {
+            setProfile(fresh);
+            void localCache.write(nextUser.id, 'profile', 'self', fresh);
+          }
+        }
+      } catch {
+        /* Keep an account-scoped encrypted snapshot during transient outages. */
+      } finally {
+        if (mounted && request === version && !quiet) setLoading(false);
+      }
+      if (!mounted || request !== version || profileChannel) return;
       profileChannel = supabase
-        .channel(`user-profile-${userId}`)
+        .channel(`user-profile-${nextUser.id}`)
         .on(
           'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'users',
-            filter: `id=eq.${userId}`,
-          },
-          async (payload) => {
-            if (isMounted && payload.new) {
-              // Use the new payload directly instead of fetching which may return stale data
-              setProfile((prev) => {
-                if (!prev) return payload.new as AuthUser;
-                return { ...prev, ...(payload.new as Partial<AuthUser>) };
-              });
-            }
+          { event: 'UPDATE', schema: 'public', table: 'users', filter: `id=eq.${nextUser.id}` },
+          (payload) => {
+            if (!mounted || currentUserId !== nextUser.id) return;
+            setProfile((previous) => {
+              const next = { ...previous, ...payload.new } as AuthUser;
+              void localCache.write(nextUser.id, 'profile', 'self', next);
+              return next;
+            });
           }
         )
         .subscribe();
     };
-
-    getInitialSession();
-
-    // Listen for auth state changes
+    void AuthService.getCurrentUser().then((user) => {
+      if (mounted && version === 0) void applySession(user);
+    });
     const {
       data: { subscription },
-    } = AuthService.onAuthStateChange(async (event, session) => {
-      const user = session?.user ?? null;
-
-      // Skip INITIAL_SESSION — already handled by getInitialSession above
+    } = AuthService.onAuthStateChange((event, session) => {
       if (event === 'INITIAL_SESSION') return;
-
-      if (event === 'SIGNED_OUT') {
-        FileSystem.deleteAsync(PROFILE_CACHE_FILE, { idempotent: true }).catch(() => {});
-        const netInfo = await NetInfo.fetch();
-        if (!netInfo.isConnected) {
-          console.warn('[Yrdly Auth] Ignored SIGNED_OUT event because device is offline.');
-          return;
-        }
-      }
-
-      if (event === 'TOKEN_REFRESH_FAILED') {
-        const netInfo = await NetInfo.fetch();
-        if (netInfo.isConnected) {
-          console.warn('[Yrdly Auth] Token refresh failed while online. Logging out.');
-          FileSystem.deleteAsync(PROFILE_CACHE_FILE, { idempotent: true }).catch(() => {});
-
-
-          setUser(null);
-          setProfile(null);
-          supabase.auth.signOut().catch(() => {});
-        } else {
-          console.warn(
-            '[Yrdly Auth] Token refresh failed but offline, keeping current user state.'
-          );
-        }
-        return;
-      }
-
-      // On token refresh, only update profile silently in background — don't setState
-      if (event === 'TOKEN_REFRESHED') {
-        if (user) {
-          AuthService.getUserProfile(user.id)
-            .then((freshProfile) => {
-              if (freshProfile && isMounted) {
-                setProfile(freshProfile);
-                FileSystem.writeAsStringAsync(
-                  PROFILE_CACHE_FILE,
-                  JSON.stringify(freshProfile)
-                ).catch(() => {});
-              }
-            })
-            .catch(() => {});
-        }
-        return;
-      }
-
-      if (isMounted) {
-        setUser(user);
-
-        if (user) {
-
-          try {
-            let userProfile = null;
-            try {
-              const info = await FileSystem.getInfoAsync(PROFILE_CACHE_FILE);
-              if (info.exists) {
-                const cached = await FileSystem.readAsStringAsync(PROFILE_CACHE_FILE);
-                const parsed = JSON.parse(cached);
-                if (parsed && parsed.id === user.id) {
-                  userProfile = parsed;
-                }
-              }
-            } catch (e) {}
-
-            const netInfo = await NetInfo.fetch();
-            if (netInfo.isConnected) {
-              try {
-                const fetchPromise = AuthService.getUserProfile(user.id);
-                const timeoutPromise = new Promise<null>((resolve) =>
-                  setTimeout(() => resolve(null), 5000)
-                );
-                const freshProfile = await Promise.race([fetchPromise, timeoutPromise]);
-
-                if (freshProfile) {
-                  userProfile = freshProfile;
-                  FileSystem.writeAsStringAsync(
-                    PROFILE_CACHE_FILE,
-                    JSON.stringify(freshProfile)
-                  ).catch(() => {});
-                }
-              } catch (e) {
-                console.warn('Network fetch for profile failed:', e);
-              }
-            }
-
-            // If no profile exists, create one
-            if (!userProfile && !profileCreationInProgress.current) {
-              profileCreationInProgress.current = true;
-              try {
-                await AuthService.createUserProfile(
-                  user,
-                  user.user_metadata?.name ||
-                    user.user_metadata?.full_name ||
-                    user.user_metadata?.display_name ||
-                    user.user_metadata?.given_name ||
-                    user.email?.split('@')[0] ||
-                    'User'
-                );
-                // Fetch the newly created profile
-                userProfile = await AuthService.getUserProfile(user.id);
-                if (userProfile) {
-                  FileSystem.writeAsStringAsync(
-                    PROFILE_CACHE_FILE,
-                    JSON.stringify(userProfile)
-                  ).catch(() => {});
-                }
-              } catch (createError) {
-                console.error('Error creating user profile:', createError);
-                userProfile = {
-                  id: user.id,
-                  name: user.user_metadata?.name || 'User',
-                  email: user.email,
-                  profile_completed: false,
-                } as AuthUser;
-              } finally {
-                profileCreationInProgress.current = false;
-              }
-            }
-
-            if (isMounted) {
-              setProfile(userProfile);
-
-              // Set up real-time subscription for this user's profile
-              setupProfileRealtime(user.id);
-            }
-          } catch (error) {
-            console.error('Error fetching user profile (auth change):', error);
-            // Don't null the profile on transient fetch errors — keep existing state
-          }
-        } else {
-          setProfile(null);
-          // Clean up profile subscription
-          if (profileChannel) {
-            supabase.removeChannel(profileChannel);
-            profileChannel = null;
-          }
-        }
-
-        setLoading(false);
-      }
+      if (event === 'TOKEN_REFRESH_FAILED') return; // A failed refresh is not proof of revocation; the session watcher checks online.
+      void applySession(session?.user ?? null, event === 'TOKEN_REFRESHED');
     });
-
     return () => {
-      isMounted = false;
+      mounted = false;
+      version++;
       subscription.unsubscribe();
-      if (profileChannel) {
-        supabase.removeChannel(profileChannel);
-      }
+      stopProfile();
     };
-  }, []); // Empty deps — auth listener must never be torn down and re-registered mid-session
+  }, []);
 
   const signUp = async (email: string, password: string, name: string, username?: string) => {
     setLoading(true);
@@ -417,8 +209,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     setLoading(true);
     try {
-
-
       if (user) {
         try {
           const deviceId = await getOrCreateDeviceId();
@@ -432,7 +222,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      FileSystem.deleteAsync(PROFILE_CACHE_FILE, { idempotent: true }).catch(() => {});
+      localCache.setAccount(null);
       const result = await AuthService.signOut();
       setUser(null);
       setProfile(null);
@@ -460,6 +250,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const updatedProfile = profile ? { ...profile, ...updates } : null;
       setProfile(updatedProfile);
+      if (updatedProfile) void localCache.write(user.id, 'profile', 'self', updatedProfile);
     } catch (error) {
       console.error('Error updating profile:', error);
       throw error;
@@ -489,8 +280,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw new Error(error.message || 'Failed to verify OTP');
       if (data?.error) {
         let errMessage = data.error;
-        if (typeof errMessage === 'string' && (errMessage.toLowerCase().includes('token') || errMessage.toLowerCase().includes('expired'))) {
-          errMessage = 'The verification code has expired. Please request a new code and try again.';
+        if (
+          typeof errMessage === 'string' &&
+          (errMessage.toLowerCase().includes('token') ||
+            errMessage.toLowerCase().includes('expired'))
+        ) {
+          errMessage =
+            'The verification code has expired. Please request a new code and try again.';
         }
         throw new Error(errMessage);
       }
@@ -498,14 +294,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (profile) {
         const updatedProfile = { ...profile, phone_verified: true };
         setProfile(updatedProfile);
-        FileSystem.writeAsStringAsync(PROFILE_CACHE_FILE, JSON.stringify(updatedProfile)).catch(
-          () => {}
-        );
+        if (user?.id) void localCache.write(user.id, 'profile', 'self', updatedProfile);
       }
       return true;
     } catch (err: any) {
       let errMessage = err.message || err;
-      if (typeof errMessage === 'string' && (errMessage.toLowerCase().includes('token') || errMessage.toLowerCase().includes('expired'))) {
+      if (
+        typeof errMessage === 'string' &&
+        (errMessage.toLowerCase().includes('token') || errMessage.toLowerCase().includes('expired'))
+      ) {
         errMessage = 'The verification code has expired. Please request a new code and try again.';
       }
       throw new Error(errMessage);
