@@ -213,7 +213,6 @@ function Layout() {
             <ThemeProvider>
               <BottomSheetModalProvider>
                 <AuthProvider>
-                  <CrispChat />
                   <LocationProvider>
                     <NotificationBadgeProvider>
                       <AudioSettingsHandler />
@@ -221,6 +220,7 @@ function Layout() {
                       <RootNavigationGuard onAuthLoadingChange={setAuthLoading} />
                     </NotificationBadgeProvider>
                   </LocationProvider>
+                  <CrispChat />
                 </AuthProvider>
               </BottomSheetModalProvider>
             </ThemeProvider>

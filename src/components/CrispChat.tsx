@@ -1,4 +1,7 @@
 import { useEffect, useRef } from 'react';
+import { Alert, Pressable, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   configure,
   resetSession,
@@ -13,18 +16,28 @@ import { useAuth } from '../hooks/use-supabase-auth';
 import { supabase } from '../lib/supabase';
 import { WEB_APP_URL } from '../lib/api';
 
-const websiteId = process.env.EXPO_PUBLIC_CRISP_WEBSITE_ID;
+// Website IDs are public configuration, never identity-verification secrets.
+const websiteId = process.env.EXPO_PUBLIC_CRISP_WEBSITE_ID || 'e843a16b-9483-4622-9c42-5586532ab2fa';
 let configuredWebsiteId: string | null = null;
 
 export const isCrispChatEnabled = Boolean(websiteId);
 
 export function openCrispChat() {
-  if (!websiteId || configuredWebsiteId !== websiteId) return;
-  show();
+  try {
+    if (configuredWebsiteId !== websiteId) {
+      setShouldPromptForNotificationPermission(false);
+      configure(websiteId);
+      configuredWebsiteId = websiteId;
+    }
+    show();
+  } catch {
+    Alert.alert('Support unavailable', 'Please email support@yrdly.ng while chat is unavailable.');
+  }
 }
 
 export default function CrispChat() {
   const { user, profile } = useAuth();
+  const insets = useSafeAreaInsets();
   const previousUserId = useRef<string | null>(null);
   const currentUserId = useRef<string | null>(user?.id ?? null);
   const currentEmail = useRef<string | null>(user?.email ?? null);
@@ -132,5 +145,23 @@ export default function CrispChat() {
     };
   }, [user?.id, user?.email]);
 
-  return null;
+  if (!user) return null;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Chat with Yrdly support"
+      onPress={openCrispChat}
+      style={[styles.launcher, { bottom: Math.max(insets.bottom, 12) + 80 }]}
+    >
+      <Ionicons name="chatbubble-ellipses" size={25} color="#102114" />
+    </Pressable>
+  );
 }
+
+const styles = StyleSheet.create({
+  launcher: {
+    position: 'absolute', right: 16, width: 48, height: 48, borderRadius: 24,
+    backgroundColor: '#82DB7E', alignItems: 'center', justifyContent: 'center',
+    zIndex: 100, elevation: 8,
+  },
+});

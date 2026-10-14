@@ -3,7 +3,6 @@ import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useFollowStatus } from '../hooks/use-follow-status';
-import { GlassCard } from './GlassCard';
 import { Avatar } from './Avatar';
 
 interface DiscoverUserCardProps {
@@ -60,11 +59,7 @@ export function DiscoverUserCard({ user, context, mutualCount, onPress }: Discov
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={stylesheet.container}>
-      <GlassCard
-        intensity={80}
-        style={StyleSheet.flatten([stylesheet.card, { borderColor: theme.colors.GLASS_BORDER }])}
-        contentStyle={stylesheet.cardContent}
-      >
+      <View style={[stylesheet.cardContent, { borderBottomColor: theme.colors.GLASS_BORDER, borderBottomWidth: StyleSheet.hairlineWidth }]}>
         <Avatar
           url={user?.avatar_url}
           name={user?.name}
@@ -114,7 +109,7 @@ export function DiscoverUserCard({ user, context, mutualCount, onPress }: Discov
             <Text style={[stylesheet.actionText, { color: theme.colors.G }]}>Follow</Text>
           )}
         </TouchableOpacity>
-      </GlassCard>
+      </View>
     </TouchableOpacity>
   );
 }

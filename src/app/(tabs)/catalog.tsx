@@ -16,6 +16,8 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { Avatar } from '../../components/Avatar';
+import { MarketplaceFavorite } from '../../components/MarketplaceFavorite';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -358,9 +360,7 @@ function MarketplaceSection({
                       />
                     );
                   })()}
-                  <View style={sStylesheet.marketplaceCardSave}>
-                    <Ionicons name="heart-outline" size={16} color={theme.colors.TEXT_PRIMARY} />
-                  </View>
+                  <MarketplaceFavorite item={item} />
                   <View style={sStylesheet.marketplaceCardCond}>
                     <Text style={sStylesheet.marketplaceCardCondText}>
                       {item.condition || 'Good'}
@@ -702,7 +702,7 @@ function CatalogEventCard({ item, router, theme, sStylesheet }: any) {
           style={sStylesheet.eventCardImg}
           contentFit="cover"
         />
-        <View style={sStylesheet.eventCardGradient} />
+        
         <View style={sStylesheet.eventCardDate}>
           <Text style={sStylesheet.eventCardDateText}>
             {new Date(item.start_time || item.date).toLocaleDateString('en-US', {
@@ -715,7 +715,7 @@ function CatalogEventCard({ item, router, theme, sStylesheet }: any) {
           <Ionicons
             name={saved ? 'bookmark' : 'bookmark-outline'}
             size={16}
-            color={saved ? theme.colors.G : theme.colors.TEXT_PRIMARY}
+            color={saved ? theme.colors.G : '#FFFFFF'}
           />
         </TouchableOpacity>
         <View style={sStylesheet.eventCardPrice}>
@@ -1031,14 +1031,10 @@ function PlacesSection({
                 activeOpacity={0.9}
               >
                 <View style={sStylesheet.placePhotoWrap}>
-                  <Image
-                    source={
-                      item.cover_image || (item as any).logo_url || item.logo
-                        ? { uri: item.cover_image || (item as any).logo_url || item.logo }
-                        : undefined
-                    }
+                  <Avatar
+                    url={(item as any).logo_url || item.logo || item.cover_image || item.image_urls?.[0]}
+                    name={item.name}
                     style={sStylesheet.placePhoto}
-                    contentFit="cover"
                   />
                 </View>
                 <View style={sStylesheet.placeInfo}>
@@ -1586,12 +1582,12 @@ const stylesheet = StyleSheet.create((theme) => ({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: 'rgba(15,23,18,0.88)',
   },
   marketplaceCardCondText: {
     fontFamily: 'Inter-SemiBold',
     fontSize: 10,
-    color: theme.colors.TEXT_PRIMARY,
+    color: '#FFFFFF',
   },
   marketplaceCardTitle: {
     fontFamily: 'Outfit-SemiBold',
@@ -1640,11 +1636,11 @@ const stylesheet = StyleSheet.create((theme) => ({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 10,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: 'rgba(15,23,18,0.88)',
     borderWidth: 1,
     borderColor: theme.colors.GLASS_BORDER,
   },
-  eventCardDateText: { fontFamily: 'Outfit-Bold', fontSize: 12, color: theme.colors.TEXT_PRIMARY },
+  eventCardDateText: { fontFamily: 'Outfit-Bold', fontSize: 12, color: '#FFFFFF' },
   eventCardSave: {
     position: 'absolute',
     top: 10,
@@ -1652,7 +1648,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(15,23,18,0.88)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1663,7 +1659,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 8,
-    backgroundColor: 'rgba(130,219,126,0.18)',
+    backgroundColor: 'rgba(15,23,18,0.88)',
     borderWidth: 1,
     borderColor: 'rgba(130,219,126,0.28)',
   },
