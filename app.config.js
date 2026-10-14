@@ -154,7 +154,8 @@ module.exports = {
             enableMultiDex: true
           }
         }
-      ]
+      ],
+      "./plugins/withAndroidBuildMemory.js"
     ],
     newArchEnabled: true,
     experiments: {
