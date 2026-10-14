@@ -1,4 +1,4 @@
-import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles';
 import React, { useState } from 'react';
 import {
   View,
@@ -24,7 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 const { colors, radii } = ONBOARDING_THEME;
 
 export default function PhoneScreen() {
-  const { theme } = useUnistyles(); const styles = stylesheet;
+  const styles = stylesheet;
   const router = useRouter();
   const [phone, setPhone] = useState('');
 
@@ -102,7 +102,7 @@ export default function PhoneScreen() {
   );
 }
 
-const stylesheet = UnistylesStyleSheet.create((theme) => ({
+const stylesheet = UnistylesStyleSheet.create(() => ({
   container: {
     flex: 1,
     backgroundColor: colors.DARK,
@@ -132,7 +132,7 @@ const stylesheet = UnistylesStyleSheet.create((theme) => ({
   titleText: {
     fontSize: 24,
     fontFamily: 'Outfit-ExtraBold',
-    color: theme.colors.TEXT_PRIMARY,
+    color: colors.TEXT_PRIMARY,
   },
   subtitleText: {
     fontSize: 14,
@@ -155,7 +155,7 @@ const stylesheet = UnistylesStyleSheet.create((theme) => ({
     borderColor: colors.GLASS_BORDER,
   },
   countryCode: {
-    color: theme.colors.TEXT_PRIMARY,
+    color: colors.TEXT_PRIMARY,
     fontSize: 14,
     fontFamily: 'Inter-SemiBold',
   },

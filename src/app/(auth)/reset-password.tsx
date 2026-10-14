@@ -1,4 +1,4 @@
-import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles';
 import React, { useState } from 'react';
 import {
   View,
@@ -28,7 +28,7 @@ import { Alert } from 'react-native';
 const { colors, radii } = ONBOARDING_THEME;
 
 export default function ResetPasswordScreen() {
-  const { theme } = useUnistyles(); const styles = stylesheet;
+  const styles = stylesheet;
   const router = useRouter();
   const [pw, setPw] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -159,7 +159,7 @@ export default function ResetPasswordScreen() {
   );
 }
 
-const stylesheet = UnistylesStyleSheet.create((theme) => ({
+const stylesheet = UnistylesStyleSheet.create(() => ({
   container: {
     flex: 1,
     backgroundColor: colors.DARK,
@@ -181,7 +181,7 @@ const stylesheet = UnistylesStyleSheet.create((theme) => ({
   titleText: {
     fontSize: 24,
     fontFamily: 'Outfit-ExtraBold',
-    color: theme.colors.TEXT_PRIMARY,
+    color: colors.TEXT_PRIMARY,
   },
   subtitleText: {
     fontSize: 14,

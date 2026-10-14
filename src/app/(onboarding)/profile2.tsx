@@ -1,4 +1,4 @@
-import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles';
 import React, { useState } from 'react';
 import {
   View,
@@ -24,7 +24,6 @@ import { resolveCoords } from '@/lib/geocoding-service';
 const { colors, radii } = ONBOARDING_THEME;
 
 export default function Profile2Screen() {
-  const { theme } = useUnistyles();
   const styles = stylesheet;
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -197,7 +196,7 @@ export default function Profile2Screen() {
   );
 }
 
-const stylesheet = UnistylesStyleSheet.create((theme) => ({
+const stylesheet = UnistylesStyleSheet.create(() => ({
   container: {
     flex: 1,
     backgroundColor: '#0e0e0e',
@@ -220,7 +219,7 @@ const stylesheet = UnistylesStyleSheet.create((theme) => ({
   cardTitle: {
     fontFamily: 'Outfit-ExtraBold',
     fontSize: 22,
-    color: theme.colors.TEXT_PRIMARY,
+    color: colors.TEXT_PRIMARY,
     marginBottom: 4,
   },
   cardSubtitle: {
@@ -237,7 +236,7 @@ const stylesheet = UnistylesStyleSheet.create((theme) => ({
   },
   input: {
     backgroundColor: 'rgba(15,15,15,0.7)',
-    color: theme.colors.TEXT_PRIMARY,
+    color: colors.TEXT_PRIMARY,
     fontFamily: 'Inter-Regular',
     fontSize: 16,
     borderWidth: 1,
@@ -267,7 +266,7 @@ const stylesheet = UnistylesStyleSheet.create((theme) => ({
     borderBottomColor: colors.GLASS_BORDER,
   },
   description: {
-    color: theme.colors.TEXT_PRIMARY,
+    color: colors.TEXT_PRIMARY,
     fontFamily: 'Inter-Regular',
     fontSize: 14,
   },

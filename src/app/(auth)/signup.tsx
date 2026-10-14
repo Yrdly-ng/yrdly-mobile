@@ -1,4 +1,4 @@
-import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles';
 import React, { useState } from 'react';
 import {
   View,
@@ -30,7 +30,7 @@ import { Ionicons } from '@expo/vector-icons';
 const { colors } = ONBOARDING_THEME;
 
 export default function SignUpScreen() {
-  const { theme } = useUnistyles(); const styles = stylesheet;
+  const styles = stylesheet;
   const router = useRouter();
   const { signUp, signInWithGoogle, signInWithApple, loading } = useAuth();
 
@@ -178,7 +178,7 @@ export default function SignUpScreen() {
   );
 }
 
-const stylesheet = UnistylesStyleSheet.create((theme) => ({
+const stylesheet = UnistylesStyleSheet.create(() => ({
   container: {
     flex: 1,
     backgroundColor: colors.DARK,
@@ -207,7 +207,7 @@ const stylesheet = UnistylesStyleSheet.create((theme) => ({
   titleText: {
     fontSize: 26,
     fontFamily: 'Outfit-ExtraBold',
-    color: theme.colors.TEXT_PRIMARY,
+    color: colors.TEXT_PRIMARY,
   },
   subtitleText: {
     fontSize: 14,

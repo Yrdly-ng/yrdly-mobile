@@ -1,4 +1,4 @@
-import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles';
 import React, { useState } from 'react';
 import {
   View,
@@ -31,7 +31,6 @@ import { Ionicons } from '@expo/vector-icons';
 const { colors, radii } = ONBOARDING_THEME;
 
 export default function Profile1Screen() {
-  const { theme } = useUnistyles();
   const styles = stylesheet;
   const router = useRouter();
   const { user, profile, updateProfile } = useAuth();
@@ -372,7 +371,7 @@ const stylesheet = UnistylesStyleSheet.create((theme) => ({
   cardTitle: {
     fontFamily: 'Outfit-ExtraBold',
     fontSize: 22,
-    color: theme.colors.TEXT_PRIMARY,
+    color: colors.TEXT_PRIMARY,
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -441,7 +440,7 @@ const stylesheet = UnistylesStyleSheet.create((theme) => ({
     borderWidth: 1,
     borderColor: colors.GLASS_BORDER,
     borderRadius: radii.input,
-    color: theme.colors.TEXT_PRIMARY,
+    color: colors.TEXT_PRIMARY,
     fontSize: 15,
     fontFamily: 'Inter-Regular',
     paddingHorizontal: 16,

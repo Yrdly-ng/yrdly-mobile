@@ -1,4 +1,4 @@
-import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -18,7 +18,7 @@ import { ONBOARDING_THEME } from '@/constants/onboarding-theme';
 const { colors } = ONBOARDING_THEME;
 
 export default function VerifyOtpScreen() {
-  const { theme } = useUnistyles(); const styles = stylesheet;
+  const styles = stylesheet;
   const router = useRouter();
   const { phone } = useLocalSearchParams();
   const [digits, setDigits] = useState(['', '', '', '', '', '']);
@@ -141,7 +141,7 @@ export default function VerifyOtpScreen() {
   );
 }
 
-const stylesheet = UnistylesStyleSheet.create((theme) => ({
+const stylesheet = UnistylesStyleSheet.create(() => ({
   container: {
     flex: 1,
     backgroundColor: colors.DARK,
@@ -163,7 +163,7 @@ const stylesheet = UnistylesStyleSheet.create((theme) => ({
   titleText: {
     fontSize: 24,
     fontFamily: 'Outfit-ExtraBold',
-    color: theme.colors.TEXT_PRIMARY,
+    color: colors.TEXT_PRIMARY,
   },
   subtitleText: {
     fontSize: 14,
@@ -180,7 +180,7 @@ const stylesheet = UnistylesStyleSheet.create((theme) => ({
     borderRadius: 12,
     borderWidth: 1.5,
     textAlign: 'center',
-    color: theme.colors.TEXT_PRIMARY,
+    color: colors.TEXT_PRIMARY,
     fontSize: 22,
     fontFamily: 'Inter-Bold',
   },

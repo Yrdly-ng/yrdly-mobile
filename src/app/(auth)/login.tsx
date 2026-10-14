@@ -1,4 +1,4 @@
-import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles';
 import React, { useState } from 'react';
 import {
   View,
@@ -29,7 +29,6 @@ import { ErrorMessageFormatter } from '@/lib/error-messages';
 const { colors } = ONBOARDING_THEME;
 
 export default function LoginScreen() {
-  const { theme } = useUnistyles();
   const styles = stylesheet;
   const router = useRouter();
   const { signIn, signInWithGoogle, signInWithApple, loading } = useAuth();
@@ -191,7 +190,7 @@ export default function LoginScreen() {
   );
 }
 
-const stylesheet = UnistylesStyleSheet.create((theme) => ({
+const stylesheet = UnistylesStyleSheet.create(() => ({
   container: {
     flex: 1,
     backgroundColor: colors.DARK,
@@ -220,7 +219,7 @@ const stylesheet = UnistylesStyleSheet.create((theme) => ({
   titleText: {
     fontSize: 26,
     fontFamily: 'Outfit-ExtraBold',
-    color: theme.colors.TEXT_PRIMARY,
+    color: colors.TEXT_PRIMARY,
   },
   subtitleText: {
     fontSize: 14,

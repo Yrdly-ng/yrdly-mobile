@@ -1,4 +1,4 @@
-import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles';
 import React, { useState } from 'react';
 import {
   View,
@@ -25,7 +25,7 @@ import { Ionicons } from '@expo/vector-icons';
 const { colors, radii } = ONBOARDING_THEME;
 
 export default function ForgotPasswordScreen() {
-  const { theme } = useUnistyles(); const styles = stylesheet;
+  const styles = stylesheet;
   const router = useRouter();
   const { resetPassword, loading } = useAuth();
   const [email, setEmail] = useState('');
@@ -105,7 +105,7 @@ export default function ForgotPasswordScreen() {
                   <Text style={styles.sentText}>
                     Reset link sent to{' '}
                     <Text
-                      style={{ color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-SemiBold' }}
+                      style={{ color: colors.TEXT_PRIMARY, fontFamily: 'Inter-SemiBold' }}
                     >
                       {email || 'your email'}
                     </Text>
@@ -128,7 +128,7 @@ export default function ForgotPasswordScreen() {
   );
 }
 
-const stylesheet = UnistylesStyleSheet.create((theme) => ({
+const stylesheet = UnistylesStyleSheet.create(() => ({
   container: {
     flex: 1,
     backgroundColor: colors.DARK,
@@ -172,7 +172,7 @@ const stylesheet = UnistylesStyleSheet.create((theme) => ({
   titleText: {
     fontSize: 24,
     fontFamily: 'Outfit-ExtraBold',
-    color: theme.colors.TEXT_PRIMARY,
+    color: colors.TEXT_PRIMARY,
     textAlign: 'center',
   },
   descText: {

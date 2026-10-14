@@ -1,4 +1,4 @@
-import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
+import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -20,7 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 const { colors } = ONBOARDING_THEME;
 
 export default function VerifyEmailScreen() {
-  const { theme } = useUnistyles(); const styles = stylesheet;
+  const styles = stylesheet;
   const router = useRouter();
   const { email } = useLocalSearchParams();
   const [digits, setDigits] = useState(['', '', '', '', '', '']);
@@ -123,7 +123,7 @@ export default function VerifyEmailScreen() {
                 <Text style={styles.titleText}>Verify your email</Text>
                 <Text style={styles.descText}>
                   We sent a 6-digit code to{' '}
-                  <Text style={{ color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-SemiBold' }}>
+                  <Text style={{ color: colors.TEXT_PRIMARY, fontFamily: 'Inter-SemiBold' }}>
                     {typeof email === 'string' ? email : 'your email'}
                   </Text>
                 </Text>
@@ -186,7 +186,7 @@ export default function VerifyEmailScreen() {
   );
 }
 
-const stylesheet = UnistylesStyleSheet.create((theme) => ({
+const stylesheet = UnistylesStyleSheet.create(() => ({
   container: {
     flex: 1,
     backgroundColor: colors.DARK,
@@ -220,7 +220,7 @@ const stylesheet = UnistylesStyleSheet.create((theme) => ({
   titleText: {
     fontSize: 24,
     fontFamily: 'Outfit-ExtraBold',
-    color: theme.colors.TEXT_PRIMARY,
+    color: colors.TEXT_PRIMARY,
     textAlign: 'center',
   },
   descText: {
@@ -248,7 +248,7 @@ const stylesheet = UnistylesStyleSheet.create((theme) => ({
     borderRadius: 16,
     borderWidth: 1.5,
     textAlign: 'center',
-    color: theme.colors.TEXT_PRIMARY,
+    color: colors.TEXT_PRIMARY,
     fontSize: 22,
     fontFamily: 'Inter-Bold',
   },
