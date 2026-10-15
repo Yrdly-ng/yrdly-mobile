@@ -12,8 +12,8 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { supabase } from '../../lib/supabase';
-import { api } from '../../lib/api';
+import { supabase } from '../../lib/supabase/supabase';
+import { api } from '../../lib/network/api';
 import { useAuth } from '../../hooks/use-supabase-auth';
 type PayoutStatus = 'pending' | 'processing' | 'completed' | 'failed';
 

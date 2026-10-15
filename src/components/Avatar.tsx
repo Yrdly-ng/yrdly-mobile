@@ -3,7 +3,7 @@ import { View, Text, Pressable, StyleProp, ViewStyle, StyleSheet } from 'react-n
 import { Image, ImageStyle } from 'expo-image';
 import { useUnistyles } from 'react-native-unistyles';
 import ImageViewing from 'react-native-image-viewing';
-import { StorageService } from '../lib/storage-service';
+import { StorageService } from '../lib/media/storage-service';
 
 interface AvatarProps {
   url?: string | null;

@@ -14,9 +14,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import ImagePicker from 'react-native-image-crop-picker';
 import { Image } from 'expo-image';
-import { StorageService } from '../../../lib/storage-service';
+import { StorageService } from '../../../lib/media/storage-service';
 import { useAuth } from '../../../hooks/use-supabase-auth';
-import { DisputeService } from '../../../lib/dispute-service';
+import { DisputeService } from '../../../lib/disputes/dispute-service';
 
 const DISPUTE_REASONS = [
   { value: 'item_not_received', label: 'Item Not Received' },

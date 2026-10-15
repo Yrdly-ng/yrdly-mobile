@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AppState } from 'react-native';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase/supabase';
 import { useAuth } from '@/hooks/use-supabase-auth';
-import { NotificationService } from '@/lib/notification-service';
+import { NotificationService } from '@/lib/notifications/notification-service';
 
 interface NotificationBadgeContextType {
   unreadCount: number;

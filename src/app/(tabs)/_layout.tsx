@@ -18,10 +18,10 @@ import Animated, {
   SlideInDown,
   SlideOutDown,
 } from 'react-native-reanimated';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { useToast } from '../../components/toast';
-import { getActiveConversationId } from '../../lib/active-chat-tracker';
+import { getActiveConversationId } from '../../lib/offline/active-chat-tracker';
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 /** Wraps any tab icon with a spring scale animation on focus */

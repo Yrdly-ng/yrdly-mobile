@@ -4,7 +4,7 @@ import {
   detectLocation as detectLocationService,
   ResolvedLocation,
   OUTSIDE_NIGERIA,
-} from '@/lib/geocoding-service';
+} from '@/lib/location/geocoding-service';
 
 // ── Types ───────────────────────────────────────────────────────
 

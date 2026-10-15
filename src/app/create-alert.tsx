@@ -13,8 +13,8 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { GooglePlacesAutocomplete } from '@/components/PlacesAutocomplete';
-import { api } from '../lib/api';
+import { GooglePlacesAutocomplete } from '@/components/location/PlacesAutocomplete';
+import { api } from '../lib/network/api';
 import { useAuth } from '../hooks/use-supabase-auth';
 
 const SEVERITY_COLORS = {

@@ -12,13 +12,13 @@ import {
 import { Image } from 'expo-image';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { Post } from '../../types';
 import { useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ProfilePostGridItem } from '../../components/ProfilePostGridItem';
-import { UserReviewService } from '../../lib/user-review-service';
+import { ProfilePostGridItem } from '../../components/profile/ProfilePostGridItem';
+import { UserReviewService } from '../../lib/reviews/user-review-service';
 import { FontAwesome, MaterialIcons } from '@expo/vector-icons';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { Avatar } from '../../components/Avatar';
@@ -239,7 +239,7 @@ export default function OtherUserProfileScreen() {
         setFollowersCount((prev) => prev + 1);
 
         // Trigger notification
-        const { NotificationTriggers } = await import('../../lib/notification-triggers');
+        const { NotificationTriggers } = await import('../../lib/notifications/notification-triggers');
         await NotificationTriggers.onNewFollower(currentProfile.id, profile.id);
       }
       setIsFollowing(!isFollowing);

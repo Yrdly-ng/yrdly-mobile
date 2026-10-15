@@ -15,12 +15,12 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Image } from 'expo-image';
-import { BusinessImage } from '@/components/BusinessImage';
+import { BusinessImage } from '@/components/businesses/BusinessImage';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../../components/Avatar';
 import { VerifiedBadge, BusinessBadge } from '../../components/VerifiedBadge';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { Business, CatalogItem } from '../../types';

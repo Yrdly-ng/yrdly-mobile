@@ -16,10 +16,10 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SceneBg, GlassCard, StepBar, PrimaryBtn } from '@/components/onboarding/primitives';
 import { ONBOARDING_THEME } from '@/constants/onboarding-theme';
-import { AuthService } from '@/lib/auth-service';
+import { AuthService } from '@/lib/auth/auth-service';
 import { useAuth } from '@/hooks/use-supabase-auth';
-import { GooglePlacesAutocomplete } from '@/components/PlacesAutocomplete';
-import { resolveCoords } from '@/lib/geocoding-service';
+import { GooglePlacesAutocomplete } from '@/components/location/PlacesAutocomplete';
+import { resolveCoords } from '@/lib/location/geocoding-service';
 
 const { colors, radii } = ONBOARDING_THEME;
 

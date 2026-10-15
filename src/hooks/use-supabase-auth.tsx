@@ -2,12 +2,12 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { AuthService, AuthUser } from '@/lib/auth-service';
-import { supabase } from '@/lib/supabase';
-import { getOrCreateDeviceId } from '@/lib/device-id';
+import { AuthService, AuthUser } from '@/lib/auth/auth-service';
+import { supabase } from '@/lib/supabase/supabase';
+import { getOrCreateDeviceId } from '@/lib/offline/device-id';
 import NetInfo from '@react-native-community/netinfo';
-import { localCache } from '@/lib/local-cache';
-import { watchSession } from '@/lib/session-policy';
+import { localCache } from '@/lib/offline/local-cache';
+import { watchSession } from '@/lib/auth/session-policy';
 
 interface AuthContextType {
   user: User | null;

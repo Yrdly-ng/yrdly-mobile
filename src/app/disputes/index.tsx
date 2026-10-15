@@ -5,7 +5,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useUnistyles } from 'react-native-unistyles';
 import { useAuth } from '../../hooks/use-supabase-auth';
-import { DisputeData, DisputeService } from '../../lib/dispute-service';
+import { DisputeData, DisputeService } from '../../lib/disputes/dispute-service';
 
 export default function CustomerDisputesScreen() {
   const { theme } = useUnistyles();

@@ -6,9 +6,9 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useUnistyles } from 'react-native-unistyles';
 import { useAuth } from '../../hooks/use-supabase-auth';
-import { DisputeData, DisputeService } from '../../lib/dispute-service';
+import { DisputeData, DisputeService } from '../../lib/disputes/dispute-service';
 import ImagePicker from 'react-native-image-crop-picker';
-import { StorageService } from '../../lib/storage-service';
+import { StorageService } from '../../lib/media/storage-service';
 
 export default function CustomerDisputeDetailScreen() {
   const { theme } = useUnistyles();

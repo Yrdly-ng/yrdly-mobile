@@ -13,8 +13,8 @@ import { Image } from 'expo-image';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../hooks/use-supabase-auth';
-import { getOrganizerEvents } from '../lib/event-service';
-import { supabase } from '../lib/supabase';
+import { getOrganizerEvents } from '../lib/events/event-service';
+import { supabase } from '../lib/supabase/supabase';
 import type { Event } from '../types/events';
 
 export default function MyEventsScreen() {

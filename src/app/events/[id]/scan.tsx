@@ -5,8 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { supabase } from '../../../lib/supabase';
-import { api } from '../../../lib/api';
+import { supabase } from '../../../lib/supabase/supabase';
+import { api } from '../../../lib/network/api';
 
 const RED = '#B71C1C';
 

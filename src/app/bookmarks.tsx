@@ -1,12 +1,12 @@
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, RefreshControl, Dimensions } from 'react-native';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase/supabase';
 import { useAuth } from '../hooks/use-supabase-auth';
 import { Post } from '../types';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { PostCard } from '../components/PostCard';
-import { EventCard } from '../components/EventCard';
+import { PostCard } from '../components/posts/PostCard';
+import { EventCard } from '../components/events/EventCard';
 import { useRouter } from 'expo-router';
 import { PostSkeleton } from '../components/Skeleton';
 const { width } = Dimensions.get('window');

@@ -10,8 +10,8 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { AlertService, Alert } from '../lib/alert-service';
-import { AlertBanner } from '../components/AlertBanner';
+import { AlertService, Alert } from '../lib/alerts/alert-service';
+import { AlertBanner } from '../components/alerts/AlertBanner';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 type SeverityFilter = 'all' | 'urgent' | 'caution' | 'information';
 

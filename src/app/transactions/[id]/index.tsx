@@ -13,13 +13,13 @@ import Animated, {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { supabase } from '../../../lib/supabase';
+import { supabase } from '../../../lib/supabase/supabase';
 import { useAuth } from '../../../hooks/use-supabase-auth';
-import { formatPrice } from '../../../lib/utils';
+import { formatPrice } from '../../../lib/shared/utils';
 import { useAppTheme } from '../../../context/ThemeContext';
-import { MARKETPLACE_CONSTANTS } from '../../../lib/constants';
+import { MARKETPLACE_CONSTANTS } from '../../../lib/shared/constants';
 
-import { api } from '../../../lib/api';
+import { api } from '../../../lib/network/api';
 
 type EscrowStatus =
   'pending' | 'paid' | 'shipped' | 'delivered' | 'completed' | 'disputed' | 'cancelled';

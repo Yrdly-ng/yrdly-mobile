@@ -21,9 +21,9 @@ import { Image } from 'expo-image';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase/supabase';
 import { useAuth } from '../hooks/use-supabase-auth';
-import { getMyTickets } from '../lib/event-service';
+import { getMyTickets } from '../lib/events/event-service';
 import { Post } from '../types';
 import { Ticket, Event } from '../types/events';
 const getTicketStatusInfo = (ticket: Ticket) => {

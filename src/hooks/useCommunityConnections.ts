@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Alert, Platform, Share } from 'react-native';
 import { useRouter } from 'expo-router';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase/supabase';
 import { useAuth } from './use-supabase-auth';
 import { useLocation } from '../context/LocationContext';
 

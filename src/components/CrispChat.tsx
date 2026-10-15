@@ -13,8 +13,8 @@ import {
   show,
 } from 'crisp-sdk-react-native';
 import { useAuth } from '../hooks/use-supabase-auth';
-import { supabase } from '../lib/supabase';
-import { WEB_APP_URL } from '../lib/api';
+import { supabase } from '../lib/supabase/supabase';
+import { WEB_APP_URL } from '../lib/network/api';
 
 // Website IDs are public configuration, never identity-verification secrets.
 const websiteId = process.env.EXPO_PUBLIC_CRISP_WEBSITE_ID || 'e843a16b-9483-4622-9c42-5586532ab2fa';

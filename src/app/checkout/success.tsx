@@ -4,7 +4,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { formatPrice } from '../../lib/utils';
+import { formatPrice } from '../../lib/shared/utils';
 
 export default function CheckoutSuccessScreen() {
   const { theme } = useUnistyles(); const stylesheet = _stylesheet;

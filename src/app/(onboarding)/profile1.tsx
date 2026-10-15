@@ -22,10 +22,10 @@ import {
   PrimaryBtn,
 } from '@/components/onboarding/primitives';
 import { ONBOARDING_THEME } from '@/constants/onboarding-theme';
-import { AuthService } from '@/lib/auth-service';
-import { StorageService } from '@/lib/storage-service';
+import { AuthService } from '@/lib/auth/auth-service';
+import { StorageService } from '@/lib/media/storage-service';
 import { useAuth } from '@/hooks/use-supabase-auth';
-import { ModerationService } from '@/lib/moderation-service';
+import { ModerationService } from '@/lib/moderation/moderation-service';
 import { Ionicons } from '@expo/vector-icons';
 
 const { colors, radii } = ONBOARDING_THEME;
@@ -182,7 +182,7 @@ export default function Profile1Screen() {
         });
 
         if (avatarModerationStatus === 'pending') {
-          const { supabase } = require('@/lib/supabase'); // importing supabase dynamically if not present or just add it to top
+          const { supabase } = require('@/lib/supabase/supabase'); // importing supabase dynamically if not present or just add it to top
           await supabase.from('moderation_queue').insert({
             content_id: user.id,
             table_name: 'users',

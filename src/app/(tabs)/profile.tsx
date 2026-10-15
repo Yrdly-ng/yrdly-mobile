@@ -14,13 +14,13 @@ import { FlashList } from '@shopify/flash-list';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../hooks/use-supabase-auth';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase/supabase';
 import { PostSkeleton } from '../../components/Skeleton';
 import { Post } from '../../types';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ProfilePostGridItem } from '../../components/ProfilePostGridItem';
-import ProfileQuickAccess from '../../components/ProfileQuickAccess';
+import { ProfilePostGridItem } from '../../components/profile/ProfilePostGridItem';
+import ProfileQuickAccess from '../../components/profile/ProfileQuickAccess';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { Avatar } from '../../components/Avatar';
 import Animated, {

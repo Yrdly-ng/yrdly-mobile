@@ -17,7 +17,7 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../../hooks/use-supabase-auth';
 import { Avatar } from '../../../components/Avatar';
-import { DisputeService } from '../../../lib/dispute-service';
+import { DisputeService } from '../../../lib/disputes/dispute-service';
 
 const RESOLUTION_OPTIONS = [
   { value: 'refund_buyer', label: 'Refund Buyer', icon: 'rotate-ccw' as const },

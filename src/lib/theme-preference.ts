@@ -13,7 +13,7 @@ export async function getStoredThemePreference(): Promise<'light' | 'dark' | nul
 }
 
 // DEPRECATED: Sync SecureStore.getItem crashes on iOS New Arch (SIGABRT) when
-// called during module evaluation (see YRDLY-2026-10-06-122102.ips).
+// called during module evaluation (see docs/qa/incidents/YRDLY-2026-10-06-122102.ips).
 // Kept for backwards-compat but now safe - it no longer touches native code.
 // Use getStoredThemePreference() (async) instead - hydration happens in _layout.tsx.
 export function getStoredThemePreferenceSync(): 'light' | 'dark' | null {

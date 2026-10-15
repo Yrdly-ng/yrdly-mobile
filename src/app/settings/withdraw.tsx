@@ -12,9 +12,9 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api } from '../../lib/api';
-import { ApiError } from '../../lib/api-client';
-import { parseWithdrawalQuote } from '../../lib/payout-quote';
+import { api } from '../../lib/network/api';
+import { ApiError } from '../../lib/network/api-client';
+import { parseWithdrawalQuote } from '../../lib/payments/payout-quote';
 import { useAuth } from '../../hooks/use-supabase-auth';
 
 export default function WithdrawScreen() {

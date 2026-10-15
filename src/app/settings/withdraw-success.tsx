@@ -4,7 +4,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { api } from '../../lib/api';
+import { api } from '../../lib/network/api';
 
 export default function WithdrawSuccessScreen() {
   const { theme } = useUnistyles(); const s = sStylesheet;

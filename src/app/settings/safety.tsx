@@ -4,9 +4,9 @@ import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase/supabase';
 import { SafetyAlert } from '../../types';
-import { api } from '../../lib/api';
+import { api } from '../../lib/network/api';
 import { isResolved } from '../../constants/alerts';
 
 export default function SafetyAlertsScreen() {

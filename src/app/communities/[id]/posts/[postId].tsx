@@ -15,10 +15,10 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Image } from 'expo-image';
 import { ArrowLeft, PaperPlaneTilt, Heart } from 'phosphor-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase/supabase';
 import { useAuth } from '@/hooks/use-supabase-auth';
-import { CommunityService, CommunityPost, CommunityComment } from '@/lib/community-service';
-import { timeAgo } from '@/lib/utils';
+import { CommunityService, CommunityPost, CommunityComment } from '@/lib/communities/community-service';
+import { timeAgo } from '@/lib/shared/utils';
 import { useToast } from '@/components/toast';
 
 function CommentRow({ comment }: { comment: CommunityComment }) {

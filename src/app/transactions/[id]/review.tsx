@@ -13,10 +13,10 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { supabase } from '../../../lib/supabase';
+import { supabase } from '../../../lib/supabase/supabase';
 import { useAuth } from '../../../hooks/use-supabase-auth';
-import { ReviewService } from '../../../lib/review-service';
-import { UserReviewService } from '../../../lib/user-review-service';
+import { ReviewService } from '../../../lib/reviews/review-service';
+import { UserReviewService } from '../../../lib/reviews/user-review-service';
 import { Avatar } from '../../../components/Avatar';
 
 interface TxInfo {

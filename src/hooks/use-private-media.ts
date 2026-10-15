@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
-import { parsePrivateMediaReference, type PrivateMediaBucket } from '../lib/private-media';
+import { supabase } from '../lib/supabase/supabase';
+import { parsePrivateMediaReference, type PrivateMediaBucket } from '../lib/media/private-media';
 
 /** Authorize attachments through Storage RLS; never persist expiring signed URLs. */
 export function usePrivateMedia(values: string[], userId?: string, active = true) {

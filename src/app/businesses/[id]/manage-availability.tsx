@@ -14,8 +14,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useProviderAvailability } from '../../../hooks/use-bookings';
-import { BookingService } from '../../../lib/booking-service';
-import { StaffService } from '../../../lib/staff-service';
+import { BookingService } from '../../../lib/bookings/booking-service';
+import { StaffService } from '../../../lib/moderation/staff-service';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 

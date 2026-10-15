@@ -14,9 +14,9 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
-import { formatPrice } from '../../lib/utils';
+import { formatPrice } from '../../lib/shared/utils';
 type EscrowStatus =
   'pending' | 'paid' | 'shipped' | 'delivered' | 'completed' | 'disputed' | 'cancelled' | 'failed';
 type Tab = 'purchases' | 'sales';

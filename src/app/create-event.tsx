@@ -1,4 +1,4 @@
-import { isPaidPrice, MINIMUM_PRICE_MESSAGE } from '@/lib/price-policy';
+import { isPaidPrice, MINIMUM_PRICE_MESSAGE } from '@/lib/marketplace/price-policy';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect } from 'react';
 import {
@@ -21,20 +21,20 @@ import { Image } from 'expo-image';
 import ImagePicker from 'react-native-image-crop-picker';
 import * as Haptics from 'expo-haptics';
 import Animated, { useAnimatedStyle, withTiming, useSharedValue } from 'react-native-reanimated';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase/supabase';
 import { useAuth } from '../hooks/use-supabase-auth';
-import { StorageService, MobileFile } from '../lib/storage-service';
+import { StorageService, MobileFile } from '../lib/media/storage-service';
 import { DateTimePickerModal } from '../components/DateTimePickerModal';
-import { GooglePlacesAutocomplete } from '@/components/PlacesAutocomplete';
+import { GooglePlacesAutocomplete } from '@/components/location/PlacesAutocomplete';
 import { useVideoEditor, discardEditedVideo } from '@/hooks/use-video-editor';
-import { resolveCoords } from '../lib/geocoding-service';
+import { resolveCoords } from '../lib/location/geocoding-service';
 import * as FileSystem from 'expo-file-system/legacy';
-import { formatPrice } from '../lib/utils';
-import { logError } from '../lib/error-logger';
-import { EventCard } from '../components/EventCard';
+import { formatPrice } from '../lib/shared/utils';
+import { logError } from '../lib/shared/error-logger';
+import { EventCard } from '../components/events/EventCard';
 import { ImageCarousel } from '../components/ImageCarousel';
 import { useCategories } from '../hooks/use-categories';
-import { api } from '../lib/api';
+import { api } from '../lib/network/api';
 
 const STEPS = ['Basic Info', 'Date & Time', 'Location', 'Tickets', 'Photos', 'Review'];
 

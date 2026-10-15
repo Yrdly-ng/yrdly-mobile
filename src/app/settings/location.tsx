@@ -14,8 +14,8 @@ import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/use-supabase-auth';
-import { GooglePlacesAutocomplete } from '@/components/PlacesAutocomplete';
-import { resolveCoords } from '../../lib/geocoding-service';
+import { GooglePlacesAutocomplete } from '@/components/location/PlacesAutocomplete';
+import { resolveCoords } from '../../lib/location/geocoding-service';
 
 export default function LocationSettingsScreen() {
   const { theme } = useUnistyles(); const s = sStylesheet;

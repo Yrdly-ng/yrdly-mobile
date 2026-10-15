@@ -14,7 +14,7 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../../hooks/use-supabase-auth';
 import { Avatar } from '../../../components/Avatar';
-import { DisputeService } from '../../../lib/dispute-service';
+import { DisputeService } from '../../../lib/disputes/dispute-service';
 
 type DisputeStatus = 'all' | 'open' | 'under_review' | 'resolved' | 'closed';
 

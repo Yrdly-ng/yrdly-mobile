@@ -20,12 +20,12 @@ import {
   Heart, ChatCircle, ImageSquare, Trash, Warning
 } from 'phosphor-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase/supabase';
 import { useAuth } from '@/hooks/use-supabase-auth';
-import { CommunityService, Community, CommunityPost, CommunityMembership } from '@/lib/community-service';
-import { StorageService } from '@/lib/storage-service';
+import { CommunityService, Community, CommunityPost, CommunityMembership } from '@/lib/communities/community-service';
+import { StorageService } from '@/lib/media/storage-service';
 import ImagePicker from 'react-native-image-crop-picker';
-import { timeAgo } from '@/lib/utils';
+import { timeAgo } from '@/lib/shared/utils';
 import { useToast } from '@/components/toast';
 
 // ─── Welcome empty state ──────────────────────────────────────────────────────

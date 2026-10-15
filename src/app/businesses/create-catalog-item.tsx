@@ -1,4 +1,4 @@
-import { isPaidPrice, MINIMUM_PRICE_MESSAGE } from '@/lib/price-policy';
+import { isPaidPrice, MINIMUM_PRICE_MESSAGE } from '@/lib/marketplace/price-policy';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect } from 'react';
 import {
@@ -17,9 +17,9 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase/supabase';
 import ImagePicker from 'react-native-image-crop-picker';
-import { StorageService } from '../../lib/storage-service';
+import { StorageService } from '../../lib/media/storage-service';
 import { useAuth } from '../../hooks/use-supabase-auth';
 const CATS = [
   { name: 'Food', icon: 'fast-food-outline' },

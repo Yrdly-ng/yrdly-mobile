@@ -15,13 +15,13 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
-import { StorageService } from '../../lib/storage-service';
-import { resolveCoords } from '../../lib/geocoding-service';
+import { StorageService } from '../../lib/media/storage-service';
+import { resolveCoords } from '../../lib/location/geocoding-service';
 import ImagePicker from 'react-native-image-crop-picker';
-import { OpeningHoursPicker } from '../../components/OpeningHoursPicker';
-import { GooglePlacesAutocomplete } from '@/components/PlacesAutocomplete';
+import { OpeningHoursPicker } from '../../components/businesses/OpeningHoursPicker';
+import { GooglePlacesAutocomplete } from '@/components/location/PlacesAutocomplete';
 
 const CATS = [
   { name: 'Restaurant & Café', icon: 'restaurant-outline' },

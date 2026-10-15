@@ -1,4 +1,4 @@
-import { postMemory } from '@/lib/post-memory';
+import { postMemory } from '@/lib/offline/post-memory';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import {
@@ -15,14 +15,14 @@ import {
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import * as Haptics from 'expo-haptics';
-import { PostCard } from '../../components/PostCard';
+import { PostCard } from '../../components/posts/PostCard';
 import { PostSkeleton } from '../../components/Skeleton';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase/supabase';
 import { Post } from '../../types';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useAppTheme } from '../../context/ThemeContext';
 import { useLocation } from '../../context/LocationContext';
-import { LocationChip } from '../../components/LocationChip';
+import { LocationChip } from '../../components/location/LocationChip';
 import Animated, {
   useAnimatedScrollHandler,
   useSharedValue,
@@ -39,12 +39,12 @@ import { Image } from 'expo-image';
 import { MapIcon, NotificationsIcon } from '../../components/SvgIcons';
 import { usePosts } from '../../hooks/use-posts';
 import { useAuth } from '../../hooks/use-supabase-auth';
-import { CommentsBottomSheet, CommentsBottomSheetRef } from '../../components/CommentsBottomSheet';
+import { CommentsBottomSheet, CommentsBottomSheetRef } from '../../components/comments/CommentsBottomSheet';
 import ImageViewing from 'react-native-image-viewing';
 import { useNotificationBadge } from '../../context/NotificationBadgeContext';
 import { useScrollToTop, useIsFocused } from 'expo-router/react-navigation';
-import { AlertBanner } from '../../components/AlertBanner';
-import { AlertService, Alert } from '../../lib/alert-service';
+import { AlertBanner } from '../../components/alerts/AlertBanner';
+import { AlertService, Alert } from '../../lib/alerts/alert-service';
 import * as SecureStore from 'expo-secure-store';
 const AnimatedFlashList = Animated.createAnimatedComponent(FlashList as any) as any;
 

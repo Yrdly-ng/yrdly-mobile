@@ -4,12 +4,12 @@ import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { useAuth } from './use-supabase-auth';
-import { AuthService } from '@/lib/auth-service';
-import { supabase } from '@/lib/supabase';
-import { getOrCreateDeviceId } from '@/lib/device-id';
+import { AuthService } from '@/lib/auth/auth-service';
+import { supabase } from '@/lib/supabase/supabase';
+import { getOrCreateDeviceId } from '@/lib/offline/device-id';
 import { router } from 'expo-router';
 import { isCrispPushNotification, openChat, registerPushToken } from 'crisp-sdk-react-native';
-import { translateNotificationUrl } from '@/lib/notification-routing';
+import { translateNotificationUrl } from '@/lib/notifications/notification-routing';
 
 // NO top-level Notifications calls here
 

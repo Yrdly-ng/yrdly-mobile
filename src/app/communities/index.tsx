@@ -1,4 +1,4 @@
-import { CommunitiesContent } from '@/components/CommunitiesContent';
+import { CommunitiesContent } from '@/components/communities/CommunitiesContent';
 
 export default function CommunitiesIndexScreen() {
   return <CommunitiesContent />;

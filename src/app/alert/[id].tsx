@@ -12,8 +12,8 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { supabase } from '../../lib/supabase';
-import { Alert } from '../../lib/alert-service';
+import { supabase } from '../../lib/supabase/supabase';
+import { Alert } from '../../lib/alerts/alert-service';
 import {
   getSeverityTier,
   getAlertLabel,

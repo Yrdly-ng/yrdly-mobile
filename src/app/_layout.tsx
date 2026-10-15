@@ -13,7 +13,7 @@ import { ThemeProvider } from '../context/ThemeContext';
 import { LocationProvider } from '../context/LocationContext';
 import { NotificationBadgeProvider } from '../context/NotificationBadgeContext';
 import * as SplashScreen from 'expo-splash-screen';
-import AnimatedSplashScreen from '../components/AnimatedSplashScreen';
+import AnimatedSplashScreen from '../components/onboarding/AnimatedSplashScreen';
 
 import { setAudioModeAsync } from 'expo-audio';
 import { ErrorBoundary } from '../components/ErrorBoundary';

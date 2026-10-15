@@ -13,7 +13,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { AlertService } from '../../lib/alert-service';
+import { AlertService } from '../../lib/alerts/alert-service';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { useAppTheme } from '../../context/ThemeContext';
 import { Platform } from 'react-native';

@@ -17,10 +17,10 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import ImagePicker from 'react-native-image-crop-picker';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../hooks/use-supabase-auth';
-import { supabase } from '../../lib/supabase';
-import { StorageService } from '../../lib/storage-service';
-import { AuthService } from '../../lib/auth-service';
-import { ModerationService } from '../../lib/moderation-service';
+import { supabase } from '../../lib/supabase/supabase';
+import { StorageService } from '../../lib/media/storage-service';
+import { AuthService } from '../../lib/auth/auth-service';
+import { ModerationService } from '../../lib/moderation/moderation-service';
 
 export default function EditProfileScreen() {
   const { theme } = useUnistyles();

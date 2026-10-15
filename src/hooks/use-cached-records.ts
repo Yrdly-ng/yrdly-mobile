@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useAuth } from './use-supabase-auth';
-import { localCache } from '@/lib/local-cache';
+import { localCache } from '@/lib/offline/local-cache';
 
 /** Public metadata only; prices/availability must always be rechecked by checkout. */
 export function useCachedRecords<T extends { id: string }>(namespace: string, key: string) {

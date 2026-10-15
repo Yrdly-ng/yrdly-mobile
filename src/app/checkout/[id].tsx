@@ -14,11 +14,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/use-supabase-auth';
-import { api, WEB_APP_URL } from '../../lib/api';
-import { supabase } from '../../lib/supabase';
-import { formatPrice } from '../../lib/utils';
-import { MARKETPLACE_CONSTANTS } from '../../lib/constants';
-import { PaylukCheckout } from '../../components/PaylukCheckout';
+import { api, WEB_APP_URL } from '../../lib/network/api';
+import { supabase } from '../../lib/supabase/supabase';
+import { formatPrice } from '../../lib/shared/utils';
+import { MARKETPLACE_CONSTANTS } from '../../lib/shared/constants';
+import { PaylukCheckout } from '../../components/payments/PaylukCheckout';
 const COMMISSION_RATE = MARKETPLACE_CONSTANTS.COMMISSION_RATE;
 const PAYLUK_PUBLIC_KEY = process.env.EXPO_PUBLIC_PAYLUK_PUBLIC_KEY ?? '';
 

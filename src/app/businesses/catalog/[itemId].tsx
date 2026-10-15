@@ -15,7 +15,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { supabase } from '../../../lib/supabase';
+import { supabase } from '../../../lib/supabase/supabase';
 import { useAppTheme } from '../../../context/ThemeContext';
 import { useAuth } from '../../../hooks/use-supabase-auth';
 import ImageViewing from 'react-native-image-viewing';

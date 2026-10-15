@@ -12,11 +12,11 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/use-supabase-auth';
-import { BookingService, CANCELLATION_WINDOW_HOURS } from '../../lib/booking-service';
-import { NotificationTriggers } from '../../lib/notification-triggers';
-import { supabase } from '../../lib/supabase';
+import { BookingService, CANCELLATION_WINDOW_HOURS } from '../../lib/bookings/booking-service';
+import { NotificationTriggers } from '../../lib/notifications/notification-triggers';
+import { supabase } from '../../lib/supabase/supabase';
 import { Booking } from '../../types';
-import { BookingPaymentButton, BookingReceiptButton } from '../../components/BookingPaymentButton';
+import { BookingPaymentButton, BookingReceiptButton } from '../../components/payments/BookingPaymentButton';
 
 export default function BookingDetailScreen() {
   const { theme } = useUnistyles(); const s = stylesheet;

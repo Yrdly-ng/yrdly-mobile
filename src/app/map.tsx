@@ -26,11 +26,11 @@ import * as Location from 'expo-location';
 import polyline from '@mapbox/polyline';
 import { useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase/supabase';
 import { useAppTheme } from '../context/ThemeContext';
 import { useAuth } from '../hooks/use-supabase-auth';
 import { useLocation } from '../context/LocationContext';
-import { api } from '../lib/api';
+import { api } from '../lib/network/api';
 
 const { width, height } = Dimensions.get('window');
 const SHEET_H = height * 0.62;

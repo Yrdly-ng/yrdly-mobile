@@ -41,7 +41,7 @@ function loader(mocks = {}) {
 
 const metadata = { width: 800, height: 600, duration: 5 };
 const edit = { start: 1, end: 3, crop: { x: 0.25, y: 0.25, width: 0.5, height: 0.5 } };
-const geometry = loader()('src/lib/video-editing.ts');
+const geometry = loader()('src/lib/media/video-editing.ts');
 test('native trim/crop validation rejects unsafe requests before native work', () => {
   for (const invalid of [
     { ...edit, start: -1 },
@@ -108,7 +108,7 @@ function harness(scenario = 'success') {
   const api = loader({
     'expo-file-system/legacy': fsMock,
     'react-native-media-toolkit': { MediaToolkit: toolkit },
-  })('src/lib/native-video-editor.ts');
+  })('src/lib/media/native-video-editor.ts');
   return { api, controller, inspect: () => ({ encoded, deleted, maxActive, files }) };
 }
 

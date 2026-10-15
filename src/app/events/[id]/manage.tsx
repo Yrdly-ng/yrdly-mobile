@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { supabase } from '../../../lib/supabase';
+import { supabase } from '../../../lib/supabase/supabase';
 import { useAuth } from '../../../hooks/use-supabase-auth';
 import type { Event, Ticket } from '../../../types/events';
 

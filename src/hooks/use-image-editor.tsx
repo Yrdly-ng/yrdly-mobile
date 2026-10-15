@@ -1,7 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ImageEditModal } from '@/components/ImageEditModal';
-import type { MobileFile } from '@/lib/storage-service';
+import { ImageEditModal } from '@/components/media/ImageEditModal';
+import type { MobileFile } from '@/lib/media/storage-service';
 export function useImageEditor() {
   const [file, setFile] = useState<MobileFile | null>(null);
   const pending = useRef<((file: MobileFile | null) => void) | null>(null);

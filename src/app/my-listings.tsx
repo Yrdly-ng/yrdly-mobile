@@ -14,8 +14,8 @@ import { Image } from 'expo-image';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../hooks/use-supabase-auth';
-import { supabase } from '../lib/supabase';
-import { assertMarketplaceListingUnpaid } from '../lib/marketplace-listing-service';
+import { supabase } from '../lib/supabase/supabase';
+import { assertMarketplaceListingUnpaid } from '../lib/marketplace/marketplace-listing-service';
 import type { Post } from '../types';
 
 // is_paid is derived from the seller's transactions, not a posts column.

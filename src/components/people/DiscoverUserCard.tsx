@@ -1,0 +1,176 @@
+import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
+import React from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { useFollowStatus } from '../../hooks/use-follow-status';
+import { Avatar } from '../Avatar';
+
+interface DiscoverUserCardProps {
+  user: {
+    id: string;
+    name: string;
+    avatar_url?: string;
+    location?: {
+      lga?: string;
+      state?: string;
+    };
+    home_state?: string | null;
+    home_lga?: string | null;
+  };
+  context: 'neighbor' | 'mutual' | 'seller';
+  mutualCount?: number;
+  onPress: () => void;
+}
+
+export function DiscoverUserCard({ user, context, mutualCount, onPress }: DiscoverUserCardProps) {
+  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+
+  const userId = user?.id || '';
+  const { isFollowing, actionLoading, toggleFollow } = useFollowStatus(userId);
+
+  // Derive badge text/icon based on context
+  let badgeIcon: keyof typeof Feather.glyphMap = 'map-pin';
+  let badgeText = '';
+
+  if (context === 'neighbor') {
+    badgeIcon = 'map-pin';
+    if (user?.home_lga && user?.home_state) {
+      badgeText = `${user.home_lga}, ${user.home_state}`;
+    } else if (user?.home_state) {
+      badgeText = `${user.home_state} State`;
+    } else if (user?.location?.lga && user?.location?.state) {
+      badgeText = `${user.location.lga}, ${user.location.state}`;
+    } else if (user?.location?.state) {
+      badgeText = `${user.location.state} State`;
+    } else {
+      badgeText = 'Nearby';
+    }
+  } else if (context === 'mutual') {
+    badgeIcon = 'users';
+    badgeText = `${mutualCount || 1} mutual friend${(mutualCount || 1) !== 1 ? 's' : ''}`;
+  } else if (context === 'seller') {
+    badgeIcon = 'shopping-bag';
+    badgeText = 'Active Seller';
+  }
+
+  const handleAction = () => {
+    toggleFollow();
+  };
+
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={stylesheet.container}>
+      <View style={[stylesheet.cardContent, { borderBottomColor: theme.colors.GLASS_BORDER, borderBottomWidth: StyleSheet.hairlineWidth }]}>
+        <Avatar
+          url={user?.avatar_url}
+          name={user?.name}
+          size={100}
+          style={[stylesheet.avatar as any, { backgroundColor: theme.colors.DARK }]}
+          fallbackStyle={{ backgroundColor: theme.colors.G }}
+          fallbackTextStyle={{ color: '#000', fontSize: 20, fontWeight: '800' }}
+        />
+
+        <View style={stylesheet.content}>
+          <Text style={[stylesheet.name, { color: theme.colors.TEXT_PRIMARY }]} numberOfLines={1}>
+            {user?.name || 'Anonymous'}
+          </Text>
+
+          <View style={stylesheet.badgeRow}>
+            <Feather name={badgeIcon} size={12} color={theme.colors.TEXT_SECONDARY} />
+            <Text
+              style={[stylesheet.badgeText, { color: theme.colors.TEXT_SECONDARY }]}
+              numberOfLines={1}
+            >
+              {badgeText}
+            </Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={[
+            stylesheet.actionButton,
+            isFollowing
+              ? { backgroundColor: 'transparent' }
+              : { backgroundColor: theme.colors.G + '15' },
+            isFollowing && { borderColor: theme.colors.GLASS_BORDER, borderWidth: 1 },
+          ]}
+          onPress={handleAction}
+          disabled={actionLoading || !userId}
+        >
+          {actionLoading ? (
+            <ActivityIndicator size="small" color={theme.colors.G} />
+          ) : isFollowing ? (
+            <View style={stylesheet.friendsBadge}>
+              <Feather name="check" size={14} color={theme.colors.TEXT_SECONDARY} />
+              <Text style={[stylesheet.actionText, { color: theme.colors.TEXT_SECONDARY }]}>
+                Following
+              </Text>
+            </View>
+          ) : (
+            <Text style={[stylesheet.actionText, { color: theme.colors.G }]}>Follow</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+const _stylesheet = UnistylesStyleSheet.create((theme) => ({
+  container: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+  },
+  card: {
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  cardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  content: {
+    flex: 1,
+    marginLeft: 12,
+    justifyContent: 'center',
+  },
+  name: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  badgeText: {
+    fontSize: 13,
+  },
+  actionButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    minWidth: 70,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 32,
+  },
+  actionText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  friendsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  friendsText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+}));

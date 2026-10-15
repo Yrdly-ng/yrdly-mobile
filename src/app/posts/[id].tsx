@@ -15,21 +15,21 @@ import {
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { ModerationService } from '../../lib/moderation-service';
+import { ModerationService } from '../../lib/moderation/moderation-service';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useIsFocused } from 'expo-router/react-navigation';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { usePosts } from '../../hooks/use-posts';
-import { PostCard } from '../../components/PostCard';
+import { PostCard } from '../../components/posts/PostCard';
 import { Post } from '../../types';
-import { postMemory } from '@/lib/post-memory';
-import { timeAgo } from '../../lib/utils';
+import { postMemory } from '@/lib/offline/post-memory';
+import { timeAgo } from '../../lib/shared/utils';
 
-import { StorageService } from '../../lib/storage-service';
-import { CommentItem, CommentType } from '../../components/CommentItem';
-import { CommentInput, CommentInputRef } from '../../components/CommentInput';
+import { StorageService } from '../../lib/media/storage-service';
+import { CommentItem, CommentType } from '../../components/comments/CommentItem';
+import { CommentInput, CommentInputRef } from '../../components/comments/CommentInput';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 
 function PostDetailContent() {
@@ -255,7 +255,7 @@ function PostDetailContent() {
       }
 
       // Trigger notification
-      const { NotificationTriggers } = await import('../../lib/notification-triggers');
+      const { NotificationTriggers } = await import('../../lib/notifications/notification-triggers');
       void NotificationTriggers.onPostCommented(id, user.id, text.trim()).catch(() => {});
 
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);

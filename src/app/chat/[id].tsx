@@ -1,4 +1,4 @@
-import { privateMediaReference } from '@/lib/private-media';
+import { privateMediaReference } from '@/lib/media/private-media';
 import { usePrivateMedia } from '@/hooks/use-private-media';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
@@ -22,19 +22,19 @@ import ImagePicker from 'react-native-image-crop-picker';
 import { useIsFocused } from 'expo-router/react-navigation';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Crypto from 'expo-crypto';
-import { StorageService, type MobileFile } from '@/lib/storage-service';
+import { StorageService, type MobileFile } from '@/lib/media/storage-service';
 import NetInfo from '@react-native-community/netinfo';
 import { discardEditedImage } from '@/hooks/use-image-editor';
-import { localCache } from '@/lib/local-cache';
-import { checkActiveSession } from '@/lib/session-policy';
+import { localCache } from '@/lib/offline/local-cache';
+import { checkActiveSession } from '@/lib/auth/session-policy';
 import ImageViewing from 'react-native-image-viewing';
 import { VideoView, useVideoPlayer } from 'expo-video';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { useAppTheme } from '../../context/ThemeContext';
-import { formatPrice } from '../../lib/utils';
+import { formatPrice } from '../../lib/shared/utils';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
-import { setActiveConversationId } from '../../lib/active-chat-tracker';
+import { setActiveConversationId } from '../../lib/offline/active-chat-tracker';
 import { useVideoEditor, discardEditedVideo } from '@/hooks/use-video-editor';
 
 interface Message {
@@ -747,7 +747,7 @@ function ChatContent() {
         void discardEditedImage(message.local_asset);
       }
       if (recipient && result.data) {
-        void import('../../lib/notification-triggers')
+        void import('../../lib/notifications/notification-triggers')
           .then(({ NotificationTriggers }) =>
             NotificationTriggers.onMessageSent(recipient, owner, currentConvId, message.text || '')
           )

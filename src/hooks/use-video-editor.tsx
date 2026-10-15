@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as FileSystem from 'expo-file-system/legacy';
-import type { MobileFile } from '@/lib/storage-service';
-import VideoEditModal from '@/components/VideoEditModal';
+import type { MobileFile } from '@/lib/media/storage-service';
+import VideoEditModal from '@/components/media/VideoEditModal';
 
 const ALLOWED = new Set(['video/mp4', 'video/webm', 'video/quicktime']);
 

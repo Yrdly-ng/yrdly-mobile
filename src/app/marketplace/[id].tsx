@@ -31,16 +31,16 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useIsFocused } from 'expo-router/react-navigation';
-import { supabase } from '../../lib/supabase';
-import { assertMarketplaceListingUnpaid } from '../../lib/marketplace-listing-service';
+import { supabase } from '../../lib/supabase/supabase';
+import { assertMarketplaceListingUnpaid } from '../../lib/marketplace/marketplace-listing-service';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { Post, User } from '../../types';
-import { formatPrice, timeAgo } from '../../lib/utils';
+import { formatPrice, timeAgo } from '../../lib/shared/utils';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { Avatar } from '../../components/Avatar';
 import { useToast } from '../../components/toast';
 import * as Location from 'expo-location';
-import { api } from '../../lib/api';
+import { api } from '../../lib/network/api';
 
 interface ETAResponse {
   duration_seconds: number;

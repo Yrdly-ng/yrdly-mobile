@@ -1,15 +1,15 @@
-import { api } from '@/lib/api';
+import { api } from '@/lib/network/api';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { DeviceEventEmitter } from 'react-native';
-import { localCache } from '@/lib/local-cache';
+import { localCache } from '@/lib/offline/local-cache';
 import NetInfo from '@react-native-community/netinfo';
 // Removed Firebase imports - now using Supabase
 import { useAuth } from '@/hooks/use-supabase-auth';
-import { supabase } from '@/lib/supabase';
-import { StorageService, MobileFile } from '@/lib/storage-service';
-import { UserActivityService } from '@/lib/user-activity-service';
-import { ModerationService } from '@/lib/moderation-service';
-import { assertMarketplaceListingUnpaid } from '@/lib/marketplace-listing-service';
+import { supabase } from '@/lib/supabase/supabase';
+import { StorageService, MobileFile } from '@/lib/media/storage-service';
+import { UserActivityService } from '@/lib/activity/user-activity-service';
+import { ModerationService } from '@/lib/moderation/moderation-service';
+import { assertMarketplaceListingUnpaid } from '@/lib/marketplace/marketplace-listing-service';
 
 import { Post, Business } from '@/types';
 import { useToast } from '@/components/toast';

@@ -1,4 +1,4 @@
-import { isPaidPrice, MINIMUM_PRICE_MESSAGE } from '@/lib/price-policy';
+import { isPaidPrice, MINIMUM_PRICE_MESSAGE } from '@/lib/marketplace/price-policy';
 import React, { useState } from 'react';
 import {
   View,
@@ -15,7 +15,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useServiceOfferings } from '../../../hooks/use-bookings';
-import { BookingService } from '../../../lib/booking-service';
+import { BookingService } from '../../../lib/bookings/booking-service';
 
 export default function ManageServicesScreen() {
   const { theme } = useUnistyles(); const s = stylesheet;

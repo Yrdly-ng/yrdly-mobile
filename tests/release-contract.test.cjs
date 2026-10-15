@@ -5,8 +5,16 @@ const vm = require('node:vm');
 const ts = require('typescript');
 
 // Run dependency-free production modules without loading a native runtime.
+const libPaths = {
+  'api-client': 'network/api-client',
+  'price-policy': 'marketplace/price-policy',
+  'payluk-checkout-html': 'payments/payluk-checkout-html',
+  'private-media': 'media/private-media',
+  'payout-quote': 'payments/payout-quote',
+  'booking-payments': 'payments/booking-payments',
+};
 function load(name) {
-  const output = ts.transpileModule(readFileSync(`src/lib/${name}.ts`, 'utf8'), {
+  const output = ts.transpileModule(readFileSync(`src/lib/${libPaths[name] || name}.ts`, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const module = { exports: {} };
@@ -73,7 +81,7 @@ function loadPlacesAdapter(enabled) {
       },
     },
   };
-  const output = ts.transpileModule(readFileSync('src/components/PlacesAutocomplete.tsx', 'utf8'), {
+  const output = ts.transpileModule(readFileSync('src/components/location/PlacesAutocomplete.tsx', 'utf8'), {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
       target: ts.ScriptTarget.ES2022,

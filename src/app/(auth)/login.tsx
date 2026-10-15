@@ -21,10 +21,10 @@ import {
   SocialRow,
 } from '@/components/onboarding/primitives';
 import { ONBOARDING_THEME } from '@/constants/onboarding-theme';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase/supabase';
 import { useAuth } from '@/hooks/use-supabase-auth';
 import { Ionicons } from '@expo/vector-icons';
-import { ErrorMessageFormatter } from '@/lib/error-messages';
+import { ErrorMessageFormatter } from '@/lib/shared/error-messages';
 
 const { colors } = ONBOARDING_THEME;
 

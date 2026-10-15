@@ -22,7 +22,7 @@ import {
 import { ONBOARDING_THEME } from '@/constants/onboarding-theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/use-supabase-auth';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase/supabase';
 import { Alert } from 'react-native';
 
 const { colors, radii } = ONBOARDING_THEME;

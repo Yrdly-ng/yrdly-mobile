@@ -14,7 +14,7 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { api } from '../../lib/api';
+import { api } from '../../lib/network/api';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import * as Haptics from 'expo-haptics';
 

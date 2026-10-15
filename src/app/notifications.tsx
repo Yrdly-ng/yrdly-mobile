@@ -15,13 +15,13 @@ import { FlashList } from '@shopify/flash-list';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase/supabase';
 import { useAuth } from '../hooks/use-supabase-auth';
-import { AlertBanner } from '../components/AlertBanner';
-import { NotificationService } from '../lib/notification-service';
+import { AlertBanner } from '../components/alerts/AlertBanner';
+import { NotificationService } from '../lib/notifications/notification-service';
 import * as SecureStore from 'expo-secure-store';
-import { AlertService } from '../lib/alert-service';
-import { getMobileNotificationDestination } from '../lib/notification-routing';
+import { AlertService } from '../lib/alerts/alert-service';
+import { getMobileNotificationDestination } from '../lib/notifications/notification-routing';
 
 interface Notification {
   id: string;
