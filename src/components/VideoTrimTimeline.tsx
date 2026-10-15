@@ -80,7 +80,7 @@ export function VideoTrimTimeline(props: Props) {
     )
   );
   return (
-    <View style={{ gap: 8 }}>
+    <View style={{ gap: 8, backgroundColor: '#111B13', padding: 12, borderRadius: 12 }}>
       <View style={s.labels}>
         <Text style={s.text}>{props.start.toFixed(1)}s</Text>
         <Text style={s.text}>{(props.end - props.start).toFixed(1)}s selected</Text>
