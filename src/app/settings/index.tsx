@@ -245,8 +245,8 @@ export default function SettingsScreen() {
           <SettingDivider />
           <SettingRow
             icon={<Feather name="help-circle" size={16} color={theme.colors.TEXT_PRIMARY} />}
-            label="Help Center"
-            sub="FAQs, tutorials and getting support"
+            label="Contact Us"
+            sub="FAQs, chat with support and email us"
             onPress={() => router.push('/settings/help' as any)}
           />
           <SettingDivider />

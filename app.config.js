@@ -1,3 +1,5 @@
+const CRISP_WEBSITE_ID = process.env.EXPO_PUBLIC_CRISP_WEBSITE_ID || "e843a16b-9483-4622-9c42-5586532ab2fa";
+
 module.exports = {
   expo: {
     name: "YRDLY",
@@ -91,18 +93,16 @@ module.exports = {
           androidCollapsedTitle: "Yrdly"
         }
       ],
-      process.env.EXPO_PUBLIC_CRISP_WEBSITE_ID
-        ? [
-            "crisp-sdk-react-native",
-            {
-              websiteId: process.env.EXPO_PUBLIC_CRISP_WEBSITE_ID,
-              notifications: {
-                enabled: true,
-                mode: "coexistence"
-              }
-            }
-          ]
-        : "crisp-sdk-react-native",
+      [
+        "crisp-sdk-react-native",
+        {
+          websiteId: CRISP_WEBSITE_ID,
+          notifications: {
+            enabled: true,
+            mode: "coexistence"
+          }
+        }
+      ],
       "expo-router",
       [
         "expo-splash-screen",

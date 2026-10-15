@@ -25,6 +25,13 @@ import { MobileFile } from '../lib/media/storage-service';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Avatar } from '../components/Avatar';
 import { useVideoEditor, discardEditedVideo } from '../hooks/use-video-editor';
+import * as Crypto from 'expo-crypto';
+import {
+  getPublishingErrorMessage,
+  logPublishingFailure,
+  PublishingOutcomeUncertainError,
+  type PublishingStage,
+} from '@/lib/posts/publishing-errors';
 
 export default function CreatePostScreen() {
   const { theme } = useUnistyles();
@@ -38,9 +45,10 @@ export default function CreatePostScreen() {
   const [text, setText] = useState('');
   const [posting, setPosting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadStage, setUploadStage] = useState<'uploading' | 'processing' | 'complete'>(
-    'uploading'
-  );
+  const [uploadStage, setUploadStage] = useState<PublishingStage>('preparing');
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [publishUncertain, setPublishUncertain] = useState(false);
+  const clientPostId = useRef<string | null>(null);
   const uploadController = useRef<AbortController | null>(null);
   useEffect(() => () => uploadController.current?.abort(), []);
   const [posted, setPosted] = useState(false);
@@ -61,6 +69,7 @@ export default function CreatePostScreen() {
   useEffect(() => {
     draftReady.current = false;
     draftOwner.current = user?.id ?? null;
+    clientPostId.current = null;
     setText('');
     setAttachedFiles([]);
     setVisibility('public');
@@ -73,6 +82,7 @@ export default function CreatePostScreen() {
         category: string;
         visibility: 'public' | 'private';
         files: MobileFile[];
+        clientPostId?: string;
       }>(user.id, 'drafts', 'post', 7 * 86400000)
       .then(async (entry) => {
         if (!active || draftOwner.current !== user.id) return;
@@ -80,6 +90,7 @@ export default function CreatePostScreen() {
           setText(entry.value.text);
           setCategory(entry.value.category);
           setVisibility(entry.value.visibility);
+          clientPostId.current = entry.value.clientPostId ?? null;
           const files = await Promise.all(
             (entry.value.files || []).map(async (file) =>
               (await FileSystem.getInfoAsync(file.uri)).exists ? file : null
@@ -101,6 +112,7 @@ export default function CreatePostScreen() {
         category,
         visibility,
         files: attachedFiles,
+        ...(clientPostId.current ? { clientPostId: clientPostId.current } : {}),
       });
     }, 500);
     return () => clearTimeout(timeout);
@@ -240,12 +252,27 @@ export default function CreatePostScreen() {
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const requestPostId = clientPostId.current ?? Crypto.randomUUID();
+    clientPostId.current = requestPostId;
+    setPublishError(null);
     uploadController.current = new AbortController();
-    setUploadStage('uploading');
+    setUploadStage('preparing');
+    setUploadProgress(0);
     postLock.current = true;
     setPosting(true);
+    const startedAt = Date.now();
+    let failureStage: PublishingStage = 'preparing';
 
     try {
+      // Save the post ID and full composition before the first network request.
+      // The same ID reconciles a response lost after the server committed.
+      await localCache.write(user.id, 'drafts', 'post', {
+        text,
+        category,
+        visibility,
+        files: attachedFiles,
+        clientPostId: requestPostId,
+      });
       const images = attachedFiles.filter((f) => f.type?.startsWith('image/'));
       const videos = attachedFiles.filter((f) => f.type?.startsWith('video/'));
 
@@ -264,7 +291,14 @@ export default function CreatePostScreen() {
         images.length > 0 ? images : undefined,
         videos.length > 0 ? videos : undefined,
         (progress) => setUploadProgress(progress),
-        { signal: uploadController.current.signal, onStage: setUploadStage }
+        {
+          signal: uploadController.current.signal,
+          clientPostId: requestPostId,
+          onStage: (stage) => {
+            failureStage = stage;
+            setUploadStage(stage);
+          },
+        }
       );
 
       setPosting(false);
@@ -278,7 +312,10 @@ export default function CreatePostScreen() {
     } catch (error: any) {
       setPosting(false);
       setUploadProgress(0);
-      Alert.alert('Error', error?.message || 'Failed to create post. Please try again.');
+      const uncertain = error instanceof PublishingOutcomeUncertainError;
+      setPublishUncertain(uncertain);
+      setPublishError(getPublishingErrorMessage(error, failureStage));
+      logPublishingFailure(error, failureStage, startedAt);
     } finally {
       postLock.current = false;
       uploadController.current = null;
@@ -351,7 +388,7 @@ export default function CreatePostScreen() {
           {posting ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <ActivityIndicator size="small" color="#000" />
-              {uploadProgress > 0 && (
+              {uploadStage === 'uploading' && uploadProgress > 0 && (
                 <Text style={[stylesheet.postButtonText, { color: '#000', fontSize: 12 }]}>
                   {Math.round(uploadProgress * 100)}%
                 </Text>
@@ -364,12 +401,12 @@ export default function CreatePostScreen() {
                 { color: hasContent ? '#000' : 'rgba(130,219,126,0.5)' },
               ]}
             >
-              Post
+              {publishError ? 'Retry' : 'Post'}
             </Text>
           )}
         </TouchableOpacity>
       </View>
-      {posting && uploadProgress > 0 && (
+      {posting && uploadStage === 'uploading' && uploadProgress > 0 && (
         <View style={{ height: 3, backgroundColor: 'rgba(130,219,126,0.2)' }}>
           <View
             style={{
@@ -417,6 +454,7 @@ export default function CreatePostScreen() {
                     visibility === 'private' ? 'rgba(255, 165, 0, 0.15)' : 'rgba(130,219,126,0.15)',
                 },
               ]}
+              disabled={posting || publishUncertain}
               onPress={() => setVisibility((v) => (v === 'public' ? 'private' : 'public'))}
             >
               <Ionicons
@@ -442,6 +480,7 @@ export default function CreatePostScreen() {
           placeholderTextColor={theme.colors.MUTED}
           value={text}
           onChangeText={setText}
+          editable={!posting && !publishUncertain}
           multiline
           textAlignVertical="top"
           selectionColor={theme.colors.G}
@@ -451,16 +490,49 @@ export default function CreatePostScreen() {
           <View
             style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12 }}
           >
-            <Text style={{ color: theme.colors.TEXT_PRIMARY }}>
-              {uploadStage === 'processing'
-                ? 'Processing your post…'
-                : `Uploading · ${Math.round(uploadProgress * 100)}%`}
-            </Text>
-            {uploadStage === 'uploading' && (
-              <TouchableOpacity onPress={() => uploadController.current?.abort()}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+              {!(uploadStage === 'uploading' && uploadProgress > 0) && (
+                <ActivityIndicator size="small" color={theme.colors.G} />
+              )}
+              <Text style={{ color: theme.colors.TEXT_PRIMARY, flexShrink: 1 }}>
+                {uploadStage === 'preparing' && 'Preparing your post…'}
+                {uploadStage === 'uploading' && (uploadProgress > 0
+                  ? `Uploading media · ${Math.round(uploadProgress * 100)}%`
+                  : 'Uploading media…')}
+                {uploadStage === 'publishing' && 'Publishing post…'}
+                {uploadStage === 'checking' && 'Checking whether your post was published…'}
+              </Text>
+            </View>
+            {uploadStage !== 'checking' && (
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={() => Alert.alert(
+                  'Cancel publishing?',
+                  uploadStage === 'publishing'
+                    ? 'Your post may already have been saved. We will check its status before allowing a retry. Your draft will be kept.'
+                    : 'The upload will stop and your draft will be kept.',
+                  [
+                    { text: 'Keep publishing', style: 'cancel' },
+                    { text: 'Cancel upload', style: 'destructive', onPress: () => uploadController.current?.abort() },
+                  ]
+                )}
+              >
                 <Text style={{ color: theme.colors.G }}>Cancel</Text>
               </TouchableOpacity>
             )}
+          </View>
+        )}
+        {publishError && !posting && (
+          <View style={{ marginHorizontal: 20, marginBottom: 14, padding: 14, borderRadius: 12, backgroundColor: theme.colors.SURFACE, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER }}>
+            <Text accessibilityRole="alert" style={{ color: theme.colors.TEXT_PRIMARY, marginBottom: 10 }}>
+              {publishError}
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+              <TouchableOpacity accessibilityRole="button" onPress={() => void doPost()}>
+                <Text style={{ color: theme.colors.G, fontFamily: 'Inter-Medium' }}>Retry safely</Text>
+              </TouchableOpacity>
+              <Text style={{ color: theme.colors.MUTED, fontSize: 12 }}>Your draft is saved</Text>
+            </View>
           </View>
         )}
         {attachedFiles.length > 0 && (
@@ -474,7 +546,7 @@ export default function CreatePostScreen() {
                     contentFit="cover"
                     recyclingKey={file.uri}
                   />
-                  {file.type?.startsWith('video/') && !posting && (
+                  {file.type?.startsWith('video/') && !posting && !publishUncertain && (
                     <TouchableOpacity
                       accessibilityRole="button"
                       accessibilityLabel="Edit video"
@@ -510,7 +582,7 @@ export default function CreatePostScreen() {
                       <ActivityIndicator size="small" color={theme.colors.TEXT_PRIMARY} />
                     </View>
                   )}
-                  {!posting && (
+                  {!posting && !publishUncertain && (
                     <TouchableOpacity
                       style={stylesheet.removePhotoBtn}
                       onPress={() => {
@@ -530,7 +602,7 @@ export default function CreatePostScreen() {
 
       <View style={[stylesheet.toolbar, { paddingBottom: Math.max(insets.bottom, 20) }]}>
         <TouchableOpacity
-          disabled={picking || isEditingVideo || isEditingImage || posting}
+          disabled={picking || isEditingVideo || isEditingImage || posting || publishUncertain}
           style={stylesheet.addPhotoBtn}
           onPress={pickImages}
         >

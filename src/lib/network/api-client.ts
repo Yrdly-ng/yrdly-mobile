@@ -18,7 +18,8 @@ export function createApiClient(
   async function request<T>(
     method: 'GET' | 'POST' | 'PATCH',
     path: string,
-    body?: object
+    body?: object,
+    signal?: AbortSignal
   ): Promise<T> {
     if (!path.startsWith('/api/') || path.includes('://')) throw new Error('Invalid API path');
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -26,6 +27,7 @@ export function createApiClient(
         method,
         headers: await getHeaders(attempt === 1),
         ...(body ? { body: JSON.stringify(body) } : {}),
+        ...(signal ? { signal } : {}),
         ...(method === 'GET' ? { cache: 'no-store' as const } : {}),
       });
       if (response.status === 401 && attempt === 0) continue;
@@ -49,11 +51,11 @@ export function createApiClient(
     get<T = any>(path: string) {
       return request<T>('GET', path);
     },
-    post<T = any>(path: string, body: object) {
-      return request<T>('POST', path, body);
+    post<T = any>(path: string, body: object, signal?: AbortSignal) {
+      return request<T>('POST', path, body, signal);
     },
-    patch<T = any>(path: string, body: object) {
-      return request<T>('PATCH', path, body);
+    patch<T = any>(path: string, body: object, signal?: AbortSignal) {
+      return request<T>('PATCH', path, body, signal);
     },
   };
 }

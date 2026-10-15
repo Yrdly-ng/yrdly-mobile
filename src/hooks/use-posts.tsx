@@ -10,6 +10,7 @@ import { StorageService, MobileFile } from '@/lib/media/storage-service';
 import { UserActivityService } from '@/lib/activity/user-activity-service';
 import { ModerationService } from '@/lib/moderation/moderation-service';
 import { assertMarketplaceListingUnpaid } from '@/lib/marketplace/marketplace-listing-service';
+import { PublishingOutcomeUncertainError } from '@/lib/posts/publishing-errors';
 
 import { Post, Business } from '@/types';
 import { useToast } from '@/components/toast';
@@ -644,42 +645,22 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
       }
 
       const progressMap = new Map<number, number>();
-
-      const uploadedUrls = await Promise.all(
-        Array.from(files).map(async (file, index) => {
-          // Additional check for individual file
-          if (!file || !file.uri || !file.name) {
-            return null;
-          }
-
-          try {
-            const { url, error } = await StorageService.uploadPostImage(
-              user.id,
-              file,
-              (progress) => {
-                if (onProgress) {
-                  progressMap.set(index, progress);
-                  let totalProgress = 0;
-                  progressMap.forEach((p) => (totalProgress += p));
-                  onProgress(totalProgress / files.length);
-                }
-              },
-              signal
-            );
-            if (error) {
-              return null;
-            }
-            return url;
-          } catch (error) {
-            return null;
-          }
-        })
-      );
-      const filteredUrls = uploadedUrls.filter((url) => url !== null) as string[];
-      if (filteredUrls.length < files.length) {
-        throw new Error('Failed to upload one or more images.');
-      }
-      return filteredUrls;
+      return Promise.all(files.map(async (file, index) => {
+        if (!file?.uri || !file.name) throw new Error('A selected image is no longer available.');
+        const { url, error } = await StorageService.uploadPostImage(
+          user.id,
+          file,
+          (progress) => {
+            progressMap.set(index, progress);
+            const totalProgress = Array.from(progressMap.values()).reduce((sum, value) => sum + value, 0);
+            onProgress?.(totalProgress / files.length);
+          },
+          signal
+        );
+        if (error) throw error;
+        if (!url) throw new Error('Storage returned no uploaded image URL');
+        return url;
+      }));
     },
     [user]
   );
@@ -693,7 +674,10 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
       onProgress?: (progress: number) => void,
       options?: {
         signal?: AbortSignal;
-        onStage?: (stage: 'uploading' | 'processing' | 'complete') => void;
+        clientPostId?: string;
+        onStage?: (
+          stage: 'preparing' | 'uploading' | 'publishing' | 'checking' | 'complete'
+        ) => void;
       }
     ) => {
       if (!user || !profile) {
@@ -701,7 +685,61 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
         return;
       }
 
+      const startedAt = Date.now();
+      let operationStage: 'preparing' | 'uploading' | 'publishing' | 'checking' | 'complete' = 'preparing';
+      const setStage = (stage: typeof operationStage) => {
+        operationStage = stage;
+        options?.onStage?.(stage);
+      };
+      const reconcilePost = async () => {
+        if (!options?.clientPostId) return null;
+        const result = await api.get<{ data: Post }>(
+          `/api/posts?id=${encodeURIComponent(options.clientPostId)}`
+        );
+        return result.data;
+      };
+      const acceptSavedPost = (savedPost: Post) => {
+        const moderationStatus = savedPost.moderation_status === 'approved' ? 'approved' : 'pending';
+        setPosts((previous) => {
+          const remaining = previous.filter((post) => post.id !== savedPost.id);
+          return moderationStatus === 'approved' ? [savedPost, ...remaining] : remaining;
+        });
+        try {
+          showToast({
+            message:
+              moderationStatus === 'pending'
+                ? 'Your post is pending admin review.'
+                : 'Post saved successfully.',
+          });
+        } catch {
+          // A toast/rendering failure cannot turn a confirmed database save into
+          // a publishing failure.
+        }
+        void UserActivityService.updateUserActivity(user.id).catch(() => {});
+        setStage('complete');
+        return { moderationStatus };
+      };
+
       try {
+        // Reconcile a saved draft before uploading its media again. This is what
+        // makes a retry safe when the earlier create response was lost.
+        if (options?.clientPostId && !postIdToUpdate) {
+          setStage('checking');
+          try {
+            const existing = await reconcilePost();
+            if (existing) return acceptSavedPost(existing);
+          } catch (error) {
+            if (error instanceof Error && 'status' in error && error.status === 404) {
+              // No row currently exists; continue with the same stable ID.
+            } else if (error instanceof Error && 'status' in error && error.status === 401) {
+              throw error;
+            } else {
+              // Do not upload media or create another request until status can
+              // be checked. The user can retry this lookup with the same ID.
+              throw new PublishingOutcomeUncertainError();
+            }
+          }
+        }
         if (postIdToUpdate) {
           const { data: existingPost } = await supabase
             .from('posts')
@@ -744,7 +782,7 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
           }
         };
 
-        options?.onStage?.('uploading');
+        if (hasImages || hasVideos) setStage('uploading');
         const [newImages, videoResults] = await Promise.all([
           hasImages
             ? uploadImages(
@@ -786,7 +824,7 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
         const videoUrls = videoResults
           .map((result) => result.url)
           .filter((url): url is string => !!url);
-        options?.onStage?.('processing');
+        setStage('publishing');
 
         // Clean up the data to remove undefined values and exclude imageFiles
         const cleanedPostData = Object.fromEntries(
@@ -827,32 +865,49 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
               }),
         };
 
-        const result = postIdToUpdate
-          ? await api.patch('/api/posts', { id: postIdToUpdate, post: finalPostData })
-          : await api.post('/api/posts', { post: finalPostData });
-        const savedPost = result.data as Post;
-        const moderationStatus =
-          savedPost.moderation_status === 'approved' ? 'approved' : 'pending';
-        setPosts((previous) => {
-          const remaining = previous.filter((post) => post.id !== savedPost.id);
-          return moderationStatus === 'approved' ? [savedPost, ...remaining] : remaining;
-        });
-        showToast({
-          message:
-            moderationStatus === 'pending'
-              ? 'Your post is pending admin review.'
-              : 'Post saved successfully.',
-        });
-
-        // Update user activity after successful post creation/update
-        if (user) {
-          void UserActivityService.updateUserActivity(user.id).catch(() => {});
+        let result: { data: Post };
+        try {
+          result = postIdToUpdate
+            ? await api.patch('/api/posts', { id: postIdToUpdate, post: finalPostData }, options?.signal)
+            : await api.post(
+                '/api/posts',
+                {
+                  post: {
+                    ...finalPostData,
+                    ...(options?.clientPostId ? { id: options.clientPostId } : {}),
+                  },
+                },
+                options?.signal
+              );
+        } catch (error) {
+          if (postIdToUpdate || !options?.clientPostId) throw error;
+          setStage('checking');
+          try {
+            const savedPost = await reconcilePost();
+            if (savedPost) return acceptSavedPost(savedPost);
+          } catch (reconcileError) {
+            const isNotFound = reconcileError instanceof Error && 'status' in reconcileError && reconcileError.status === 404;
+            if (!isNotFound) throw new PublishingOutcomeUncertainError();
+          }
+          if (!(error instanceof Error && 'status' in error && Number(error.status) >= 400 && Number(error.status) < 500)) {
+            throw new PublishingOutcomeUncertainError();
+          }
+          throw error;
         }
-
-        options?.onStage?.('complete');
-        return { moderationStatus };
+        return acceptSavedPost(result.data as Post);
       } catch (error) {
-        showToast({ message: 'Failed to save post.' });
+        if (__DEV__) {
+          const status = error instanceof Error && 'status' in error ? Number(error.status) : undefined;
+          console.warn('[PostPublishing] operation failed', {
+            stage: operationStage,
+            category: error instanceof PublishingOutcomeUncertainError ? 'outcome-uncertain' :
+              status === 401 ? 'authentication' : status && status >= 500 ? 'server' :
+              operationStage === 'uploading' ? 'upload' : 'unknown',
+            status,
+            errorName: error instanceof Error ? error.name : 'UnknownError',
+            elapsedMs: Date.now() - startedAt,
+          });
+        }
         throw error;
       }
     },

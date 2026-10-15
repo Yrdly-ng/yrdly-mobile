@@ -69,7 +69,7 @@ export default function HelpScreen() {
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <Ionicons name="chevron-back" size={20} color={theme.colors.TEXT_PRIMARY} />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Help Center</Text>
+        <Text style={s.headerTitle}>Contact Us</Text>
         <View style={{ width: 34 }} />
       </View>
 
@@ -95,8 +95,13 @@ export default function HelpScreen() {
           </Text>
           <View style={s.supportActions}>
             {isCrispChatEnabled && (
-              <TouchableOpacity style={s.chatSupportBtn} onPress={openCrispChat}>
-                <Text style={s.chatSupportBtnText}>Chat with support</Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Chat With Us using Crisp Support Chat"
+                style={s.chatSupportBtn}
+                onPress={openCrispChat}
+              >
+                <Text style={s.chatSupportBtnText}>Chat With Us</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity style={s.supportBtn} onPress={handleContactSupport}>

@@ -1,7 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Alert, Pressable, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Alert } from 'react-native';
 import {
   configure,
   resetSession,
@@ -10,6 +8,7 @@ import {
   setSessionString,
   setUserEmail,
   setUserNickname,
+  openChat,
   show,
 } from 'crisp-sdk-react-native';
 import { useAuth } from '../hooks/use-supabase-auth';
@@ -23,21 +22,34 @@ let configuredWebsiteId: string | null = null;
 export const isCrispChatEnabled = Boolean(websiteId);
 
 export function openCrispChat() {
-  try {
-    if (configuredWebsiteId !== websiteId) {
-      setShouldPromptForNotificationPermission(false);
-      configure(websiteId);
-      configuredWebsiteId = websiteId;
+  const launch = () => {
+    try {
+      if (configuredWebsiteId !== websiteId) {
+        setShouldPromptForNotificationPermission(false);
+        configure(websiteId);
+        configuredWebsiteId = websiteId;
+      }
+      // openChat selects Crisp's conversation tab before presenting its native UI.
+      openChat();
+      // Android's SDK implements openChat as a no-op; show() presents ChatActivity.
+      show();
+    } catch {
+      configuredWebsiteId = null;
+      Alert.alert(
+        'Support chat unavailable',
+        "We couldn't start support chat. Please check your connection and try again.",
+        [
+          { text: 'Close', style: 'cancel' },
+          { text: 'Try Again', onPress: launch },
+        ]
+      );
     }
-    show();
-  } catch {
-    Alert.alert('Support unavailable', 'Please email support@yrdly.ng while chat is unavailable.');
-  }
+  };
+  launch();
 }
 
 export default function CrispChat() {
   const { user, profile } = useAuth();
-  const insets = useSafeAreaInsets();
   const previousUserId = useRef<string | null>(null);
   const currentUserId = useRef<string | null>(user?.id ?? null);
   const currentEmail = useRef<string | null>(user?.email ?? null);
@@ -53,9 +65,15 @@ export default function CrispChat() {
     }
 
     if (configuredWebsiteId !== websiteId) {
-      setShouldPromptForNotificationPermission(false);
-      configure(websiteId);
-      configuredWebsiteId = websiteId;
+      try {
+        setShouldPromptForNotificationPermission(false);
+        configure(websiteId);
+        configuredWebsiteId = websiteId;
+      } catch (error) {
+        if (__DEV__) console.warn('[CrispChat] Native SDK initialization failed.', {
+          errorName: error instanceof Error ? error.name : 'UnknownError',
+        });
+      }
     }
   }, []);
 
@@ -145,23 +163,7 @@ export default function CrispChat() {
     };
   }, [user?.id, user?.email]);
 
-  if (!user) return null;
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Chat with Yrdly support"
-      onPress={openCrispChat}
-      style={[styles.launcher, { bottom: Math.max(insets.bottom, 12) + 80 }]}
-    >
-      <Ionicons name="chatbubble-ellipses" size={25} color="#102114" />
-    </Pressable>
-  );
+  // Keep one SDK/session initializer at the app root, but expose no global
+  // launcher. Users open support only from Settings → Contact Us.
+  return null;
 }
-
-const styles = StyleSheet.create({
-  launcher: {
-    position: 'absolute', right: 16, width: 48, height: 48, borderRadius: 24,
-    backgroundColor: '#82DB7E', alignItems: 'center', justifyContent: 'center',
-    zIndex: 100, elevation: 8,
-  },
-});
