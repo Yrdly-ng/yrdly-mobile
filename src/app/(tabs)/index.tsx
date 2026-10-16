@@ -1,4 +1,4 @@
-import { postMemory } from '@/lib/offline/post-memory';
+import { localCache } from '@/lib/offline/local-cache';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import {
@@ -37,7 +37,7 @@ import { BlurView } from 'expo-blur';
 import { LiquidGlassView, isLiquidGlassSupported } from '@callstack/liquid-glass';
 import { Image } from 'expo-image';
 import { MapIcon, NotificationsIcon } from '../../components/SvgIcons';
-import { usePosts } from '../../hooks/use-posts';
+import { usePosts } from '../../hooks/posts/use-posts';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { CommentsBottomSheet, CommentsBottomSheetRef } from '../../components/comments/CommentsBottomSheet';
 import ImageViewing from 'react-native-image-viewing';
@@ -224,7 +224,7 @@ export default function HomeTab() {
 
   const handlePostPress = useCallback(
     (item: Post) => {
-      postMemory.put(item);
+      localCache.putPost(item);
       if (item.category === 'For Sale') {
         router.push(`/marketplace/${item.id}`);
       } else if (item.category === 'Event') {

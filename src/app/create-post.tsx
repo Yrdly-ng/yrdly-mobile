@@ -1,4 +1,4 @@
-import { useImageEditor, discardEditedImage } from '@/hooks/use-image-editor';
+import { useImageEditor, discardEditedImage } from '@/hooks/media/use-image-editor';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useEffect, useRef, useState } from 'react';
 import { localCache } from '@/lib/offline/local-cache';
@@ -20,11 +20,11 @@ import { Image } from 'expo-image';
 import ImagePicker from 'react-native-image-crop-picker';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../hooks/use-supabase-auth';
-import { usePosts } from '../hooks/use-posts';
+import { usePosts } from '../hooks/posts/use-posts';
 import { MobileFile } from '../lib/media/storage-service';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Avatar } from '../components/Avatar';
-import { useVideoEditor, discardEditedVideo } from '../hooks/use-video-editor';
+import { useVideoEditor, discardEditedVideo } from '../hooks/media/use-video-editor';
 import * as Crypto from 'expo-crypto';
 import {
   getPublishingErrorMessage,

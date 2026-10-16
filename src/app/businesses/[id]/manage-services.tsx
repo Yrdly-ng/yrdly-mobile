@@ -14,7 +14,7 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useServiceOfferings } from '../../../hooks/use-bookings';
+import { useServiceOfferings } from '../../../hooks/bookings/use-bookings';
 import { BookingService } from '../../../lib/bookings/booking-service';
 
 export default function ManageServicesScreen() {

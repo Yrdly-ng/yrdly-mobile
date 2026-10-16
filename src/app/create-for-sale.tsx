@@ -1,4 +1,4 @@
-import { useImageEditor, discardEditedImage } from '@/hooks/use-image-editor';
+import { useImageEditor, discardEditedImage } from '@/hooks/media/use-image-editor';
 import { isPaidPrice, MINIMUM_PRICE_MESSAGE } from '@/lib/marketplace/price-policy';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect } from 'react';
@@ -29,7 +29,7 @@ import { StorageService, MobileFile } from '../lib/media/storage-service';
 import { MarketplaceItemCard } from '../components/marketplace/MarketplaceItemCard';
 import { ImageCarousel } from '../components/ImageCarousel';
 import { GooglePlacesAutocomplete } from '@/components/location/PlacesAutocomplete';
-import { useVideoEditor, discardEditedVideo } from '@/hooks/use-video-editor';
+import { useVideoEditor, discardEditedVideo } from '@/hooks/media/use-video-editor';
 import LottieView from 'lottie-react-native';
 import { logError } from '../lib/shared/error-logger';
 import * as FileSystem from 'expo-file-system/legacy';

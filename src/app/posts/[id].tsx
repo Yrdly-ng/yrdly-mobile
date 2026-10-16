@@ -21,10 +21,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useIsFocused } from 'expo-router/react-navigation';
 import { supabase } from '../../lib/supabase/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
-import { usePosts } from '../../hooks/use-posts';
+import { usePosts } from '../../hooks/posts/use-posts';
 import { PostCard } from '../../components/posts/PostCard';
 import { Post } from '../../types';
-import { postMemory } from '@/lib/offline/post-memory';
+import { localCache } from '@/lib/offline/local-cache';
 import { timeAgo } from '../../lib/shared/utils';
 
 import { StorageService } from '../../lib/media/storage-service';
@@ -43,7 +43,7 @@ function PostDetailContent() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
 
-  const [post, setPost] = useState<Post | null>(() => postMemory.get(id));
+  const [post, setPost] = useState<Post | null>(() => localCache.getPost(id));
   const [comments, setComments] = useState<CommentType[]>([]);
   const [loading, setLoading] = useState(true);
   const [replyingTo, setReplyingTo] = useState<{ id: string; name: string } | null>(null);
@@ -112,7 +112,7 @@ function PostDetailContent() {
 
   const fetchPost = useCallback(async () => {
     if (!id) return;
-    const snapshot = postMemory.get(id);
+    const snapshot = localCache.getPost(id);
     if (snapshot) setPost(snapshot);
     const { data, error } = await supabase
       .from('posts')
@@ -124,10 +124,10 @@ function PostDetailContent() {
 
     if (!error && data) {
       setPost(data);
-      postMemory.put(data);
+      localCache.putPost(data);
     } else {
       setPost(null);
-      postMemory.remove(id);
+      localCache.removePost(id);
       Alert.alert('Post Unavailable', 'This post is no longer available.', [
         { text: 'OK', onPress: () => router.back() },
       ]);
@@ -162,7 +162,7 @@ function PostDetailContent() {
   useEffect(() => {
     const subscription = DeviceEventEmitter.addListener('post_updated', ({ postId, updates }) => {
       if (postId === id) {
-        postMemory.update(id, updates);
+        localCache.updatePost(id, updates);
         setPost((previous) => (previous ? { ...previous, ...updates } : previous));
       }
     });

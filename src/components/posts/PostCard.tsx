@@ -37,7 +37,7 @@ import { useAuth } from '../../hooks/use-supabase-auth';
 
 import { supabase } from '../../lib/supabase/supabase';
 import { StorageService } from '../../lib/media/storage-service';
-import { postMemory } from '@/lib/offline/post-memory';
+import { localCache } from '@/lib/offline/local-cache';
 import { Avatar } from '../Avatar';
 import { useToast } from '../toast/index';
 
@@ -459,7 +459,7 @@ export const PostCard = React.memo(
           if ((post.category === 'For Sale' || post.category === 'Event') && onPress) {
             onPress();
           } else if (!expanded) {
-            postMemory.put(post);
+            localCache.putPost(post);
             router.push(`/posts/${post.id}` as any);
           } else if (onOpenImageViewer) {
             onOpenImageViewer(
@@ -495,7 +495,7 @@ export const PostCard = React.memo(
           setLikesCount(data.likes_count);
         }
 
-        postMemory.update(post.id, { liked_by: newLikedBy });
+        localCache.updatePost(post.id, { liked_by: newLikedBy });
         DeviceEventEmitter.emit('post_updated', {
           postId: post.id,
           updates: { liked_by: newLikedBy },
@@ -992,7 +992,7 @@ export const PostCard = React.memo(
                             onPress();
                             return;
                           }
-                          postMemory.put(post);
+                          localCache.putPost(post);
                           router.push(`/posts/${post.id}` as any);
                         }}
                         isVisible={isVisible !== false && activeImageIndex === index}

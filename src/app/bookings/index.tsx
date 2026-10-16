@@ -11,7 +11,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/use-supabase-auth';
-import { useCustomerBookings } from '../../hooks/use-bookings';
+import { useCustomerBookings } from '../../hooks/bookings/use-bookings';
 import { Booking } from '../../types';
 
 export default function BookingsDashboardScreen() {

@@ -26,7 +26,7 @@ import { useAuth } from '../hooks/use-supabase-auth';
 import { StorageService, MobileFile } from '../lib/media/storage-service';
 import { DateTimePickerModal } from '../components/DateTimePickerModal';
 import { GooglePlacesAutocomplete } from '@/components/location/PlacesAutocomplete';
-import { useVideoEditor, discardEditedVideo } from '@/hooks/use-video-editor';
+import { useVideoEditor, discardEditedVideo } from '@/hooks/media/use-video-editor';
 import { resolveCoords } from '../lib/location/geocoding-service';
 import * as FileSystem from 'expo-file-system/legacy';
 import { formatPrice } from '../lib/shared/utils';

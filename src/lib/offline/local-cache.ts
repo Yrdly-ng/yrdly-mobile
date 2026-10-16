@@ -5,6 +5,7 @@ import { Platform } from 'react-native';
 import { postMemory } from './post-memory';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Image } from 'expo-image';
+import type { Post } from '@/types/index';
 
 // Structured cache only. Credentials stay in SecureStore; media stays in the file cache.
 let database: Promise<SQLite.SQLiteDatabase> | undefined;
@@ -94,6 +95,18 @@ export const localCache = {
       if (account) await db.runAsync('DELETE FROM cache_entries WHERE account_id <> ?', account);
       else await db.runAsync('DELETE FROM cache_entries');
     }).catch(() => {});
+  },
+  putPost(post: Post) {
+    postMemory.put(post);
+  },
+  getPost(id: string) {
+    return postMemory.get(id);
+  },
+  updatePost(id: string, updates: Partial<Post>) {
+    postMemory.update(id, updates);
+  },
+  removePost(id: string) {
+    postMemory.remove(id);
   },
   async read<T>(owner: string, namespace: string, id: string, maxAge = 15 * 60 * 1000) {
     const epoch = generation;

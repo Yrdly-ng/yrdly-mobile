@@ -22,7 +22,7 @@ import { Image } from 'expo-image';
 import ImagePicker from 'react-native-image-crop-picker';
 import { supabase } from '../../../lib/supabase/supabase';
 import { useAuth } from '../../../hooks/use-supabase-auth';
-import { usePosts } from '../../../hooks/use-posts';
+import { usePosts } from '../../../hooks/posts/use-posts';
 import { StorageService } from '../../../lib/media/storage-service';
 import { Post } from '../../../types';
 import { GooglePlacesAutocomplete } from '@/components/location/PlacesAutocomplete';

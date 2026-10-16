@@ -13,7 +13,7 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useProviderAvailability } from '../../../hooks/use-bookings';
+import { useProviderAvailability } from '../../../hooks/bookings/use-bookings';
 import { BookingService } from '../../../lib/bookings/booking-service';
 import { StaffService } from '../../../lib/moderation/staff-service';
 

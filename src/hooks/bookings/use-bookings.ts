@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { BookingService, TimeSlot } from '../lib/bookings/booking-service';
+import { BookingService, TimeSlot } from '@/lib/bookings/booking-service';
 import {
   ServiceOffering,
   ProviderAvailability,
   AvailabilityException,
   Booking,
-} from '../types';
+} from '@/types';
 
 export function useServiceOfferings(businessId?: string) {
   const [offerings, setOfferings] = useState<ServiceOffering[]>([]);

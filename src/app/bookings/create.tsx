@@ -13,7 +13,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/use-supabase-auth';
-import { useAvailableSlots } from '../../hooks/use-bookings';
+import { useAvailableSlots } from '../../hooks/bookings/use-bookings';
 import { BookingService } from '../../lib/bookings/booking-service';
 import { StaffService } from '../../lib/moderation/staff-service';
 import { NotificationTriggers } from '../../lib/notifications/notification-triggers';
