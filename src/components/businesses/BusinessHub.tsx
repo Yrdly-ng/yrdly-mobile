@@ -225,8 +225,6 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
             url={
               (item as any).logo_url ||
               item.logo ||
-              item.cover_image ||
-              item.image_urls?.[0] ||
               null
             }
             name={item.name}

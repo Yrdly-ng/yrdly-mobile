@@ -32,7 +32,8 @@ const GridVideoThumbnail = ({ source }: { source: string }) => {
 };
 
 export function ProfilePostGridItem({ post, onPress, width }: ProfilePostGridItemProps) {
-  const { theme } = useUnistyles(); const styles = sStylesheet;
+  const { theme } = useUnistyles();
+  const styles = sStylesheet;
 
   const parsedUrls = Array.isArray(post.image_urls)
     ? post.image_urls

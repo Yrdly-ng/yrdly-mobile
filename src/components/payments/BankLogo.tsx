@@ -5,7 +5,8 @@ import { useBankLogos } from '../../hooks/payments/use-bank-logos';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 export function BankLogo({ code, name, size = 24 }: { code: string; name: string; size?: number }) {
-  const { theme } = useUnistyles(); const s = stylesheet;
+  const { theme } = useUnistyles();
+  const s = stylesheet;
   const { getBankLogo } = useBankLogos();
   const logoUrl = getBankLogo(code);
 

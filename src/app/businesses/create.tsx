@@ -1,5 +1,5 @@
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,10 @@ import { Image } from 'expo-image';
 import { supabase } from '../../lib/supabase/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { StorageService } from '../../lib/media/storage-service';
+import {
+  buildBusinessEditPayload,
+  type BusinessMode,
+} from '../../lib/businesses/business-edit-payload';
 import { resolveCoords } from '../../lib/location/geocoding-service';
 import ImagePicker from 'react-native-image-crop-picker';
 import { OpeningHoursPicker } from '../../components/businesses/OpeningHoursPicker';
@@ -41,11 +45,14 @@ export default function BusinessEditScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const router = useRouter();
   const { user } = useAuth();
+  const selectedLocationRef = useRef<string | null>(null);
+  const locationRequestRef = useRef(0);
 
-  const [mode, setMode] = useState<'product' | 'service' | 'both'>('product');
+  const [mode, setMode] = useState<BusinessMode>('product');
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [website, setWebsite] = useState('');
   const [category, setCategory] = useState(CATS[0].name);
   const [hours, setHours] = useState('09:00 AM - 05:00 PM');
@@ -61,45 +68,68 @@ export default function BusinessEditScreen() {
 
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(!!id);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    if (id) {
-      const fetchBiz = async () => {
-        try {
-          const { data, error } = await supabase
-            .from('businesses')
-            .select('*')
-            .eq('id', id)
-            .single();
-          if (data) {
-            setMode(data.mode || 'product');
-            setName(data.name || '');
-            setDesc(data.description || '');
-            setPhone(data.phone || '');
-            setWebsite(data.website || '');
-            setCategory(data.category || CATS[0].name);
-            setHours(data.hours || '09:00 AM - 05:00 PM');
-            setLocation(data.location || '');
-            setBizLat(data.lat ?? null);
-            setBizLng(data.lng ?? null);
-            setBizState(data.state || '');
-            setBizLga(data.lga || '');
-            setBizWard(data.ward || '');
-            setCoverUri(data.cover_image || data.image_urls?.[0] || null);
-            setLogoUri(data.logo_url || data.logo || null);
-          }
-        } catch (e) {
-          console.error(e);
-        } finally {
-          setFetching(false);
-        }
-      };
-      fetchBiz();
-    } else {
+    let active = true;
+    if (!id) {
       setFetching(false);
+      return () => {
+        active = false;
+      };
     }
-  }, [id]);
+
+    if (!user?.id)
+      return () => {
+        active = false;
+      };
+
+    setFetching(true);
+    setLoadError(null);
+    setSaved(false);
+    const fetchBiz = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('businesses')
+          .select('*')
+          .eq('id', id)
+          .eq('owner_id', user.id)
+          .maybeSingle();
+        if (error) throw error;
+        if (!data) throw new Error('Business not found or you do not have permission to edit it.');
+        if (!active) return;
+
+        setMode(data.mode || 'product');
+        setName(data.name || '');
+        setDesc(data.description || '');
+        setPhone(data.phone || '');
+        setEmail(data.email || '');
+        setWebsite(data.website || '');
+        setCategory(data.category || CATS[0].name);
+        setHours(data.hours || '09:00 AM - 05:00 PM');
+        setLocation(data.location || '');
+        selectedLocationRef.current = data.location || null;
+        setBizLat(data.lat ?? null);
+        setBizLng(data.lng ?? null);
+        setBizState(data.state || '');
+        setBizLga(data.lga || '');
+        setBizWard(data.ward || '');
+        setCoverUri(data.cover_image || data.image_urls?.[0] || null);
+        setLogoUri(data.logo_url || data.logo || null);
+      } catch (e) {
+        console.error(e);
+        if (active) setLoadError(e instanceof Error ? e.message : 'Could not load this business.');
+      } finally {
+        if (active) setFetching(false);
+      }
+    };
+    void fetchBiz();
+
+    return () => {
+      active = false;
+    };
+  }, [id, user?.id]);
 
   const pickImage = async () => {
     try {
@@ -143,42 +173,74 @@ export default function BusinessEditScreen() {
     }
   };
 
+  const handleLocationTextChange = (text: string) => {
+    setLocation(text);
+    if (selectedLocationRef.current === text) return;
+
+    selectedLocationRef.current = null;
+    locationRequestRef.current += 1;
+    setBizLat(null);
+    setBizLng(null);
+    setBizState('');
+    setBizLga('');
+    setBizWard('');
+  };
+
+  const handleLocationSelected = (data: any, details: any) => {
+    const selectedAddress = data.description || '';
+    selectedLocationRef.current = selectedAddress;
+    setLocation(selectedAddress);
+    setBizState('');
+    setBizLga('');
+    setBizWard('');
+
+    const locationDetails = details?.geometry?.location;
+    if (!locationDetails) {
+      setBizLat(null);
+      setBizLng(null);
+      return;
+    }
+
+    const lat = locationDetails.lat;
+    const lng = locationDetails.lng;
+    setBizLat(lat);
+    setBizLng(lng);
+    const requestId = ++locationRequestRef.current;
+    void resolveCoords(lat, lng)
+      .then((match) => {
+        if (!match || requestId !== locationRequestRef.current) return;
+        setBizState(match.state);
+        setBizLga(match.lga);
+        setBizWard(match.ward);
+      })
+      .catch((error) => console.warn('Could not resolve business address:', error));
+  };
+
   const handleSave = async () => {
     if (!name.trim()) return Alert.alert('Error', 'Name is required');
+    if (!user?.id) return Alert.alert('Sign in required', 'Sign in before editing a business.');
+    if (id && loadError) return Alert.alert('Cannot edit business', loadError);
 
     setLoading(true);
     try {
-      let finalCover = coverUri;
-      let finalLogo = logoUri;
       let businessId = id;
 
-      // Only include coordinate fields in the payload when the user has
-      // actually resolved a new location (bizLat is non-null after a fresh pick).
-      // On edit without re-picking, we leave lat/lng/location_geom untouched in DB.
-      const coordFields =
-        bizLat !== null && bizLng !== null
-          ? {
-              lat: bizLat,
-              lng: bizLng,
-              location_geom: `POINT(${bizLng} ${bizLat})`,
-            }
-          : {};
-
-      const payload = {
-        name: name.trim(),
-        description: desc.trim(),
-        phone: phone.trim(),
-        website: website.trim(),
+      const payload = buildBusinessEditPayload({
+        name,
+        description: desc,
+        phone,
+        email,
+        website,
         category,
         mode,
-        hours: hours.trim(),
-        location: location.trim() || 'Location not specified',
-        state: bizState || null,
-        lga: bizLga || null,
-        ward: bizWard || null,
-        ...coordFields,
-        is_active: true,
-      };
+        hours,
+        location,
+        state: bizState,
+        lga: bizLga,
+        ward: bizWard,
+        lat: bizLat,
+        lng: bizLng,
+      });
 
       if (!id) {
         // Create new
@@ -186,43 +248,57 @@ export default function BusinessEditScreen() {
           .from('businesses')
           .insert({
             ...payload,
-            owner_id: user?.id,
+            owner_id: user.id,
+            is_active: true,
           })
           .select('id')
           .single();
         if (error) throw error;
         businessId = data.id;
       } else {
-        // Update existing
-        const { error } = await supabase.from('businesses').update(payload).eq('id', id);
+        const { data, error } = await supabase
+          .from('businesses')
+          .update(payload)
+          .eq('id', id)
+          .eq('owner_id', user.id)
+          .select('id')
+          .maybeSingle();
         if (error) throw error;
+        if (!data)
+          throw new Error('Business was not saved. It may have been removed or access changed.');
       }
 
       // Helper: is this a local device URI (not yet uploaded)?
       const isLocalUri = (uri: string | null) => !!uri && !uri.startsWith('http');
 
       if (businessId && isLocalUri(coverUri)) {
-        const { url } = await StorageService.uploadBusinessImage(businessId, {
+        const { url, error } = await StorageService.uploadBusinessImage(businessId, {
           uri: coverUri!,
           name: 'cover.jpg',
           type: 'image/jpeg',
         });
-        if (url) {
-          finalCover = url;
-          await supabase.from('businesses').update({ cover_image: url }).eq('id', businessId);
-        }
+        if (error) throw error;
+        if (!url) throw new Error('The business banner upload did not return an image URL.');
+        const { error: saveCoverError } = await supabase
+          .from('businesses')
+          .update({ cover_image: url })
+          .eq('id', businessId);
+        if (saveCoverError) throw saveCoverError;
       }
 
       if (businessId && isLocalUri(logoUri)) {
-        const { url } = await StorageService.uploadBusinessImage(businessId, {
+        const { url, error } = await StorageService.uploadBusinessImage(businessId, {
           uri: logoUri!,
           name: 'logo.jpg',
           type: 'image/jpeg',
         });
-        if (url) {
-          finalLogo = url;
-          await supabase.from('businesses').update({ logo_url: url }).eq('id', businessId);
-        }
+        if (error) throw error;
+        if (!url) throw new Error('The business logo upload did not return an image URL.');
+        const { error: saveLogoError } = await supabase
+          .from('businesses')
+          .update({ logo_url: url })
+          .eq('id', businessId);
+        if (saveLogoError) throw saveLogoError;
       }
 
       setSaved(true);
@@ -252,6 +328,22 @@ export default function BusinessEditScreen() {
       >
         <ActivityIndicator color={theme.colors.G} />
       </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={[sStylesheet.root, { justifyContent: 'center', padding: 24 }]}>
+        <Text style={[sStylesheet.headerTitle, { textAlign: 'center', marginBottom: 12 }]}>
+          Business unavailable
+        </Text>
+        <Text style={{ color: theme.colors.LABEL, textAlign: 'center', marginBottom: 20 }}>
+          {loadError}
+        </Text>
+        <TouchableOpacity style={sStylesheet.saveBtn} onPress={() => router.back()}>
+          <Text style={sStylesheet.saveBtnTxt}>Go back</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
     );
   }
 
@@ -347,6 +439,19 @@ export default function BusinessEditScreen() {
           </View>
 
           <View style={sStylesheet.fieldBlock}>
+            <Text style={sStylesheet.fieldLabel}>Email (optional)</Text>
+            <TextInput
+              style={sStylesheet.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Business email"
+              placeholderTextColor={theme.colors.MUTED}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          </View>
+
+          <View style={sStylesheet.fieldBlock}>
             <Text style={sStylesheet.fieldLabel}>Website (optional)</Text>
             <TextInput
               style={sStylesheet.input}
@@ -362,22 +467,7 @@ export default function BusinessEditScreen() {
             <GooglePlacesAutocomplete
               placeholder={location || 'Search for a business location'}
               fetchDetails={true}
-              onPress={(data, details = null) => {
-                setLocation(data.description);
-                if (details?.geometry?.location) {
-                  const lat = details.geometry.location.lat;
-                  const lng = details.geometry.location.lng;
-                  setBizLat(lat);
-                  setBizLng(lng);
-                  resolveCoords(lat, lng).then((match) => {
-                    if (match) {
-                      setBizState(match.state);
-                      setBizLga(match.lga);
-                      setBizWard(match.ward);
-                    }
-                  });
-                }
-              }}
+              onPress={handleLocationSelected}
               query={{
                 language: 'en',
                 components: 'country:ng',
@@ -403,7 +493,7 @@ export default function BusinessEditScreen() {
               }}
               textInputProps={{
                 placeholderTextColor: location ? '#fff' : theme.colors.MUTED,
-                onChangeText: (text) => setLocation(text),
+                onChangeText: handleLocationTextChange,
               }}
             />
           </View>
@@ -411,6 +501,45 @@ export default function BusinessEditScreen() {
           <View style={sStylesheet.fieldBlock}>
             <Text style={sStylesheet.fieldLabel}>Opening Hours</Text>
             <OpeningHoursPicker value={hours} onChange={setHours} />
+          </View>
+
+          <View style={sStylesheet.fieldBlock}>
+            <Text style={sStylesheet.fieldLabel}>What does your business offer?</Text>
+            <View style={sStylesheet.modeWrap}>
+              {(
+                [
+                  ['product', 'Products'],
+                  ['service', 'Services'],
+                  ['both', 'Both'],
+                ] as const
+              ).map(([value, label]) => {
+                const active = mode === value;
+                return (
+                  <TouchableOpacity
+                    key={value}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: active }}
+                    onPress={() => setMode(value)}
+                    style={[
+                      sStylesheet.modeBtn,
+                      {
+                        backgroundColor: active ? theme.colors.G : theme.colors.SURFACE,
+                        borderColor: active ? theme.colors.G : theme.colors.GLASS_BORDER,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        sStylesheet.modeText,
+                        { color: active ? '#000' : theme.colors.MUTED },
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
 
           <View style={sStylesheet.fieldBlock}>
@@ -599,6 +728,17 @@ const stylesheet = StyleSheet.create((theme) => ({
   textarea: { height: 120, textAlignVertical: 'top' },
 
   catWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  modeWrap: { flexDirection: 'row', gap: 10 },
+  modeBtn: {
+    flex: 1,
+    minHeight: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+  },
+  modeText: { fontFamily: 'Inter-SemiBold', fontSize: 13 },
   catBtn: {
     flexDirection: 'row',
     alignItems: 'center',

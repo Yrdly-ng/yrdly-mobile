@@ -8,7 +8,8 @@ import { supabase } from '../../lib/supabase/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
 
 export default function DeleteAccountScreen() {
-  const { theme } = useUnistyles(); const s = sStylesheet;
+  const { theme } = useUnistyles();
+  const s = sStylesheet;
 
   const router = useRouter();
   const { user, signOut } = useAuth();

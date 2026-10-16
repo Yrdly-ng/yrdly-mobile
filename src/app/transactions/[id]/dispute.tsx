@@ -27,7 +27,8 @@ const DISPUTE_REASONS = [
 ];
 
 export default function DisputeScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -41,7 +42,8 @@ export default function DisputeScreen() {
 
   const pickPhotos = async () => {
     try {
-      if (photos.length >= 5) return Alert.alert('Limit reached', 'You can attach up to five files.');
+      if (photos.length >= 5)
+        return Alert.alert('Limit reached', 'You can attach up to five files.');
       const image = await ImagePicker.openPicker({
         mediaType: 'photo',
         cropping: true,
@@ -71,14 +73,19 @@ export default function DisputeScreen() {
         const ext = uri.split('.').pop()?.split('?')[0] || 'jpeg';
         const mime = ext.toLowerCase() === 'jpg' ? 'image/jpeg' : `image/${ext.toLowerCase()}`;
         const { path, error } = await StorageService.uploadDisputeEvidence(id!, user.id, {
-          uri, name: `evidence_${Date.now()}.${ext}`, type: mime,
+          uri,
+          name: `evidence_${Date.now()}.${ext}`,
+          type: mime,
         });
         if (error || !path) throw error || new Error('Evidence upload failed');
         uploaded.push(path);
       }
       setPhotos((prev) => [...prev, ...uploaded].slice(0, 5));
     } catch (e) {
-      Alert.alert('Upload Failed', e instanceof Error ? e.message : 'Evidence could not be uploaded. Please try again.');
+      Alert.alert(
+        'Upload Failed',
+        e instanceof Error ? e.message : 'Evidence could not be uploaded. Please try again.'
+      );
     } finally {
       setUploading(false);
     }
@@ -115,7 +122,9 @@ export default function DisputeScreen() {
                 photos,
               });
               Alert.alert(
-                opened.providerSubmissionStatus === 'needs_reconciliation' ? 'Dispute filed; provider sync needs review' : 'Dispute Opened',
+                opened.providerSubmissionStatus === 'needs_reconciliation'
+                  ? 'Dispute filed; provider sync needs review'
+                  : 'Dispute Opened',
                 opened.providerSubmissionStatus === 'needs_reconciliation'
                   ? 'Your dispute is saved locally. Support must reconcile the Payluk submission before settlement.'
                   : 'Our team will review your case and get back to you within 24 hours.',

@@ -1,13 +1,6 @@
 import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles';
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Platform,
-  ScrollView,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, ScrollView } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -72,13 +65,13 @@ export default function SignUpScreen() {
 
     const { error: err, session } = await signUp(cleanEmail, password, name);
     if (err) {
-      const errMsg = (err.message || "").toLowerCase();
+      const errMsg = (err.message || '').toLowerCase();
       if (
         errMsg.includes('already registered') ||
         errMsg.includes('already in use') ||
         errMsg.includes('already exists')
       ) {
-        setError("An account with this email address already exists. Please log in instead.");
+        setError('An account with this email address already exists. Please log in instead.');
         return;
       }
       setError(err.message);

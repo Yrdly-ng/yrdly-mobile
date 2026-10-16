@@ -18,7 +18,8 @@ export interface ProfileQuickAccessProps {
  * Tickets, My Events, My Business, My Listings.
  */
 export default function ProfileQuickAccess({ onManageStore }: ProfileQuickAccessProps) {
-  const { theme } = useUnistyles(); const styles = _stylesheet;
+  const { theme } = useUnistyles();
+  const styles = _stylesheet;
   const router = useRouter();
 
   const [activeTooltipIndex, setActiveTooltipIndex] = useState<number | null>(null);
@@ -50,7 +51,9 @@ export default function ProfileQuickAccess({ onManageStore }: ProfileQuickAccess
       key: 'tickets',
       label: 'Tickets',
       sub: 'Your tickets',
-      icon: (color: string) => <MaterialCommunityIcons name="ticket-outline" size={18} color={color} />,
+      icon: (color: string) => (
+        <MaterialCommunityIcons name="ticket-outline" size={18} color={color} />
+      ),
       onPress: () => router.push('/tickets'),
     },
     {
@@ -94,9 +97,7 @@ export default function ProfileQuickAccess({ onManageStore }: ProfileQuickAccess
                 <Text style={styles.tooltipText}>{item.sub}</Text>
               </View>
             )}
-            <View style={styles.circleIcon}>
-              {item.icon(theme.colors.G)}
-            </View>
+            <View style={styles.circleIcon}>{item.icon(theme.colors.G)}</View>
             <Text style={styles.label}>{item.label}</Text>
           </TouchableOpacity>
         );

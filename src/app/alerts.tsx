@@ -23,7 +23,8 @@ const FILTERS: { key: SeverityFilter; label: string; color: string; bg: string }
 ];
 
 export default function AlertsScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const router = useRouter();
   const insets = useSafeAreaInsets();

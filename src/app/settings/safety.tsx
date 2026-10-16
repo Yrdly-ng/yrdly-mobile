@@ -10,7 +10,8 @@ import { api } from '../../lib/network/api';
 import { isResolved } from '../../constants/alerts';
 
 export default function SafetyAlertsScreen() {
-  const { theme } = useUnistyles(); const s = sStylesheet;
+  const { theme } = useUnistyles();
+  const s = sStylesheet;
   const router = useRouter();
 
   const [alerts, setAlerts] = useState<SafetyAlert[]>([]);
@@ -50,7 +51,7 @@ export default function SafetyAlertsScreen() {
   const handleApprove = async (alert: SafetyAlert) => {
     try {
       await api.patch('/api/safety-alerts', { id: alert.id, status: 'approved' });
-      setAlerts(previous => previous.filter(item => item.id !== alert.id));
+      setAlerts((previous) => previous.filter((item) => item.id !== alert.id));
       Alert.alert('Approved', 'Alert published.');
     } catch (err) {
       console.error(err);
@@ -171,10 +172,7 @@ export default function SafetyAlertsScreen() {
                       </Text>
                     </View>
                     {alert.status === 'approved' && !isResolved(alert) && (
-                      <TouchableOpacity
-                        style={s.btnResolve}
-                        onPress={() => handleResolve(alert)}
-                      >
+                      <TouchableOpacity style={s.btnResolve} onPress={() => handleResolve(alert)}>
                         <Text style={s.btnTextResolve}>Mark resolved</Text>
                       </TouchableOpacity>
                     )}

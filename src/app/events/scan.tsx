@@ -21,7 +21,8 @@ import * as Haptics from 'expo-haptics';
 const { width } = Dimensions.get('window');
 
 export default function TicketScannerScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const router = useRouter();
   const { user } = useAuth();
@@ -49,7 +50,10 @@ export default function TicketScannerScreen() {
     const cleanCode = code.trim();
     if (!cleanCode || scanInFlight.current) return;
     if (!user || !eventId) {
-      setLastResult({ success: false, message: 'Open the scanner from an event you organize and sign in again.' });
+      setLastResult({
+        success: false,
+        message: 'Open the scanner from an event you organize and sign in again.',
+      });
       return;
     }
     scanInFlight.current = true;
@@ -58,7 +62,10 @@ export default function TicketScannerScreen() {
     try {
       // The server authorizes the organizer and atomically consumes a PAID ticket.
       const result = await api.post<{
-        valid: boolean; attendee_name?: string; tier_name?: string; message?: string;
+        valid: boolean;
+        attendee_name?: string;
+        tier_name?: string;
+        message?: string;
       }>('/api/events/checkin', { ticket_code: cleanCode, event_id: eventId });
       if (!result.valid) throw new Error(result.message || 'Ticket could not be validated.');
       setLastResult({
@@ -67,7 +74,10 @@ export default function TicketScannerScreen() {
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error: any) {
-      setLastResult({ success: false, message: error.message || 'Ticket could not be validated. Please try again.' });
+      setLastResult({
+        success: false,
+        message: error.message || 'Ticket could not be validated. Please try again.',
+      });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       scanInFlight.current = false;

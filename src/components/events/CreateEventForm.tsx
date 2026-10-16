@@ -71,7 +71,8 @@ interface Props {
 
 // Collapsible ticket card
 function TicketCard({ tier, idx, onChange, onRemove, canRemove }: any) {
-  const { theme } = useUnistyles(); const tk = tkStylesheet;
+  const { theme } = useUnistyles();
+  const tk = tkStylesheet;
 
   const [open, setOpen] = useState(true);
   const rot = useRef(new Animated.Value(open ? 1 : 0)).current;
@@ -185,7 +186,8 @@ export function CreateEventForm({
   categories,
   onSelectCategory,
 }: Props) {
-  const { theme } = useUnistyles(); const s = sStylesheet;
+  const { theme } = useUnistyles();
+  const s = sStylesheet;
 
   const [showDate, setShowDate] = useState(false);
   const [showTime, setShowTime] = useState(false);

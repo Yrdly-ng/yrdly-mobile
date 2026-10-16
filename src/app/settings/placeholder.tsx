@@ -6,7 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
 export default function GenericSettingsScreen() {
-  const { theme } = useUnistyles(); const s = sStylesheet;
+  const { theme } = useUnistyles();
+  const s = sStylesheet;
 
   const router = useRouter();
   const { title } = useLocalSearchParams();

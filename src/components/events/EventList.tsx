@@ -42,7 +42,8 @@ const EVENT_CATEGORIES = [
 ];
 
 export function EventList({ searchQuery = '', sortOption = 'newest' }: EventListProps) {
-  const { theme } = useUnistyles(); const stylesheet = sStylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = sStylesheet;
 
   const { activeFilter } = useLocation();
   const router = useRouter();
@@ -93,9 +94,7 @@ export function EventList({ searchQuery = '', sortOption = 'newest' }: EventList
         // ── Legacy events from posts table ──
         let postsQuery = supabase
           .from('posts')
-          .select(
-            '*, users:public_profiles!posts_user_id_fkey(name, avatar_url)'
-          )
+          .select('*, users:public_profiles!posts_user_id_fkey(name, avatar_url)')
           .eq('category', 'Event')
           .or(`event_date.gte.${isoYesterday},event_date.is.null`)
           .order('created_at', { ascending: false })

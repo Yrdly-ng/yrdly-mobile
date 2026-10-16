@@ -20,14 +20,18 @@ import { StaffService } from '../../../lib/moderation/staff-service';
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 export default function ManageAvailabilityScreen() {
-  const { theme } = useUnistyles(); const s = stylesheet;
+  const { theme } = useUnistyles();
+  const s = stylesheet;
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
   const [staffList, setStaffList] = useState<any[]>([]);
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
 
-  const { availability, exceptions, loading, refresh } = useProviderAvailability(id, selectedStaffId);
+  const { availability, exceptions, loading, refresh } = useProviderAvailability(
+    id,
+    selectedStaffId
+  );
 
   const [schedule, setSchedule] = useState<
     Array<{ day_of_week: number; start_time: string; end_time: string; is_available: boolean }>
@@ -66,9 +70,7 @@ export default function ManageAvailabilityScreen() {
   };
 
   const handleTimeChange = (dayIdx: number, field: 'start_time' | 'end_time', val: string) => {
-    setSchedule((prev) =>
-      prev.map((d) => (d.day_of_week === dayIdx ? { ...d, [field]: val } : d))
-    );
+    setSchedule((prev) => prev.map((d) => (d.day_of_week === dayIdx ? { ...d, [field]: val } : d)));
   };
 
   const handleSaveSchedule = async () => {
@@ -86,7 +88,10 @@ export default function ManageAvailabilityScreen() {
 
   const handleAddBlackout = async () => {
     if (!blackoutDate.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(blackoutDate.trim())) {
-      return Alert.alert('Invalid Date', 'Please enter date in YYYY-MM-DD format (e.g. 2026-12-25)');
+      return Alert.alert(
+        'Invalid Date',
+        'Please enter date in YYYY-MM-DD format (e.g. 2026-12-25)'
+      );
     }
 
     setSaving(true);
@@ -133,18 +138,28 @@ export default function ManageAvailabilityScreen() {
           {staffList.length > 0 && (
             <View style={{ marginBottom: 16 }}>
               <Text style={s.sectionTitle}>Select Schedule Target</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginTop: 8 }}
+              >
                 <TouchableOpacity
                   style={{
                     paddingHorizontal: 16,
                     paddingVertical: 8,
                     borderRadius: 20,
                     marginRight: 8,
-                    backgroundColor: selectedStaffId === null ? theme.colors.G : theme.colors.SURFACE_ALT,
+                    backgroundColor:
+                      selectedStaffId === null ? theme.colors.G : theme.colors.SURFACE_ALT,
                   }}
                   onPress={() => setSelectedStaffId(null)}
                 >
-                  <Text style={{ color: selectedStaffId === null ? '#FFF' : theme.colors.TEXT_PRIMARY, fontWeight: '600' }}>
+                  <Text
+                    style={{
+                      color: selectedStaffId === null ? '#FFF' : theme.colors.TEXT_PRIMARY,
+                      fontWeight: '600',
+                    }}
+                  >
                     Business Hours (Default)
                   </Text>
                 </TouchableOpacity>
@@ -162,7 +177,12 @@ export default function ManageAvailabilityScreen() {
                       }}
                       onPress={() => setSelectedStaffId(st.id)}
                     >
-                      <Text style={{ color: isSel ? '#FFF' : theme.colors.TEXT_PRIMARY, fontWeight: '600' }}>
+                      <Text
+                        style={{
+                          color: isSel ? '#FFF' : theme.colors.TEXT_PRIMARY,
+                          fontWeight: '600',
+                        }}
+                      >
                         {st.name} ({st.role || 'Staff'})
                       </Text>
                     </TouchableOpacity>
@@ -236,7 +256,11 @@ export default function ManageAvailabilityScreen() {
               value={blackoutReason}
               onChangeText={setBlackoutReason}
             />
-            <TouchableOpacity style={s.addBlackoutBtn} onPress={handleAddBlackout} disabled={saving}>
+            <TouchableOpacity
+              style={s.addBlackoutBtn}
+              onPress={handleAddBlackout}
+              disabled={saving}
+            >
               <Text style={s.addBlackoutText}>+ Add Blackout Date</Text>
             </TouchableOpacity>
           </View>

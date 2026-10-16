@@ -45,7 +45,8 @@ export const CommentItem: React.FC<CommentItemProps> = ({
   onDelete,
   onPressProfile,
 }) => {
-  const { theme } = useUnistyles(); const styles = _stylesheet;
+  const { theme } = useUnistyles();
+  const styles = _stylesheet;
   const router = useRouter();
   const [showReplies, setShowReplies] = useState(false);
 

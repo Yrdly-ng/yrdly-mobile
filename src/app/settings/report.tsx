@@ -20,7 +20,8 @@ import { supabase } from '../../lib/supabase/supabase';
 import { useCategories } from '../../hooks/categories/use-categories';
 import { StorageService } from '../../lib/media/storage-service';
 export default function ReportScreen() {
-  const { theme } = useUnistyles(); const s = sStylesheet;
+  const { theme } = useUnistyles();
+  const s = sStylesheet;
 
   const router = useRouter();
   const { user } = useAuth();

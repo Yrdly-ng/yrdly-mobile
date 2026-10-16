@@ -129,7 +129,9 @@ function parseImageUrls(val: any): string[] {
       try {
         const parsed = JSON.parse(trimmed);
         if (Array.isArray(parsed)) {
-          return parsed.map((v) => (typeof v === 'string' ? v.trim() : '')).filter((v) => v.length > 0);
+          return parsed
+            .map((v) => (typeof v === 'string' ? v.trim() : ''))
+            .filter((v) => v.length > 0);
         }
       } catch {
         // ignore
@@ -154,7 +156,8 @@ function fmt(iso: string | null): string {
 }
 
 export default function TransactionDetailScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const { isDarkMode } = useAppTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -307,10 +310,7 @@ export default function TransactionDetailScreen() {
             .maybeSingle();
 
           if (pData) {
-            const imgs = [
-              ...parseImageUrls(pData.image_urls),
-              ...parseImageUrls(pData.image_url),
-            ];
+            const imgs = [...parseImageUrls(pData.image_urls), ...parseImageUrls(pData.image_url)];
             itemObj = {
               id: pData.id,
               title: pData.title || pData.text || 'Item',
@@ -768,16 +768,27 @@ export default function TransactionDetailScreen() {
             <Feather name="alert-triangle" size={20} color="#B71C1C" />
             <View style={{ flex: 1 }}>
               <Text style={stylesheet.disputeText}>
-                A dispute has been raised on this transaction. Our team will review and contact both parties.
+                A dispute has been raised on this transaction. Our team will review and contact both
+                parties.
               </Text>
-              {!!tx.disputes?.[0]?.id && <TouchableOpacity onPress={() => router.push(`/disputes/${tx.disputes![0].id}` as any)} style={{ paddingTop: 10 }}>
-                <Text style={{ color: '#B71C1C', fontWeight: '700' }}>View dispute details and history</Text>
-              </TouchableOpacity>}
+              {!!tx.disputes?.[0]?.id && (
+                <TouchableOpacity
+                  onPress={() => router.push(`/disputes/${tx.disputes![0].id}` as any)}
+                  style={{ paddingTop: 10 }}
+                >
+                  <Text style={{ color: '#B71C1C', fontWeight: '700' }}>
+                    View dispute details and history
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         )}
         {!!tx.disputes?.[0]?.id && tx.status !== 'disputed' && (
-          <TouchableOpacity style={[stylesheet.card, { padding: 16 }]} onPress={() => router.push(`/disputes/${tx.disputes![0].id}` as any)}>
+          <TouchableOpacity
+            style={[stylesheet.card, { padding: 16 }]}
+            onPress={() => router.push(`/disputes/${tx.disputes![0].id}` as any)}
+          >
             <Text style={{ color: theme.colors.G, fontWeight: '700' }}>View dispute history</Text>
           </TouchableOpacity>
         )}

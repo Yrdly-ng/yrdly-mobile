@@ -27,7 +27,8 @@ interface TxInfo {
 }
 
 export default function ReviewScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -62,15 +63,17 @@ export default function ReviewScreen() {
 
         const sellerObj = Array.isArray(data.seller) ? (data.seller[0] ?? null) : data.seller;
         const postItem = Array.isArray(data.post_item) ? data.post_item[0] : data.post_item;
-        const catalogItem = Array.isArray(data.catalog_item) ? data.catalog_item[0] : data.catalog_item;
+        const catalogItem = Array.isArray(data.catalog_item)
+          ? data.catalog_item[0]
+          : data.catalog_item;
 
         const itemTitle = postItem?.title || catalogItem?.title || 'Item';
         const itemImgs = postItem
           ? Array.isArray(postItem.image_urls) && postItem.image_urls.length > 0
             ? postItem.image_urls
             : postItem.image_url
-            ? [postItem.image_url]
-            : null
+              ? [postItem.image_url]
+              : null
           : catalogItem?.images || null;
 
         const normalised: TxInfo = {

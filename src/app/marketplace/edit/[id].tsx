@@ -31,7 +31,8 @@ import { useCategories } from '../../../hooks/categories/use-categories';
 const CONDITIONS = ['New', 'Like New', 'Good', 'Fair', 'Poor'];
 
 export default function EditMarketplaceItemScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -137,7 +138,6 @@ export default function EditMarketplaceItemScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-
       const uploadedUrls: string[] = [];
       for (let i = 0; i < newImages.length; i++) {
         const { url } = await StorageService.uploadPostImage(

@@ -23,7 +23,8 @@ interface DiscoverUserCardProps {
 }
 
 export function DiscoverUserCard({ user, context, mutualCount, onPress }: DiscoverUserCardProps) {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const userId = user?.id || '';
   const { isFollowing, actionLoading, toggleFollow } = useFollowStatus(userId);
@@ -59,7 +60,15 @@ export function DiscoverUserCard({ user, context, mutualCount, onPress }: Discov
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={stylesheet.container}>
-      <View style={[stylesheet.cardContent, { borderBottomColor: theme.colors.GLASS_BORDER, borderBottomWidth: StyleSheet.hairlineWidth }]}>
+      <View
+        style={[
+          stylesheet.cardContent,
+          {
+            borderBottomColor: theme.colors.GLASS_BORDER,
+            borderBottomWidth: StyleSheet.hairlineWidth,
+          },
+        ]}
+      >
         <Avatar
           url={user?.avatar_url}
           name={user?.name}

@@ -4,14 +4,7 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import React, { useCallback, useEffect, useState, useRef } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { api, WEB_APP_URL } from '../../lib/network/api';
@@ -48,7 +41,8 @@ interface InitializeResponse {
 type Stage = 'loading' | 'summary' | 'payluk_checkout' | 'error';
 
 export default function CheckoutScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const router = useRouter();
   const { id, type = 'marketplace_post' } = useLocalSearchParams<{ id: string; type?: string }>();
@@ -138,16 +132,30 @@ export default function CheckoutScreen() {
     setShowCheckout(false);
     setStage('loading');
     try {
-      const result = await api.post<{ success: boolean; amount: number }>('/api/payment/verify', { txRef: paylukTransactionId });
+      const result = await api.post<{ success: boolean; amount: number }>('/api/payment/verify', {
+        txRef: paylukTransactionId,
+      });
       if (!result.success) throw new Error('Payment has not been confirmed.');
-      router.replace({ pathname: '/checkout/success', params: {
-        transactionId: paylukTransactionId, itemTitle: item?.title, amount: String(result.amount),
-      } } as any);
+      router.replace({
+        pathname: '/checkout/success',
+        params: {
+          transactionId: paylukTransactionId,
+          itemTitle: item?.title,
+          amount: String(result.amount),
+        },
+      } as any);
     } catch {
       setStage('summary');
-      Alert.alert('Payment awaiting confirmation', 'Your payment has not been confirmed yet. Check this order before attempting another payment.', [
-        { text: 'View Order', onPress: () => router.replace(`/transactions/${paylukTransactionId}` as any) },
-      ]);
+      Alert.alert(
+        'Payment awaiting confirmation',
+        'Your payment has not been confirmed yet. Check this order before attempting another payment.',
+        [
+          {
+            text: 'View Order',
+            onPress: () => router.replace(`/transactions/${paylukTransactionId}` as any),
+          },
+        ]
+      );
     } finally {
       verificationInFlight.current = false;
     }
@@ -176,11 +184,17 @@ export default function CheckoutScreen() {
       return;
     }
     if (item.price > 0 && item.price < MARKETPLACE_CONSTANTS.MIN_PRICE) {
-      Alert.alert('Price unavailable', 'Paid purchases must be at least ₦1,200. Please contact the seller.');
+      Alert.alert(
+        'Price unavailable',
+        'Paid purchases must be at least ₦1,200. Please contact the seller.'
+      );
       return;
     }
     if (item.price > 0 && !PAYLUK_PUBLIC_KEY) {
-      Alert.alert('Payments unavailable', 'Secure checkout is unavailable. Please try again later.');
+      Alert.alert(
+        'Payments unavailable',
+        'Secure checkout is unavailable. Please try again later.'
+      );
       return;
     }
     initializationInFlight.current = true;
@@ -188,14 +202,23 @@ export default function CheckoutScreen() {
     setErrorMsg('');
     try {
       const result = await api.post<InitializeResponse>('/api/payment/initialize', {
-        itemId: item.id, buyerId: user.id, sellerId: item.user_id,
-        price: item.price ?? 0, itemType: type === 'catalog_item' ? 'catalog_item' : 'post',
+        itemId: item.id,
+        buyerId: user.id,
+        sellerId: item.user_id,
+        price: item.price ?? 0,
+        itemType: type === 'catalog_item' ? 'catalog_item' : 'post',
       });
-      if (!result.success || !result.transactionId) throw new Error('Could not initialize payment.');
+      if (!result.success || !result.transactionId)
+        throw new Error('Could not initialize payment.');
       if (result.alreadyPaid || result.totalAmount === 0) {
-        router.replace({ pathname: '/checkout/success', params: {
-          transactionId: result.transactionId, itemTitle: item.title, amount: String(result.totalAmount),
-        } } as any);
+        router.replace({
+          pathname: '/checkout/success',
+          params: {
+            transactionId: result.transactionId,
+            itemTitle: item.title,
+            amount: String(result.totalAmount),
+          },
+        } as any);
       } else if (result.paylukPaymentToken && result.buyerPaylukId) {
         setPaylukTransactionId(result.transactionId);
         setPaylukTotalAmount(result.totalAmount);
@@ -211,9 +234,11 @@ export default function CheckoutScreen() {
         return;
       }
       setStage('error');
-      setErrorMsg(e?.message === 'SELLER_PHONE_UNVERIFIED'
-        ? 'The seller has not verified their phone number. Payment cannot proceed.'
-        : e?.message || 'Could not initialize payment.');
+      setErrorMsg(
+        e?.message === 'SELLER_PHONE_UNVERIFIED'
+          ? 'The seller has not verified their phone number. Payment cannot proceed.'
+          : e?.message || 'Could not initialize payment.'
+      );
     } finally {
       initializationInFlight.current = false;
     }
@@ -234,18 +259,19 @@ export default function CheckoutScreen() {
 
   // ── Payluk Checkout SDK (fullscreen modal) ────────────────────
   // Rendered on top of summary; summary stays mounted underneath for cancel UX
-  const checkoutModal = showCheckout && paylukToken ? (
-    <PaylukCheckout
-      paymentToken={paylukToken}
-      publicKey={PAYLUK_PUBLIC_KEY}
-      reference={paylukTransactionId!}
-      customerId={buyerPaylukId}
-      redirectUrl={`${WEB_APP_URL}/payment/verify?tx_ref=${paylukTransactionId}`}
-      onSuccess={handleCheckoutSuccess}
-      onCancel={handleCheckoutCancel}
-      onError={handleCheckoutError}
-    />
-  ) : null;
+  const checkoutModal =
+    showCheckout && paylukToken ? (
+      <PaylukCheckout
+        paymentToken={paylukToken}
+        publicKey={PAYLUK_PUBLIC_KEY}
+        reference={paylukTransactionId!}
+        customerId={buyerPaylukId}
+        redirectUrl={`${WEB_APP_URL}/payment/verify?tx_ref=${paylukTransactionId}`}
+        onSuccess={handleCheckoutSuccess}
+        onCancel={handleCheckoutCancel}
+        onError={handleCheckoutError}
+      />
+    ) : null;
 
   // ── Error ────────────────────────────────────────────────────
   if (stage === 'error') {
@@ -275,116 +301,117 @@ export default function CheckoutScreen() {
         style={[stylesheet.container, { backgroundColor: theme.colors.DARK }]}
         edges={['top', 'bottom']}
       >
-      {/* Header */}
-      <View style={[stylesheet.header, { borderBottomColor: theme.colors.GLASS_BORDER }]}>
-        <TouchableOpacity onPress={() => router.back()} style={stylesheet.backBtn}>
-          <Feather name="chevron-left" size={24} color={theme.colors.TEXT_PRIMARY} />
-        </TouchableOpacity>
-        <Text style={[stylesheet.headerTitle, { color: theme.colors.TEXT_PRIMARY }]}>Checkout</Text>
-        <View style={{ width: 34 }} />
-      </View>
+        {/* Header */}
+        <View style={[stylesheet.header, { borderBottomColor: theme.colors.GLASS_BORDER }]}>
+          <TouchableOpacity onPress={() => router.back()} style={stylesheet.backBtn}>
+            <Feather name="chevron-left" size={24} color={theme.colors.TEXT_PRIMARY} />
+          </TouchableOpacity>
+          <Text style={[stylesheet.headerTitle, { color: theme.colors.TEXT_PRIMARY }]}>
+            Checkout
+          </Text>
+          <View style={{ width: 34 }} />
+        </View>
 
-      <ScrollView contentContainerStyle={stylesheet.scroll} showsVerticalScrollIndicator={false}>
-        {/* Item summary card */}
-        <View style={[stylesheet.card, { flexDirection: 'row', gap: 16 }]}>
-          <View style={stylesheet.itemThumbWrapper}>
-            {thumbnail ? (
-              <Image source={{ uri: thumbnail }} style={stylesheet.itemThumb} contentFit="cover" />
-            ) : (
+        <ScrollView contentContainerStyle={stylesheet.scroll} showsVerticalScrollIndicator={false}>
+          {/* Item summary card */}
+          <View style={[stylesheet.card, { flexDirection: 'row', gap: 16 }]}>
+            <View style={stylesheet.itemThumbWrapper}>
+              {thumbnail ? (
+                <Image
+                  source={{ uri: thumbnail }}
+                  style={stylesheet.itemThumb}
+                  contentFit="cover"
+                />
+              ) : (
+                <View
+                  style={[
+                    stylesheet.itemThumb,
+                    {
+                      backgroundColor: theme.colors.SURFACE,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    },
+                  ]}
+                >
+                  <Feather name="image" size={24} color={theme.colors.MUTED} />
+                </View>
+              )}
+            </View>
+            <View style={stylesheet.itemInfo}>
+              <Text style={stylesheet.itemTitle} numberOfLines={2}>
+                {item?.title}
+              </Text>
+              <Text style={stylesheet.itemMeta}>Seller: {item?.seller?.name ?? 'Seller'}</Text>
+              <Text style={stylesheet.itemMeta}>
+                {item?.condition ?? 'Used'} · {item?.area ?? 'Lagos'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Delivery / Pickup */}
+          <View style={stylesheet.card}>
+            <Text style={stylesheet.sectionTitle}>PICKUP / MEET-UP</Text>
+
+            {/* Meetup Option */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={stylesheet.optionRow}
+              onPress={() => setDeliveryMethod('meetup')}
+            >
               <View
                 style={[
-                  stylesheet.itemThumb,
+                  stylesheet.radioOuter,
                   {
-                    backgroundColor: theme.colors.SURFACE,
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    borderColor:
+                      deliveryMethod === 'meetup' ? theme.colors.G : theme.colors.GLASS_BORDER,
                   },
                 ]}
               >
-                <Feather name="image" size={24} color={theme.colors.MUTED} />
+                {deliveryMethod === 'meetup' && <View style={stylesheet.radioInner} />}
               </View>
-            )}
+              <View style={{ flex: 1 }}>
+                <Text style={[stylesheet.optionTitle, { color: theme.colors.TEXT_PRIMARY }]}>
+                  Meet-up · {item?.area ?? 'Local Area'}
+                </Text>
+                <Text style={stylesheet.optionDesc}>Agree a safe public meeting point</Text>
+              </View>
+            </TouchableOpacity>
           </View>
-          <View style={stylesheet.itemInfo}>
-            <Text style={stylesheet.itemTitle} numberOfLines={2}>
-              {item?.title}
-            </Text>
-            <Text style={stylesheet.itemMeta}>Seller: {item?.seller?.name ?? 'Seller'}</Text>
-            <Text style={stylesheet.itemMeta}>
-              {item?.condition ?? 'Used'} · {item?.area ?? 'Lagos'}
-            </Text>
+
+          {/* Price breakdown */}
+          <View style={stylesheet.card}>
+            <Text style={stylesheet.sectionTitle}>ORDER SUMMARY</Text>
+
+            <View style={stylesheet.priceRow}>
+              <Text style={stylesheet.priceLabel}>Item price</Text>
+              <Text style={stylesheet.priceValue}>{formatPrice(item?.price ?? 0)}</Text>
+            </View>
+            <View style={stylesheet.priceRow}>
+              <Text style={stylesheet.priceLabel}>Platform fee</Text>
+              <Text style={stylesheet.priceValue}>{formatPrice(commission)}</Text>
+            </View>
+
+            <View style={stylesheet.divider} />
+
+            <View style={stylesheet.totalRow}>
+              <Text style={stylesheet.totalLabel}>Total</Text>
+              <Text style={stylesheet.totalValue}>{formatPrice(totalAmount)}</Text>
+            </View>
           </View>
-        </View>
+        </ScrollView>
 
-        {/* Delivery / Pickup */}
-        <View style={stylesheet.card}>
-          <Text style={stylesheet.sectionTitle}>PICKUP / MEET-UP</Text>
-
-          {/* Meetup Option */}
+        {/* CTA */}
+        <View style={stylesheet.footer}>
           <TouchableOpacity
-            activeOpacity={0.7}
-            style={stylesheet.optionRow}
-            onPress={() => setDeliveryMethod('meetup')}
+            style={stylesheet.payBtn}
+            onPress={handleInitializePayment}
+            activeOpacity={0.85}
           >
-            <View
-              style={[
-                stylesheet.radioOuter,
-                {
-                  borderColor:
-                    deliveryMethod === 'meetup' ? theme.colors.G : theme.colors.GLASS_BORDER,
-                },
-              ]}
-            >
-              {deliveryMethod === 'meetup' && <View style={stylesheet.radioInner} />}
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text
-                style={[
-                  stylesheet.optionTitle,
-                  { color: theme.colors.TEXT_PRIMARY },
-                ]}
-              >
-                Meet-up · {item?.area ?? 'Local Area'}
-              </Text>
-              <Text style={stylesheet.optionDesc}>Agree a safe public meeting point</Text>
-            </View>
+            <Text style={stylesheet.payBtnText}>Pay {formatPrice(totalAmount)}</Text>
           </TouchableOpacity>
         </View>
-
-        {/* Price breakdown */}
-        <View style={stylesheet.card}>
-          <Text style={stylesheet.sectionTitle}>ORDER SUMMARY</Text>
-
-          <View style={stylesheet.priceRow}>
-            <Text style={stylesheet.priceLabel}>Item price</Text>
-            <Text style={stylesheet.priceValue}>{formatPrice(item?.price ?? 0)}</Text>
-          </View>
-          <View style={stylesheet.priceRow}>
-            <Text style={stylesheet.priceLabel}>Platform fee</Text>
-            <Text style={stylesheet.priceValue}>{formatPrice(commission)}</Text>
-          </View>
-
-          <View style={stylesheet.divider} />
-
-          <View style={stylesheet.totalRow}>
-            <Text style={stylesheet.totalLabel}>Total</Text>
-            <Text style={stylesheet.totalValue}>{formatPrice(totalAmount)}</Text>
-          </View>
-        </View>
-      </ScrollView>
-
-      {/* CTA */}
-      <View style={stylesheet.footer}>
-        <TouchableOpacity
-          style={stylesheet.payBtn}
-          onPress={handleInitializePayment}
-          activeOpacity={0.85}
-        >
-          <Text style={stylesheet.payBtnText}>Pay {formatPrice(totalAmount)}</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
-    {checkoutModal}
+      </SafeAreaView>
+      {checkoutModal}
     </>
   );
 }

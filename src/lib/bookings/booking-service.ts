@@ -83,7 +83,10 @@ export class BookingService {
   /**
    * Get weekly availability for a business
    */
-  static async getProviderAvailability(businessId: string, staffId?: string | null): Promise<ProviderAvailability[]> {
+  static async getProviderAvailability(
+    businessId: string,
+    staffId?: string | null
+  ): Promise<ProviderAvailability[]> {
     let q: any = supabase
       .from('provider_availability')
       .select('*')
@@ -103,7 +106,12 @@ export class BookingService {
    */
   static async setProviderAvailability(
     businessId: string,
-    schedules: Array<{ day_of_week: number; start_time: string; end_time: string; is_available: boolean }>,
+    schedules: Array<{
+      day_of_week: number;
+      start_time: string;
+      end_time: string;
+      is_available: boolean;
+    }>,
     staffId?: string | null
   ): Promise<void> {
     for (const schedule of schedules) {
@@ -118,9 +126,7 @@ export class BookingService {
       if (staffId) row.staff_id = staffId;
       const onConflict = staffId ? 'business_id,staff_id,day_of_week' : 'business_id,day_of_week';
 
-      const { error } = await supabase
-        .from('provider_availability')
-        .upsert(row, { onConflict });
+      const { error } = await supabase.from('provider_availability').upsert(row, { onConflict });
 
       if (error) throw error;
     }
@@ -134,10 +140,7 @@ export class BookingService {
     startDate?: string,
     endDate?: string
   ): Promise<AvailabilityException[]> {
-    let query = supabase
-      .from('availability_exceptions')
-      .select('*')
-      .eq('business_id', businessId);
+    let query = supabase.from('availability_exceptions').select('*').eq('business_id', businessId);
 
     if (startDate) query = query.gte('date', startDate);
     if (endDate) query = query.lte('date', endDate);
@@ -259,9 +262,7 @@ export class BookingService {
       const slotEnd = curr + durationMs;
 
       // Check overlap with existing bookings
-      const isOverlap = bookedIntervals.some(
-        (b: any) => curr < b.end && slotEnd > b.start
-      );
+      const isOverlap = bookedIntervals.some((b: any) => curr < b.end && slotEnd > b.start);
 
       const isPast = curr <= nowMs;
       const available = !isOverlap && !isPast;
@@ -316,7 +317,9 @@ export class BookingService {
       .from('bookings')
       .update({ status: 'confirmed', updated_at: new Date().toISOString() })
       .eq('id', bookingId)
-      .select('*, service:service_offerings(*), business:businesses(*), customer:public_profiles!bookings_customer_id_fkey(*)')
+      .select(
+        '*, service:service_offerings(*), business:businesses(*), customer:public_profiles!bookings_customer_id_fkey(*)'
+      )
       .single();
 
     if (error) throw error;
@@ -386,7 +389,8 @@ export class BookingService {
     // Apply strike & threshold check if late cancellation
     if (isLateCancellation) {
       await this.evaluateActiveFlagStatus(
-        strikeParty === 'customer' ? booking.customer_id : booking.business_id, strikeParty
+        strikeParty === 'customer' ? booking.customer_id : booking.business_id,
+        strikeParty
       );
     }
 
@@ -396,10 +400,7 @@ export class BookingService {
   /**
    * Mark booking as No-Show
    */
-  static async markBookingNoShow(
-    bookingId: string,
-    targetParty: StrikeParty
-  ): Promise<Booking> {
+  static async markBookingNoShow(bookingId: string, targetParty: StrikeParty): Promise<Booking> {
     const { data: booking, error: fetchErr } = await supabase
       .from('bookings')
       .select('*')
@@ -445,10 +446,12 @@ export class BookingService {
 
   /** Recompute counters on the server from authorized, persisted booking records. */
   static async evaluateActiveFlagStatus(targetId: string, party: StrikeParty): Promise<boolean> {
-    const { isFlagged } = await api.post<{ isFlagged: boolean }>('/api/bookings/flags', { targetId, party });
+    const { isFlagged } = await api.post<{ isFlagged: boolean }>('/api/bookings/flags', {
+      targetId,
+      party,
+    });
     return isFlagged;
   }
-
 
   /**
    * Check if a completed booking is eligible for review by a customer
@@ -468,7 +471,10 @@ export class BookingService {
     }
 
     if (booking.customer_id !== userId) {
-      return { canReview: false, reason: 'Only the customer who made this booking can submit a review.' };
+      return {
+        canReview: false,
+        reason: 'Only the customer who made this booking can submit a review.',
+      };
     }
 
     if (booking.status !== 'completed') {
@@ -508,7 +514,9 @@ export class BookingService {
   static async getBusinessBookings(businessId: string): Promise<Booking[]> {
     const { data, error } = await supabase
       .from('bookings')
-      .select('*, service:service_offerings(*), business:businesses(*), customer:public_profiles!bookings_customer_id_fkey(*)')
+      .select(
+        '*, service:service_offerings(*), business:businesses(*), customer:public_profiles!bookings_customer_id_fkey(*)'
+      )
       .eq('business_id', businessId)
       .order('appointment_time', { ascending: false });
 
@@ -516,4 +524,3 @@ export class BookingService {
     return data || [];
   }
 }
-

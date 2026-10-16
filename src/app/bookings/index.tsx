@@ -1,11 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,7 +9,8 @@ import { useCustomerBookings } from '../../hooks/bookings/use-bookings';
 import { Booking } from '../../types';
 
 export default function BookingsDashboardScreen() {
-  const { theme } = useUnistyles(); const s = stylesheet;
+  const { theme } = useUnistyles();
+  const s = stylesheet;
   const router = useRouter();
   const { user } = useAuth();
 
@@ -129,7 +124,11 @@ export default function BookingsDashboardScreen() {
                     <Text style={s.timeTxt}>{dateStr}</Text>
                   </View>
 
-                  {!!b.notes && <Text style={s.notesTxt} numberOfLines={1}>Note: {b.notes}</Text>}
+                  {!!b.notes && (
+                    <Text style={s.notesTxt} numberOfLines={1}>
+                      Note: {b.notes}
+                    </Text>
+                  )}
                 </TouchableOpacity>
               );
             })

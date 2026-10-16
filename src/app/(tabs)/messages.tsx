@@ -19,6 +19,7 @@ import { supabase } from '../../lib/supabase/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Swipeable } from 'react-native-gesture-handler';
+import { isUserOnline } from '../../lib/activity/online-status';
 type ConvType = 'friend' | 'marketplace' | 'briefcase';
 type FilterTab = 'all' | 'friends' | 'marketplace' | 'business';
 
@@ -28,6 +29,8 @@ interface Conversation {
   participantId: string;
   participantName: string;
   participantAvatar: string | null;
+  isOnline: boolean;
+  lastSeen: string | null;
   lastMessage: string;
   timestamp: string;
   unreadCount: number;
@@ -54,7 +57,8 @@ function timeLabel(ts: string) {
 }
 
 export default function MessagesTab() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const router = useRouter();
   const { user } = useAuth();
@@ -67,7 +71,9 @@ export default function MessagesTab() {
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
   const [refreshing, setRefreshing] = useState(false);
   const [showNewMessage, setShowNewMessage] = useState(false);
-  const [messageableUsers, setMessageableUsers] = useState<{ id: string; name: string; avatar_url: string | null }[]>([]);
+  const [messageableUsers, setMessageableUsers] = useState<
+    { id: string; name: string; avatar_url: string | null }[]
+  >([]);
   const [loadingMessageableUsers, setLoadingMessageableUsers] = useState(false);
 
   const FILTERS: { key: FilterTab; label: string }[] = [
@@ -118,7 +124,7 @@ export default function MessagesTab() {
       if (otherUserIds.length > 0) {
         const { data: usersData } = await supabase
           .from('public_profiles')
-          .select('id, name, username, avatar_url')
+          .select('id, name, username, avatar_url, is_online, last_seen')
           .in('id', otherUserIds);
 
         if (usersData) {
@@ -133,17 +139,25 @@ export default function MessagesTab() {
           const otherUser = usersMap.get(otherId);
 
           let convType: ConvType = 'friend';
-          if (c.type === 'marketplace' || (c.item_id && c.type !== 'briefcase' && c.type !== 'business')) convType = 'marketplace';
-          else if (c.type === 'briefcase' || c.type === 'business' || c.business_id) convType = 'briefcase';
+          if (
+            c.type === 'marketplace' ||
+            (c.item_id && c.type !== 'briefcase' && c.type !== 'business')
+          )
+            convType = 'marketplace';
+          else if (c.type === 'briefcase' || c.type === 'business' || c.business_id)
+            convType = 'briefcase';
 
           const isBiz = convType === 'briefcase' || !!c.business_id;
           const participantName = isBiz
             ? c.business_name || c.item_title || otherUser?.name || 'Business'
             : otherUser?.name || c.item_title || 'Neighbour';
 
-          const participantAvatar = isBiz && (c.business_image || c.item_image)
-            ? c.business_image || c.item_image
-            : (otherUser?.avatar_url && !otherUser.avatar_url.startsWith('file://') ? otherUser.avatar_url : null);
+          const participantAvatar =
+            isBiz && (c.business_image || c.item_image)
+              ? c.business_image || c.item_image
+              : otherUser?.avatar_url && !otherUser.avatar_url.startsWith('file://')
+                ? otherUser.avatar_url
+                : null;
 
           return {
             id: c.id,
@@ -151,6 +165,8 @@ export default function MessagesTab() {
             participantId: otherId || '',
             participantName,
             participantAvatar,
+            isOnline: isUserOnline(otherUser?.is_online, otherUser?.last_seen),
+            lastSeen: otherUser?.last_seen || null,
             lastMessage: c.last_message_text || c.last_message || 'Tap to chat',
             timestamp: c.updated_at || c.created_at,
             unreadCount: unreadCounts[c.id] || 0,
@@ -196,19 +212,95 @@ export default function MessagesTab() {
     }, [user])
   );
 
+  const presenceIdsKey = useMemo(
+    () =>
+      [...new Set(conversations.map((conversation) => conversation.participantId).filter(Boolean))]
+        .sort()
+        .join(','),
+    [conversations]
+  );
+
+  useEffect(() => {
+    if (!user?.id || !presenceIdsKey) return;
+    const participantIds = presenceIdsKey.split(',');
+    const channels: ReturnType<typeof supabase.channel>[] = [];
+
+    for (let index = 0; index < participantIds.length; index += 100) {
+      const chunk = participantIds.slice(index, index + 100);
+      const channel = supabase
+        .channel(`messages-user-status-${user.id}-${index}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'users',
+            filter: `id=in.(${chunk.join(',')})`,
+          },
+          (payload) => {
+            const updated = payload.new as {
+              id: string;
+              is_online: boolean | null;
+              last_seen: string | null;
+            };
+            setConversations((previous) =>
+              previous.map((conversation) =>
+                conversation.participantId === updated.id
+                  ? {
+                      ...conversation,
+                      isOnline: isUserOnline(updated.is_online, updated.last_seen),
+                      lastSeen: updated.last_seen,
+                    }
+                  : conversation
+              )
+            );
+          }
+        )
+        .subscribe();
+      channels.push(channel);
+    }
+
+    return () => {
+      channels.forEach((channel) => void supabase.removeChannel(channel));
+    };
+  }, [user?.id, presenceIdsKey]);
+
+  useEffect(() => {
+    const expiryCheck = setInterval(() => {
+      setConversations((previous) => {
+        let changed = false;
+        const next = previous.map((conversation) => {
+          const isOnline = isUserOnline(conversation.isOnline, conversation.lastSeen);
+          if (isOnline === conversation.isOnline) return conversation;
+          changed = true;
+          return { ...conversation, isOnline };
+        });
+        return changed ? next : previous;
+      });
+    }, 15_000);
+
+    return () => clearInterval(expiryCheck);
+  }, []);
+
   useEffect(() => {
     if (!showNewMessage || !user) return;
     let active = true;
     const loadMessageableUsers = async () => {
       setLoadingMessageableUsers(true);
+      setMessageableUsers([]);
       try {
-        const { data: follows, error: followsError } = await supabase
-          .from('followers')
-          .select('following_id')
-          .eq('follower_id', user.id);
-        if (followsError) throw followsError;
+        const [{ data: following, error: followingError }, { data: followers, error: followersError }] =
+          await Promise.all([
+            supabase.from('followers').select('following_id').eq('follower_id', user.id),
+            supabase.from('followers').select('follower_id').eq('following_id', user.id),
+          ]);
+        if (followingError) throw followingError;
+        if (followersError) throw followersError;
 
-        const userIds = (follows || []).map((row) => row.following_id).filter(Boolean);
+        const followerIds = new Set((followers || []).map((row) => row.follower_id));
+        const userIds = (following || [])
+          .map((row) => row.following_id)
+          .filter((id) => id && followerIds.has(id));
         if (!userIds.length) {
           if (active) setMessageableUsers([]);
           return;
@@ -222,13 +314,19 @@ export default function MessagesTab() {
         if (peopleError) throw peopleError;
         if (active) setMessageableUsers(people || []);
       } catch (error) {
-        if (active) Alert.alert('Could not load people', error instanceof Error ? error.message : 'Please try again.');
+        if (active)
+          Alert.alert(
+            'Could not load people',
+            error instanceof Error ? error.message : 'Please try again.'
+          );
       } finally {
         if (active) setLoadingMessageableUsers(false);
       }
     };
     void loadMessageableUsers();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [showNewMessage, user]);
 
   const startDirectMessage = (participantId: string) => {
@@ -467,13 +565,13 @@ export default function MessagesTab() {
                         contentFit="cover"
                       />
                     ) : (
-                      <View style={stylesheet.avatarPlaceholder}>
+                      <View style={stylesheet.messageableAvatarPlaceholder}>
                         <Text style={stylesheet.avatarInitial}>
                           {item.participantName.charAt(0).toUpperCase()}
                         </Text>
                       </View>
                     )}
-                    <View style={stylesheet.onlineDot} />
+                    {item.isOnline && <View style={stylesheet.onlineDot} />}
                   </View>
 
                   {/* Convo Details */}
@@ -544,7 +642,12 @@ export default function MessagesTab() {
         onRequestClose={() => setShowNewMessage(false)}
       >
         <View style={stylesheet.modalBackdrop}>
-          <View style={[stylesheet.newMessageSheet, { backgroundColor: theme.colors.DARK, borderColor: theme.colors.GLASS_BORDER }]}>
+          <View
+            style={[
+              stylesheet.newMessageSheet,
+              { backgroundColor: theme.colors.DARK, borderColor: theme.colors.GLASS_BORDER },
+            ]}
+          >
             <View style={stylesheet.newMessageHeader}>
               <Text style={stylesheet.newMessageTitle}>New message</Text>
               <TouchableOpacity onPress={() => setShowNewMessage(false)} accessibilityLabel="Close">
@@ -554,19 +657,30 @@ export default function MessagesTab() {
             {loadingMessageableUsers ? (
               <ActivityIndicator style={{ marginVertical: 28 }} color={theme.colors.G} />
             ) : messageableUsers.length === 0 ? (
-              <Text style={stylesheet.emptySubtitle}>Follow someone’s profile to start a direct message.</Text>
+              <Text style={stylesheet.emptySubtitle}>
+                You don’t have any mutual friends you can message yet.
+              </Text>
             ) : (
               <FlatList
                 data={messageableUsers}
                 keyExtractor={(item) => item.id}
                 keyboardShouldPersistTaps="handled"
                 renderItem={({ item }) => (
-                  <TouchableOpacity style={stylesheet.messageableUser} onPress={() => startDirectMessage(item.id)}>
+                  <TouchableOpacity
+                    style={stylesheet.messageableUser}
+                    onPress={() => startDirectMessage(item.id)}
+                  >
                     {item.avatar_url ? (
-                      <Image source={{ uri: item.avatar_url }} style={stylesheet.avatarImg} contentFit="cover" />
+                      <Image
+                        source={{ uri: item.avatar_url }}
+                        style={stylesheet.messageableAvatar}
+                        contentFit="cover"
+                      />
                     ) : (
                       <View style={stylesheet.avatarPlaceholder}>
-                        <Text style={stylesheet.avatarInitial}>{item.name?.charAt(0).toUpperCase() || '?'}</Text>
+                        <Text style={stylesheet.avatarInitial}>
+                          {item.name?.charAt(0).toUpperCase() || '?'}
+                        </Text>
                       </View>
                     )}
                     <Text style={stylesheet.name}>{item.name || 'YRDLY member'}</Text>
@@ -667,6 +781,15 @@ const _stylesheet = StyleSheet.create((theme) => ({
     position: 'relative',
   },
   avatarImg: { width: '100%', height: '100%', borderRadius: 24 },
+  messageableAvatar: { width: 48, height: 48, borderRadius: 24 },
+  messageableAvatarPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(130,219,126,0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   avatarPlaceholder: {
     width: '100%',
     height: '100%',
@@ -761,10 +884,29 @@ const _stylesheet = StyleSheet.create((theme) => ({
   },
   startBtnText: { fontFamily: 'Outfit-Bold', fontSize: 14, color: '#000' },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' },
-  newMessageSheet: { maxHeight: '75%', padding: 18, paddingBottom: 28, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: 1 },
-  newMessageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  newMessageSheet: {
+    maxHeight: '75%',
+    padding: 18,
+    paddingBottom: 28,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    borderWidth: 1,
+  },
+  newMessageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
   newMessageTitle: { fontFamily: 'Outfit-Bold', fontSize: 19, color: theme.colors.TEXT_PRIMARY },
-  messageableUser: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.colors.GLASS_BORDER },
+  messageableUser: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.GLASS_BORDER,
+  },
   deleteAction: {
     backgroundColor: '#ef4444',
     justifyContent: 'center',

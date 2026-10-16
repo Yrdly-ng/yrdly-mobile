@@ -16,13 +16,27 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Image } from 'expo-image';
 import {
-  ArrowLeft, BellSlash, Bell, DotsThree, UsersThree, PaperPlaneTilt,
-  Heart, ChatCircle, ImageSquare, Trash, Warning
+  ArrowLeft,
+  BellSlash,
+  Bell,
+  DotsThree,
+  UsersThree,
+  PaperPlaneTilt,
+  Heart,
+  ChatCircle,
+  ImageSquare,
+  Trash,
+  Warning,
 } from 'phosphor-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { supabase } from '@/lib/supabase/supabase';
 import { useAuth } from '@/hooks/use-supabase-auth';
-import { CommunityService, Community, CommunityPost, CommunityMembership } from '@/lib/communities/community-service';
+import {
+  CommunityService,
+  Community,
+  CommunityPost,
+  CommunityMembership,
+} from '@/lib/communities/community-service';
 import { StorageService } from '@/lib/media/storage-service';
 import ImagePicker from 'react-native-image-crop-picker';
 import { timeAgo } from '@/lib/shared/utils';
@@ -32,12 +46,29 @@ import { useToast } from '@/components/toast';
 function EmptyFeed({ communityName }: { communityName: string }) {
   const { theme } = useUnistyles();
   return (
-    <Animated.View entering={FadeIn} style={{ alignItems: 'center', paddingTop: 60, paddingHorizontal: 32, gap: 14 }}>
+    <Animated.View
+      entering={FadeIn}
+      style={{ alignItems: 'center', paddingTop: 60, paddingHorizontal: 32, gap: 14 }}
+    >
       <UsersThree size={56} color={theme.colors.G} weight="light" />
-      <Text style={{ fontFamily: 'Inter-Bold', fontSize: 18, color: theme.colors.TEXT_PRIMARY, textAlign: 'center' }}>
+      <Text
+        style={{
+          fontFamily: 'Inter-Bold',
+          fontSize: 18,
+          color: theme.colors.TEXT_PRIMARY,
+          textAlign: 'center',
+        }}
+      >
         Be the first to post here
       </Text>
-      <Text style={{ fontFamily: 'Inter-Regular', fontSize: 14, color: theme.colors.LABEL, textAlign: 'center' }}>
+      <Text
+        style={{
+          fontFamily: 'Inter-Regular',
+          fontSize: 14,
+          color: theme.colors.LABEL,
+          textAlign: 'center',
+        }}
+      >
         {communityName} is just getting started. Share something with your neighbours.
       </Text>
     </Animated.View>
@@ -48,7 +79,12 @@ function ScrollableImages({ urls }: { urls: string[] }) {
   return (
     <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
       {urls.slice(0, 4).map((url, i) => (
-        <Image key={i} source={{ uri: url }} style={{ width: 90, height: 90, borderRadius: 10 }} contentFit="cover" />
+        <Image
+          key={i}
+          source={{ uri: url }}
+          style={{ width: 90, height: 90, borderRadius: 10 }}
+          contentFit="cover"
+        />
       ))}
     </View>
   );
@@ -75,7 +111,13 @@ function PostCard({
   const s = postCardStylesheet;
 
   return (
-    <Animated.View entering={FadeIn} style={[s.card, { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER }]}>
+    <Animated.View
+      entering={FadeIn}
+      style={[
+        s.card,
+        { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER },
+      ]}
+    >
       {/* Author row */}
       <TouchableOpacity
         style={s.authorRow}
@@ -92,16 +134,24 @@ function PostCard({
           </View>
         )}
         <View style={{ flex: 1 }}>
-          <Text style={[s.authorName, { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-SemiBold' }]}>
+          <Text
+            style={[
+              s.authorName,
+              { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-SemiBold' },
+            ]}
+          >
             {post.author_name ?? 'User'}
           </Text>
           <Text style={[s.timestamp, { color: theme.colors.LABEL, fontFamily: 'Inter-Regular' }]}>
-            {timeAgo(post.created_at)}{post.is_edited ? ' · edited' : ''}
+            {timeAgo(post.created_at)}
+            {post.is_edited ? ' · edited' : ''}
           </Text>
         </View>
         {post.is_pinned && (
           <View style={[s.pinnedBadge, { backgroundColor: theme.colors.G + '22' }]}>
-            <Text style={{ color: theme.colors.G, fontFamily: 'Inter-SemiBold', fontSize: 10 }}>📌 Pinned</Text>
+            <Text style={{ color: theme.colors.G, fontFamily: 'Inter-SemiBold', fontSize: 10 }}>
+              📌 Pinned
+            </Text>
           </View>
         )}
       </TouchableOpacity>
@@ -112,9 +162,7 @@ function PostCard({
       </Text>
 
       {/* Images */}
-      {post.image_urls?.length ? (
-        <ScrollableImages urls={post.image_urls} />
-      ) : null}
+      {post.image_urls?.length ? <ScrollableImages urls={post.image_urls} /> : null}
 
       {/* Actions */}
       <View style={s.actions}>
@@ -135,7 +183,10 @@ function PostCard({
           </Text>
         </TouchableOpacity>
         {onDelete && post.author_id === userId && (
-          <TouchableOpacity style={[s.actionBtn, { marginLeft: 'auto' }]} onPress={() => onDelete(post)}>
+          <TouchableOpacity
+            style={[s.actionBtn, { marginLeft: 'auto' }]}
+            onPress={() => onDelete(post)}
+          >
             <Trash size={18} color={theme.colors.LABEL} />
           </TouchableOpacity>
         )}
@@ -144,13 +195,17 @@ function PostCard({
   );
 }
 
-
-
 const postCardStylesheet = StyleSheet.create((theme) => ({
   card: { marginHorizontal: 0, padding: 14, borderRadius: 16, borderWidth: 1, marginBottom: 12 },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   avatar: { width: 38, height: 38, borderRadius: 19 },
-  avatarFallback: { width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center' },
+  avatarFallback: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   authorName: { fontSize: 14 },
   timestamp: { fontSize: 12, marginTop: 1 },
   pinnedBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
@@ -161,29 +216,62 @@ const postCardStylesheet = StyleSheet.create((theme) => ({
 }));
 
 // ─── "More from LGA" section header ──────────────────────────────────────────
-function LgaSection({ communityId, communityName }: { communityId: string; communityName: string }) {
+function LgaSection({
+  communityId,
+  communityName,
+}: {
+  communityId: string;
+  communityName: string;
+}) {
   const { theme } = useUnistyles();
   const [lgaPosts, setLgaPosts] = useState<CommunityPost[]>([]);
 
   useEffect(() => {
-    CommunityService.fetchParentLgaPosts(communityId).then(setLgaPosts).catch(() => {});
+    CommunityService.fetchParentLgaPosts(communityId)
+      .then(setLgaPosts)
+      .catch(() => {});
   }, [communityId]);
 
   if (!lgaPosts.length) return null;
 
   return (
     <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
-      <Text style={{ fontFamily: 'Inter-SemiBold', fontSize: 14, color: theme.colors.LABEL, marginBottom: 8 }}>
+      <Text
+        style={{
+          fontFamily: 'Inter-SemiBold',
+          fontSize: 14,
+          color: theme.colors.LABEL,
+          marginBottom: 8,
+        }}
+      >
         More from the area
       </Text>
       {lgaPosts.map((p) => (
-        <View key={p.id} style={{
-          backgroundColor: theme.colors.SURFACE, borderRadius: 14,
-          padding: 12, marginBottom: 10, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER,
-          opacity: 0.85,
-        }}>
-          <Text style={{ fontFamily: 'Inter-Regular', fontSize: 14, color: theme.colors.TEXT_PRIMARY }}>{p.content}</Text>
-          <Text style={{ fontFamily: 'Inter-Regular', fontSize: 11, color: theme.colors.LABEL, marginTop: 6 }}>
+        <View
+          key={p.id}
+          style={{
+            backgroundColor: theme.colors.SURFACE,
+            borderRadius: 14,
+            padding: 12,
+            marginBottom: 10,
+            borderWidth: 1,
+            borderColor: theme.colors.GLASS_BORDER,
+            opacity: 0.85,
+          }}
+        >
+          <Text
+            style={{ fontFamily: 'Inter-Regular', fontSize: 14, color: theme.colors.TEXT_PRIMARY }}
+          >
+            {p.content}
+          </Text>
+          <Text
+            style={{
+              fontFamily: 'Inter-Regular',
+              fontSize: 11,
+              color: theme.colors.LABEL,
+              marginTop: 6,
+            }}
+          >
             {p.author_name} · {timeAgo(p.created_at)}
           </Text>
         </View>
@@ -204,7 +292,9 @@ export default function CommunityFeedScreen() {
 
   const [community, setCommunity] = useState<Community | null>(null);
   const [membership, setMembership] = useState<CommunityMembership | null>(null);
-  const [joinRequest, setJoinRequest] = useState<{ status: 'pending' | 'approved' | 'rejected' } | null>(null);
+  const [joinRequest, setJoinRequest] = useState<{
+    status: 'pending' | 'approved' | 'rejected';
+  } | null>(null);
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -232,7 +322,10 @@ export default function CommunityFeedScreen() {
         .from('community_post_likes')
         .select('post_id')
         .eq('user_id', user.id)
-        .in('post_id', postsData.map((p) => p.id));
+        .in(
+          'post_id',
+          postsData.map((p) => p.id)
+        );
       const likedSet = new Set((likedRows ?? []).map((r: any) => r.post_id));
       setPosts(postsData.map((p) => ({ ...p, liked_by_me: likedSet.has(p.id) })));
     } else {
@@ -245,19 +338,31 @@ export default function CommunityFeedScreen() {
     setLoading(false);
   }, [id, user]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   // Realtime: listen for new community_posts
   useEffect(() => {
     if (!id) return;
     const channel = supabase
       .channel(`community-feed-${id}`)
-      .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'community_posts',
-        filter: `community_id=eq.${id}`,
-      }, () => { load(); })
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'community_posts',
+          filter: `community_id=eq.${id}`,
+        },
+        () => {
+          load();
+        }
+      )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [id, load]);
 
   const onRefresh = async () => {
@@ -313,22 +418,34 @@ export default function CommunityFeedScreen() {
     if (!user) return;
     const action = post.liked_by_me ? 'unlike' : 'like';
     // Optimistic
-    setPosts((prev) => prev.map((p) =>
-      p.id === post.id
-        ? { ...p, liked_by_me: !p.liked_by_me, like_count: p.like_count + (post.liked_by_me ? -1 : 1) }
-        : p
-    ));
-    await supabase.rpc('community_toggle_post_like', { p_post_id: post.id, p_user_id: user.id, p_action: action });
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === post.id
+          ? {
+              ...p,
+              liked_by_me: !p.liked_by_me,
+              like_count: p.like_count + (post.liked_by_me ? -1 : 1),
+            }
+          : p
+      )
+    );
+    await supabase.rpc('community_toggle_post_like', {
+      p_post_id: post.id,
+      p_user_id: user.id,
+      p_action: action,
+    });
   };
 
   const handleDelete = (post: CommunityPost) => {
     Alert.alert('Delete Post', 'Are you sure you want to delete this post?', [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Delete', style: 'destructive', onPress: async () => {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
           await CommunityService.deletePost(post.id);
           setPosts((prev) => prev.filter((p) => p.id !== post.id));
-        }
+        },
       },
     ]);
   };
@@ -342,7 +459,14 @@ export default function CommunityFeedScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.DARK }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: theme.colors.DARK,
+        }}
+      >
         <ActivityIndicator color={theme.colors.G} />
       </View>
     );
@@ -350,9 +474,18 @@ export default function CommunityFeedScreen() {
 
   if (!community) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.DARK }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: theme.colors.DARK,
+        }}
+      >
         <Warning size={48} color={theme.colors.LABEL} />
-        <Text style={{ color: theme.colors.LABEL, fontFamily: 'Inter-Regular', marginTop: 12 }}>Community not found.</Text>
+        <Text style={{ color: theme.colors.LABEL, fontFamily: 'Inter-Regular', marginTop: 12 }}>
+          Community not found.
+        </Text>
       </View>
     );
   }
@@ -364,12 +497,21 @@ export default function CommunityFeedScreen() {
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Custom header */}
-      <SafeAreaView edges={['top']} style={[s.header, { backgroundColor: theme.colors.DARK, borderBottomColor: theme.colors.GLASS_BORDER }]}>
+      <SafeAreaView
+        edges={['top']}
+        style={[
+          s.header,
+          { backgroundColor: theme.colors.DARK, borderBottomColor: theme.colors.GLASS_BORDER },
+        ]}
+      >
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <ArrowLeft size={22} color={theme.colors.TEXT_PRIMARY} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[s.headerTitle, { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-Bold' }]} numberOfLines={1}>
+          <Text
+            style={[s.headerTitle, { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-Bold' }]}
+            numberOfLines={1}
+          >
             {community.name}
           </Text>
           <Text style={[s.headerMeta, { color: theme.colors.LABEL, fontFamily: 'Inter-Regular' }]}>
@@ -378,10 +520,11 @@ export default function CommunityFeedScreen() {
         </View>
         {isMember && (
           <TouchableOpacity style={s.muteBtn} onPress={toggleMute}>
-            {membership?.is_muted
-              ? <BellSlash size={20} color={theme.colors.LABEL} />
-              : <Bell size={20} color={theme.colors.LABEL} />
-            }
+            {membership?.is_muted ? (
+              <BellSlash size={20} color={theme.colors.LABEL} />
+            ) : (
+              <Bell size={20} color={theme.colors.LABEL} />
+            )}
           </TouchableOpacity>
         )}
       </SafeAreaView>
@@ -391,36 +534,59 @@ export default function CommunityFeedScreen() {
         data={isMember ? posts : []}
         keyExtractor={(p) => p.id}
         contentContainerStyle={{ padding: 16, paddingBottom: isMember ? 110 : 40 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.G} />}
-        ListHeaderComponent={community.banner_url ? (
-          <Image source={{ uri: community.banner_url }} style={s.banner} contentFit="cover" />
-        ) : null}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.colors.G}
+          />
+        }
+        ListHeaderComponent={
+          community.banner_url ? (
+            <Image source={{ uri: community.banner_url }} style={s.banner} contentFit="cover" />
+          ) : null
+        }
         ListEmptyComponent={
-          isMember
-            ? <EmptyFeed communityName={community.name} />
-            : (
-              <View style={s.joinWrap}>
-                <UsersThree size={52} color={theme.colors.G} weight="light" />
-                <Text style={[s.joinTitle, { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-Bold' }]}>
-                  {community.privacy === 'invite' ? 'Invite Only' : `Join ${community.name}`}
-                </Text>
-                <Text style={[s.joinDesc, { color: theme.colors.LABEL, fontFamily: 'Inter-Regular' }]}>
-                  {community.description ?? 'Connect with your neighbours and stay in the loop.'}
-                </Text>
-                {community.privacy !== 'invite' && (
-                  <TouchableOpacity
-                    style={[s.joinBtn, { backgroundColor: theme.colors.G }]}
-                    onPress={handleJoin}
-                    disabled={joining || !!joinRequest}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={{ color: '#fff', fontFamily: 'Inter-Bold', fontSize: 15 }}>
-                      {joining ? 'Sending…' : community.privacy === 'open' ? 'Join Community' : joinRequest?.status === 'pending' ? 'Request Pending' : joinRequest?.status === 'rejected' ? 'Request Declined' : 'Request to Join'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )
+          isMember ? (
+            <EmptyFeed communityName={community.name} />
+          ) : (
+            <View style={s.joinWrap}>
+              <UsersThree size={52} color={theme.colors.G} weight="light" />
+              <Text
+                style={[
+                  s.joinTitle,
+                  { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-Bold' },
+                ]}
+              >
+                {community.privacy === 'invite' ? 'Invite Only' : `Join ${community.name}`}
+              </Text>
+              <Text
+                style={[s.joinDesc, { color: theme.colors.LABEL, fontFamily: 'Inter-Regular' }]}
+              >
+                {community.description ?? 'Connect with your neighbours and stay in the loop.'}
+              </Text>
+              {community.privacy !== 'invite' && (
+                <TouchableOpacity
+                  style={[s.joinBtn, { backgroundColor: theme.colors.G }]}
+                  onPress={handleJoin}
+                  disabled={joining || !!joinRequest}
+                  activeOpacity={0.85}
+                >
+                  <Text style={{ color: '#fff', fontFamily: 'Inter-Bold', fontSize: 15 }}>
+                    {joining
+                      ? 'Sending…'
+                      : community.privacy === 'open'
+                        ? 'Join Community'
+                        : joinRequest?.status === 'pending'
+                          ? 'Request Pending'
+                          : joinRequest?.status === 'rejected'
+                            ? 'Request Declined'
+                            : 'Request to Join'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )
         }
         renderItem={({ item }) => (
           <PostCard
@@ -432,9 +598,11 @@ export default function CommunityFeedScreen() {
             communityId={community.id}
           />
         )}
-        ListFooterComponent={isMember && isSparse && community.type === 'ward' ? (
-          <LgaSection communityId={community.id} communityName={community.name} />
-        ) : null}
+        ListFooterComponent={
+          isMember && isSparse && community.type === 'ward' ? (
+            <LgaSection communityId={community.id} communityName={community.name} />
+          ) : null
+        }
       />
 
       {/* Compose bar */}
@@ -443,18 +611,26 @@ export default function CommunityFeedScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={insets.bottom + 60}
         >
-          <View style={[s.compose, {
-            backgroundColor: theme.colors.GLASS_BG,
-            borderTopColor: theme.colors.GLASS_BORDER,
-            paddingBottom: insets.bottom + 8,
-          }]}>
+          <View
+            style={[
+              s.compose,
+              {
+                backgroundColor: theme.colors.GLASS_BG,
+                borderTopColor: theme.colors.GLASS_BORDER,
+                paddingBottom: insets.bottom + 8,
+              },
+            ]}
+          >
             <TextInput
-              style={[s.composeInput, {
-                backgroundColor: theme.colors.SURFACE,
-                color: theme.colors.TEXT_PRIMARY,
-                fontFamily: 'Inter-Regular',
-                borderColor: theme.colors.GLASS_BORDER,
-              }]}
+              style={[
+                s.composeInput,
+                {
+                  backgroundColor: theme.colors.SURFACE,
+                  color: theme.colors.TEXT_PRIMARY,
+                  fontFamily: 'Inter-Regular',
+                  borderColor: theme.colors.GLASS_BORDER,
+                },
+              ]}
               placeholder={`Post to ${community.name}…`}
               placeholderTextColor={theme.colors.LABEL}
               value={composeText}
@@ -463,14 +639,20 @@ export default function CommunityFeedScreen() {
               maxLength={1000}
             />
             <TouchableOpacity
-              style={[s.sendBtn, { backgroundColor: composeText.trim() ? theme.colors.G : theme.colors.GLASS_BORDER }]}
+              style={[
+                s.sendBtn,
+                {
+                  backgroundColor: composeText.trim() ? theme.colors.G : theme.colors.GLASS_BORDER,
+                },
+              ]}
               onPress={handlePost}
               disabled={!composeText.trim() || posting}
             >
-              {posting
-                ? <ActivityIndicator size={18} color="#fff" />
-                : <PaperPlaneTilt size={20} color="#fff" weight="fill" />
-              }
+              {posting ? (
+                <ActivityIndicator size={18} color="#fff" />
+              ) : (
+                <PaperPlaneTilt size={20} color="#fff" weight="fill" />
+              )}
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -481,8 +663,12 @@ export default function CommunityFeedScreen() {
 
 const stylesheet = StyleSheet.create((theme) => ({
   header: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingHorizontal: 14, paddingBottom: 10, borderBottomWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
   },
   backBtn: { padding: 6 },
   headerTitle: { fontSize: 17 },
@@ -494,15 +680,28 @@ const stylesheet = StyleSheet.create((theme) => ({
   joinDesc: { fontSize: 14, textAlign: 'center' },
   joinBtn: { paddingHorizontal: 32, paddingVertical: 14, borderRadius: 14, marginTop: 6 },
   compose: {
-    flexDirection: 'row', alignItems: 'flex-end', gap: 10,
-    paddingHorizontal: 14, paddingTop: 10, borderTopWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    borderTopWidth: 1,
   },
   composeInput: {
-    flex: 1, borderRadius: 12, borderWidth: 1, paddingHorizontal: 12,
-    paddingVertical: 8, fontSize: 15, maxHeight: 100, minHeight: 40,
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 15,
+    maxHeight: 100,
+    minHeight: 40,
   },
   sendBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    justifyContent: 'center', alignItems: 'center',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 }));

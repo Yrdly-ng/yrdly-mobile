@@ -37,7 +37,8 @@ interface LocationPickerProps {
 type PickerMode = 'state' | 'lga';
 
 export function LocationPicker({ value, onChange }: LocationPickerProps) {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const [detecting, setDetecting] = useState(false);
   const [detectionResult, setDetectionResult] = useState<'success' | 'outside' | 'denied' | null>(

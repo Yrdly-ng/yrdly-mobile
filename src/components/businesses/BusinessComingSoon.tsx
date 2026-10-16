@@ -15,7 +15,8 @@ import Animated, {
 const { width } = Dimensions.get('window');
 
 export function BusinessComingSoon() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   // Animations
   const pulseScale = useSharedValue(1);

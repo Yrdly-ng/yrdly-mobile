@@ -16,7 +16,8 @@ import { supabase } from '../lib/supabase/supabase';
 import { WEB_APP_URL } from '../lib/network/api';
 
 // Website IDs are public configuration, never identity-verification secrets.
-const websiteId = process.env.EXPO_PUBLIC_CRISP_WEBSITE_ID || 'e843a16b-9483-4622-9c42-5586532ab2fa';
+const websiteId =
+  process.env.EXPO_PUBLIC_CRISP_WEBSITE_ID || 'e843a16b-9483-4622-9c42-5586532ab2fa';
 let configuredWebsiteId: string | null = null;
 
 export const isCrispChatEnabled = Boolean(websiteId);
@@ -70,9 +71,10 @@ export default function CrispChat() {
         configure(websiteId);
         configuredWebsiteId = websiteId;
       } catch (error) {
-        if (__DEV__) console.warn('[CrispChat] Native SDK initialization failed.', {
-          errorName: error instanceof Error ? error.name : 'UnknownError',
-        });
+        if (__DEV__)
+          console.warn('[CrispChat] Native SDK initialization failed.', {
+            errorName: error instanceof Error ? error.name : 'UnknownError',
+          });
       }
     }
   }, []);
@@ -125,7 +127,10 @@ export default function CrispChat() {
 
     const identifyWithSignature = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
         if (error || !session?.access_token || controller.signal.aborted) return;
 
         const response = await fetch(`${WEB_APP_URL}/api/crisp/identity`, {
@@ -137,14 +142,15 @@ export default function CrispChat() {
 
         if (!response.ok) return;
 
-        const result = await response.json() as { email?: string; signature?: string };
+        const result = (await response.json()) as { email?: string; signature?: string };
         if (
           !isCurrentRequest ||
           currentUserId.current !== userId ||
           currentEmail.current !== email ||
           result.email !== email ||
           !result.signature
-        ) return;
+        )
+          return;
 
         setUserEmail(email, result.signature);
       } catch {

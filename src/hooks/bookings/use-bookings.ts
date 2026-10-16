@@ -1,11 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BookingService, TimeSlot } from '@/lib/bookings/booking-service';
-import {
-  ServiceOffering,
-  ProviderAvailability,
-  AvailabilityException,
-  Booking,
-} from '@/types';
+import { ServiceOffering, ProviderAvailability, AvailabilityException, Booking } from '@/types';
 
 export function useServiceOfferings(businessId?: string) {
   const [offerings, setOfferings] = useState<ServiceOffering[]>([]);
@@ -85,7 +80,12 @@ export function useAvailableSlots(
     }
     try {
       setLoading(true);
-      const data = await BookingService.getAvailableSlots(businessId, serviceId, dateString, staffId);
+      const data = await BookingService.getAvailableSlots(
+        businessId,
+        serviceId,
+        dateString,
+        staffId
+      );
       setSlots(data);
     } catch (err) {
       console.error('Error fetching slots:', err);

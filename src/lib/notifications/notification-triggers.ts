@@ -131,7 +131,6 @@ export class NotificationTriggers {
         const messagePreview =
           messageContent.length > 50 ? messageContent.substring(0, 50) + '...' : messageContent;
 
-
         await NotificationService.createNotification({
           userId: toUserId,
           type: 'message',

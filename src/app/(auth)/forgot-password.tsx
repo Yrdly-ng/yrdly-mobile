@@ -1,13 +1,6 @@
 import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles';
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Platform,
-  ScrollView,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, ScrollView } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -104,9 +97,7 @@ export default function ForgotPasswordScreen() {
                   </View>
                   <Text style={styles.sentText}>
                     Reset link sent to{' '}
-                    <Text
-                      style={{ color: colors.TEXT_PRIMARY, fontFamily: 'Inter-SemiBold' }}
-                    >
+                    <Text style={{ color: colors.TEXT_PRIMARY, fontFamily: 'Inter-SemiBold' }}>
                       {email || 'your email'}
                     </Text>
                     . Check your inbox.

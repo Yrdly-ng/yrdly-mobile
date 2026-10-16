@@ -645,22 +645,27 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
       }
 
       const progressMap = new Map<number, number>();
-      return Promise.all(files.map(async (file, index) => {
-        if (!file?.uri || !file.name) throw new Error('A selected image is no longer available.');
-        const { url, error } = await StorageService.uploadPostImage(
-          user.id,
-          file,
-          (progress) => {
-            progressMap.set(index, progress);
-            const totalProgress = Array.from(progressMap.values()).reduce((sum, value) => sum + value, 0);
-            onProgress?.(totalProgress / files.length);
-          },
-          signal
-        );
-        if (error) throw error;
-        if (!url) throw new Error('Storage returned no uploaded image URL');
-        return url;
-      }));
+      return Promise.all(
+        files.map(async (file, index) => {
+          if (!file?.uri || !file.name) throw new Error('A selected image is no longer available.');
+          const { url, error } = await StorageService.uploadPostImage(
+            user.id,
+            file,
+            (progress) => {
+              progressMap.set(index, progress);
+              const totalProgress = Array.from(progressMap.values()).reduce(
+                (sum, value) => sum + value,
+                0
+              );
+              onProgress?.(totalProgress / files.length);
+            },
+            signal
+          );
+          if (error) throw error;
+          if (!url) throw new Error('Storage returned no uploaded image URL');
+          return url;
+        })
+      );
     },
     [user]
   );
@@ -686,7 +691,8 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
       }
 
       const startedAt = Date.now();
-      let operationStage: 'preparing' | 'uploading' | 'publishing' | 'checking' | 'complete' = 'preparing';
+      let operationStage: 'preparing' | 'uploading' | 'publishing' | 'checking' | 'complete' =
+        'preparing';
       const setStage = (stage: typeof operationStage) => {
         operationStage = stage;
         options?.onStage?.(stage);
@@ -699,7 +705,8 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
         return result.data;
       };
       const acceptSavedPost = (savedPost: Post) => {
-        const moderationStatus = savedPost.moderation_status === 'approved' ? 'approved' : 'pending';
+        const moderationStatus =
+          savedPost.moderation_status === 'approved' ? 'approved' : 'pending';
         setPosts((previous) => {
           const remaining = previous.filter((post) => post.id !== savedPost.id);
           return moderationStatus === 'approved' ? [savedPost, ...remaining] : remaining;
@@ -868,7 +875,11 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
         let result: { data: Post };
         try {
           result = postIdToUpdate
-            ? await api.patch('/api/posts', { id: postIdToUpdate, post: finalPostData }, options?.signal)
+            ? await api.patch(
+                '/api/posts',
+                { id: postIdToUpdate, post: finalPostData },
+                options?.signal
+              )
             : await api.post(
                 '/api/posts',
                 {
@@ -886,10 +897,18 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
             const savedPost = await reconcilePost();
             if (savedPost) return acceptSavedPost(savedPost);
           } catch (reconcileError) {
-            const isNotFound = reconcileError instanceof Error && 'status' in reconcileError && reconcileError.status === 404;
+            const isNotFound =
+              reconcileError instanceof Error &&
+              'status' in reconcileError &&
+              reconcileError.status === 404;
             if (!isNotFound) throw new PublishingOutcomeUncertainError();
           }
-          if (!(error instanceof Error && 'status' in error && Number(error.status) >= 400 && Number(error.status) < 500)) {
+          if (!(
+            error instanceof Error &&
+            'status' in error &&
+            Number(error.status) >= 400 &&
+            Number(error.status) < 500
+          )) {
             throw new PublishingOutcomeUncertainError();
           }
           throw error;
@@ -897,12 +916,21 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
         return acceptSavedPost(result.data as Post);
       } catch (error) {
         if (__DEV__) {
-          const status = error instanceof Error && 'status' in error ? Number(error.status) : undefined;
+          const status =
+            error instanceof Error && 'status' in error ? Number(error.status) : undefined;
+          const failedAtStage: string = operationStage;
           console.warn('[PostPublishing] operation failed', {
             stage: operationStage,
-            category: error instanceof PublishingOutcomeUncertainError ? 'outcome-uncertain' :
-              status === 401 ? 'authentication' : status && status >= 500 ? 'server' :
-              operationStage === 'uploading' ? 'upload' : 'unknown',
+            category:
+              error instanceof PublishingOutcomeUncertainError
+                ? 'outcome-uncertain'
+                : status === 401
+                  ? 'authentication'
+                  : status && status >= 500
+                    ? 'server'
+                    : failedAtStage === 'uploading'
+                      ? 'upload'
+                      : 'unknown',
             status,
             errorName: error instanceof Error ? error.name : 'UnknownError',
             elapsedMs: Date.now() - startedAt,

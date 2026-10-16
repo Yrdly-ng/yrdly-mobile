@@ -18,7 +18,8 @@ import { parseWithdrawalQuote } from '../../lib/payments/payout-quote';
 import { useAuth } from '../../hooks/use-supabase-auth';
 
 export default function WithdrawScreen() {
-  const { theme } = useUnistyles(); const s = stylesheet;
+  const { theme } = useUnistyles();
+  const s = stylesheet;
 
   const router = useRouter();
   const { user } = useAuth();
@@ -52,7 +53,10 @@ export default function WithdrawScreen() {
       console.error(e);
       setBalance(0);
       setBankInfo(null);
-      Alert.alert('Balance unavailable', 'Your withdrawable balance could not be verified. Please refresh before withdrawing.');
+      Alert.alert(
+        'Balance unavailable',
+        'Your withdrawable balance could not be verified. Please refresh before withdrawing.'
+      );
     } finally {
       setLoading(false);
     }
@@ -76,8 +80,17 @@ export default function WithdrawScreen() {
       return;
     }
 
-    if (previewing || !Number.isFinite(numAmount) || numAmount < 1000 || numAmount > balance || !bankInfo) {
-      Alert.alert('Invalid Amount', 'Choose a linked bank and an amount within your balance. At least ₦1,000 plus the transfer fee is needed.');
+    if (
+      previewing ||
+      !Number.isFinite(numAmount) ||
+      numAmount < 1000 ||
+      numAmount > balance ||
+      !bankInfo
+    ) {
+      Alert.alert(
+        'Invalid Amount',
+        'Choose a linked bank and an amount within your balance. At least ₦1,000 plus the transfer fee is needed.'
+      );
       return;
     }
 
@@ -108,8 +121,12 @@ export default function WithdrawScreen() {
     withdrawalInFlight.current = true;
     setConfirming(true);
     try {
-      const result = await api.post<{ success: boolean; amountSentToBank: number }>('/api/seller/payouts/request', { amount: numAmount });
-      if (!result.success) throw new Error('Withdrawal has not been confirmed. Contact support before retrying.');
+      const result = await api.post<{ success: boolean; amountSentToBank: number }>(
+        '/api/seller/payouts/request',
+        { amount: numAmount }
+      );
+      if (!result.success)
+        throw new Error('Withdrawal has not been confirmed. Contact support before retrying.');
       router.replace({
         pathname: '/settings/withdraw-success',
         params: { amount: result.amountSentToBank },
@@ -117,12 +134,17 @@ export default function WithdrawScreen() {
     } catch (e: any) {
       if (!(e instanceof ApiError) || e.status >= 500) {
         setPreviewData(null);
-        Alert.alert('Check withdrawal status', 'The transfer has not been confirmed. Check your payout history or contact support before requesting another withdrawal.', [
-          { text: 'View payouts', onPress: () => router.replace('/settings/payouts') },
-        ]);
+        Alert.alert(
+          'Check withdrawal status',
+          'The transfer has not been confirmed. Check your payout history or contact support before requesting another withdrawal.',
+          [{ text: 'View payouts', onPress: () => router.replace('/settings/payouts') }]
+        );
         return;
       }
-      Alert.alert('Withdrawal not processed', e.message || 'Please refresh your balance before retrying.');
+      Alert.alert(
+        'Withdrawal not processed',
+        e.message || 'Please refresh your balance before retrying.'
+      );
       setStep('amount');
     } finally {
       withdrawalInFlight.current = false;
@@ -186,8 +208,14 @@ export default function WithdrawScreen() {
               { l: 'Account Holder', v: bankInfo?.accountName || '' },
               { l: 'Amount to withdraw', v: `₦${numAmount.toLocaleString()}` },
               { l: 'Payluk fee (incl. VAT)', v: `₦${(previewData?.fee ?? 0).toLocaleString()}` },
-              { l: 'Total deducted', v: `₦${(previewData?.totalDebit ?? numAmount).toLocaleString()}` },
-              { l: 'You receive in bank', v: `₦${(previewData?.netToBank ?? numAmount).toLocaleString()}` },
+              {
+                l: 'Total deducted',
+                v: `₦${(previewData?.totalDebit ?? numAmount).toLocaleString()}`,
+              },
+              {
+                l: 'You receive in bank',
+                v: `₦${(previewData?.netToBank ?? numAmount).toLocaleString()}`,
+              },
             ].map((r) => {
               const s = stylesheet;
               return (
@@ -250,7 +278,10 @@ export default function WithdrawScreen() {
             <Text style={s.amtNaira}>₦</Text>
             <TextInput
               value={amount}
-              onChangeText={(v) => { setAmount(v.replace(/[^\d.]/g, '')); setPreviewData(null); }}
+              onChangeText={(v) => {
+                setAmount(v.replace(/[^\d.]/g, ''));
+                setPreviewData(null);
+              }}
               placeholder="0"
               placeholderTextColor={theme.colors.LABEL}
               keyboardType="decimal-pad"
@@ -328,7 +359,13 @@ export default function WithdrawScreen() {
             },
           ]}
           onPress={handleContinue}
-          disabled={previewing || !Number.isFinite(numAmount) || numAmount < 1000 || numAmount > balance || !bankInfo}
+          disabled={
+            previewing ||
+            !Number.isFinite(numAmount) ||
+            numAmount < 1000 ||
+            numAmount > balance ||
+            !bankInfo
+          }
         >
           {previewing ? (
             <ActivityIndicator color="#000" />

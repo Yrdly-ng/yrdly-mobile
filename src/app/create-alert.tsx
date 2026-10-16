@@ -1,13 +1,6 @@
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Platform,
-} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -41,7 +34,8 @@ const SEVERITY_COLORS = {
 const TYPE_LABELS = { safety: 'SAFETY ALERT', amber: 'AMBER ALERT', info: 'COMMUNITY INFO' };
 
 export default function CreateAlertScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const router = useRouter();
   const insets = useSafeAreaInsets();

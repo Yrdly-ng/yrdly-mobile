@@ -12,7 +12,10 @@ import { Image } from 'expo-image';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import { useCommunityConnections, CommunityFilterTab } from '../../hooks/people/use-community-connections';
+import {
+  useCommunityConnections,
+  CommunityFilterTab,
+} from '../../hooks/people/use-community-connections';
 import { DiscoverUserCard } from './DiscoverUserCard';
 import { CommunitiesContent } from '../communities/CommunitiesContent';
 

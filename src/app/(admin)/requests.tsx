@@ -44,7 +44,8 @@ function RequestCard({
   item: DeletionRequest;
   onResolve: (id: string) => void;
 }) {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const initials = item.name ? item.name.charAt(0).toUpperCase() : '?';
 
@@ -143,7 +144,8 @@ function RequestCard({
 }
 
 export default function DeletionRequestsScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const insets = useSafeAreaInsets();
   const router = useRouter();

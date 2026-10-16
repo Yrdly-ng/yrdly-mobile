@@ -39,7 +39,8 @@ import { api } from '../lib/network/api';
 const STEPS = ['Basic Info', 'Date & Time', 'Location', 'Tickets', 'Photos', 'Review'];
 
 export default function CreateEventScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -47,8 +48,6 @@ export default function CreateEventScreen() {
 
   const { categories, loading: categoriesLoading } = useCategories('event');
   const [step, setStep] = useState(0);
-
-
 
   // Form State
   const [eventName, setEventName] = useState('');
@@ -112,7 +111,8 @@ export default function CreateEventScreen() {
 
   const pickMedia = async (type: 'photo' | 'video') => {
     if (pickingMedia.current || isEditingVideo || publishing) return;
-    pickingMedia.current = true; setPicking(true);
+    pickingMedia.current = true;
+    setPicking(true);
     try {
       const isPhoto = type === 'photo';
       const options: any = { mediaType: type };
@@ -159,8 +159,17 @@ export default function CreateEventScreen() {
             type,
           };
           if (type.startsWith('video/')) {
-            const edited = await editVideo(file, 40 * 1024 * 1024).catch(error => { Alert.alert('Video unavailable', error instanceof Error ? error.message : 'Please choose another video.'); return null; });
-            if (!edited) { videoCount--; continue; }
+            const edited = await editVideo(file, 40 * 1024 * 1024).catch((error) => {
+              Alert.alert(
+                'Video unavailable',
+                error instanceof Error ? error.message : 'Please choose another video.'
+              );
+              return null;
+            });
+            if (!edited) {
+              videoCount--;
+              continue;
+            }
             file = edited;
           }
           validFiles.push(file);
@@ -182,7 +191,10 @@ export default function CreateEventScreen() {
       if (e.message !== 'User cancelled image selection' && e.message !== 'User cancelled') {
         Alert.alert('Error', e.message || 'Failed to pick media');
       }
-    } finally { pickingMedia.current = false; setPicking(false); }
+    } finally {
+      pickingMedia.current = false;
+      setPicking(false);
+    }
   };
 
   const editAttachedVideo = async (file: MobileFile) => {
@@ -190,10 +202,17 @@ export default function CreateEventScreen() {
     try {
       const edited = await editVideo(file, 40 * 1024 * 1024);
       if (edited) {
-        setAttachedFiles(previous => previous.map(current => current.uri === file.uri ? edited : current));
+        setAttachedFiles((previous) =>
+          previous.map((current) => (current.uri === file.uri ? edited : current))
+        );
         if (edited.uri !== file.uri) void discardEditedVideo(file);
       }
-    } catch (error) { Alert.alert('Video unavailable', error instanceof Error ? error.message : 'Please try again.'); }
+    } catch (error) {
+      Alert.alert(
+        'Video unavailable',
+        error instanceof Error ? error.message : 'Please try again.'
+      );
+    }
   };
 
   const pickImages = () => {
@@ -207,7 +226,13 @@ export default function CreateEventScreen() {
   const addTier = () => {
     setTiers((prev) => [
       ...prev,
-      { id: Date.now().toString(), name: 'VIP Ticket', price: '1200', isFree: false, capacity: '50' },
+      {
+        id: Date.now().toString(),
+        name: 'VIP Ticket',
+        price: '1200',
+        isFree: false,
+        capacity: '50',
+      },
     ]);
   };
 
@@ -220,7 +245,12 @@ export default function CreateEventScreen() {
     setTiers((prev) =>
       prev.map((t) => {
         if (t.id !== id) return t;
-        if (field === 'isFree') return { ...t, isFree: value, price: value ? '0' : (Number(t.price) >= 1200 ? t.price : '1200') };
+        if (field === 'isFree')
+          return {
+            ...t,
+            isFree: value,
+            price: value ? '0' : Number(t.price) >= 1200 ? t.price : '1200',
+          };
         return { ...t, [field]: value };
       })
     );
@@ -230,7 +260,8 @@ export default function CreateEventScreen() {
     eventName.trim() && eventCategory,
     true, // date/time always valid due to Date object
     isOnline ? true : !!venue.trim(),
-    tiers.length > 0 && tiers.every((t) => t.name.trim() && (t.isFree || isPaidPrice(Number(t.price)))),
+    tiers.length > 0 &&
+      tiers.every((t) => t.name.trim() && (t.isFree || isPaidPrice(Number(t.price)))),
     attachedFiles.some((f) => f.type?.startsWith('image/')),
     true,
   ][step];
@@ -239,7 +270,8 @@ export default function CreateEventScreen() {
 
   React.useEffect(() => {
     if (!user) return;
-    api.get('/api/seller/setup-account')
+    api
+      .get('/api/seller/setup-account')
       .then((res: any) => {
         setHasPayoutAccount(!!res?.account);
       })
@@ -252,7 +284,10 @@ export default function CreateEventScreen() {
     if (pickingMedia.current || isEditingVideo) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    if ((step === 3 || step === STEPS.length - 1) && tiers.some(t => !t.isFree && !isPaidPrice(Number(t.price)))) {
+    if (
+      (step === 3 || step === STEPS.length - 1) &&
+      tiers.some((t) => !t.isFree && !isPaidPrice(Number(t.price)))
+    ) {
       Alert.alert('Invalid ticket price', MINIMUM_PRICE_MESSAGE);
       return;
     }
@@ -265,7 +300,10 @@ export default function CreateEventScreen() {
           'To sell paid tickets, please link your bank account in Settings → Payout Settings.',
           [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Go to Settings', onPress: () => router.push('/settings/payout-settings' as any) },
+            {
+              text: 'Go to Settings',
+              onPress: () => router.push('/settings/payout-settings' as any),
+            },
           ]
         );
         return;
@@ -834,7 +872,10 @@ export default function CreateEventScreen() {
                 >
                   <Image source={{ uri: f.uri }} style={stylesheet.photoImg} />
                   {f.type?.startsWith('video/') && !posting && (
-                    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Edit video" onPress={() => void editAttachedVideo(f)}
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel="Edit video"
+                      onPress={() => void editAttachedVideo(f)}
                       style={{
                         position: 'absolute',
                         top: 0,
@@ -891,7 +932,11 @@ export default function CreateEventScreen() {
                 </TouchableOpacity>
               ))}
               {attachedFiles.length < 5 && (
-                <TouchableOpacity disabled={picking || isEditingVideo || publishing} style={stylesheet.addPhotoBox} onPress={pickImages}>
+                <TouchableOpacity
+                  disabled={picking || isEditingVideo || publishing}
+                  style={stylesheet.addPhotoBox}
+                  onPress={pickImages}
+                >
                   <Feather name="image" size={24} color={theme.colors.LABEL} />
                   <Text
                     style={{

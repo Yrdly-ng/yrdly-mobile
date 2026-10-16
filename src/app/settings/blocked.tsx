@@ -23,7 +23,8 @@ interface SimpleProfile {
 }
 
 export default function BlockedUsersScreen() {
-  const { theme } = useUnistyles(); const s = sStylesheet;
+  const { theme } = useUnistyles();
+  const s = sStylesheet;
 
   const router = useRouter();
   const { profile, updateProfile } = useAuth();

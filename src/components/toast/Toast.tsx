@@ -60,7 +60,8 @@ export function Toast({
   onDismissStart,
   onDismissed,
 }: ToastProps) {
-  const { theme } = useUnistyles(); const styles = stylesheet;
+  const { theme } = useUnistyles();
+  const styles = stylesheet;
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
 
@@ -181,9 +182,7 @@ export function Toast({
   });
 
   const edgePositionStyle =
-    toast.position === 'top'
-      ? { top: insets.top + 16 }
-      : { bottom: insets.bottom + 16 };
+    toast.position === 'top' ? { top: insets.top + 16 } : { bottom: insets.bottom + 16 };
 
   return (
     <GestureDetector gesture={pan}>
@@ -207,11 +206,7 @@ export function Toast({
             <Text style={styles.actionText}>{toast.actionText}</Text>
           </Pressable>
         )}
-        <Pressable
-          hitSlop={8}
-          onPress={() => dismiss('close')}
-          style={styles.closeButton}
-        >
+        <Pressable hitSlop={8} onPress={() => dismiss('close')} style={styles.closeButton}>
           <X size={18} color={theme.colors.LABEL} weight="bold" />
         </Pressable>
       </Animated.View>

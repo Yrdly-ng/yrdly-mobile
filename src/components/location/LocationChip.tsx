@@ -12,7 +12,8 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { useLocation } from '../../context/LocationContext';
 
 export function LocationChip() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const { displayLabel, activeFilter, setGlobalFilter, userProfileLocation, hasLocation } =
     useLocation();

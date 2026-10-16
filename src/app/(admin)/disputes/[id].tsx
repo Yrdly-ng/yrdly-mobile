@@ -38,7 +38,8 @@ function formatDate(d: string) {
 }
 
 export default function AdminDisputeDetailScreen() {
-  const { theme } = useUnistyles(); const sStylesheet = stylesheet;
+  const { theme } = useUnistyles();
+  const sStylesheet = stylesheet;
 
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -62,7 +63,13 @@ export default function AdminDisputeDetailScreen() {
       if (data?.resolutionOperation) {
         const refund = Number(data.resolutionOperation.refundAmount || 0);
         const seller = Number(data.resolutionOperation.sellerAmount || 0);
-        setSelectedResolution(refund > 0 && seller > 0 ? 'partial_refund' : refund > 0 ? 'refund_buyer' : 'release_seller');
+        setSelectedResolution(
+          refund > 0 && seller > 0
+            ? 'partial_refund'
+            : refund > 0
+              ? 'refund_buyer'
+              : 'release_seller'
+        );
         if (refund > 0 && seller > 0) setPartialRefund(String(refund));
       }
     } catch (e) {
@@ -83,15 +90,26 @@ export default function AdminDisputeDetailScreen() {
       return;
     }
 
-      const amount = Number(tx?.amount || 0);
-      const refundAmount = selectedResolution === 'refund_buyer' ? amount : selectedResolution === 'partial_refund' ? Number(partialRefund) : 0;
-      const sellerAmount = amount - refundAmount;
-      if (selectedResolution === 'partial_refund' && (!Number.isFinite(refundAmount) || refundAmount <= 0 || refundAmount >= amount)) {
-        Alert.alert('Invalid amount', 'Enter a refund greater than zero and less than the order total.');
-        return;
-      }
-
+    const amount = Number(tx?.amount || 0);
+    const refundAmount =
+      selectedResolution === 'refund_buyer'
+        ? amount
+        : selectedResolution === 'partial_refund'
+          ? Number(partialRefund)
+          : 0;
+    const sellerAmount = amount - refundAmount;
+    if (
+      selectedResolution === 'partial_refund' &&
+      (!Number.isFinite(refundAmount) || refundAmount <= 0 || refundAmount >= amount)
+    ) {
       Alert.alert(
+        'Invalid amount',
+        'Enter a refund greater than zero and less than the order total.'
+      );
+      return;
+    }
+
+    Alert.alert(
       'Confirm Resolution',
       `Apply "${RESOLUTION_OPTIONS.find((o) => o.value === selectedResolution)?.label}" to this dispute?`,
       [
@@ -110,17 +128,27 @@ export default function AdminDisputeDetailScreen() {
               }
               if (adminNote.trim()) await DisputeService.addAdminNotes(id!, adminNote.trim());
               const result = await DisputeService.resolveDispute(
-                id!, user!.id,
-                selectedResolution === 'refund_buyer' ? 'Full refund to buyer' : selectedResolution === 'release_seller' ? 'Release full amount to seller' : 'Partial refund to buyer',
+                id!,
+                user!.id,
+                selectedResolution === 'refund_buyer'
+                  ? 'Full refund to buyer'
+                  : selectedResolution === 'release_seller'
+                    ? 'Release full amount to seller'
+                    : 'Partial refund to buyer',
                 refundAmount,
-                sellerAmount,
+                sellerAmount
               );
               if (!result.success) {
-                Alert.alert('Reconciliation required', 'The payment outcome is uncertain. Do not retry this resolution; an administrator must verify the provider outcome.');
+                Alert.alert(
+                  'Reconciliation required',
+                  'The payment outcome is uncertain. Do not retry this resolution; an administrator must verify the provider outcome.'
+                );
                 await fetchDispute();
                 return;
               }
-              Alert.alert('Done', 'Dispute resolution completed successfully.', [{ text: 'OK', onPress: () => router.back() }]);
+              Alert.alert('Done', 'Dispute resolution completed successfully.', [
+                { text: 'OK', onPress: () => router.back() },
+              ]);
             } catch (e) {
               console.error('Resolve error:', e);
               Alert.alert('Error', 'Could not apply resolution. Try again.');
@@ -178,9 +206,11 @@ export default function AdminDisputeDetailScreen() {
     ...(dispute.buyerEvidence?.photos || dispute.buyer_evidence?.photos || []),
     ...(dispute.sellerEvidence?.photos || dispute.seller_evidence?.photos || []),
   ];
-  const resolutionNeedsReconciliation = dispute.resolutionOperation?.status === 'needs_reconciliation'
-    || dispute.resolutionOperation?.isStale === true;
-  const resolutionInProgress = dispute.resolutionOperation?.status === 'processing' && !resolutionNeedsReconciliation;
+  const resolutionNeedsReconciliation =
+    dispute.resolutionOperation?.status === 'needs_reconciliation' ||
+    dispute.resolutionOperation?.isStale === true;
+  const resolutionInProgress =
+    dispute.resolutionOperation?.status === 'processing' && !resolutionNeedsReconciliation;
 
   return (
     <SafeAreaView style={[sStylesheet.container, { backgroundColor: theme.colors.DARK }]}>
@@ -300,51 +330,123 @@ export default function AdminDisputeDetailScreen() {
             <Text style={[sStylesheet.sectionTitle, { color: theme.colors.MUTED }]}>DISPUTE</Text>
             <Text style={[sStylesheet.detailRow, { color: theme.colors.TEXT_PRIMARY }]}>
               <Text style={{ color: theme.colors.MUTED }}>Reason: </Text>
-              {(dispute.disputeReason ?? dispute.dispute_reason ?? dispute.reason ?? 'Unknown').replace(/_/g, ' ')}
+              {(
+                dispute.disputeReason ??
+                dispute.dispute_reason ??
+                dispute.reason ??
+                'Unknown'
+              ).replace(/_/g, ' ')}
             </Text>
             <Text style={[sStylesheet.detailRow, { color: theme.colors.TEXT_PRIMARY }]}>
               <Text style={{ color: theme.colors.MUTED }}>Filed: </Text>
               {formatDate(dispute.created_at)}
             </Text>
-            {(dispute.buyerEvidence?.description || dispute.sellerEvidence?.description || dispute.description) && (
+            {(dispute.buyerEvidence?.description ||
+              dispute.sellerEvidence?.description ||
+              dispute.description) && (
               <Text style={[sStylesheet.description, { color: theme.colors.LABEL }]}>
-                {dispute.buyerEvidence?.description || dispute.sellerEvidence?.description || dispute.description}
+                {dispute.buyerEvidence?.description ||
+                  dispute.sellerEvidence?.description ||
+                  dispute.description}
               </Text>
             )}
           </View>
 
-          {dispute.providerSubmissionStatus && !['submitted', 'not_required'].includes(dispute.providerSubmissionStatus) && (
-            <View style={[sStylesheet.section, { backgroundColor: theme.colors.SURFACE, borderColor: '#EF4444' }]}>
-              <Text style={[sStylesheet.sectionTitle, { color: '#EF4444' }]}>PAYLUK DISPUTE SYNC NEEDS REVIEW</Text>
-              <Text style={[sStylesheet.description, { color: theme.colors.LABEL, marginTop: 8 }]}>{dispute.providerSubmissionStatus.replace(/_/g, ' ')}. Verify the Payluk dispute state before settlement. {dispute.providerSubmissionError || ''}</Text>
-              <TouchableOpacity
-                disabled={resolving}
-                onPress={() => Alert.alert('Confirm Payluk dispute', 'Have you verified in Payluk that this escrow is DISPUTED or INVESTIGATING?', [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Yes, confirm', onPress: async () => {
-                    setResolving(true);
-                    try { await DisputeService.confirmPaylukSubmission(id!); await fetchDispute(); }
-                    catch (e) { Alert.alert('Could not confirm', e instanceof Error ? e.message : 'Try again.'); }
-                    finally { setResolving(false); }
-                  } },
-                ])}
-                style={[sStylesheet.resolveBtn, { backgroundColor: theme.colors.G, marginTop: 12 }]}
-              ><Text style={sStylesheet.resolveBtnText}>I verified the dispute exists in Payluk</Text></TouchableOpacity>
-              {dispute.providerSubmissionStatus === 'needs_reconciliation' && <TouchableOpacity
-                disabled={resolving}
-                onPress={() => Alert.alert('Retry Payluk submission?', 'Have you verified in Payluk that no dispute has been submitted for this escrow? This will send the saved buyer claim now.', [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Yes, submit', style: 'destructive', onPress: async () => {
-                    setResolving(true);
-                    try { await DisputeService.retryPaylukSubmission(id!); await fetchDispute(); }
-                    catch (e) { Alert.alert('Payluk retry failed', e instanceof Error ? e.message : 'Verify provider state before retrying.'); }
-                    finally { setResolving(false); }
-                  } },
-                ])}
-                style={[sStylesheet.resolveBtn, { backgroundColor: '#9A3412', marginTop: 10 }]}
-              ><Text style={sStylesheet.resolveBtnText}>Payluk has no dispute; submit saved claim</Text></TouchableOpacity>}
-            </View>
-          )}
+          {dispute.providerSubmissionStatus &&
+            !['submitted', 'not_required'].includes(dispute.providerSubmissionStatus) && (
+              <View
+                style={[
+                  sStylesheet.section,
+                  { backgroundColor: theme.colors.SURFACE, borderColor: '#EF4444' },
+                ]}
+              >
+                <Text style={[sStylesheet.sectionTitle, { color: '#EF4444' }]}>
+                  PAYLUK DISPUTE SYNC NEEDS REVIEW
+                </Text>
+                <Text
+                  style={[sStylesheet.description, { color: theme.colors.LABEL, marginTop: 8 }]}
+                >
+                  {dispute.providerSubmissionStatus.replace(/_/g, ' ')}. Verify the Payluk dispute
+                  state before settlement. {dispute.providerSubmissionError || ''}
+                </Text>
+                <TouchableOpacity
+                  disabled={resolving}
+                  onPress={() =>
+                    Alert.alert(
+                      'Confirm Payluk dispute',
+                      'Have you verified in Payluk that this escrow is DISPUTED or INVESTIGATING?',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Yes, confirm',
+                          onPress: async () => {
+                            setResolving(true);
+                            try {
+                              await DisputeService.confirmPaylukSubmission(id!);
+                              await fetchDispute();
+                            } catch (e) {
+                              Alert.alert(
+                                'Could not confirm',
+                                e instanceof Error ? e.message : 'Try again.'
+                              );
+                            } finally {
+                              setResolving(false);
+                            }
+                          },
+                        },
+                      ]
+                    )
+                  }
+                  style={[
+                    sStylesheet.resolveBtn,
+                    { backgroundColor: theme.colors.G, marginTop: 12 },
+                  ]}
+                >
+                  <Text style={sStylesheet.resolveBtnText}>
+                    I verified the dispute exists in Payluk
+                  </Text>
+                </TouchableOpacity>
+                {dispute.providerSubmissionStatus === 'needs_reconciliation' && (
+                  <TouchableOpacity
+                    disabled={resolving}
+                    onPress={() =>
+                      Alert.alert(
+                        'Retry Payluk submission?',
+                        'Have you verified in Payluk that no dispute has been submitted for this escrow? This will send the saved buyer claim now.',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Yes, submit',
+                            style: 'destructive',
+                            onPress: async () => {
+                              setResolving(true);
+                              try {
+                                await DisputeService.retryPaylukSubmission(id!);
+                                await fetchDispute();
+                              } catch (e) {
+                                Alert.alert(
+                                  'Payluk retry failed',
+                                  e instanceof Error
+                                    ? e.message
+                                    : 'Verify provider state before retrying.'
+                                );
+                              } finally {
+                                setResolving(false);
+                              }
+                            },
+                          },
+                        ]
+                      )
+                    }
+                    style={[sStylesheet.resolveBtn, { backgroundColor: '#9A3412', marginTop: 10 }]}
+                  >
+                    <Text style={sStylesheet.resolveBtnText}>
+                      Payluk has no dispute; submit saved claim
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
 
           {/* Evidence images */}
           {evidence.length > 0 && (
@@ -386,7 +488,9 @@ export default function AdminDisputeDetailScreen() {
                 RESOLUTION NOTE
               </Text>
               <Text style={[sStylesheet.description, { color: theme.colors.LABEL }]}>
-                {dispute.resolutionOperation?.status ? `Payment operation: ${dispute.resolutionOperation.status.replace(/_/g, ' ')}` : ''}
+                {dispute.resolutionOperation?.status
+                  ? `Payment operation: ${dispute.resolutionOperation.status.replace(/_/g, ' ')}`
+                  : ''}
               </Text>
               {dispute.resolution && (
                 <Text style={[sStylesheet.detailRow, { color: theme.colors.G }]}>
@@ -397,43 +501,114 @@ export default function AdminDisputeDetailScreen() {
           )}
 
           {resolutionNeedsReconciliation && (
-            <View style={[sStylesheet.section, { backgroundColor: theme.colors.SURFACE, borderColor: '#F59E0B' }]}>
-              <Text style={[sStylesheet.sectionTitle, { color: '#F59E0B' }]}>PAYMENT NEEDS RECONCILIATION</Text>
-              <Text style={[sStylesheet.description, { color: theme.colors.LABEL, marginTop: 8 }]}>Check the provider’s final status before choosing either outcome. Confirm there is no pending refund or payout before allowing a retry.</Text>
+            <View
+              style={[
+                sStylesheet.section,
+                { backgroundColor: theme.colors.SURFACE, borderColor: '#F59E0B' },
+              ]}
+            >
+              <Text style={[sStylesheet.sectionTitle, { color: '#F59E0B' }]}>
+                PAYMENT NEEDS RECONCILIATION
+              </Text>
+              <Text style={[sStylesheet.description, { color: theme.colors.LABEL, marginTop: 8 }]}>
+                Check the provider’s final status before choosing either outcome. Confirm there is
+                no pending refund or payout before allowing a retry.
+              </Text>
               <TouchableOpacity
                 disabled={resolving}
-                onPress={() => Alert.alert('Confirm provider outcome', 'Have you verified that the full saved resolution was applied?', [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Yes, finalize', onPress: async () => {
-                    setResolving(true);
-                    try { await DisputeService.reconcileResolution(id!, 'applied'); await fetchDispute(); Alert.alert('Reconciled', 'Dispute finalized from the verified provider result.'); }
-                    catch (e) { Alert.alert('Error', e instanceof Error ? e.message : 'Could not reconcile.'); }
-                    finally { setResolving(false); }
-                  } },
-                ])}
+                onPress={() =>
+                  Alert.alert(
+                    'Confirm provider outcome',
+                    'Have you verified that the full saved resolution was applied?',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Yes, finalize',
+                        onPress: async () => {
+                          setResolving(true);
+                          try {
+                            await DisputeService.reconcileResolution(id!, 'applied');
+                            await fetchDispute();
+                            Alert.alert(
+                              'Reconciled',
+                              'Dispute finalized from the verified provider result.'
+                            );
+                          } catch (e) {
+                            Alert.alert(
+                              'Error',
+                              e instanceof Error ? e.message : 'Could not reconcile.'
+                            );
+                          } finally {
+                            setResolving(false);
+                          }
+                        },
+                      },
+                    ]
+                  )
+                }
                 style={[sStylesheet.resolveBtn, { backgroundColor: theme.colors.G, marginTop: 12 }]}
-              ><Text style={sStylesheet.resolveBtnText}>Provider confirms payment applied</Text></TouchableOpacity>
+              >
+                <Text style={sStylesheet.resolveBtnText}>Provider confirms payment applied</Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 disabled={resolving}
-                onPress={() => Alert.alert('Allow safe retry?', 'Have you verified that no refund or payout was applied and none is pending? The saved resolution will become retryable.', [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Yes, allow retry', style: 'destructive', onPress: async () => {
-                    setResolving(true);
-                    try { await DisputeService.reconcileResolution(id!, 'not_applied'); await fetchDispute(); Alert.alert('Retry enabled', 'The saved resolution can now be retried.'); }
-                    catch (e) { Alert.alert('Error', e instanceof Error ? e.message : 'Could not reconcile.'); }
-                    finally { setResolving(false); }
-                  } },
-                ])}
+                onPress={() =>
+                  Alert.alert(
+                    'Allow safe retry?',
+                    'Have you verified that no refund or payout was applied and none is pending? The saved resolution will become retryable.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Yes, allow retry',
+                        style: 'destructive',
+                        onPress: async () => {
+                          setResolving(true);
+                          try {
+                            await DisputeService.reconcileResolution(id!, 'not_applied');
+                            await fetchDispute();
+                            Alert.alert(
+                              'Retry enabled',
+                              'The saved resolution can now be retried.'
+                            );
+                          } catch (e) {
+                            Alert.alert(
+                              'Error',
+                              e instanceof Error ? e.message : 'Could not reconcile.'
+                            );
+                          } finally {
+                            setResolving(false);
+                          }
+                        },
+                      },
+                    ]
+                  )
+                }
                 style={[sStylesheet.resolveBtn, { backgroundColor: '#9A3412', marginTop: 10 }]}
-              ><Text style={sStylesheet.resolveBtnText}>Provider confirms no payment applied</Text></TouchableOpacity>
+              >
+                <Text style={sStylesheet.resolveBtnText}>Provider confirms no payment applied</Text>
+              </TouchableOpacity>
             </View>
           )}
 
           {resolutionInProgress && (
-            <View style={[sStylesheet.section, { backgroundColor: theme.colors.SURFACE, borderColor: '#F59E0B' }]}>
-              <Text style={[sStylesheet.sectionTitle, { color: '#F59E0B' }]}>PAYMENT IS PROCESSING</Text>
-              <Text style={[sStylesheet.description, { color: theme.colors.LABEL, marginTop: 8 }]}>Wait for the provider result before resolving this dispute again. Refresh the details to check for an update; reconciliation becomes available if processing remains unresolved for five minutes.</Text>
-              <TouchableOpacity onPress={() => void fetchDispute()} style={[sStylesheet.resolveBtn, { backgroundColor: theme.colors.G, marginTop: 12 }]}>
+            <View
+              style={[
+                sStylesheet.section,
+                { backgroundColor: theme.colors.SURFACE, borderColor: '#F59E0B' },
+              ]}
+            >
+              <Text style={[sStylesheet.sectionTitle, { color: '#F59E0B' }]}>
+                PAYMENT IS PROCESSING
+              </Text>
+              <Text style={[sStylesheet.description, { color: theme.colors.LABEL, marginTop: 8 }]}>
+                Wait for the provider result before resolving this dispute again. Refresh the
+                details to check for an update; reconciliation becomes available if processing
+                remains unresolved for five minutes.
+              </Text>
+              <TouchableOpacity
+                onPress={() => void fetchDispute()}
+                style={[sStylesheet.resolveBtn, { backgroundColor: theme.colors.G, marginTop: 12 }]}
+              >
                 <Text style={sStylesheet.resolveBtnText}>Refresh status</Text>
               </TouchableOpacity>
             </View>
@@ -492,14 +667,23 @@ export default function AdminDisputeDetailScreen() {
                 );
               })}
 
-              {selectedResolution === 'partial_refund' && <TextInput
-                value={partialRefund}
-                onChangeText={setPartialRefund}
-                keyboardType="decimal-pad"
-                placeholder="Refund amount (₦)"
-                placeholderTextColor={theme.colors.MUTED}
-                style={[sStylesheet.noteInput, { backgroundColor: theme.colors.SURFACE, color: theme.colors.TEXT_PRIMARY, borderColor: theme.colors.GLASS_BORDER }]}
-              />}
+              {selectedResolution === 'partial_refund' && (
+                <TextInput
+                  value={partialRefund}
+                  onChangeText={setPartialRefund}
+                  keyboardType="decimal-pad"
+                  placeholder="Refund amount (₦)"
+                  placeholderTextColor={theme.colors.MUTED}
+                  style={[
+                    sStylesheet.noteInput,
+                    {
+                      backgroundColor: theme.colors.SURFACE,
+                      color: theme.colors.TEXT_PRIMARY,
+                      borderColor: theme.colors.GLASS_BORDER,
+                    },
+                  ]}
+                />
+              )}
 
               <TextInput
                 value={adminNote}

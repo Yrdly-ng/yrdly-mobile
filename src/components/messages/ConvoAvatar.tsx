@@ -12,7 +12,8 @@ interface Props {
 }
 
 function TagIcon() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   return (
     <Svg width={8} height={8} viewBox="0 0 24 24" fill="none">
@@ -28,7 +29,8 @@ function TagIcon() {
 }
 
 function ShopIcon() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   return (
     <Svg width={8} height={8} viewBox="0 0 24 24" fill="none">
@@ -50,7 +52,8 @@ function ShopIcon() {
  * Matches Figma Make's ConvoAvatar({ convo }) component.
  */
 export function ConvoAvatar({ avatarId, type, online = false, size = 48 }: Props) {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const BADGE_ICONS: Record<
     Exclude<ConvoType, 'friends'>,

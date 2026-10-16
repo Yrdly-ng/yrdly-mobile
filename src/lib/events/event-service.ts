@@ -137,7 +137,9 @@ export async function getEventById(id: string): Promise<Event | null> {
   if (error || !data) {
     const { data: postData } = await supabase
       .from('posts')
-      .select('*, organizer:public_profiles!posts_user_id_fkey(id, name, avatar_url, phone_verified)')
+      .select(
+        '*, organizer:public_profiles!posts_user_id_fkey(id, name, avatar_url, phone_verified)'
+      )
       .eq('id', id)
       .eq('category', 'Event')
       .maybeSingle();

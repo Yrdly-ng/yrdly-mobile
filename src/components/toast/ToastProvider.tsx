@@ -56,9 +56,7 @@ export function ToastProvider({
   );
 
   const handleDismissStart = useCallback((id: number) => {
-    setToasts((current) =>
-      current.map((t) => (t.id === id ? { ...t, exiting: true } : t))
-    );
+    setToasts((current) => current.map((t) => (t.id === id ? { ...t, exiting: true } : t)));
   }, []);
 
   const handleDismissed = useCallback((id: number) => {
@@ -71,9 +69,7 @@ export function ToastProvider({
   }, []);
 
   const handleHeightChange = useCallback((id: number, height: number) => {
-    setHeights((current) =>
-      current[id] === height ? current : { ...current, [id]: height }
-    );
+    setHeights((current) => (current[id] === height ? current : { ...current, [id]: height }));
   }, []);
 
   const frontHeightFor = (edge: ToastPosition) => {
@@ -94,9 +90,8 @@ export function ToastProvider({
           key={toast.id}
           toast={toast}
           index={
-            toasts.filter(
-              (t) => !t.exiting && t.position === toast.position && t.id > toast.id
-            ).length
+            toasts.filter((t) => !t.exiting && t.position === toast.position && t.id > toast.id)
+              .length
           }
           height={heights[toast.id]}
           frontHeight={frontHeights[toast.position]}

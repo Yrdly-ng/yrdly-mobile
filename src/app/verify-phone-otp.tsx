@@ -24,7 +24,8 @@ const { width, height } = Dimensions.get('window');
 const OTP_LENGTH = 6;
 
 export default function VerifyPhoneOtpScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
   const router = useRouter();
   const { phone, initialPinId } = useLocalSearchParams<{ phone: string; initialPinId: string }>();
   const { verifyPhoneOtp, sendPhoneOtp } = useAuth();

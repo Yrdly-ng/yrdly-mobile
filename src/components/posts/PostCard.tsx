@@ -77,6 +77,7 @@ const PostVideo = React.memo(function PostVideo({
   const { theme } = useUnistyles();
   const stylesheet = _stylesheet;
   const [isReady, setIsReady] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const isFocused = useIsFocused();
 
@@ -111,6 +112,13 @@ const PostVideo = React.memo(function PostVideo({
       setProgress(payload.currentTime / player.duration);
     }
   });
+  useEventListener(player, 'playingChange', ({ isPlaying: nextIsPlaying }) => {
+    setIsPlaying(nextIsPlaying);
+  });
+
+  useEffect(() => {
+    setIsPlaying(player.playing);
+  }, [player]);
 
   useEffect(() => {
     if (player) {
@@ -181,8 +189,15 @@ const PostVideo = React.memo(function PostVideo({
       {!expanded && (
         <TouchableOpacity
           accessibilityRole="button"
-          accessibilityLabel="Play or pause video"
-          onPress={() => (player.playing ? player.pause() : player.play())}
+          accessibilityLabel={isPlaying ? 'Pause video' : 'Play video'}
+          onPress={(event) => {
+            event.stopPropagation();
+            if (player.playing) {
+              player.pause();
+            } else {
+              player.play();
+            }
+          }}
           style={{
             position: 'absolute',
             left: 12,
@@ -193,7 +208,7 @@ const PostVideo = React.memo(function PostVideo({
             borderRadius: 24,
           }}
         >
-          <Ionicons name="play" size={20} color="#FFFFFF" />
+          <Ionicons name={isPlaying ? 'pause' : 'play'} size={20} color="#FFFFFF" />
         </TouchableOpacity>
       )}
 

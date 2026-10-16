@@ -8,7 +8,11 @@ const firstId = (...values: unknown[]): string | undefined =>
   values.find((value): value is string => typeof value === 'string' && value.length > 0);
 
 /** Resolve a notification row to a route that exists in the Expo app. */
-export function getMobileNotificationDestination({ type, relatedId, data }: NotificationRouteInput): string {
+export function getMobileNotificationDestination({
+  type,
+  relatedId,
+  data,
+}: NotificationRouteInput): string {
   switch (type) {
     case 'friend_request':
     case 'friend_request_accepted':
@@ -29,9 +33,7 @@ export function getMobileNotificationDestination({ type, relatedId, data }: Noti
     case 'mention': {
       const postId = firstId(data?.postId, data?.post_id, relatedId);
       if (!postId) return '/(tabs)';
-      return type === 'post_comment'
-        ? `/posts/${postId}?focusComments=true`
-        : `/posts/${postId}`;
+      return type === 'post_comment' ? `/posts/${postId}?focusComments=true` : `/posts/${postId}`;
     }
     case 'event_cancelled': {
       const eventId = firstId(data?.eventId, data?.event_id);

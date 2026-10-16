@@ -26,7 +26,16 @@ export interface DisputeData {
   description?: string;
   evidence_urls?: string[];
   resolution?: string;
-  resolutionOperation?: { status: string; isStale?: boolean; errorMessage?: string; resolution?: string; refundAmount?: number; sellerAmount?: number; createdAt?: string; updatedAt?: string } | null;
+  resolutionOperation?: {
+    status: string;
+    isStale?: boolean;
+    errorMessage?: string;
+    resolution?: string;
+    refundAmount?: number;
+    sellerAmount?: number;
+    createdAt?: string;
+    updatedAt?: string;
+  } | null;
   providerSubmissionStatus?: 'not_required' | 'processing' | 'submitted' | 'needs_reconciliation';
   providerSubmissionError?: string | null;
   status: 'open' | 'under_review' | 'resolved' | 'closed';
@@ -62,7 +71,7 @@ export class DisputeService {
     transactionId: string,
     userId: string,
     reason: string,
-    evidence: DisputeEvidence,
+    evidence: DisputeEvidence
   ): Promise<{ id: string; providerSubmissionStatus?: string }> {
     void userId;
     const response = await disputeApiFetch('/api/disputes', {
@@ -73,7 +82,11 @@ export class DisputeService {
     return result;
   }
 
-  static async submitEvidence(disputeId: string, userId: string, evidence: DisputeEvidence): Promise<void> {
+  static async submitEvidence(
+    disputeId: string,
+    userId: string,
+    evidence: DisputeEvidence
+  ): Promise<void> {
     void userId;
     const response = await disputeApiFetch(`/api/disputes/${disputeId}/evidence`, {
       method: 'POST',
@@ -87,7 +100,7 @@ export class DisputeService {
     adminId: string,
     resolution: string,
     refundAmount: number,
-    sellerAmount: number,
+    sellerAmount: number
   ): Promise<{ success: boolean; resolutionStatus?: string; error?: string }> {
     void adminId;
     const response = await disputeApiFetch(`/api/admin/disputes/${disputeId}/resolve`, {
@@ -95,8 +108,13 @@ export class DisputeService {
       body: JSON.stringify({ resolution, refundAmount, sellerAmount }),
     });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok && response.status !== 202) throw new Error(result.error || 'Could not resolve dispute.');
-    return { success: Boolean(result.success), resolutionStatus: result.resolutionStatus, error: result.error };
+    if (!response.ok && response.status !== 202)
+      throw new Error(result.error || 'Could not resolve dispute.');
+    return {
+      success: Boolean(result.success),
+      resolutionStatus: result.resolutionStatus,
+      error: result.error,
+    };
   }
 
   static async getDisputesByUser(_userId: string): Promise<DisputeData[]> {
@@ -105,8 +123,16 @@ export class DisputeService {
     return result.data || [];
   }
 
-  static async getDisputesByStatus(status: string, page = 1, limit = 20): Promise<{ data: DisputeData[]; count: number }> {
-    const params = new URLSearchParams({ status: status || 'all', page: String(page), limit: String(limit) });
+  static async getDisputesByStatus(
+    status: string,
+    page = 1,
+    limit = 20
+  ): Promise<{ data: DisputeData[]; count: number }> {
+    const params = new URLSearchParams({
+      status: status || 'all',
+      page: String(page),
+      limit: String(limit),
+    });
     const response = await disputeApiFetch(`/api/admin/disputes?${params.toString()}`);
     return readResponse(response);
   }
@@ -133,7 +159,11 @@ export class DisputeService {
     await readResponse(response);
   }
 
-  static async reconcileResolution(disputeId: string, outcome: 'applied' | 'not_applied', providerReference?: string): Promise<void> {
+  static async reconcileResolution(
+    disputeId: string,
+    outcome: 'applied' | 'not_applied',
+    providerReference?: string
+  ): Promise<void> {
     const response = await disputeApiFetch(`/api/admin/disputes/${disputeId}/reconcile`, {
       method: 'POST',
       body: JSON.stringify({ outcome, providerReference }),

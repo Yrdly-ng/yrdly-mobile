@@ -1,5 +1,13 @@
 import React, { useRef } from 'react';
-import { Modal, StyleSheet, View, TouchableOpacity, Text, ActivityIndicator, StatusBar } from 'react-native';
+import {
+  Modal,
+  StyleSheet,
+  View,
+  TouchableOpacity,
+  Text,
+  ActivityIndicator,
+  StatusBar,
+} from 'react-native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { Feather } from '@expo/vector-icons';
 import { paylukCheckoutHtml } from '../../lib/payments/payluk-checkout-html';
@@ -57,12 +65,22 @@ export function PaylukCheckout({
   };
 
   return (
-    <Modal animationType="slide" visible presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onCancel}>
+    <Modal
+      animationType="slide"
+      visible
+      presentationStyle="fullScreen"
+      statusBarTranslucent
+      onRequestClose={onCancel}
+    >
       <StatusBar barStyle="light-content" backgroundColor="#0d0d0d" />
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={onCancel} style={styles.closeBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity
+            onPress={onCancel}
+            style={styles.closeBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <Feather name="x" size={20} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.title}>Secure Payment</Text>
@@ -77,8 +95,12 @@ export function PaylukCheckout({
           ref={webViewRef}
           source={{ html }}
           onMessage={handleMessage}
-          onError={() => onError('Secure checkout could not load. Check your order before paying again.')}
-          onHttpError={() => onError('Secure checkout is unavailable. Check your order before paying again.')}
+          onError={() =>
+            onError('Secure checkout could not load. Check your order before paying again.')
+          }
+          onHttpError={() =>
+            onError('Secure checkout is unavailable. Check your order before paying again.')
+          }
           javaScriptEnabled
           domStorageEnabled
           startInLoadingState

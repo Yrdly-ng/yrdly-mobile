@@ -38,7 +38,8 @@ export const CommentInput = forwardRef<CommentInputRef, CommentInputProps>(
     },
     ref
   ) => {
-    const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+    const { theme } = useUnistyles();
+    const stylesheet = _stylesheet;
 
     const insets = useSafeAreaInsets();
     const [inputText, setInputText] = useState('');

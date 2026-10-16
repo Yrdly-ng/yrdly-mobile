@@ -18,7 +18,8 @@ import { GooglePlacesAutocomplete } from '@/components/location/PlacesAutocomple
 import { resolveCoords } from '../../lib/location/geocoding-service';
 
 export default function LocationSettingsScreen() {
-  const { theme } = useUnistyles(); const s = sStylesheet;
+  const { theme } = useUnistyles();
+  const s = sStylesheet;
 
   const router = useRouter();
   const { profile, updateProfile } = useAuth();

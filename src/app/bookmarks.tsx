@@ -12,7 +12,8 @@ import { PostSkeleton } from '../components/Skeleton';
 const { width } = Dimensions.get('window');
 
 export default function BookmarksScreen() {
-  const { theme } = useUnistyles(); const styles = sStylesheet;
+  const { theme } = useUnistyles();
+  const styles = sStylesheet;
 
   const { user } = useAuth();
   const router = useRouter();

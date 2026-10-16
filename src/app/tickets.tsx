@@ -47,7 +47,8 @@ const getTicketStatusInfo = (ticket: Ticket) => {
 };
 
 export default function TicketsScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const router = useRouter();
   const { user } = useAuth();
@@ -340,7 +341,9 @@ export default function TicketsScreen() {
               </Text>
               <TouchableOpacity
                 style={[stylesheet.browseButton, { backgroundColor: theme.colors.G }]}
-                onPress={() => router.push({ pathname: '/(tabs)/catalog', params: { tab: 'Events' } } as any)}
+                onPress={() =>
+                  router.push({ pathname: '/(tabs)/catalog', params: { tab: 'Events' } } as any)
+                }
               >
                 <Text style={stylesheet.browseButtonText}>Browse Events</Text>
               </TouchableOpacity>

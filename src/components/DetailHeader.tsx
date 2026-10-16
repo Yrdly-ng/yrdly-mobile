@@ -12,7 +12,8 @@ interface Props {
 }
 
 function ChevronLeft() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   return (
     <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
@@ -33,7 +34,8 @@ function ChevronLeft() {
  * Matches Figma Make's DetailHeader({ title, onBack }) component.
  */
 export function DetailHeader({ title, onBack, rightContent }: Props) {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const router = useRouter();
   const insets = useSafeAreaInsets();

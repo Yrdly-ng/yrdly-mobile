@@ -46,7 +46,8 @@ function SettingRow({
   chevron?: boolean;
   onPress?: () => void;
 }) {
-  const { theme } = useUnistyles(); const s = sStylesheet;
+  const { theme } = useUnistyles();
+  const s = sStylesheet;
 
   return (
     <TouchableOpacity style={s.row} onPress={onPress} disabled={!onPress && !toggle}>
@@ -84,7 +85,8 @@ function SettingRow({
 }
 
 export default function SettingsScreen() {
-  const { theme } = useUnistyles(); const s = sStylesheet;
+  const { theme } = useUnistyles();
+  const s = sStylesheet;
 
   const router = useRouter();
   const { user, profile, signOut } = useAuth();

@@ -17,7 +17,9 @@ export async function getStoredThemePreference(): Promise<'light' | 'dark' | nul
 // Kept for backwards-compat but now safe - it no longer touches native code.
 // Use getStoredThemePreference() (async) instead - hydration happens in _layout.tsx.
 export function getStoredThemePreferenceSync(): 'light' | 'dark' | null {
-  console.warn('[theme-preference] getStoredThemePreferenceSync is deprecated - use async getStoredThemePreference()');
+  console.warn(
+    '[theme-preference] getStoredThemePreferenceSync is deprecated - use async getStoredThemePreference()'
+  );
   return null;
 }
 

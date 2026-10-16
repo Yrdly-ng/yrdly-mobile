@@ -18,7 +18,8 @@ import { useServiceOfferings } from '../../../hooks/bookings/use-bookings';
 import { BookingService } from '../../../lib/bookings/booking-service';
 
 export default function ManageServicesScreen() {
-  const { theme } = useUnistyles(); const s = stylesheet;
+  const { theme } = useUnistyles();
+  const s = stylesheet;
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
@@ -56,9 +57,11 @@ export default function ManageServicesScreen() {
   const handleSave = async () => {
     if (!name.trim()) return Alert.alert('Error', 'Service name is required');
     const duration = parseInt(durationMinutes, 10);
-    if (isNaN(duration) || duration <= 0) return Alert.alert('Error', 'Valid duration in minutes is required');
+    if (isNaN(duration) || duration <= 0)
+      return Alert.alert('Error', 'Valid duration in minutes is required');
 
-    if (price.trim() && !isPaidPrice(Number(price), true)) return Alert.alert('Invalid price', MINIMUM_PRICE_MESSAGE);
+    if (price.trim() && !isPaidPrice(Number(price), true))
+      return Alert.alert('Invalid price', MINIMUM_PRICE_MESSAGE);
 
     setSaving(true);
     try {
@@ -217,10 +220,7 @@ export default function ManageServicesScreen() {
               keyboardType="decimal-pad"
             />
 
-            <TouchableOpacity
-              style={s.checkboxRow}
-              onPress={() => setPriceIsFrom(!priceIsFrom)}
-            >
+            <TouchableOpacity style={s.checkboxRow} onPress={() => setPriceIsFrom(!priceIsFrom)}>
               <Ionicons
                 name={priceIsFrom ? 'checkbox' : 'square-outline'}
                 size={20}
@@ -238,11 +238,7 @@ export default function ManageServicesScreen() {
                 <Text style={s.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={s.saveBtn}
-                onPress={handleSave}
-                disabled={saving}
-              >
+              <TouchableOpacity style={s.saveBtn} onPress={handleSave} disabled={saving}>
                 {saving ? (
                   <ActivityIndicator size="small" color="#FFF" />
                 ) : (

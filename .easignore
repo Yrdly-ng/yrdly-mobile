@@ -1,5 +1,8 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
+# Workspace agent instructions are not needed in application builds.
+/AGENTS.md
+
 # dependencies
 node_modules/
 

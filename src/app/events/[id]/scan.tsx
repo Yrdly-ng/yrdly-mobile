@@ -13,7 +13,8 @@ const RED = '#B71C1C';
 type ScanResult = { success: true; attendee: string } | { success: false; message: string } | null;
 
 export default function ScanTicketScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();

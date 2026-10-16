@@ -28,7 +28,8 @@ const DARK_STYLE = [
 ];
 
 export default function CreateAlertScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const router = useRouter();
   const { profile } = useAuth();

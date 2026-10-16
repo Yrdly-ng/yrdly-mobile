@@ -147,28 +147,30 @@ export function usePushNotifications() {
 
       // Save token to backend user_push_tokens table (multi-device)
       setExpoPushToken(token);
-      getOrCreateDeviceId().then((deviceId) => {
-        if (!mounted) return;
-        supabase
-          .from('user_push_tokens')
-          .upsert(
-            {
-              user_id: user.id,
-              device_id: deviceId,
-              push_token: token,
-              device_name: Device.deviceName ?? null,
-              os_name: Device.osName ?? Platform.OS,
-              os_version: Device.osVersion ?? null,
-              app_version: Constants?.expoConfig?.version ?? '1.0.0',
-              last_used_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: 'user_id,device_id' }
-          )
-          .then(({ error }) => {
-            if (error) console.error('Failed to register user_push_token:', error);
-          });
-      }).catch(console.error);
+      getOrCreateDeviceId()
+        .then((deviceId) => {
+          if (!mounted) return;
+          supabase
+            .from('user_push_tokens')
+            .upsert(
+              {
+                user_id: user.id,
+                device_id: deviceId,
+                push_token: token,
+                device_name: Device.deviceName ?? null,
+                os_name: Device.osName ?? Platform.OS,
+                os_version: Device.osVersion ?? null,
+                app_version: Constants?.expoConfig?.version ?? '1.0.0',
+                last_used_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: 'user_id,device_id' }
+            )
+            .then(({ error }) => {
+              if (error) console.error('Failed to register user_push_token:', error);
+            });
+        })
+        .catch(console.error);
 
       // Step 4d & 4e — listeners, only after successful registration
       notificationListener.current = Notifications.addNotificationReceivedListener((n) => {

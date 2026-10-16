@@ -42,7 +42,8 @@ function formatDate(d: string) {
 }
 
 export default function AdminDisputesScreen() {
-  const { theme } = useUnistyles(); const sStylesheet = stylesheet;
+  const { theme } = useUnistyles();
+  const sStylesheet = stylesheet;
 
   const router = useRouter();
   const { user } = useAuth();
@@ -127,7 +128,9 @@ export default function AdminDisputesScreen() {
 
         {/* Reason */}
         <Text style={[sStylesheet.reason, { color: theme.colors.TEXT_PRIMARY }]} numberOfLines={2}>
-          {item.disputeReason?.replace(/_/g, ' ') ?? item.dispute_reason?.replace(/_/g, ' ') ?? 'Dispute'}
+          {item.disputeReason?.replace(/_/g, ' ') ??
+            item.dispute_reason?.replace(/_/g, ' ') ??
+            'Dispute'}
         </Text>
 
         {/* Parties */}

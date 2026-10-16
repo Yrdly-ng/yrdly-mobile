@@ -17,7 +17,8 @@ interface ImageCarouselProps {
 }
 
 export function ImageCarousel({ imageUrls, height = 300, autoPlay = false }: ImageCarouselProps) {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);

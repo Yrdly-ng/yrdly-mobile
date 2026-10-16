@@ -20,8 +20,12 @@ import { NotificationTriggers } from '../../lib/notifications/notification-trigg
 import { supabase } from '../../lib/supabase/supabase';
 
 export default function CreateBookingScreen() {
-  const { theme } = useUnistyles(); const s = stylesheet;
-  const { businessId, serviceId } = useLocalSearchParams<{ businessId: string; serviceId: string }>();
+  const { theme } = useUnistyles();
+  const s = stylesheet;
+  const { businessId, serviceId } = useLocalSearchParams<{
+    businessId: string;
+    serviceId: string;
+  }>();
   const router = useRouter();
   const { user } = useAuth();
 
@@ -194,7 +198,11 @@ export default function CreateBookingScreen() {
         {staffList.length > 0 && (
           <View style={{ marginBottom: 16 }}>
             <Text style={s.sectionTitle}>Select Staff (Optional)</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.datesRow}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.datesRow}
+            >
               <TouchableOpacity
                 style={[s.dateChip, selectedStaffId === null && s.dateChipSelected]}
                 onPress={() => {
@@ -202,8 +210,12 @@ export default function CreateBookingScreen() {
                   setSelectedSlotTime(null);
                 }}
               >
-                <Text style={[s.dateDayTxt, selectedStaffId === null && s.dateDayTxtSelected]}>Any</Text>
-                <Text style={[s.dateNumTxt, selectedStaffId === null && s.dateNumTxtSelected]}>Staff</Text>
+                <Text style={[s.dateDayTxt, selectedStaffId === null && s.dateDayTxtSelected]}>
+                  Any
+                </Text>
+                <Text style={[s.dateNumTxt, selectedStaffId === null && s.dateNumTxtSelected]}>
+                  Staff
+                </Text>
               </TouchableOpacity>
               {staffList.map((st) => {
                 const isSel = st.id === selectedStaffId;
@@ -216,8 +228,12 @@ export default function CreateBookingScreen() {
                       setSelectedSlotTime(null);
                     }}
                   >
-                    <Text style={[s.dateDayTxt, isSel && s.dateDayTxtSelected]}>{st.role || 'Staff'}</Text>
-                    <Text style={[s.dateNumTxt, isSel && s.dateNumTxtSelected]} numberOfLines={1}>{st.name}</Text>
+                    <Text style={[s.dateDayTxt, isSel && s.dateDayTxtSelected]}>
+                      {st.role || 'Staff'}
+                    </Text>
+                    <Text style={[s.dateNumTxt, isSel && s.dateNumTxtSelected]} numberOfLines={1}>
+                      {st.name}
+                    </Text>
                   </TouchableOpacity>
                 );
               })}
@@ -227,7 +243,11 @@ export default function CreateBookingScreen() {
 
         {/* Date Selector */}
         <Text style={s.sectionTitle}>1. Select Date</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.datesRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.datesRow}
+        >
           {dates.map((item) => {
             const isSelected = item.isoDate === selectedDate;
             return (
@@ -239,8 +259,12 @@ export default function CreateBookingScreen() {
                   setSelectedSlotTime(null);
                 }}
               >
-                <Text style={[s.dateDayTxt, isSelected && s.dateDayTxtSelected]}>{item.displayDay}</Text>
-                <Text style={[s.dateNumTxt, isSelected && s.dateNumTxtSelected]}>{item.displayNum}</Text>
+                <Text style={[s.dateDayTxt, isSelected && s.dateDayTxtSelected]}>
+                  {item.displayDay}
+                </Text>
+                <Text style={[s.dateNumTxt, isSelected && s.dateNumTxtSelected]}>
+                  {item.displayNum}
+                </Text>
               </TouchableOpacity>
             );
           })}
@@ -363,7 +387,13 @@ const stylesheet = StyleSheet.create((theme) => ({
   },
   flagWarningTitle: { fontSize: 13, fontWeight: '700', color: '#FF9500' },
   flagWarningBody: { fontSize: 12, color: theme.colors.LABEL, marginTop: 2 },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: theme.colors.TEXT_PRIMARY, marginTop: 12, marginBottom: 10 },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: theme.colors.TEXT_PRIMARY,
+    marginTop: 12,
+    marginBottom: 10,
+  },
   datesRow: { gap: 8, paddingBottom: 8 },
   dateChip: {
     width: 60,

@@ -1,13 +1,6 @@
 import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles';
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Platform,
-  ScrollView,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, ScrollView } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -55,7 +48,9 @@ export default function LoginScreen() {
   const handleSignIn = async () => {
     if (lockedUntil && Date.now() < lockedUntil) {
       const secondsLeft = Math.ceil((lockedUntil - Date.now()) / 1000);
-      setError(`Too many attempts. You have been rate-limited for security reasons. Please wait ${secondsLeft}s before trying again.`);
+      setError(
+        `Too many attempts. You have been rate-limited for security reasons. Please wait ${secondsLeft}s before trying again.`
+      );
       return;
     }
 
@@ -71,25 +66,24 @@ export default function LoginScreen() {
       const newAttempts = failedAttempts + 1;
       setFailedAttempts(newAttempts);
 
-      const errMsg = (err.message || "").toLowerCase();
+      const errMsg = (err.message || '').toLowerCase();
       const isRateLimited =
         newAttempts >= 5 ||
-        errMsg.includes("rate limit") ||
-        errMsg.includes("rate_limit") ||
-        errMsg.includes("too many") ||
-        errMsg.includes("429") ||
-        errMsg.includes("security_purposes");
+        errMsg.includes('rate limit') ||
+        errMsg.includes('rate_limit') ||
+        errMsg.includes('too many') ||
+        errMsg.includes('429') ||
+        errMsg.includes('security_purposes');
 
       if (isRateLimited) {
         setLockedUntil(Date.now() + 60000);
-        setError("Too many attempts. You have been rate-limited for security reasons. Please wait a few minutes before trying again.");
+        setError(
+          'Too many attempts. You have been rate-limited for security reasons. Please wait a few minutes before trying again.'
+        );
         return;
       }
 
-      if (
-        errMsg.includes('email not confirmed') ||
-        errMsg.includes('unconfirmed')
-      ) {
+      if (errMsg.includes('email not confirmed') || errMsg.includes('unconfirmed')) {
         try {
           await supabase.auth.resend({ type: 'signup', email: cleanEmail });
         } catch {}

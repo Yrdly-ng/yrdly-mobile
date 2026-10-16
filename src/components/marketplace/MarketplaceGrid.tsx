@@ -23,7 +23,8 @@ interface MarketplaceGridProps {
 }
 
 export function MarketplaceGrid({ searchQuery = '', sortOption = 'newest' }: MarketplaceGridProps) {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -121,7 +122,7 @@ export function MarketplaceGrid({ searchQuery = '', sortOption = 'newest' }: Mar
 
         if (error) throw error;
         const blocked = profile?.blocked_users || [];
-        const filtered = (data as any[] || []).filter((p: any) => !blocked.includes(p.user_id));
+        const filtered = ((data as any[]) || []).filter((p: any) => !blocked.includes(p.user_id));
         setItems(filtered as Post[]);
       } catch (error) {
         console.error('Error fetching marketplace items:', error);
@@ -192,7 +193,12 @@ export function MarketplaceGrid({ searchQuery = '', sortOption = 'newest' }: Mar
           item={item}
           onPress={() => router.push(`/marketplace/${item.id}`)}
           onMessageSeller={handleMessageSeller}
-          onBuyNow={(item) => router.push({ pathname: '/checkout/[id]', params: { id: item.id, type: 'marketplace' } })}
+          onBuyNow={(item) =>
+            router.push({
+              pathname: '/checkout/[id]',
+              params: { id: item.id, type: 'marketplace' },
+            })
+          }
         />
       )}
       contentContainerStyle={stylesheet.listContent}

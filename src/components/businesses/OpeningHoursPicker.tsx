@@ -13,7 +13,8 @@ export function OpeningHoursPicker({
   value: string;
   onChange: (v: string) => void;
 }) {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const [visible, setVisible] = useState(false);
   const [startDay, setStartDay] = useState('Mon');

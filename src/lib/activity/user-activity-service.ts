@@ -1,23 +1,22 @@
 import { supabase } from '../supabase/supabase';
 
 export class UserActivityService {
-  // Update user's last seen timestamp
-  static async updateUserActivity(userId: string) {
+  static async setOnlineStatus(userId: string, isOnline: boolean) {
     try {
       const { error } = await supabase
         .from('users')
-        .update({
-          last_seen: new Date().toISOString(),
-          is_online: true,
-        })
+        .update({ last_seen: new Date().toISOString(), is_online: isOnline })
         .eq('id', userId);
 
-      if (error) {
-        console.error('Error updating user activity:', error);
-      }
+      if (error) console.error('Error updating user online status:', error);
     } catch (error) {
-      console.error('Error updating user activity:', error);
+      console.error('Error updating user online status:', error);
     }
+  }
+
+  // Update user's last seen timestamp
+  static async updateUserActivity(userId: string) {
+    await this.setOnlineStatus(userId, true);
   }
 
   // Get users active in the last 24 hours

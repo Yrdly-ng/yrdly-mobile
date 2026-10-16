@@ -7,7 +7,8 @@ import { Feather } from '@expo/vector-icons';
 import { formatPrice } from '../../lib/shared/utils';
 
 export default function CheckoutSuccessScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const router = useRouter();
   const { transactionId, itemTitle, amount } = useLocalSearchParams<{

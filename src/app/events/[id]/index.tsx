@@ -95,7 +95,8 @@ const SkeletonCard = ({ height = 20, width = '100%', style }: any) => {
 };
 
 export default function EventDetailScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -123,7 +124,11 @@ export default function EventDetailScreen() {
   const purchaseInFlight = useRef(false);
   const verifyInFlight = useRef(false);
   const [ticketCheckout, setTicketCheckout] = useState<{
-    paymentToken: string; transactionId: string; txRef: string; customerId: string; tierName: string;
+    paymentToken: string;
+    transactionId: string;
+    txRef: string;
+    customerId: string;
+    tierName: string;
   } | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [userHasTickets, setUserHasTickets] = useState(false);
@@ -147,7 +152,7 @@ export default function EventDetailScreen() {
 
   useEffect(() => {
     if (!event || !event.lat || !event.lng || !loc) return;
-    
+
     let active = true;
     const fetchEta = async () => {
       try {
@@ -160,9 +165,11 @@ export default function EventDetailScreen() {
         console.warn('Failed to fetch ETA:', err);
       }
     };
-    
+
     fetchEta();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [event, loc]);
 
   const successOverlayStyle = useAnimatedStyle(() => ({ opacity: successOverlayOp.value }));
@@ -449,14 +456,18 @@ export default function EventDetailScreen() {
     setTicketCheckout(null);
     setPurchasing(true);
     try {
-      const result = await api.post<{ success: boolean }>('/api/events/tickets/verify', { tx_ref: checkout.txRef });
+      const result = await api.post<{ success: boolean }>('/api/events/tickets/verify', {
+        tx_ref: checkout.txRef,
+      });
       if (!result.success) throw new Error('Payment has not been confirmed.');
       setSelectedTier(null);
       showTicketSuccess(checkout.tierName);
     } catch {
-      Alert.alert('Payment awaiting confirmation', 'Check My Tickets before paying again. Your ticket will appear after payment is verified.', [
-        { text: 'My Tickets', onPress: () => router.push('/my-tickets' as any) },
-      ]);
+      Alert.alert(
+        'Payment awaiting confirmation',
+        'Check My Tickets before paying again. Your ticket will appear after payment is verified.',
+        [{ text: 'My Tickets', onPress: () => router.push('/my-tickets' as any) }]
+      );
     } finally {
       verifyInFlight.current = false;
       setPurchasing(false);
@@ -470,24 +481,41 @@ export default function EventDetailScreen() {
       return;
     }
     if (selectedTier.price > 0 && !process.env.EXPO_PUBLIC_PAYLUK_PUBLIC_KEY) {
-      Alert.alert('Payments unavailable', 'Secure checkout is unavailable. Please try again later.');
+      Alert.alert(
+        'Payments unavailable',
+        'Secure checkout is unavailable. Please try again later.'
+      );
       return;
     }
     purchaseInFlight.current = true;
     setPurchasing(true);
     try {
       const result = await api.post('/api/events/tickets/purchase', {
-        event_id: event.id, tier_id: selectedTier.id, attendee_name: attendeeName,
-        attendee_email: attendeeEmail, attendee_phone: attendeePhone, quantity,
+        event_id: event.id,
+        tier_id: selectedTier.id,
+        attendee_name: attendeeName,
+        attendee_email: attendeeEmail,
+        attendee_phone: attendeePhone,
+        quantity,
       });
       if (!result.success) throw new Error('Could not start checkout.');
       if (result.free || result.alreadyPaid) {
         const tierName = selectedTier.name;
         setSelectedTier(null);
         showTicketSuccess(tierName);
-      } else if (result.paylukPaymentToken && result.buyerPaylukId && result.tx_ref && result.transactionId) {
-        setTicketCheckout({ paymentToken: result.paylukPaymentToken, transactionId: result.transactionId,
-          customerId: result.buyerPaylukId, txRef: result.tx_ref, tierName: selectedTier.name });
+      } else if (
+        result.paylukPaymentToken &&
+        result.buyerPaylukId &&
+        result.tx_ref &&
+        result.transactionId
+      ) {
+        setTicketCheckout({
+          paymentToken: result.paylukPaymentToken,
+          transactionId: result.transactionId,
+          customerId: result.buyerPaylukId,
+          txRef: result.tx_ref,
+          tierName: selectedTier.name,
+        });
       } else throw new Error('Checkout setup is incomplete. Please contact support.');
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Could not process ticket purchase.');
@@ -783,9 +811,12 @@ export default function EventDetailScreen() {
                   <Feather name="navigation" size={20} color={theme.colors.G} />
                 </View>
                 <View style={stylesheet.infoTextContainer}>
-                  <Text style={[stylesheet.infoLabel, { color: theme.colors.LABEL }]}>Drive Time</Text>
+                  <Text style={[stylesheet.infoLabel, { color: theme.colors.LABEL }]}>
+                    Drive Time
+                  </Text>
                   <Text style={[stylesheet.infoValue, { color: theme.colors.TEXT_PRIMARY }]}>
-                    {Math.ceil(eta.duration_in_traffic_seconds / 60)} min drive · {(eta.distance_meters / 1000).toFixed(1)} km
+                    {Math.ceil(eta.duration_in_traffic_seconds / 60)} min drive ·{' '}
+                    {(eta.distance_meters / 1000).toFixed(1)} km
                   </Text>
                 </View>
               </View>
@@ -1418,9 +1449,15 @@ export default function EventDetailScreen() {
           onSuccess={verifyTicketCheckout}
           onCancel={() => {
             setTicketCheckout(null);
-            Alert.alert('Checkout closed', 'Check My Tickets if you completed payment. An unpaid reservation remains held until checkout is safely cancelled.');
+            Alert.alert(
+              'Checkout closed',
+              'Check My Tickets if you completed payment. An unpaid reservation remains held until checkout is safely cancelled.'
+            );
           }}
-          onError={message => { setTicketCheckout(null); Alert.alert('Checkout unavailable', message); }}
+          onError={(message) => {
+            setTicketCheckout(null);
+            Alert.alert('Checkout unavailable', message);
+          }}
         />
       )}
 

@@ -20,7 +20,8 @@ export class CatalogService {
     },
     imageFiles?: MobileFile[]
   ): Promise<string> {
-    if (itemData.price !== undefined && !isPaidPrice(itemData.price)) throw new Error(MINIMUM_PRICE_MESSAGE);
+    if (itemData.price !== undefined && !isPaidPrice(itemData.price))
+      throw new Error(MINIMUM_PRICE_MESSAGE);
     try {
       // Verify business ownership
       const { data: business, error: businessError } = await supabase
@@ -116,7 +117,8 @@ export class CatalogService {
     newImageFiles?: MobileFile[],
     existingImages?: string[]
   ): Promise<void> {
-    if (itemData.price !== undefined && !isPaidPrice(itemData.price)) throw new Error(MINIMUM_PRICE_MESSAGE);
+    if (itemData.price !== undefined && !isPaidPrice(itemData.price))
+      throw new Error(MINIMUM_PRICE_MESSAGE);
     try {
       // Verify business ownership
       const { data: business, error: businessError } = await supabase

@@ -8,7 +8,8 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../hooks/use-supabase-auth';
 
 export default function InviteScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const router = useRouter();
   const { user, profile } = useAuth();

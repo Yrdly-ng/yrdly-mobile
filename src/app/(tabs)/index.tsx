@@ -39,7 +39,10 @@ import { Image } from 'expo-image';
 import { MapIcon, NotificationsIcon } from '../../components/SvgIcons';
 import { usePosts } from '../../hooks/posts/use-posts';
 import { useAuth } from '../../hooks/use-supabase-auth';
-import { CommentsBottomSheet, CommentsBottomSheetRef } from '../../components/comments/CommentsBottomSheet';
+import {
+  CommentsBottomSheet,
+  CommentsBottomSheetRef,
+} from '../../components/comments/CommentsBottomSheet';
 import ImageViewing from 'react-native-image-viewing';
 import { useNotificationBadge } from '../../context/NotificationBadgeContext';
 import { useScrollToTop, useIsFocused } from 'expo-router/react-navigation';

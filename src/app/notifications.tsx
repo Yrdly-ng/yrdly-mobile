@@ -59,7 +59,8 @@ function timeAgo(dateString: string) {
 }
 
 export default function NotificationsScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const router = useRouter();
   const { user } = useAuth();

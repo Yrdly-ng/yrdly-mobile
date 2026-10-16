@@ -496,9 +496,10 @@ export default function CreatePostScreen() {
               )}
               <Text style={{ color: theme.colors.TEXT_PRIMARY, flexShrink: 1 }}>
                 {uploadStage === 'preparing' && 'Preparing your post…'}
-                {uploadStage === 'uploading' && (uploadProgress > 0
-                  ? `Uploading media · ${Math.round(uploadProgress * 100)}%`
-                  : 'Uploading media…')}
+                {uploadStage === 'uploading' &&
+                  (uploadProgress > 0
+                    ? `Uploading media · ${Math.round(uploadProgress * 100)}%`
+                    : 'Uploading media…')}
                 {uploadStage === 'publishing' && 'Publishing post…'}
                 {uploadStage === 'checking' && 'Checking whether your post was published…'}
               </Text>
@@ -506,16 +507,22 @@ export default function CreatePostScreen() {
             {uploadStage !== 'checking' && (
               <TouchableOpacity
                 accessibilityRole="button"
-                onPress={() => Alert.alert(
-                  'Cancel publishing?',
-                  uploadStage === 'publishing'
-                    ? 'Your post may already have been saved. We will check its status before allowing a retry. Your draft will be kept.'
-                    : 'The upload will stop and your draft will be kept.',
-                  [
-                    { text: 'Keep publishing', style: 'cancel' },
-                    { text: 'Cancel upload', style: 'destructive', onPress: () => uploadController.current?.abort() },
-                  ]
-                )}
+                onPress={() =>
+                  Alert.alert(
+                    'Cancel publishing?',
+                    uploadStage === 'publishing'
+                      ? 'Your post may already have been saved. We will check its status before allowing a retry. Your draft will be kept.'
+                      : 'The upload will stop and your draft will be kept.',
+                    [
+                      { text: 'Keep publishing', style: 'cancel' },
+                      {
+                        text: 'Cancel upload',
+                        style: 'destructive',
+                        onPress: () => uploadController.current?.abort(),
+                      },
+                    ]
+                  )
+                }
               >
                 <Text style={{ color: theme.colors.G }}>Cancel</Text>
               </TouchableOpacity>
@@ -523,13 +530,28 @@ export default function CreatePostScreen() {
           </View>
         )}
         {publishError && !posting && (
-          <View style={{ marginHorizontal: 20, marginBottom: 14, padding: 14, borderRadius: 12, backgroundColor: theme.colors.SURFACE, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER }}>
-            <Text accessibilityRole="alert" style={{ color: theme.colors.TEXT_PRIMARY, marginBottom: 10 }}>
+          <View
+            style={{
+              marginHorizontal: 20,
+              marginBottom: 14,
+              padding: 14,
+              borderRadius: 12,
+              backgroundColor: theme.colors.SURFACE,
+              borderWidth: 1,
+              borderColor: theme.colors.GLASS_BORDER,
+            }}
+          >
+            <Text
+              accessibilityRole="alert"
+              style={{ color: theme.colors.TEXT_PRIMARY, marginBottom: 10 }}
+            >
               {publishError}
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
               <TouchableOpacity accessibilityRole="button" onPress={() => void doPost()}>
-                <Text style={{ color: theme.colors.G, fontFamily: 'Inter-Medium' }}>Retry safely</Text>
+                <Text style={{ color: theme.colors.G, fontFamily: 'Inter-Medium' }}>
+                  Retry safely
+                </Text>
               </TouchableOpacity>
               <Text style={{ color: theme.colors.MUTED, fontSize: 12 }}>Your draft is saved</Text>
             </View>

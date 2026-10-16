@@ -19,7 +19,8 @@ import { api } from '../../lib/network/api';
 import { BankLogo } from '../../components/payments/BankLogo';
 
 export default function PayoutSettingsScreen() {
-  const { theme } = useUnistyles(); const s = sStylesheet;
+  const { theme } = useUnistyles();
+  const s = sStylesheet;
 
   const router = useRouter();
 
@@ -286,7 +287,12 @@ export default function PayoutSettingsScreen() {
         >
           <ScrollView
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 }}
+            contentContainerStyle={{
+              flexGrow: 1,
+              paddingHorizontal: 20,
+              paddingTop: 20,
+              paddingBottom: 40,
+            }}
             keyboardShouldPersistTaps="handled"
           >
             <Text style={s.acctLabel}>10-DIGIT ACCOUNT NUMBER (NUBAN)</Text>

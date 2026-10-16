@@ -133,7 +133,8 @@ function getDistanceStr(lat1: number, lon1: number, lat2: number, lon2: number) 
 }
 
 const FriendMarker = React.memo(function FriendMarker({ avatar_url }: { avatar_url?: string }) {
-  const { theme } = useUnistyles(); const ms = msStylesheet;
+  const { theme } = useUnistyles();
+  const ms = msStylesheet;
   return (
     <View style={ms.fMarker}>
       <View style={ms.fRing}>
@@ -171,7 +172,8 @@ const IconMarker = React.memo(function IconMarker({
 });
 
 export default function MapScreen() {
-  const { theme } = useUnistyles(); const s = sStylesheet;
+  const { theme } = useUnistyles();
+  const s = sStylesheet;
   const ms = msStylesheet;
 
   const insets = useSafeAreaInsets();
@@ -190,7 +192,7 @@ export default function MapScreen() {
   const [showsTraffic, setShowsTraffic] = useState(false);
   const [selectedPin, setSelectedPin] = useState<MapMarker | null>(null);
   const [eta, setEta] = useState<ETAResponse | null>(null);
-  const [routePoints, setRoutePoints] = useState<{latitude: number, longitude: number}[]>([]);
+  const [routePoints, setRoutePoints] = useState<{ latitude: number; longitude: number }[]>([]);
   const [etaLoading, setEtaLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [showSearch, setShowSearch] = useState(false);
@@ -231,7 +233,7 @@ export default function MapScreen() {
       setRoutePoints([]);
       return;
     }
-    
+
     let active = true;
     const fetchEta = async () => {
       setEtaLoading(true);
@@ -245,7 +247,7 @@ export default function MapScreen() {
           setEta(res);
           if (res.overview_polyline) {
             const decoded = polyline.decode(res.overview_polyline);
-            setRoutePoints(decoded.map(p => ({ latitude: p[0], longitude: p[1] })));
+            setRoutePoints(decoded.map((p) => ({ latitude: p[0], longitude: p[1] })));
           } else {
             setRoutePoints([]);
           }
@@ -256,9 +258,11 @@ export default function MapScreen() {
         if (active) setEtaLoading(false);
       }
     };
-    
+
     fetchEta();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [selectedPin, loc]);
 
   const getDirections = (destLat: number, destLng: number, _label?: string) => {
@@ -337,12 +341,23 @@ export default function MapScreen() {
     if (user?.id) {
       const { data: sharedFriends } = await api.post('/api/profiles/friend-locations', {});
       for (const friend of sharedFriends || []) {
-        const lat = Number(friend.current_location?.lat ?? friend.current_location?.geopoint?.latitude);
-        const lng = Number(friend.current_location?.lng ?? friend.current_location?.geopoint?.longitude);
-        if (Number.isFinite(lat) && Number.isFinite(lng)) found.push({
-          id: `friend-${friend.id}`, type: 'friend', lat, lng, title: friend.name,
-          subtitle: 'Friend', targetId: friend.id, avatar_url: friend.avatar_url,
-        });
+        const lat = Number(
+          friend.current_location?.lat ?? friend.current_location?.geopoint?.latitude
+        );
+        const lng = Number(
+          friend.current_location?.lng ?? friend.current_location?.geopoint?.longitude
+        );
+        if (Number.isFinite(lat) && Number.isFinite(lng))
+          found.push({
+            id: `friend-${friend.id}`,
+            type: 'friend',
+            lat,
+            lng,
+            title: friend.name,
+            subtitle: 'Friend',
+            targetId: friend.id,
+            avatar_url: friend.avatar_url,
+          });
       }
     }
     // Events from posts table (legacy)
@@ -663,11 +678,7 @@ export default function MapScreen() {
           </Marker>
         ))}
         {routePoints.length > 0 && (
-          <Polyline
-            coordinates={routePoints}
-            strokeColor="#82DB7E"
-            strokeWidth={4}
-          />
+          <Polyline coordinates={routePoints} strokeColor="#82DB7E" strokeWidth={4} />
         )}
       </MapView>
 
@@ -810,12 +821,20 @@ export default function MapScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 4 }}>
                   <Ionicons name="car-outline" size={14} color={theme.colors.MUTED} />
                   {etaLoading ? (
-                    <Text style={[s.previewSub, { color: theme.colors.MUTED }]}>Calculating ETA...</Text>
+                    <Text style={[s.previewSub, { color: theme.colors.MUTED }]}>
+                      Calculating ETA...
+                    </Text>
                   ) : (
-                    <Text style={[s.previewSub, { color: theme.colors.TEXT_PRIMARY, fontWeight: '600' }]}>
+                    <Text
+                      style={[
+                        s.previewSub,
+                        { color: theme.colors.TEXT_PRIMARY, fontWeight: '600' },
+                      ]}
+                    >
                       {Math.ceil((eta?.duration_in_traffic_seconds ?? 0) / 60)} min drive
                       <Text style={{ color: theme.colors.MUTED, fontWeight: '400' }}>
-                        {' · '}{((eta?.distance_meters ?? 0) / 1000).toFixed(1)} km
+                        {' · '}
+                        {((eta?.distance_meters ?? 0) / 1000).toFixed(1)} km
                       </Text>
                     </Text>
                   )}

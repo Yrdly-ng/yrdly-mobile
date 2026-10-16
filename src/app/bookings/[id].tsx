@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,10 +9,14 @@ import { BookingService, CANCELLATION_WINDOW_HOURS } from '../../lib/bookings/bo
 import { NotificationTriggers } from '../../lib/notifications/notification-triggers';
 import { supabase } from '../../lib/supabase/supabase';
 import { Booking } from '../../types';
-import { BookingPaymentButton, BookingReceiptButton } from '../../components/payments/BookingPaymentButton';
+import {
+  BookingPaymentButton,
+  BookingReceiptButton,
+} from '../../components/payments/BookingPaymentButton';
 
 export default function BookingDetailScreen() {
-  const { theme } = useUnistyles(); const s = stylesheet;
+  const { theme } = useUnistyles();
+  const s = stylesheet;
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
@@ -33,7 +30,9 @@ export default function BookingDetailScreen() {
       setLoading(true);
       const { data, error } = await supabase
         .from('bookings')
-        .select('*, service:service_offerings(*), business:businesses(*), customer:public_profiles!bookings_customer_id_fkey(*)')
+        .select(
+          '*, service:service_offerings(*), business:businesses(*), customer:public_profiles!bookings_customer_id_fkey(*)'
+        )
         .eq('id', id)
         .single();
 
@@ -149,7 +148,12 @@ export default function BookingDetailScreen() {
               });
             }
 
-            Alert.alert('Cancelled', isLate ? 'Booking late-cancelled. A strike was recorded.' : 'Booking cancelled successfully.');
+            Alert.alert(
+              'Cancelled',
+              isLate
+                ? 'Booking late-cancelled. A strike was recorded.'
+                : 'Booking cancelled successfully.'
+            );
             fetchBooking();
           } catch (err: any) {
             Alert.alert('Error', err.message);
@@ -162,35 +166,40 @@ export default function BookingDetailScreen() {
   };
 
   const handleNoShow = async (party: 'customer' | 'provider') => {
-    Alert.alert('Record No-Show', `Are you sure you want to record a No-Show against the ${party}? A strike will be attributed.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Record No-Show',
-        style: 'destructive',
-        onPress: async () => {
-          setActionLoading(true);
-          try {
-            await BookingService.markBookingNoShow(booking.id, party);
+    Alert.alert(
+      'Record No-Show',
+      `Are you sure you want to record a No-Show against the ${party}? A strike will be attributed.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Record No-Show',
+          style: 'destructive',
+          onPress: async () => {
+            setActionLoading(true);
+            try {
+              await BookingService.markBookingNoShow(booking.id, party);
 
-            const targetUserId = party === 'customer' ? booking.customer_id : booking.business?.owner_id;
-            if (targetUserId) {
-              await NotificationTriggers.onBookingNoShow({
-                targetUserId,
-                serviceName: booking.service?.name || 'Service',
-                party,
-                bookingId: booking.id,
-              });
+              const targetUserId =
+                party === 'customer' ? booking.customer_id : booking.business?.owner_id;
+              if (targetUserId) {
+                await NotificationTriggers.onBookingNoShow({
+                  targetUserId,
+                  serviceName: booking.service?.name || 'Service',
+                  party,
+                  bookingId: booking.id,
+                });
+              }
+
+              fetchBooking();
+            } catch (err: any) {
+              Alert.alert('Error', err.message);
+            } finally {
+              setActionLoading(false);
             }
-
-            fetchBooking();
-          } catch (err: any) {
-            Alert.alert('Error', err.message);
-          } finally {
-            setActionLoading(false);
-          }
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
   const handleComplete = async () => {
@@ -232,16 +241,43 @@ export default function BookingDetailScreen() {
           </Text>
           <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center' }}>
             <Ionicons name="card-outline" size={16} color={theme.colors.LABEL} />
-            <Text style={{ marginLeft: 6, fontSize: 13, color: theme.colors.TEXT_SECONDARY, fontWeight: '600' }}>
+            <Text
+              style={{
+                marginLeft: 6,
+                fontSize: 13,
+                color: theme.colors.TEXT_SECONDARY,
+                fontWeight: '600',
+              }}
+            >
               Payment: {(booking.payment_status || 'unpaid').toUpperCase()}
             </Text>
           </View>
-          {isCustomer && !isPast && ['requested', 'confirmed'].includes(booking.status) &&
+          {isCustomer &&
+            !isPast &&
+            ['requested', 'confirmed'].includes(booking.status) &&
             (!booking.payment_status || booking.payment_status === 'unpaid') &&
-            (booking.quote_id || booking.service?.escrow_enabled || booking.service?.requires_full_payment || booking.service?.deposit_required) &&
-            <BookingPaymentButton bookingId={booking.id} onConfirmed={() => { void fetchBooking(); }} />}
-          {isCustomer && ['deposit_paid', 'fully_paid', 'escrow_held'].includes(booking.payment_status || '') &&
-            <BookingReceiptButton bookingId={booking.id} onConfirmed={() => { void fetchBooking(); }} />}
+            (booking.quote_id ||
+              booking.service?.escrow_enabled ||
+              booking.service?.requires_full_payment ||
+              booking.service?.deposit_required) && (
+              <BookingPaymentButton
+                bookingId={booking.id}
+                onConfirmed={() => {
+                  void fetchBooking();
+                }}
+              />
+            )}
+          {isCustomer &&
+            ['deposit_paid', 'fully_paid', 'escrow_held'].includes(
+              booking.payment_status || ''
+            ) && (
+              <BookingReceiptButton
+                bookingId={booking.id}
+                onConfirmed={() => {
+                  void fetchBooking();
+                }}
+              />
+            )}
         </View>
 
         {/* Flag Warnings */}
@@ -249,7 +285,8 @@ export default function BookingDetailScreen() {
           <View style={s.flagBox}>
             <Ionicons name="warning" size={20} color="#FF9500" />
             <Text style={s.flagText}>
-              Warning: Customer has accrued {booking.customer.no_show_count || 0} no-shows and {booking.customer.late_cancellation_count || 0} late cancellations.
+              Warning: Customer has accrued {booking.customer.no_show_count || 0} no-shows and{' '}
+              {booking.customer.late_cancellation_count || 0} late cancellations.
             </Text>
           </View>
         )}
@@ -267,13 +304,16 @@ export default function BookingDetailScreen() {
         <View style={s.card}>
           <Text style={s.sectionHeader}>Service Details</Text>
           <Text style={s.serviceTitle}>{booking.service?.name}</Text>
-          {!!booking.service?.description && <Text style={s.serviceDesc}>{booking.service.description}</Text>}
+          {!!booking.service?.description && (
+            <Text style={s.serviceDesc}>{booking.service.description}</Text>
+          )}
 
           <View style={s.metaRow}>
             <Text style={s.metaTxt}>Duration: {booking.service?.duration_minutes} mins</Text>
             {booking.service?.price !== undefined && (
               <Text style={s.priceTxt}>
-                {booking.service.price_is_from ? 'From ' : ''}₦{booking.service.price.toLocaleString()}
+                {booking.service.price_is_from ? 'From ' : ''}₦
+                {booking.service.price.toLocaleString()}
               </Text>
             )}
           </View>
@@ -282,8 +322,12 @@ export default function BookingDetailScreen() {
         {/* Parties Card */}
         <View style={s.card}>
           <Text style={s.sectionHeader}>Parties</Text>
-          <Text style={s.partyLabel}>Business: <Text style={s.partyVal}>{booking.business?.name}</Text></Text>
-          <Text style={s.partyLabel}>Customer: <Text style={s.partyVal}>{booking.customer?.name || 'Customer'}</Text></Text>
+          <Text style={s.partyLabel}>
+            Business: <Text style={s.partyVal}>{booking.business?.name}</Text>
+          </Text>
+          <Text style={s.partyLabel}>
+            Customer: <Text style={s.partyVal}>{booking.customer?.name || 'Customer'}</Text>
+          </Text>
           {!!booking.notes && <Text style={s.notesTxt}>Notes: {booking.notes}</Text>}
         </View>
 
@@ -310,7 +354,10 @@ export default function BookingDetailScreen() {
 
           {!actionLoading && booking.status === 'confirmed' && isPast && isProvider && (
             <View style={s.btnRow}>
-              <TouchableOpacity style={[s.btn, s.btnDanger]} onPress={() => handleNoShow('customer')}>
+              <TouchableOpacity
+                style={[s.btn, s.btnDanger]}
+                onPress={() => handleNoShow('customer')}
+              >
                 <Text style={s.btnDangerTxt}>Customer No-Show</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[s.btn, s.btnPrimary]} onPress={handleComplete}>
@@ -354,7 +401,12 @@ const stylesheet = StyleSheet.create((theme) => ({
     borderColor: theme.colors.GLASS_BORDER,
   },
   statusTitle: { fontSize: 16, fontWeight: '800', color: theme.colors.G },
-  appointmentTime: { fontSize: 14, color: theme.colors.TEXT_PRIMARY, marginTop: 4, fontWeight: '600' },
+  appointmentTime: {
+    fontSize: 14,
+    color: theme.colors.TEXT_PRIMARY,
+    marginTop: 4,
+    fontWeight: '600',
+  },
   flagBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -386,10 +438,20 @@ const stylesheet = StyleSheet.create((theme) => ({
   notesTxt: { fontSize: 13, fontStyle: 'italic', color: theme.colors.LABEL, marginTop: 8 },
   actionsWrap: { marginTop: 10, gap: 10 },
   btnRow: { flexDirection: 'row', gap: 12 },
-  btn: { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  btn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   btnPrimary: { backgroundColor: theme.colors.G },
   btnPrimaryTxt: { color: '#000', fontWeight: '700', fontSize: 14 },
-  btnDecline: { backgroundColor: theme.colors.SURFACE, borderWidth: 1, borderColor: theme.colors.GLASS_BORDER },
+  btnDecline: {
+    backgroundColor: theme.colors.SURFACE,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+  },
   btnDeclineTxt: { color: theme.colors.TEXT_PRIMARY, fontWeight: '600', fontSize: 14 },
   btnDanger: { backgroundColor: '#FF3B3020', borderWidth: 1, borderColor: '#FF3B3040' },
   btnDangerTxt: { color: '#FF3B30', fontWeight: '700', fontSize: 14 },

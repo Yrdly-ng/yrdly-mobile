@@ -57,7 +57,8 @@ export function GeneralPostForm({
   categories,
   onSelectCategory,
 }: Props) {
-  const { theme } = useUnistyles(); const stylesheet = sStylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = sStylesheet;
 
   const pressScale = useRef(new Animated.Value(1)).current;
   const [menuScale] = useState(new Animated.Value(showCategoryMenu ? 1 : 0));

@@ -23,7 +23,8 @@ import {
 import { SeverityStrip } from '../../components/alerts/SeverityStrip';
 
 export default function AlertDetailsScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const { id } = useLocalSearchParams();
   const router = useRouter();
@@ -262,9 +263,7 @@ export default function AlertDetailsScreen() {
                   {getAlertLabel(alert)}
                 </Text>
               </View>
-              <Text style={stylesheet.timeText}>
-                {formatAlertDate(alert.created_at)}
-              </Text>
+              <Text style={stylesheet.timeText}>{formatAlertDate(alert.created_at)}</Text>
             </View>
 
             <Text

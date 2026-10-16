@@ -22,7 +22,8 @@ const formatDateTime = (value: string | null) =>
     : 'Not scanned';
 
 export default function ManageEventScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -276,7 +277,8 @@ export default function ManageEventScreen() {
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   return (
     <View

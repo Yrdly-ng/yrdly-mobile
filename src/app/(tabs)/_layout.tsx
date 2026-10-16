@@ -26,7 +26,8 @@ const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpaci
 
 /** Wraps any tab icon with a spring scale animation on focus */
 function TabIconWrapper({ focused, children }: { focused: boolean; children: React.ReactNode }) {
-  const { theme } = useUnistyles(); const styles = sStylesheet;
+  const { theme } = useUnistyles();
+  const styles = sStylesheet;
 
   const scale = useSharedValue(1);
 
@@ -43,7 +44,8 @@ function TabIconWrapper({ focused, children }: { focused: boolean; children: Rea
 
 /** Floating create button with spring press feedback */
 function FloatingCreateButton({ onPress }: { onPress: () => void }) {
-  const { theme } = useUnistyles(); const styles = sStylesheet;
+  const { theme } = useUnistyles();
+  const styles = sStylesheet;
 
   const scale = useSharedValue(1);
 
@@ -83,7 +85,8 @@ function CreateMenuOverlay({
   onClose: () => void;
   onSelect: (route: string) => void;
 }) {
-  const { theme } = useUnistyles(); const styles = sStylesheet;
+  const { theme } = useUnistyles();
+  const styles = sStylesheet;
   const { profile } = useAuth();
 
   if (!visible) return null;
@@ -198,7 +201,8 @@ function CreateMenuOverlay({
 }
 
 export default function TabLayout() {
-  const { theme } = useUnistyles(); const styles = sStylesheet;
+  const { theme } = useUnistyles();
+  const styles = sStylesheet;
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -274,35 +278,39 @@ export default function TabLayout() {
 
     const channel = supabase
       .channel(`messages_badge_${user.id}_${Math.random().toString(36).substring(7)}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, async (payload: any) => {
-        fetchUnreadRef.current();
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'messages' },
+        async (payload: any) => {
+          fetchUnreadRef.current();
 
-        if (payload.eventType === 'INSERT' && payload.new) {
-          const msg = payload.new;
-          if (msg.sender_id === user.id) return;
-          if (msg.conversation_id === getActiveConversationId()) return;
+          if (payload.eventType === 'INSERT' && payload.new) {
+            const msg = payload.new;
+            if (msg.sender_id === user.id) return;
+            if (msg.conversation_id === getActiveConversationId()) return;
 
-          let senderName = 'Someone';
-          if (msg.sender_id) {
-            const { data: senderData } = await supabase
-              .from('public_profiles')
-              .select('name')
-              .eq('id', msg.sender_id)
-              .maybeSingle();
-            if (senderData?.name) {
-              senderName = senderData.name;
+            let senderName = 'Someone';
+            if (msg.sender_id) {
+              const { data: senderData } = await supabase
+                .from('public_profiles')
+                .select('name')
+                .eq('id', msg.sender_id)
+                .maybeSingle();
+              if (senderData?.name) {
+                senderName = senderData.name;
+              }
             }
-          }
 
-          showToast({
-            message: `New message from ${senderName}`,
-            actionText: 'View',
-            onActionPress: () => {
-              router.push(`/chat/${msg.conversation_id}` as any);
-            },
-          });
+            showToast({
+              message: `New message from ${senderName}`,
+              actionText: 'View',
+              onActionPress: () => {
+                router.push(`/chat/${msg.conversation_id}` as any);
+              },
+            });
+          }
         }
-      })
+      )
       .subscribe();
 
     return () => {

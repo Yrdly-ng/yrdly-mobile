@@ -41,7 +41,8 @@ const SLIDES = [
 ];
 
 export default function TourScreen() {
-  const { theme } = useUnistyles(); const styles = stylesheet;
+  const { theme } = useUnistyles();
+  const styles = stylesheet;
   const router = useRouter();
   const [idx, setIdx] = useState(0);
   const currentSlide = SLIDES[idx];

@@ -387,7 +387,7 @@ export default function BusinessProfileScreen() {
             owner_name: oData?.name || bData.owner_name || 'Unknown Owner',
             owner_avatar: oData?.avatar_url || bData.owner_avatar,
             cover_image: bData.cover_image || bData.image_urls?.[0],
-            logo: bData.logo_url || bData.logo || bData.owner_avatar,
+            logo: bData.logo_url || bData.logo || null,
           });
         }
       } catch (e) {

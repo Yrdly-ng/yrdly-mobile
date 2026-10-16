@@ -15,7 +15,8 @@ export const SeverityStrip: React.FC<SeverityStripProps> = ({
   width = 6,
   isResolved = false,
 }) => {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const iconColor = isResolved
     ? theme.colors.LABEL

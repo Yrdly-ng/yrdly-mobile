@@ -7,7 +7,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { api } from '../../lib/network/api';
 
 export default function WithdrawSuccessScreen() {
-  const { theme } = useUnistyles(); const s = sStylesheet;
+  const { theme } = useUnistyles();
+  const s = sStylesheet;
 
   const router = useRouter();
   const params = useLocalSearchParams();

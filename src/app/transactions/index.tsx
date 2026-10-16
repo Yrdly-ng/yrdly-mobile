@@ -47,7 +47,8 @@ const STATUS_ICONS: Record<EscrowStatus, string> = {
 };
 
 export default function TransactionsScreen() {
-  const { theme } = useUnistyles(); const s = sStylesheet;
+  const { theme } = useUnistyles();
+  const s = sStylesheet;
 
   const STATUS_MAP: Record<EscrowStatus, { label: string; color: string }> = {
     pending: { label: 'In Escrow', color: '#FFB648' },
@@ -94,30 +95,38 @@ export default function TransactionsScreen() {
 
         if (error) throw error;
 
-function parseImageUrls(val: any): string[] {
-  if (!val) return [];
-  if (Array.isArray(val)) {
-    return val.map((v) => (typeof v === 'string' ? v.trim() : '')).filter((v) => v.length > 0);
-  }
-  if (typeof val === 'string') {
-    const trimmed = val.trim();
-    if (!trimmed) return [];
-    if (trimmed.startsWith('[')) {
-      try {
-        const parsed = JSON.parse(trimmed);
-        if (Array.isArray(parsed)) {
-          return parsed.map((v) => (typeof v === 'string' ? v.trim() : '')).filter((v) => v.length > 0);
+        function parseImageUrls(val: any): string[] {
+          if (!val) return [];
+          if (Array.isArray(val)) {
+            return val
+              .map((v) => (typeof v === 'string' ? v.trim() : ''))
+              .filter((v) => v.length > 0);
+          }
+          if (typeof val === 'string') {
+            const trimmed = val.trim();
+            if (!trimmed) return [];
+            if (trimmed.startsWith('[')) {
+              try {
+                const parsed = JSON.parse(trimmed);
+                if (Array.isArray(parsed)) {
+                  return parsed
+                    .map((v) => (typeof v === 'string' ? v.trim() : ''))
+                    .filter((v) => v.length > 0);
+                }
+              } catch {
+                // ignore
+              }
+            }
+            if (
+              trimmed.startsWith('http') ||
+              trimmed.startsWith('file:') ||
+              trimmed.startsWith('data:')
+            ) {
+              return [trimmed];
+            }
+          }
+          return [];
         }
-      } catch {
-        // ignore
-      }
-    }
-    if (trimmed.startsWith('http') || trimmed.startsWith('file:') || trimmed.startsWith('data:')) {
-      return [trimmed];
-    }
-  }
-  return [];
-}
 
         const normalised = (await Promise.all(
           (data ?? []).map(async (tx: any) => {
@@ -263,11 +272,7 @@ function parseImageUrls(val: any): string[] {
       >
         <View style={s.rowThumbBox}>
           {thumb ? (
-            <Image
-              source={{ uri: thumb }}
-              style={StyleSheet.absoluteFill}
-              contentFit="cover"
-            />
+            <Image source={{ uri: thumb }} style={StyleSheet.absoluteFill} contentFit="cover" />
           ) : null}
         </View>
         <View style={s.rowMid}>

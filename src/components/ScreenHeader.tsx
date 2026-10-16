@@ -15,7 +15,8 @@ export function ScreenHeader({
   hideIcons?: boolean;
   rightContent?: React.ReactNode;
 }) {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const router = useRouter();
   const { unreadCount } = useNotificationBadge();

@@ -70,3 +70,9 @@ recon_output*.txt
 run_recon*.sh
 *.diff.txt
 scratch_*.py
+
+# Matt Pocock skills and their configuration
+!/.agents/skills/**/*.md
+!/docs/agents/*.md
+!/GLOSSARY.md
+!/docs/adr/*.md

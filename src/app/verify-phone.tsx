@@ -20,7 +20,8 @@ import { ErrorMessage } from '../components/ErrorMessage';
 const { width, height } = Dimensions.get('window');
 
 export default function VerifyPhoneScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
   const router = useRouter();
   const { sendPhoneOtp } = useAuth();
 

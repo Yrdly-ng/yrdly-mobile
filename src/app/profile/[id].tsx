@@ -239,7 +239,8 @@ export default function OtherUserProfileScreen() {
         setFollowersCount((prev) => prev + 1);
 
         // Trigger notification
-        const { NotificationTriggers } = await import('../../lib/notifications/notification-triggers');
+        const { NotificationTriggers } =
+          await import('../../lib/notifications/notification-triggers');
         await NotificationTriggers.onNewFollower(currentProfile.id, profile.id);
       }
       setIsFollowing(!isFollowing);

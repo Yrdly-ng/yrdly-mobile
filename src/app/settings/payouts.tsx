@@ -28,7 +28,8 @@ interface PayoutRequest {
 }
 
 export default function PayoutsScreen() {
-  const { theme } = useUnistyles(); const s = sStylesheet;
+  const { theme } = useUnistyles();
+  const s = sStylesheet;
   const STATUS_COLOR: Record<string, string> = {
     completed: theme.colors.G,
     processing: '#64B5F6',
@@ -58,18 +59,30 @@ export default function PayoutsScreen() {
       else setLoading(true);
       try {
         const [txRes, history, bankRes, ledger] = await Promise.all([
-          supabase.from('escrow_transactions').select('seller_amount,status')
-            .eq('seller_id', user.id).eq('payment_provider', 'payluk').neq('item_type', 'ticket')
+          supabase
+            .from('escrow_transactions')
+            .select('seller_amount,status')
+            .eq('seller_id', user.id)
+            .eq('payment_provider', 'payluk')
+            .neq('item_type', 'ticket')
             .in('status', ['paid', 'shipped', 'delivered']),
           api.get<{ payouts: PayoutRequest[] }>('/api/seller/payouts/history'),
           api.get('/api/seller/setup-account'),
-          api.get<{ availableBalance: number; totalEarnings: number }>('/api/seller/payouts/balance'),
+          api.get<{ availableBalance: number; totalEarnings: number }>(
+            '/api/seller/payouts/balance'
+          ),
         ]);
-        if (txRes.error || !Number.isFinite(ledger.availableBalance) || !Number.isFinite(ledger.totalEarnings)) {
+        if (
+          txRes.error ||
+          !Number.isFinite(ledger.availableBalance) ||
+          !Number.isFinite(ledger.totalEarnings)
+        ) {
           throw new Error('Balance unavailable');
         }
         setLifetimeEarned(ledger.totalEarnings);
-        setPendingEscrow((txRes.data || []).reduce((sum, row) => sum + Number(row.seller_amount || 0), 0));
+        setPendingEscrow(
+          (txRes.data || []).reduce((sum, row) => sum + Number(row.seller_amount || 0), 0)
+        );
         setBalance(ledger.availableBalance);
         setPayouts(history.payouts);
 
@@ -84,7 +97,10 @@ export default function PayoutsScreen() {
         setLifetimeEarned(0);
         setPendingEscrow(0);
         setBankInfo(null);
-        Alert.alert('Payouts unavailable', 'Your balance could not be verified. Pull down to refresh before withdrawing.');
+        Alert.alert(
+          'Payouts unavailable',
+          'Your balance could not be verified. Pull down to refresh before withdrawing.'
+        );
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -127,7 +143,8 @@ export default function PayoutsScreen() {
           </View>
           <View style={s.payoutMid}>
             <Text style={s.payoutBank}>
-              {item.bank_name || 'Bank'} · ****{item.account_number ? item.account_number.slice(-4) : '****'}
+              {item.bank_name || 'Bank'} · ****
+              {item.account_number ? item.account_number.slice(-4) : '****'}
             </Text>
             <Text style={s.payoutDate}>
               {dateStr} · {item.id.slice(0, 8).toUpperCase()}

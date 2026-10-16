@@ -86,7 +86,8 @@ function PriceTypeSelector({
   value: boolean;
   onChange: (v: boolean) => void;
 }) {
-  const { theme } = useUnistyles(); const stylesheet = sStylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = sStylesheet;
   const pt = ptStylesheet;
   const pg = pgStylesheet;
   const dd = ddStylesheet;
@@ -145,7 +146,8 @@ function Dropdown({
   onSelect: (v: string) => void;
   icon: string;
 }) {
-  const { theme } = useUnistyles(); const stylesheet = sStylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = sStylesheet;
   const pt = ptStylesheet;
   const pg = pgStylesheet;
   const dd = ddStylesheet;
@@ -247,7 +249,8 @@ function PhotoGallery({
   onAdd: () => void;
   onRemove: (i: number) => void;
 }) {
-  const { theme } = useUnistyles(); const stylesheet = sStylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = sStylesheet;
   const pt = ptStylesheet;
   const pg = pgStylesheet;
   const dd = ddStylesheet;
@@ -349,7 +352,8 @@ export function ForSaleForm({
   categories,
   onSelectCategory,
 }: ForSaleFormProps) {
-  const { theme } = useUnistyles(); const stylesheet = sStylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = sStylesheet;
   const pt = ptStylesheet;
   const pg = pgStylesheet;
   const dd = ddStylesheet;

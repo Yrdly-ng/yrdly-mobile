@@ -26,7 +26,10 @@ export function getPublishingErrorMessage(error: unknown, stage: PublishingStage
   if (stage === 'uploading') {
     return 'Your upload was interrupted. Your draft is saved, so you can retry.';
   }
-  if (error instanceof TypeError || (error instanceof Error && /network|fetch failed|connection lost/i.test(error.message))) {
+  if (
+    error instanceof TypeError ||
+    (error instanceof Error && /network|fetch failed|connection lost/i.test(error.message))
+  ) {
     return 'Connection lost. Check your internet and try again.';
   }
   return "We couldn't publish your post. Your draft is saved; please try again.";
@@ -35,17 +38,18 @@ export function getPublishingErrorMessage(error: unknown, stage: PublishingStage
 export function logPublishingFailure(error: unknown, stage: PublishingStage, startedAt: number) {
   if (!__DEV__) return;
   const status = error instanceof ApiError ? error.status : undefined;
-  const category = error instanceof PublishingOutcomeUncertainError
-    ? 'outcome-uncertain'
-    : status === 401
-      ? 'authentication'
-      : status && status >= 500
-        ? 'server'
-        : stage === 'uploading'
-          ? 'upload'
-          : error instanceof TypeError
-            ? 'network'
-            : 'unknown';
+  const category =
+    error instanceof PublishingOutcomeUncertainError
+      ? 'outcome-uncertain'
+      : status === 401
+        ? 'authentication'
+        : status && status >= 500
+          ? 'server'
+          : stage === 'uploading'
+            ? 'upload'
+            : error instanceof TypeError
+              ? 'network'
+              : 'unknown';
   console.warn('[PostPublishing] operation failed', {
     stage,
     category,

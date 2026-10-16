@@ -7,6 +7,7 @@ import { ToastProvider } from '@/components/toast';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 import { usePushNotifications } from '../hooks/notifications/use-push-notifications';
 import { AuthProvider, useAuth } from '../hooks/use-supabase-auth';
 import { ThemeProvider } from '../context/ThemeContext';
@@ -14,6 +15,7 @@ import { LocationProvider } from '../context/LocationContext';
 import { NotificationBadgeProvider } from '../context/NotificationBadgeContext';
 import * as SplashScreen from 'expo-splash-screen';
 import AnimatedSplashScreen from '../components/onboarding/AnimatedSplashScreen';
+import { UserActivityService } from '../lib/activity/user-activity-service';
 
 import { setAudioModeAsync } from 'expo-audio';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -59,6 +61,34 @@ function AudioSettingsHandler() {
     };
     configureAudio();
   }, []);
+  return null;
+}
+
+function ActivityStatusHandler() {
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const updateStatus = (isActive: boolean) => {
+      void UserActivityService.setOnlineStatus(user.id, isActive);
+    };
+
+    updateStatus(AppState.currentState === 'active');
+    const heartbeat = setInterval(() => {
+      if (AppState.currentState === 'active') updateStatus(true);
+    }, 30_000);
+    const subscription = AppState.addEventListener('change', (state) => {
+      updateStatus(state === 'active');
+    });
+
+    return () => {
+      clearInterval(heartbeat);
+      subscription.remove();
+      updateStatus(false);
+    };
+  }, [user?.id]);
+
   return null;
 }
 
@@ -213,6 +243,7 @@ function Layout() {
             <ThemeProvider>
               <BottomSheetModalProvider>
                 <AuthProvider>
+                  <ActivityStatusHandler />
                   <LocationProvider>
                     <NotificationBadgeProvider>
                       <AudioSettingsHandler />

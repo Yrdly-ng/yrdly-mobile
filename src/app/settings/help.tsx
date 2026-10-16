@@ -31,7 +31,8 @@ const FAQS: FAQItem[] = [
 ];
 
 function FAQRow({ faq }: { faq: FAQItem }) {
-  const { theme } = useUnistyles(); const s = sStylesheet;
+  const { theme } = useUnistyles();
+  const s = sStylesheet;
 
   const [expanded, setExpanded] = useState(false);
 
@@ -55,7 +56,8 @@ function FAQRow({ faq }: { faq: FAQItem }) {
 }
 
 export default function HelpScreen() {
-  const { theme } = useUnistyles(); const s = sStylesheet;
+  const { theme } = useUnistyles();
+  const s = sStylesheet;
 
   const router = useRouter();
 

@@ -19,7 +19,8 @@ interface AlertBannerProps {
 }
 
 export const AlertBanner: React.FC<AlertBannerProps> = ({ alert, onPress, onDismiss, style }) => {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const resolved = checkIsResolved(alert);
   const tier = getSeverityTier(alert);
@@ -58,21 +59,12 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({ alert, onPress, onDism
             { backgroundColor: resolved ? theme.colors.SURFACE : c.bg },
           ]}
         >
-          <Ionicons
-            name={iconName}
-            size={15}
-            color={resolved ? theme.colors.LABEL : c.icon}
-          />
+          <Ionicons name={iconName} size={15} color={resolved ? theme.colors.LABEL : c.icon} />
         </View>
 
         <View style={stylesheet.content}>
           <View style={stylesheet.headerRow}>
-            <Text
-              style={[
-                stylesheet.type,
-                { color: resolved ? theme.colors.LABEL : c.text },
-              ]}
-            >
+            <Text style={[stylesheet.type, { color: resolved ? theme.colors.LABEL : c.text }]}>
               {getAlertLabel(alert)}
             </Text>
             <Text style={stylesheet.time}>{formatAlertDate(alert.created_at)}</Text>

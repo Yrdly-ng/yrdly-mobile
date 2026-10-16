@@ -10,6 +10,8 @@ const libPaths = {
   'price-policy': 'marketplace/price-policy',
   'payluk-checkout-html': 'payments/payluk-checkout-html',
   'private-media': 'media/private-media',
+  'online-status': 'activity/online-status',
+  'business-edit-payload': 'businesses/business-edit-payload',
   'payout-quote': 'payments/payout-quote',
   'booking-payments': 'payments/booking-payments',
 };
@@ -28,6 +30,8 @@ const { privateMediaReference, parsePrivateMediaReference, mediaConversationId }
   load('private-media');
 const { parseWithdrawalQuote } = load('payout-quote');
 const { createBookingPayments } = load('booking-payments');
+const { isUserOnline } = load('online-status');
+const { buildBusinessEditPayload } = load('business-edit-payload');
 
 function loadPlacesAdapter(enabled) {
   let identity = null,
@@ -60,8 +64,8 @@ function loadPlacesAdapter(enabled) {
     'react/jsx-runtime': { jsx, jsxs: jsx },
     'react-native-google-places-autocomplete': { GooglePlacesAutocomplete: 'NativePlaces' },
     '@/hooks/use-supabase-auth': { useAuth: () => ({ user }) },
-    '@/lib/api': { WEB_APP_URL: 'https://qa.example.invalid' },
-    '@/lib/supabase': {
+    '@/lib/network/api': { WEB_APP_URL: 'https://qa.example.invalid' },
+    '@/lib/supabase/supabase': {
       supabase: {
         auth: {
           getSession: () => initial,
@@ -81,13 +85,16 @@ function loadPlacesAdapter(enabled) {
       },
     },
   };
-  const output = ts.transpileModule(readFileSync('src/components/location/PlacesAutocomplete.tsx', 'utf8'), {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2022,
-      jsx: ts.JsxEmit.ReactJSX,
-    },
-  }).outputText;
+  const output = ts.transpileModule(
+    readFileSync('src/components/location/PlacesAutocomplete.tsx', 'utf8'),
+    {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2022,
+        jsx: ts.JsxEmit.ReactJSX,
+      },
+    }
+  ).outputText;
   const module = { exports: {} };
   vm.runInNewContext(output, {
     module,
@@ -171,6 +178,42 @@ test('Maps routing follows token refresh, logout and account switches without re
   assert.equal(input.props.textInputProps.editable, false);
   assert.equal(input.props.requestUrl.headers.Authorization, undefined);
   assert.equal(adapter.stop(), true);
+});
+
+test('online status requires a fresh heartbeat and an online flag', () => {
+  const now = Date.parse('2026-10-16T12:00:00.000Z');
+  assert.equal(isUserOnline(true, new Date(now - 45_000).toISOString(), now), true);
+  assert.equal(isUserOnline(false, new Date(now - 5_000).toISOString(), now), false);
+  assert.equal(isUserOnline(true, new Date(now - 91_000).toISOString(), now), false);
+  assert.equal(isUserOnline(true, 'invalid timestamp', now), false);
+});
+
+test('business edits persist contact and mode fields without reactivating the business', () => {
+  const payload = buildBusinessEditPayload({
+    name: '  Corner Store  ',
+    description: 'Local groceries',
+    phone: '+2348000000000',
+    email: '  hello@example.com ',
+    website: 'https://example.com',
+    category: 'Shopping',
+    mode: 'both',
+    hours: '09:00 AM - 05:00 PM',
+    location: 'New address',
+    state: '',
+    lga: '',
+    ward: '',
+    lat: null,
+    lng: null,
+  });
+
+  assert.equal(payload.name, 'Corner Store');
+  assert.equal(payload.email, 'hello@example.com');
+  assert.equal(payload.mode, 'both');
+  assert.equal(payload.location, 'New address');
+  assert.equal(payload.lat, null);
+  assert.equal(payload.lng, null);
+  assert.equal(payload.location_geom, null);
+  assert.equal('is_active' in payload, false);
 });
 
 const response = (status, json) =>

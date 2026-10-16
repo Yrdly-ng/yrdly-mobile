@@ -627,7 +627,8 @@ export class NotificationService {
    * Helper to format user-friendly payout failure messages
    */
   private static formatPayoutFailureReason(rawReason: string): string {
-    if (!rawReason) return 'Your payout request could not be processed. Please try again or contact support.';
+    if (!rawReason)
+      return 'Your payout request could not be processed. Please try again or contact support.';
 
     const lower = rawReason.toLowerCase();
     if (lower.includes('insufficient balance')) {
@@ -640,7 +641,12 @@ export class NotificationService {
       return 'Please check your payout bank account details and try again.';
     }
 
-    if (rawReason.includes('HTTP') || rawReason.includes('[Payluk]') || rawReason.includes('POST /') || rawReason.includes('{')) {
+    if (
+      rawReason.includes('HTTP') ||
+      rawReason.includes('[Payluk]') ||
+      rawReason.includes('POST /') ||
+      rawReason.includes('{')
+    ) {
       const match = rawReason.match(/"message"\s*:\s*"([^"]+)"/);
       if (match && match[1]) {
         return this.formatPayoutFailureReason(match[1]);

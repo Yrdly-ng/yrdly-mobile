@@ -33,7 +33,9 @@ function parseImageUrls(val: any): string[] {
       try {
         const parsed = JSON.parse(trimmed);
         if (Array.isArray(parsed)) {
-          return parsed.map((v) => (typeof v === 'string' ? v.trim() : '')).filter((v) => v.length > 0);
+          return parsed
+            .map((v) => (typeof v === 'string' ? v.trim() : ''))
+            .filter((v) => v.length > 0);
         }
       } catch {
         // ignore
@@ -47,7 +49,8 @@ function parseImageUrls(val: any): string[] {
 }
 
 export default function MyListingsScreen() {
-  const { theme } = useUnistyles(); const stylesheet = _stylesheet;
+  const { theme } = useUnistyles();
+  const stylesheet = _stylesheet;
 
   const router = useRouter();
   const { user } = useAuth();
@@ -78,7 +81,15 @@ export default function MyListingsScreen() {
         .select('id, item_id, item_type, amount, status, paid_at, created_at')
         .eq('seller_id', user.id);
 
-      const paidStatuses = new Set(['paid', 'funds_held', 'disputed', 'shipped', 'delivered', 'completed', 'refunded']);
+      const paidStatuses = new Set([
+        'paid',
+        'funds_held',
+        'disputed',
+        'shipped',
+        'delivered',
+        'completed',
+        'refunded',
+      ]);
       const paidTxs = (soldTxs || []).filter((tx) => tx.paid_at || paidStatuses.has(tx.status));
 
       if (paidTxs.length > 0) {
@@ -325,23 +336,25 @@ export default function MyListingsScreen() {
               <Feather name="edit-2" size={16} color={theme.colors.TEXT_PRIMARY} />
             </TouchableOpacity>
 
-            {!item.is_paid && <TouchableOpacity
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                backgroundColor: theme.colors.SURFACE,
-                paddingVertical: 8,
-                paddingHorizontal: 16,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: '#EF4444',
-              }}
-              onPress={() => handleDeleteListing(item.id)}
-            >
-              <Feather name="trash-2" size={16} color="#EF4444" />
-            </TouchableOpacity>}
+            {!item.is_paid && (
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  backgroundColor: theme.colors.SURFACE,
+                  paddingVertical: 8,
+                  paddingHorizontal: 16,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: '#EF4444',
+                }}
+                onPress={() => handleDeleteListing(item.id)}
+              >
+                <Feather name="trash-2" size={16} color="#EF4444" />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </TouchableOpacity>

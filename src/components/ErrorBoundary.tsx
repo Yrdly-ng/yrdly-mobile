@@ -37,7 +37,6 @@ export class ErrorBoundary extends React.Component<Props, State> {
       JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
     );
     console.error(`${prefix} Component Stack:\n`, info.componentStack);
-
   }
 
   handleRestart = () => {
@@ -98,7 +97,6 @@ export class ErrorBoundary extends React.Component<Props, State> {
     );
   }
 }
-
 
 const styles = StyleSheet.create({
   container: {

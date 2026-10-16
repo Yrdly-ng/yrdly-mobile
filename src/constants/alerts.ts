@@ -70,6 +70,19 @@ export function formatAlertDate(dateString?: string): string {
   const date = new Date(dateString);
   if (isNaN(date.getTime())) return '';
 
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
   return `${months[date.getMonth()]} ${date.getDate()}`;
 }

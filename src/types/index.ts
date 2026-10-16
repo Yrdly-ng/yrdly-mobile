@@ -258,7 +258,7 @@ export interface ProviderAvailability {
   staff_id?: string | null;
   day_of_week: number; // 0 = Sun, 6 = Sat
   start_time: string; // HH:mm format
-  end_time: string;   // HH:mm format
+  end_time: string; // HH:mm format
   is_available: boolean;
   created_at?: string;
   updated_at?: string;
@@ -276,7 +276,8 @@ export interface AvailabilityException {
   created_at?: string;
 }
 
-export type BookingStatus = 'requested' | 'confirmed' | 'completed' | 'cancelled' | 'late_cancelled' | 'no_show';
+export type BookingStatus =
+  'requested' | 'confirmed' | 'completed' | 'cancelled' | 'late_cancelled' | 'no_show';
 export type StrikeType = 'late_cancellation' | 'no_show';
 export type StrikeParty = 'customer' | 'provider';
 
@@ -306,7 +307,8 @@ export interface BookingPayment {
   paid_at?: string | null;
 }
 
-export type QuoteStatus = 'pending' | 'estimated' | 'accepted' | 'rejected' | 'expired' | 'converted' | 'cancelled';
+export type QuoteStatus =
+  'pending' | 'estimated' | 'accepted' | 'rejected' | 'expired' | 'converted' | 'cancelled';
 
 export interface QuoteRequest {
   id: string;
@@ -461,4 +463,3 @@ export interface NotificationSettings {
   postLikes: boolean;
   eventInvites: boolean;
 }
-

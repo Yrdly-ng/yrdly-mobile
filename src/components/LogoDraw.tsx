@@ -65,7 +65,9 @@ export default function LogoDraw({
   }, []);
 
   const drawProgress = useSharedValue(freezeAt ?? 0);
-  const fillOpacity = useSharedValue(freezeAt !== undefined && freezeAt >= fillStartPercent / 100 ? 1 : 0);
+  const fillOpacity = useSharedValue(
+    freezeAt !== undefined && freezeAt >= fillStartPercent / 100 ? 1 : 0
+  );
 
   useEffect(() => {
     if (freezeAt !== undefined) return; // freezeAt skips animation entirely

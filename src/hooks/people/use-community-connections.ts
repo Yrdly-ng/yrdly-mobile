@@ -56,11 +56,15 @@ export function useCommunityConnections(
       const [{ data: followingData }, { data: followersData }] = await Promise.all([
         supabase
           .from('followers')
-          .select(`following_id, following:public_profiles!followers_following_id_fkey(id, name, avatar_url, username, phone_verified)`)
+          .select(
+            `following_id, following:public_profiles!followers_following_id_fkey(id, name, avatar_url, username, phone_verified)`
+          )
           .eq('follower_id', currentUser.id),
         supabase
           .from('followers')
-          .select(`follower_id, follower:public_profiles!followers_follower_id_fkey(id, name, avatar_url, username, phone_verified)`)
+          .select(
+            `follower_id, follower:public_profiles!followers_follower_id_fkey(id, name, avatar_url, username, phone_verified)`
+          )
           .eq('following_id', currentUser.id),
       ]);
 
@@ -140,7 +144,9 @@ export function useCommunityConnections(
         } else {
           let query = supabase
             .from('public_profiles')
-            .select('id, name, avatar_url, username, phone_verified, home_state, home_lga, discoverable')
+            .select(
+              'id, name, avatar_url, username, phone_verified, home_state, home_lga, discoverable'
+            )
             .neq('id', currentUser.id)
             .neq('discoverable', false)
             .order('created_at', { ascending: false })
@@ -200,7 +206,16 @@ export function useCommunityConnections(
         setIsFetchingMore(false);
       }
     },
-    [currentUser, activeFilter, profile?.blocked_users, profile?.home_state, profile?.home_lga, activeFilterTab, friends, debouncedSearch]
+    [
+      currentUser,
+      activeFilter,
+      profile?.blocked_users,
+      profile?.home_state,
+      profile?.home_lga,
+      activeFilterTab,
+      friends,
+      debouncedSearch,
+    ]
   );
 
   const loadMoreDiscover = useCallback(() => {
