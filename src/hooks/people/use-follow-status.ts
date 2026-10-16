@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabase/supabase';
-import { useAuth } from './use-supabase-auth';
+import { supabase } from '@/lib/supabase/supabase';
+import { useAuth } from '@/hooks/use-supabase-auth';
 
 export function useFollowStatus(targetUserId: string, refreshKey?: number) {
   const { user } = useAuth();
@@ -63,7 +63,7 @@ export function useFollowStatus(targetUserId: string, refreshKey?: number) {
           following_id: targetUserId,
         });
         setIsFollowing(true);
-        const { NotificationTriggers } = await import('../lib/notifications/notification-triggers');
+        const { NotificationTriggers } = await import('@/lib/notifications/notification-triggers');
         await NotificationTriggers.onNewFollower(user.id, targetUserId);
       }
     } catch (e) {

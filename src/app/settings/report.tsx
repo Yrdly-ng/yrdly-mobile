@@ -17,7 +17,7 @@ import ImagePicker from 'react-native-image-crop-picker';
 import { Image } from 'expo-image';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { supabase } from '../../lib/supabase/supabase';
-import { useCategories } from '../../hooks/use-categories';
+import { useCategories } from '../../hooks/categories/use-categories';
 import { StorageService } from '../../lib/media/storage-service';
 export default function ReportScreen() {
   const { theme } = useUnistyles(); const s = sStylesheet;

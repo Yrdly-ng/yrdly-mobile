@@ -34,7 +34,7 @@ import LottieView from 'lottie-react-native';
 import { logError } from '../lib/shared/error-logger';
 import * as FileSystem from 'expo-file-system/legacy';
 import { formatPrice } from '../lib/shared/utils';
-import { useCategories } from '../hooks/use-categories';
+import { useCategories } from '../hooks/categories/use-categories';
 import { api } from '../lib/network/api';
 
 const STEPS = ['Photos', 'Details', 'Description', 'Review'];

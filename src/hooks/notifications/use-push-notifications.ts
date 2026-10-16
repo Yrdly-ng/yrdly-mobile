@@ -3,7 +3,7 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import { useAuth } from './use-supabase-auth';
+import { useAuth } from '@/hooks/use-supabase-auth';
 import { AuthService } from '@/lib/auth/auth-service';
 import { supabase } from '@/lib/supabase/supabase';
 import { getOrCreateDeviceId } from '@/lib/offline/device-id';

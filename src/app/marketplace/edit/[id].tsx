@@ -26,7 +26,7 @@ import { usePosts } from '../../../hooks/posts/use-posts';
 import { StorageService } from '../../../lib/media/storage-service';
 import { Post } from '../../../types';
 import { GooglePlacesAutocomplete } from '@/components/location/PlacesAutocomplete';
-import { useCategories } from '../../../hooks/use-categories';
+import { useCategories } from '../../../hooks/categories/use-categories';
 
 const CONDITIONS = ['New', 'Like New', 'Good', 'Fair', 'Poor'];
 

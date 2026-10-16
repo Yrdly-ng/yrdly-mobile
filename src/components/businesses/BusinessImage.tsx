@@ -11,7 +11,7 @@ export function BusinessImage({
   return (
     <Image
       {...props}
-      source={validUri ? { uri: validUri } : require('../../../assets/images/logo')}
+      source={validUri ? { uri: validUri } : require('../../../assets/images/logo.png')}
       recyclingKey={uri || 'business-placeholder'}
       onError={() => setFailedUri(uri || null)}
     />

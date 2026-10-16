@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useAuth } from './use-supabase-auth';
+import { useAuth } from '@/hooks/use-supabase-auth';
 import { supabase } from '@/lib/supabase/supabase';
 
 interface TypingUser {

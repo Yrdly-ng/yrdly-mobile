@@ -7,7 +7,7 @@ import { ToastProvider } from '@/components/toast';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { usePushNotifications } from '../hooks/use-push-notifications';
+import { usePushNotifications } from '../hooks/notifications/use-push-notifications';
 import { AuthProvider, useAuth } from '../hooks/use-supabase-auth';
 import { ThemeProvider } from '../context/ThemeContext';
 import { LocationProvider } from '../context/LocationContext';

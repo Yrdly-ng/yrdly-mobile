@@ -33,7 +33,7 @@ import { formatPrice } from '../lib/shared/utils';
 import { logError } from '../lib/shared/error-logger';
 import { EventCard } from '../components/events/EventCard';
 import { ImageCarousel } from '../components/ImageCarousel';
-import { useCategories } from '../hooks/use-categories';
+import { useCategories } from '../hooks/categories/use-categories';
 import { api } from '../lib/network/api';
 
 const STEPS = ['Basic Info', 'Date & Time', 'Location', 'Tickets', 'Photos', 'Review'];

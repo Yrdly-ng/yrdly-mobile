@@ -20,6 +20,7 @@ The app includes a local social feed, community discovery, marketplace listings 
 - `src/components/`: shared native UI and feature pieces such as feed cards, marketplace items, event cards, alerts, onboarding, and payment checkout.
 - `src/lib/`: Supabase client, auth and feature services for marketplace, bookings, escrow, events, disputes, moderation, notifications, reviews, and storage.
 - `src/hooks/`, `src/context/`, and `src/types/`: shared hooks and domain-grouped hooks, theme/location/notification state, and app domain types. Keep cross-cutting hooks at `src/hooks/`; group feature hooks under `src/hooks/<domain>/`.
+- Feature hook folders: `src/hooks/bookings/`, `categories/`, `chat/`, `location/`, `media/`, `notifications/`, `payments/`, `people/`, and `posts/`. These contain booking, category, typing, GPS, media, push, bank-logo, social-connection, and feed hooks respectively.
 - `src/lib/offline/local-cache.ts`: account-scoped offline cache, including the bounded in-memory recent-post cache. Keep post cache reads and writes behind `localCache`.
 - `src/constants/` and `src/data/`: visual tokens, alert constants, and Nigerian location, interest, and bank datasets.
 - `supabase/migrations/` and `supabase/functions/`: local copies of database changes and app-specific Edge Functions. Compare migration names/content with `yrdly-app/supabase/` before changing shared schema behavior.
@@ -110,13 +111,14 @@ For checkout changes, inspect the screen, `src/lib/network/api.ts`, matching `yr
 ### Chat, notifications, safety, and offline support
 
 - Chat UI is `src/app/chat/[id].tsx`; conversation list/unread state is in tab layout and `src/lib/offline/active-chat-tracker.ts`. Message RLS and Realtime behavior matter alongside the screen.
-- Push registration/handling is in `src/hooks/use-push-notifications.ts`; notification routing, badges, services, and Edge Functions connect device tokens to delivery. Keep push tap destinations aligned with actual Expo Router paths and deep links.
+- Push registration/handling is in `src/hooks/notifications/use-push-notifications.ts`; notification routing, badges, services, and Edge Functions connect device tokens to delivery. Keep push tap destinations aligned with actual Expo Router paths and deep links.
 - Alerts, blocks, reports, moderation, disputes, and admin screens are top-level routes and `(admin)` routes. Screen visibility is not the security boundary; enforce permissions in Supabase policies or trusted server APIs.
 - Offline handling includes NetInfo, profile caching, and `src/components/OfflineBanner.tsx`. Consider resume/reconnect behavior when adding network-dependent actions.
 
 ## Native-specific boundaries
 
 - `EXPO_PUBLIC_*` is bundled into the client. Never store service-role, payment, or other server secrets there.
+- Android EAS builds use the ignored local `google-services.json` by default; set the EAS file variable `GOOGLE_SERVICES_JSON` for each build environment to supply it in cloud builds.
 - `app.config.js` owns iOS/Android links, permission declarations, plugin config, Maps, notifications, and Expo module setup. Keep permission text and capabilities matched to the feature and both platforms.
 - Follow local patterns for Expo Router typed routes, Reanimated/worklets, Unistyles, keyboard/safe area, and native module usage. Native/plugin changes may require rebuilding the app; Expo web does not validate native behavior.
 - `EXPO_PUBLIC_WEB_APP_URL` can redirect API calls to preview/dev, but defaults to `https://app.yrdly.ng`. Confirm target environment before testing mutating flows.

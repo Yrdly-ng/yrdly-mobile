@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { Image } from 'expo-image';
-import { useBankLogos } from '../../hooks/use-bank-logos';
+import { useBankLogos } from '../../hooks/payments/use-bank-logos';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 export function BankLogo({ code, name, size = 24 }: { code: string; name: string; size?: number }) {

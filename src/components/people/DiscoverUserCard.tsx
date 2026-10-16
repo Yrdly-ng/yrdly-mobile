@@ -2,7 +2,7 @@ import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-un
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useFollowStatus } from '../../hooks/use-follow-status';
+import { useFollowStatus } from '../../hooks/people/use-follow-status';
 import { Avatar } from '../Avatar';
 
 interface DiscoverUserCardProps {

@@ -34,7 +34,7 @@ module.exports = {
         backgroundColor: "#E6F4FE"
       },
       package: "com.yrdly",
-      googleServicesFile: "./google-services.json",
+      googleServicesFile: process.env.GOOGLE_SERVICES_JSON || "./google-services.json",
       config: {
         googleMaps: {
           apiKey: process.env.GOOGLE_MAPS_ANDROID_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
