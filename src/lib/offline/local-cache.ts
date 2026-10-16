@@ -2,7 +2,6 @@ import * as SQLite from 'expo-sqlite';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import { Platform } from 'react-native';
-import { postMemory } from './post-memory';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Image } from 'expo-image';
 import type { Post } from '@/types/index';
@@ -14,6 +13,7 @@ let account: string | null = null;
 let generation = 0;
 let operations: Promise<unknown> = Promise.resolve();
 const memory = new Map<string, { value: unknown; savedAt: number }>();
+const recentPosts = new Map<string, Post>();
 
 async function openDatabase() {
   if (cipherUnavailable) throw new Error('Encrypted cache requires a native rebuild');
@@ -66,10 +66,10 @@ function enqueue<T>(work: () => Promise<T>): Promise<T> {
 export const localCache = {
   setAccount(next: string | null) {
     if (next === account) return;
-    postMemory.setAccount(next);
     account = next;
     generation++;
     memory.clear();
+    recentPosts.clear();
     if (!next) {
       void Image.clearMemoryCache().catch(() => {});
       void Image.clearDiskCache().catch(() => {});
@@ -97,16 +97,20 @@ export const localCache = {
     }).catch(() => {});
   },
   putPost(post: Post) {
-    postMemory.put(post);
+    if (!account) return;
+    recentPosts.delete(post.id);
+    recentPosts.set(post.id, post);
+    if (recentPosts.size > 120) recentPosts.delete(recentPosts.keys().next().value!);
   },
   getPost(id: string) {
-    return postMemory.get(id);
+    return recentPosts.get(id) || null;
   },
   updatePost(id: string, updates: Partial<Post>) {
-    postMemory.update(id, updates);
+    const post = recentPosts.get(id);
+    if (post) recentPosts.set(id, { ...post, ...updates });
   },
   removePost(id: string) {
-    postMemory.remove(id);
+    recentPosts.delete(id);
   },
   async read<T>(owner: string, namespace: string, id: string, maxAge = 15 * 60 * 1000) {
     const epoch = generation;

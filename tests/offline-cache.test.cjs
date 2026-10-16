@@ -80,19 +80,9 @@ function loadOfflineCache({
       },
     },
   };
-  const postMemoryModule = { exports: {} };
-  new Function('require', 'module', 'exports', transpile('src/lib/offline/post-memory.ts'))(
-    (id) => {
-      assert.ok(Object.hasOwn(mocks, id), `Unexpected post-memory import: ${id}`);
-      return mocks[id];
-    },
-    postMemoryModule,
-    postMemoryModule.exports
-  );
   const cacheModule = { exports: {} };
   new Function('require', 'module', 'exports', transpile('src/lib/offline/local-cache.ts'))(
     (id) => {
-      if (id === './post-memory') return postMemoryModule.exports;
       assert.ok(Object.hasOwn(mocks, id), `Unexpected offline-cache import: ${id}`);
       return mocks[id];
     },
