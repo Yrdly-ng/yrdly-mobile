@@ -1,4 +1,4 @@
-name: Build iOS 26.5 IPA
+name: Build iOS IPA
 
 on:
   workflow_dispatch:
@@ -8,77 +8,100 @@ on:
         required: false
         default: 'Manual build'
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-ios:
-    name: Build unsigned iOS 26.5 IPA
-    runs-on: macos-15
+    name: Build unsigned iOS IPA
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      CI: '1'
+      EXPO_NO_DOTENV: '1'
+      EXPO_NO_TELEMETRY: '1'
+      EAS_BUILD_PROFILE: production
+      NODE_OPTIONS: --max-old-space-size=4096
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+      EXPO_PUBLIC_PAYLUK_PUBLIC_KEY: ${{ secrets.EXPO_PUBLIC_PAYLUK_PUBLIC_KEY }}
+      EXPO_PUBLIC_WEB_APP_URL: ${{ secrets.EXPO_PUBLIC_WEB_APP_URL }}
+      EXPO_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY }}
+      GOOGLE_MAPS_IOS_API_KEY: ${{ secrets.GOOGLE_MAPS_IOS_API_KEY }}
+      EXPO_PUBLIC_VEXO_API_KEY: ${{ secrets.EXPO_PUBLIC_VEXO_API_KEY }}
+      GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: '22'
-          cache: 'pnpm'
+          node-version: '24'
+
+      - name: Setup pnpm
+        run: npm install --global pnpm@11.2.2
+
+      - name: Validate build configuration
+        run: |
+          node -e 'for (const key of ["EXPO_PUBLIC_SUPABASE_URL", "EXPO_PUBLIC_SUPABASE_ANON_KEY", "EXPO_PUBLIC_PAYLUK_PUBLIC_KEY", "EXPO_PUBLIC_WEB_APP_URL"]) { if (!process.env[key]) throw new Error("Missing GitHub Actions secret: " + key); }'
+          xcodebuild -version
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-
-
-      - name: Write .env file from secrets
-        run: |
-          cat <<EOF > .env
-          EXPO_PUBLIC_SUPABASE_URL=${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
-          EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
-          EXPO_PUBLIC_PAYLUK_PUBLIC_KEY=${{ secrets.EXPO_PUBLIC_PAYLUK_PUBLIC_KEY }}
-          EXPO_PUBLIC_WEB_APP_URL=${{ secrets.EXPO_PUBLIC_WEB_APP_URL }}
-          EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=${{ secrets.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY }}
-          EXPO_PUBLIC_VEXO_API_KEY=${{ secrets.EXPO_PUBLIC_VEXO_API_KEY }}
-          EOF
-
       - name: Run Expo prebuild
-        run: npx expo prebuild --platform ios --clean
+        run: pnpm exec expo prebuild --platform ios --clean --no-install
 
       - name: Install CocoaPods dependencies
-        run: |
-          cd ios
-          pod install --repo-update
+        working-directory: ios
+        run: pod install --repo-update
 
       - name: Build app archive (unsigned)
+        working-directory: ios
         run: |
           set -o pipefail
-          cd ios
           xcodebuild \
             -workspace YRDLY.xcworkspace \
             -scheme YRDLY \
             -configuration Release \
-            -sdk iphoneos \
-            -archivePath $RUNNER_TEMP/yrdly.xcarchive \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/yrdly.xcarchive" \
+            -jobs 3 \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
             DEVELOPMENT_TEAM="" \
-            archive | xcpretty --color
+            archive 2>&1 | tee "$RUNNER_TEMP/xcodebuild.log"
 
       - name: Package IPA from archive
         run: |
-          APP_PATH=$(find $RUNNER_TEMP/yrdly.xcarchive/Products/Applications -name "*.app" | head -1)
-          mkdir -p $RUNNER_TEMP/Payload
-          cp -r "$APP_PATH" $RUNNER_TEMP/Payload/
-          cd $RUNNER_TEMP
-          zip -r yrdly-unsigned.ipa Payload/
-          echo "IPA created at: $RUNNER_TEMP/yrdly-unsigned.ipa"
+          APP_PATH="$RUNNER_TEMP/yrdly.xcarchive/Products/Applications/YRDLY.app"
+          test -d "$APP_PATH"
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          ditto "$APP_PATH" "$RUNNER_TEMP/ipa/Payload/YRDLY.app"
+          cd "$RUNNER_TEMP/ipa"
+          zip -qry "$RUNNER_TEMP/yrdly-unsigned.ipa" Payload
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
           name: yrdly-ios-${{ github.run_number }}
           path: ${{ runner.temp }}/yrdly-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload archive build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: yrdly-ios-build-log-${{ github.run_number }}
+          path: ${{ runner.temp }}/xcodebuild.log
+          if-no-files-found: ignore
           retention-days: 7
