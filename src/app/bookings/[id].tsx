@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/use-supabase-auth';
+import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/use-notification-route-ack';
 import { BookingService, CANCELLATION_WINDOW_HOURS } from '../../lib/bookings/booking-service';
 import { NotificationTriggers } from '../../lib/notifications/notification-triggers';
 import { supabase } from '../../lib/supabase/supabase';
@@ -23,6 +24,7 @@ export default function BookingDetailScreen() {
 
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
+  useNotificationRouteAcknowledgement(!loading && !!booking);
   const [actionLoading, setActionLoading] = useState(false);
 
   const fetchBooking = async () => {

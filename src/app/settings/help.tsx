@@ -4,7 +4,7 @@ import { View, Text, TouchableOpacity, ScrollView, Linking } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { isCrispChatEnabled, openCrispChat } from '../../components/CrispChat';
+import CrispChat, { isCrispChatEnabled, openCrispChat } from '../../components/CrispChat';
 
 interface FAQItem {
   q: string;
@@ -67,6 +67,7 @@ export default function HelpScreen() {
 
   return (
     <SafeAreaView style={s.root} edges={['top', 'bottom']}>
+      <CrispChat />
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <Ionicons name="chevron-back" size={20} color={theme.colors.TEXT_PRIMARY} />

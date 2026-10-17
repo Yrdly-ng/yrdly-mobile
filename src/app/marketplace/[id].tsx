@@ -34,6 +34,7 @@ import { useIsFocused } from 'expo-router/react-navigation';
 import { supabase } from '../../lib/supabase/supabase';
 import { assertMarketplaceListingUnpaid } from '../../lib/marketplace/marketplace-listing-service';
 import { useAuth } from '../../hooks/use-supabase-auth';
+import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/use-notification-route-ack';
 import { Post, User } from '../../types';
 import { formatPrice, timeAgo } from '../../lib/shared/utils';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
@@ -100,6 +101,7 @@ function MarketplaceDetailContent() {
   const [post, setPost] = useState<Post | null>(null);
   const [postUser, setPostUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  useNotificationRouteAcknowledgement(!loading && !!post);
 
   // Gallery state
   const [isGalleryVisible, setIsGalleryVisible] = useState(false);

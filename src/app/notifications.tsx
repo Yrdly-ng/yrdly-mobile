@@ -17,6 +17,7 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase/supabase';
 import { useAuth } from '../hooks/use-supabase-auth';
+import { useNotificationRouteAcknowledgement } from '../hooks/notifications/use-notification-route-ack';
 import { AlertBanner } from '../components/alerts/AlertBanner';
 import * as SecureStore from 'expo-secure-store';
 import { AlertService } from '../lib/alerts/alert-service';
@@ -69,6 +70,7 @@ export default function NotificationsScreen() {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  useNotificationRouteAcknowledgement(!loading);
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState('All');
 

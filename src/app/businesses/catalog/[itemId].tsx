@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../../lib/supabase/supabase';
 import { useAppTheme } from '../../../context/ThemeContext';
 import { useAuth } from '../../../hooks/use-supabase-auth';
+import { useNotificationRouteAcknowledgement } from '../../../hooks/notifications/use-notification-route-ack';
 import ImageViewing from 'react-native-image-viewing';
 import type { Business, CatalogItem } from '../../../types';
 
@@ -34,6 +35,7 @@ export default function CatalogItemScreen() {
   const [item, setItem] = useState<CatalogItem | null>(null);
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
+  useNotificationRouteAcknowledgement(!loading && !!item);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const [isViewerVisible, setIsViewerVisible] = useState(false);

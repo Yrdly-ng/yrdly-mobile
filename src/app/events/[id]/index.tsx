@@ -38,6 +38,7 @@ import * as ExpoLinking from 'expo-linking';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import { supabase } from '../../../lib/supabase/supabase';
 import { useAuth } from '../../../hooks/use-supabase-auth';
+import { useNotificationRouteAcknowledgement } from '../../../hooks/notifications/use-notification-route-ack';
 import { Event, TicketTier } from '../../../types/events';
 import { getEventById } from '../../../lib/events/event-service';
 import { api, WEB_APP_URL } from '../../../lib/network/api';
@@ -104,6 +105,7 @@ export default function EventDetailScreen() {
 
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
+  useNotificationRouteAcknowledgement(!loading && !!event);
   const [isGalleryVisible, setIsGalleryVisible] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 

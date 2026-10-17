@@ -14,6 +14,7 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useUnistyles } from 'react-native-unistyles';
 import { useAuth } from '../../hooks/use-supabase-auth';
+import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/use-notification-route-ack';
 import { DisputeData, DisputeService } from '../../lib/disputes/dispute-service';
 import ImagePicker from 'react-native-image-crop-picker';
 import { StorageService } from '../../lib/media/storage-service';
@@ -25,6 +26,7 @@ export default function CustomerDisputeDetailScreen() {
   const { user } = useAuth();
   const [dispute, setDispute] = useState<DisputeData | null>(null);
   const [loading, setLoading] = useState(true);
+  useNotificationRouteAcknowledgement(!loading && !!dispute);
   const [error, setError] = useState('');
   const [evidenceDescription, setEvidenceDescription] = useState('');
   const [evidencePath, setEvidencePath] = useState('');

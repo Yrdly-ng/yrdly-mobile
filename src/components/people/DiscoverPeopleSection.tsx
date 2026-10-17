@@ -18,6 +18,7 @@ import {
 } from '../../hooks/people/use-community-connections';
 import { DiscoverUserCard } from './DiscoverUserCard';
 import { CommunitiesContent } from '../communities/CommunitiesContent';
+import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/use-notification-route-ack';
 
 export interface DiscoverPeopleSectionProps {
   search?: string;
@@ -54,6 +55,7 @@ export function DiscoverPeopleSection({
     handleFriendOptions,
     handleInvite,
   } = useCommunityConnections(activeFilterTab, search);
+  useNotificationRouteAcknowledgement(!loading);
 
   // Server handles search filtering on discoverUsers
   const filteredNearbyUsers = discoverUsers;
@@ -261,8 +263,6 @@ export function DiscoverPeopleSection({
               <Ionicons name="search-outline" size={16} color={theme.colors.MUTED} />
               <TextInput
                 style={sStylesheet.searchInput}
-                placeholder="Search friends..."
-                placeholderTextColor={theme.colors.MUTED}
                 value={circleSearchQuery}
                 onChangeText={setCircleSearchQuery}
               />

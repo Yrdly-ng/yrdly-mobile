@@ -143,33 +143,9 @@ export function getNotificationTarget(data: Record<string, unknown>): {
   fallback: string;
 } | null {
   const type = typeof data.type === 'string' ? data.type : '';
-  const id = firstId(
-    data.fromUserId,
-    data.from_user_id,
-    data.conversationId,
-    data.conversation_id,
-    data.postId,
-    data.post_id,
-    data.eventId,
-    data.event_id,
-    data.itemId,
-    data.item_id,
-    data.bookingId,
-    data.booking_id,
-    data.transactionId,
-    data.transaction_id,
-    data.disputeId,
-    data.dispute_id,
-    data.businessId,
-    data.business_id,
-    data.alertId,
-    data.alert_id,
-    data.id,
-    data.relatedId
-  );
-  if (!id) return null;
-
   if (['message', 'message_reaction', 'marketplace_message'].includes(type)) {
+    const id = firstId(data.conversationId, data.conversation_id, data.relatedId);
+    if (!id) return null;
     return { table: 'conversations', id, fallback: '/(tabs)/messages' };
   }
   if (
@@ -181,24 +157,38 @@ export function getNotificationTarget(data: Record<string, unknown>): {
       'profile_view',
     ].includes(type)
   ) {
+    const id = firstId(data.fromUserId, data.from_user_id, data.relatedId);
+    if (!id) return null;
     return { table: 'public_profiles', id, fallback: '/(tabs)/catalog?tab=Discover&mode=circle' };
   }
   if (['post_like', 'post_comment', 'post_share', 'mention'].includes(type)) {
+    const id = firstId(data.postId, data.post_id, data.relatedId);
+    if (!id) return null;
     return { table: 'posts', id, fallback: '/(tabs)' };
   }
   if (['event_cancelled', 'event_invite', 'event_reminder', 'event_updated'].includes(type)) {
+    const id = firstId(data.eventId, data.event_id, data.relatedId);
+    if (!id) return null;
     return { table: 'events', id, fallback: '/(tabs)/catalog?tab=Events' };
   }
   if (['catalog_item_inquiry', 'catalog_item_out_of_stock'].includes(type)) {
-    return { table: 'catalog_items', id, fallback: '/(tabs)/catalog' };
+    const id = firstId(data.itemId, data.item_id, data.relatedId);
+    if (!id) return null;
+    return { table: 'catalog_items', id, fallback: '/(tabs)/catalog?tab=Businesses' };
   }
   if (['marketplace_item_sold', 'marketplace_item_interest'].includes(type)) {
+    const id = firstId(data.itemId, data.item_id, data.relatedId);
+    if (!id) return null;
     return { table: 'posts', id, fallback: '/(tabs)/catalog?tab=Marketplace' };
   }
   if (type === 'business_review_received') {
-    return { table: 'businesses', id, fallback: '/(tabs)/catalog' };
+    const id = firstId(data.businessId, data.business_id, data.relatedId);
+    if (!id) return null;
+    return { table: 'businesses', id, fallback: '/(tabs)/catalog?tab=Businesses' };
   }
   if (type.startsWith('booking_') || type === 'appeal_decided') {
+    const id = firstId(data.bookingId, data.booking_id, data.relatedId);
+    if (!id) return null;
     return { table: 'bookings', id, fallback: '/bookings' };
   }
   if (
@@ -210,14 +200,22 @@ export function getNotificationTarget(data: Record<string, unknown>): {
       'funds_released',
     ].includes(type)
   ) {
+    const id = firstId(data.transactionId, data.transaction_id, data.relatedId);
+    if (!id) return null;
     return { table: 'escrow_transactions', id, fallback: '/transactions' };
   }
-  if (type.startsWith('dispute_')) return { table: 'disputes', id, fallback: '/disputes' };
+  if (type.startsWith('dispute_')) {
+    const id = firstId(data.disputeId, data.dispute_id, data.relatedId);
+    if (!id) return null;
+    return { table: 'disputes', id, fallback: '/disputes' };
+  }
   if (['ticket', 'ticket_purchase', 'ticket_confirmed', 'event_rsvp'].includes(type)) {
     const ticketId = firstId(data.ticketId, data.ticket_id);
     return ticketId ? { table: 'tickets', id: ticketId, fallback: '/tickets' } : null;
   }
   if (type === 'safety_alert' || type === 'alert') {
+    const id = firstId(data.alertId, data.alert_id, data.id, data.relatedId);
+    if (!id) return null;
     return { table: 'alerts', id, fallback: '/alerts' };
   }
   return null;

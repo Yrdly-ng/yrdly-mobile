@@ -19,7 +19,6 @@ import { UserActivityService } from '../lib/activity/user-activity-service';
 
 import { setAudioModeAsync } from 'expo-audio';
 import { ErrorBoundary } from '../components/ErrorBoundary';
-import CrispChat from '../components/CrispChat';
 import { useFonts } from 'expo-font';
 import {
   Outfit_300Light,
@@ -251,7 +250,6 @@ function Layout() {
                       <RootNavigationGuard onAuthLoadingChange={setAuthLoading} />
                     </NotificationBadgeProvider>
                   </LocationProvider>
-                  <CrispChat />
                 </AuthProvider>
               </BottomSheetModalProvider>
             </ThemeProvider>

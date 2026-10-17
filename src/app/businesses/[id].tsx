@@ -22,6 +22,7 @@ import { Avatar } from '../../components/Avatar';
 import { VerifiedBadge, BusinessBadge } from '../../components/VerifiedBadge';
 import { supabase } from '../../lib/supabase/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
+import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/use-notification-route-ack';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { Business, CatalogItem } from '../../types';
 const { width } = Dimensions.get('window');
@@ -337,6 +338,7 @@ export default function BusinessProfileScreen() {
   const [reviews, setReviews] = useState<any[]>([]);
   const [inquiriesCount, setInquiriesCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  useNotificationRouteAcknowledgement(!loading && !!business);
 
   const [activeTab, setActiveTab] = useState<Tab>('catalog');
   const [isCustomerView, setIsCustomerView] = useState(false);

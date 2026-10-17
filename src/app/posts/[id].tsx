@@ -21,6 +21,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useIsFocused } from 'expo-router/react-navigation';
 import { supabase } from '../../lib/supabase/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
+import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/use-notification-route-ack';
 import { usePosts } from '../../hooks/posts/use-posts';
 import { PostCard } from '../../components/posts/PostCard';
 import { Post } from '../../types';
@@ -46,6 +47,7 @@ function PostDetailContent() {
   const [post, setPost] = useState<Post | null>(() => localCache.getPost(id));
   const [comments, setComments] = useState<CommentType[]>([]);
   const [loading, setLoading] = useState(true);
+  useNotificationRouteAcknowledgement(!loading && !!post);
   const [replyingTo, setReplyingTo] = useState<{ id: string; name: string } | null>(null);
 
   const { deletePost } = usePosts(undefined, false);

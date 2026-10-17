@@ -14,6 +14,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase/supabase';
 import { Alert } from '../../lib/alerts/alert-service';
+import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/use-notification-route-ack';
 import {
   getSeverityTier,
   getAlertLabel,
@@ -32,6 +33,7 @@ export default function AlertDetailsScreen() {
 
   const [alert, setAlert] = useState<Alert | null>(null);
   const [loading, setLoading] = useState(true);
+  useNotificationRouteAcknowledgement(!loading && !!alert);
 
   const fetchAlert = useCallback(async () => {
     if (!id) return;

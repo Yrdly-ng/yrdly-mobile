@@ -31,9 +31,9 @@ const { privateMediaReference, parsePrivateMediaReference, mediaConversationId }
   load('private-media');
 const { parseWithdrawalQuote } = load('payout-quote');
 const { createBookingPayments } = load('booking-payments');
-const { isUserOnline } = load('online-status');
+const { getUserActivityStatus, isUserOnline } = load('online-status');
 const { buildBusinessEditPayload } = load('business-edit-payload');
-const { getMobileNotificationDestination, getPushNotificationDestination } =
+const { getMobileNotificationDestination, getPushNotificationDestination, getNotificationTarget } =
   load('notification-routing');
 const { shouldSuppressForegroundNotification } = load('notification-routing');
 
@@ -67,6 +67,21 @@ test('foreground message banners are suppressed only inside the matching convers
   assert.equal(shouldSuppressForegroundNotification(data, '/chat/conversation-1'), true);
   assert.equal(shouldSuppressForegroundNotification(data, '/chat/conversation-2'), false);
   assert.equal(shouldSuppressForegroundNotification(data, '/(tabs)/messages'), false);
+});
+
+test('notification target checks use the target ID rather than the sender ID', () => {
+  assert.deepEqual(
+    getNotificationTarget({
+      type: 'message',
+      fromUserId: 'sender-1',
+      conversationId: 'conversation-1',
+    }),
+    { table: 'conversations', id: 'conversation-1', fallback: '/(tabs)/messages' }
+  );
+  assert.deepEqual(
+    getNotificationTarget({ type: 'post_like', fromUserId: 'sender-1', postId: 'post-1' }),
+    { table: 'posts', id: 'post-1', fallback: '/(tabs)' }
+  );
 });
 
 function loadPlacesAdapter(enabled) {
@@ -222,6 +237,17 @@ test('online status requires a fresh heartbeat and an online flag', () => {
   assert.equal(isUserOnline(false, new Date(now - 5_000).toISOString(), now), false);
   assert.equal(isUserOnline(true, new Date(now - 91_000).toISOString(), now), false);
   assert.equal(isUserOnline(true, 'invalid timestamp', now), false);
+  assert.equal(getUserActivityStatus(true, new Date(now - 45_000).toISOString(), now), 'active');
+  assert.equal(getUserActivityStatus(false, new Date(now - 45_000).toISOString(), now), 'away');
+  assert.equal(getUserActivityStatus(false, new Date(now - 6 * 60_000).toISOString(), now), 'offline');
+});
+
+test('Crisp is initialized in Help Center and only opened for support entry points', () => {
+  const layout = readFileSync('src/app/_layout.tsx', 'utf8');
+  const help = readFileSync('src/app/settings/help.tsx', 'utf8');
+  assert.doesNotMatch(layout, /<CrispChat\s*\/>/);
+  assert.match(help, /<CrispChat\s*\/>/);
+  assert.match(help, /onPress=\{openCrispChat\}/);
 });
 
 test('business edits persist contact and mode fields without reactivating the business', () => {

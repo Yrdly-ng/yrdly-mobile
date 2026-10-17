@@ -15,6 +15,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { supabase } from '../../../lib/supabase/supabase';
 import { useAuth } from '../../../hooks/use-supabase-auth';
+import { useNotificationRouteAcknowledgement } from '../../../hooks/notifications/use-notification-route-ack';
 import { formatPrice } from '../../../lib/shared/utils';
 import { useAppTheme } from '../../../context/ThemeContext';
 import { MARKETPLACE_CONSTANTS } from '../../../lib/shared/constants';
@@ -166,6 +167,7 @@ export default function TransactionDetailScreen() {
 
   const [tx, setTx] = useState<TxDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  useNotificationRouteAcknowledgement(!loading && !!tx);
   const [actionLoading, setActionLoading] = useState(false);
 
   // ── Animation values ──────────────────────────────────────────

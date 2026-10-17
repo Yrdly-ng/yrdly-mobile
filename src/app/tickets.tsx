@@ -23,6 +23,7 @@ import { useRouter } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
 import { supabase } from '../lib/supabase/supabase';
 import { useAuth } from '../hooks/use-supabase-auth';
+import { useNotificationRouteAcknowledgement } from '../hooks/notifications/use-notification-route-ack';
 import { getMyTickets } from '../lib/events/event-service';
 import { Post } from '../types';
 import { Ticket, Event } from '../types/events';
@@ -55,6 +56,7 @@ export default function TicketsScreen() {
 
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
+  useNotificationRouteAcknowledgement(!loading);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [activeTab, setActiveTab] = useState<'active' | 'past'>('active');

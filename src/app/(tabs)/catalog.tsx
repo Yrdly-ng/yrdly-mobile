@@ -34,6 +34,7 @@ import * as Location from 'expo-location';
 import { LocationPicker, LocationValue } from '../../components/location/LocationPicker';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { DiscoverPeopleSection } from '../../components/people/DiscoverPeopleSection';
+import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/use-notification-route-ack';
 
 const { width } = Dimensions.get('window');
 type TabType = 'Discover' | 'Marketplace' | 'Events' | 'Businesses';
@@ -197,6 +198,7 @@ function MarketplaceSection({
   const router = useRouter();
   const [category, setCategory] = useState('All');
   const [loading, setLoading] = useState(true);
+  useNotificationRouteAcknowledgement(!loading);
   const [showFilter, setShowFilter] = useState(false);
 
   // Filter States
@@ -793,6 +795,7 @@ function EventsSection({
   const router = useRouter();
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  useNotificationRouteAcknowledgement(!loading);
   const EVENT_FILTERS = [
     'All',
     'Today',
@@ -958,6 +961,7 @@ function PlacesSection({
     JSON.stringify([activeFilter, search])
   );
   const [loading, setLoading] = useState(true);
+  useNotificationRouteAcknowledgement(!loading);
   const PLACE_CATS = [
     'All',
     'Restaurant & Café',

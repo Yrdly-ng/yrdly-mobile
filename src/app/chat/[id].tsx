@@ -31,6 +31,7 @@ import ImageViewing from 'react-native-image-viewing';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { supabase } from '../../lib/supabase/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
+import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/use-notification-route-ack';
 import { useAppTheme } from '../../context/ThemeContext';
 import { formatPrice } from '../../lib/shared/utils';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
@@ -171,6 +172,7 @@ function ChatContent() {
     isFocused
   );
   const [loading, setLoading] = useState(true);
+  useNotificationRouteAcknowledgement(!loading && !!meta && id !== 'new');
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
   const pendingMessages = useRef(new Map<string, Message>());

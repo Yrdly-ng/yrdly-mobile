@@ -5,6 +5,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useUnistyles } from 'react-native-unistyles';
 import { useAuth } from '../../hooks/use-supabase-auth';
+import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/use-notification-route-ack';
 import { DisputeData, DisputeService } from '../../lib/disputes/dispute-service';
 
 export default function CustomerDisputesScreen() {
@@ -13,6 +14,7 @@ export default function CustomerDisputesScreen() {
   const { user } = useAuth();
   const [rows, setRows] = useState<DisputeData[]>([]);
   const [loading, setLoading] = useState(true);
+  useNotificationRouteAcknowledgement(!loading);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {

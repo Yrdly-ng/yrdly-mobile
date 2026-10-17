@@ -11,6 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AlertService, Alert } from '../lib/alerts/alert-service';
+import { useNotificationRouteAcknowledgement } from '../hooks/notifications/use-notification-route-ack';
 import { AlertBanner } from '../components/alerts/AlertBanner';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 type SeverityFilter = 'all' | 'urgent' | 'caution' | 'information';
@@ -31,6 +32,7 @@ export default function AlertsScreen() {
 
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
+  useNotificationRouteAcknowledgement(!loading);
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState<SeverityFilter>('all');
 

@@ -39,6 +39,7 @@ import { Image } from 'expo-image';
 import { MapIcon, NotificationsIcon } from '../../components/SvgIcons';
 import { usePosts } from '../../hooks/posts/use-posts';
 import { useAuth } from '../../hooks/use-supabase-auth';
+import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/use-notification-route-ack';
 import {
   CommentsBottomSheet,
   CommentsBottomSheetRef,
@@ -191,6 +192,7 @@ export default function HomeTab() {
     optimisticUpdatePost,
     deletePost,
   } = usePosts(activeFilter);
+  useNotificationRouteAcknowledgement(!loading);
   const { width } = useWindowDimensions();
   const [refreshing, setRefreshing] = useState(false);
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);

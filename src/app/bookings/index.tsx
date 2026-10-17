@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { useCustomerBookings } from '../../hooks/bookings/use-bookings';
+import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/use-notification-route-ack';
 import { Booking } from '../../types';
 
 export default function BookingsDashboardScreen() {
@@ -17,6 +18,7 @@ export default function BookingsDashboardScreen() {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
 
   const { bookings, loading, refresh } = useCustomerBookings(user?.id);
+  useNotificationRouteAcknowledgement(!loading);
 
   const filteredBookings = React.useMemo(() => {
     const now = new Date().getTime();

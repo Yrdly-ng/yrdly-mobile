@@ -17,6 +17,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../../lib/network/api';
 import { BankLogo } from '../../components/payments/BankLogo';
+import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/use-notification-route-ack';
 
 export default function PayoutSettingsScreen() {
   const { theme } = useUnistyles();
@@ -25,6 +26,7 @@ export default function PayoutSettingsScreen() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
+  useNotificationRouteAcknowledgement(!loading);
   const [existingBank, setExistingBank] = useState<any>(null);
   const [isChangingBank, setIsChangingBank] = useState(false);
 

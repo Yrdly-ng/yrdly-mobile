@@ -17,9 +17,10 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
+import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/use-notification-route-ack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Swipeable } from 'react-native-gesture-handler';
-import { isUserOnline } from '../../lib/activity/online-status';
+import { getUserActivityStatus, isUserOnline } from '../../lib/activity/online-status';
 type ConvType = 'friend' | 'marketplace' | 'briefcase';
 type FilterTab = 'all' | 'friends' | 'marketplace' | 'business';
 
@@ -30,6 +31,7 @@ interface Conversation {
   participantName: string;
   participantAvatar: string | null;
   isOnline: boolean;
+  isAway: boolean;
   lastSeen: string | null;
   lastMessage: string;
   timestamp: string;
@@ -66,6 +68,7 @@ export default function MessagesTab() {
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  useNotificationRouteAcknowledgement(!loading);
   const [searching, setSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
@@ -166,6 +169,7 @@ export default function MessagesTab() {
             participantName,
             participantAvatar,
             isOnline: isUserOnline(otherUser?.is_online, otherUser?.last_seen),
+            isAway: getUserActivityStatus(otherUser?.is_online, otherUser?.last_seen) === 'away',
             lastSeen: otherUser?.last_seen || null,
             lastMessage: c.last_message_text || c.last_message || 'Tap to chat',
             timestamp: c.updated_at || c.created_at,
@@ -249,6 +253,7 @@ export default function MessagesTab() {
                   ? {
                       ...conversation,
                       isOnline: isUserOnline(updated.is_online, updated.last_seen),
+                      isAway: getUserActivityStatus(updated.is_online, updated.last_seen) === 'away',
                       lastSeen: updated.last_seen,
                     }
                   : conversation
@@ -270,10 +275,12 @@ export default function MessagesTab() {
       setConversations((previous) => {
         let changed = false;
         const next = previous.map((conversation) => {
-          const isOnline = isUserOnline(conversation.isOnline, conversation.lastSeen);
-          if (isOnline === conversation.isOnline) return conversation;
+          const status = getUserActivityStatus(conversation.isOnline, conversation.lastSeen);
+          const isOnline = status === 'active';
+          const isAway = status === 'away';
+          if (isOnline === conversation.isOnline && isAway === conversation.isAway) return conversation;
           changed = true;
-          return { ...conversation, isOnline };
+          return { ...conversation, isOnline, isAway };
         });
         return changed ? next : previous;
       });
@@ -289,11 +296,13 @@ export default function MessagesTab() {
       setLoadingMessageableUsers(true);
       setMessageableUsers([]);
       try {
-        const [{ data: following, error: followingError }, { data: followers, error: followersError }] =
-          await Promise.all([
-            supabase.from('followers').select('following_id').eq('follower_id', user.id),
-            supabase.from('followers').select('follower_id').eq('following_id', user.id),
-          ]);
+        const [
+          { data: following, error: followingError },
+          { data: followers, error: followersError },
+        ] = await Promise.all([
+          supabase.from('followers').select('following_id').eq('follower_id', user.id),
+          supabase.from('followers').select('follower_id').eq('following_id', user.id),
+        ]);
         if (followingError) throw followingError;
         if (followersError) throw followersError;
 
@@ -571,7 +580,9 @@ export default function MessagesTab() {
                         </Text>
                       </View>
                     )}
-                    {item.isOnline && <View style={stylesheet.onlineDot} />}
+                    {(item.isOnline || item.isAway) && (
+                      <View style={[stylesheet.onlineDot, item.isAway && stylesheet.awayDot]} />
+                    )}
                   </View>
 
                   {/* Convo Details */}
@@ -810,6 +821,7 @@ const _stylesheet = StyleSheet.create((theme) => ({
     borderWidth: 2,
     borderColor: theme.colors.DARK,
   },
+  awayDot: { backgroundColor: '#F4C542' },
   convoInfo: { flex: 1 },
   convoTopRow: {
     flexDirection: 'row',

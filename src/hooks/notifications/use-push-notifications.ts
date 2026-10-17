@@ -6,16 +6,15 @@ import { AppState, Alert, Platform } from 'react-native';
 import { useAuth } from '@/hooks/use-supabase-auth';
 import { supabase } from '@/lib/supabase/supabase';
 import { getOrCreateDeviceId } from '@/lib/offline/device-id';
-import { router, useGlobalSearchParams, usePathname } from 'expo-router';
-import { isCrispPushNotification, openChat, registerPushToken } from 'crisp-sdk-react-native';
+import { router, usePathname } from 'expo-router';
+import { isCrispPushNotification, registerPushToken } from 'crisp-sdk-react-native';
+import { openCrispChat } from '@/components/CrispChat';
 import {
   addNotificationId,
   getPushNotificationDestination,
   getNotificationTarget,
   shouldSuppressForegroundNotification,
 } from '@/lib/notifications/notification-routing';
-import { NotificationService } from '@/lib/notifications/notification-service';
-import * as SecureStore from 'expo-secure-store';
 
 // appOwnership is 'expo' in Expo Go, null/undefined in production builds
 const isExpoGo = Constants.appOwnership === 'expo';
@@ -80,84 +79,129 @@ export function usePushNotifications() {
   const { user } = useAuth();
   const userId = user?.id ?? null;
   const pathname = usePathname();
-  const searchParams = useGlobalSearchParams<{
-    notificationId?: string | string[];
-    targetUnavailable?: string | string[];
-  }>();
-  const notificationIdParam = Array.isArray(searchParams.notificationId)
-    ? searchParams.notificationId[0]
-    : searchParams.notificationId;
   const pathnameRef = useRef(pathname);
   const userIdRef = useRef(userId);
   const queuedResponseRef = useRef<Notifications.NotificationResponse | null>(null);
   const processedResponsesRef = useRef(new Set<string>());
-  const processedReadIdsRef = useRef(new Set<string>());
+  const processingResponsesRef = useRef(new Set<string>());
   const previousUserIdRef = useRef<string | null>(null);
   pathnameRef.current = pathname;
   userIdRef.current = userId;
 
   const handleResponse = useCallback(async (response: Notifications.NotificationResponse) => {
-    const data = response.notification.request.content.data ?? {};
-    if (isCrispNotificationData(data)) {
-      openChat();
+    const requestId = response.notification.request.identifier;
+    if (
+      requestId &&
+      (processedResponsesRef.current.has(requestId) ||
+        processingResponsesRef.current.has(requestId))
+    )
       return;
-    }
+    if (requestId) processingResponsesRef.current.add(requestId);
+    let processed = false;
+    try {
+      const data = response.notification.request.content.data ?? {};
+      if (isCrispNotificationData(data)) {
+        openCrispChat();
+        processed = true;
+        return;
+      }
 
-    const currentUserId = userIdRef.current;
-    if (!currentUserId) {
-      queuedResponseRef.current = response;
-      return;
-    }
+      const currentUserId = userIdRef.current;
+      if (!currentUserId) {
+        queuedResponseRef.current = response;
+        return;
+      }
 
-    const recipientId = data.recipientId;
-    if (typeof recipientId === 'string' && recipientId !== currentUserId) {
-      Alert.alert(
-        'Notification belongs to another account',
-        'Sign in to the account that received this notification to view it.'
-      );
-      return;
-    }
+      const recipientId = data.recipientId;
+      if (typeof recipientId === 'string' && recipientId !== currentUserId) {
+        Alert.alert(
+          'Notification belongs to another account',
+          'Sign in to the account that received this notification to view it.'
+        );
+        processed = true;
+        return;
+      }
 
-    let destination = getPushNotificationDestination(data as Record<string, unknown>);
-    const notificationId =
-      typeof data.notificationId === 'string' ? data.notificationId : undefined;
-    const target = getNotificationTarget(data as Record<string, unknown>);
-    if (target) {
-      const tables = target.table === 'alerts' ? ['alerts', 'safety_alerts'] : [target.table];
-      let found = false;
-      let lookupSucceeded = false;
-      for (const table of tables) {
-        const { data: row, error } = await supabase
-          .from(table)
+      const notificationId =
+        typeof data.notificationId === 'string' ? data.notificationId : undefined;
+      if (typeof recipientId !== 'string' && notificationId) {
+        const { data: ownedNotification, error } = await supabase
+          .from('notifications')
           .select('id')
-          .eq('id', target.id)
+          .eq('id', notificationId)
+          .eq('user_id', currentUserId)
           .maybeSingle();
-        if (!error) {
-          lookupSucceeded = true;
-          if (row) {
-            found = true;
-            break;
-          }
+        if (error || !ownedNotification) {
+          Alert.alert(
+            'Notification unavailable',
+            'This notification is not available for the signed-in account.'
+          );
+          processed = true;
+          return;
         }
       }
-      if (lookupSucceeded && !found) {
-        Alert.alert(
-          'This item is no longer available',
-          'We could not find the item linked to this notification. You can continue from the related list.'
-        );
-        destination = target.fallback;
+      if (userIdRef.current !== currentUserId) {
+        if (!userIdRef.current) queuedResponseRef.current = response;
+        else {
+          Alert.alert(
+            'Notification belongs to another account',
+            'Sign in to the account that received this notification to view it.'
+          );
+        }
+        return;
+      }
+
+      let destination = getPushNotificationDestination(data as Record<string, unknown>);
+      const target = getNotificationTarget(data as Record<string, unknown>);
+      if (target) {
+        const tables = target.table === 'alerts' ? ['alerts', 'safety_alerts'] : [target.table];
+        let found = false;
+        let lookupSucceeded = false;
+        for (const table of tables) {
+          const { data: row, error } = await supabase
+            .from(table)
+            .select('id')
+            .eq('id', target.id)
+            .maybeSingle();
+          if (!error) {
+            lookupSucceeded = true;
+            if (row) {
+              found = true;
+              break;
+            }
+          }
+        }
+        if (userIdRef.current !== currentUserId) {
+          if (!userIdRef.current) queuedResponseRef.current = response;
+          return;
+        }
+        if (lookupSucceeded && !found) {
+          Alert.alert(
+            'This item is no longer available',
+            'We could not find the item linked to this notification. You can continue from the related list.'
+          );
+          destination = target.fallback;
+        }
+      }
+      if (userIdRef.current !== currentUserId) {
+        if (!userIdRef.current) queuedResponseRef.current = response;
+        return;
+      }
+      const route = addNotificationId(destination, notificationId);
+      router.push(
+        (target && destination === target.fallback
+          ? `${route}${route.includes('?') ? '&' : '?'}targetUnavailable=1`
+          : route) as any
+      );
+
+      processed = true;
+      Notifications.clearLastNotificationResponseAsync().catch(() => undefined);
+    } finally {
+      if (requestId) {
+        processingResponsesRef.current.delete(requestId);
+        if (processed) processedResponsesRef.current.add(requestId);
       }
     }
-    const route = addNotificationId(destination, notificationId);
-    router.push(
-      (target && destination === target.fallback
-        ? `${route}${route.includes('?') ? '&' : '?'}targetUnavailable=1`
-        : route) as any
-    );
-
-    const requestId = response.notification.request.identifier;
-    if (requestId) processedResponsesRef.current.add(requestId);
-    Notifications.clearLastNotificationResponseAsync().catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -224,66 +268,9 @@ export function usePushNotifications() {
   }, [handleResponse, userId]);
 
   useEffect(() => {
-    if (!notificationIdParam || !userId) return;
-    if (processedReadIdsRef.current.has(notificationIdParam)) return;
-    const clearNotificationId = () =>
-      router.setParams({ notificationId: undefined, targetUnavailable: undefined } as any);
-    if (notificationIdParam.startsWith('mapped_alert_')) {
-      processedReadIdsRef.current.add(notificationIdParam);
-      SecureStore.setItemAsync(
-        `yrdly_dismissed_alert_${notificationIdParam.slice('mapped_alert_'.length)}`,
-        '1'
-      )
-        .then(clearNotificationId)
-        .catch((error) => {
-          processedReadIdsRef.current.delete(notificationIdParam);
-          console.error(error);
-        });
-      return;
-    }
-    const markWhenDestinationIsOpen = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('notifications')
-          .select('type, related_id, data')
-          .eq('id', notificationIdParam)
-          .eq('user_id', userId)
-          .maybeSingle();
-        if (error) throw error;
-        if (!data) return;
-        let expectedPath = getPushNotificationDestination({
-          ...(data.data as Record<string, unknown>),
-          type: data.type,
-          relatedId: data.related_id,
-        }).split('?')[0];
-        const targetUnavailable = Array.isArray(searchParams.targetUnavailable)
-          ? searchParams.targetUnavailable[0]
-          : searchParams.targetUnavailable;
-        if (targetUnavailable === '1') {
-          expectedPath =
-            getNotificationTarget({
-              ...(data.data as Record<string, unknown>),
-              type: data.type,
-              relatedId: data.related_id,
-            })?.fallback ?? expectedPath;
-        }
-        const normalizePath = (path: string) => path.replace(/\/\([^/]+\)/g, '') || '/';
-        if (normalizePath(pathname) !== normalizePath(expectedPath)) return;
-        const marked = await NotificationService.markAsRead(notificationIdParam, userId);
-        if (marked) {
-          processedReadIdsRef.current.add(notificationIdParam);
-          clearNotificationId();
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    };
-    void markWhenDestinationIsOpen();
-  }, [notificationIdParam, pathname, searchParams.targetUnavailable, userId]);
-
-  useEffect(() => {
     const previousUserId = previousUserIdRef.current;
     previousUserIdRef.current = userId;
+    if (previousUserId !== userId) processedResponsesRef.current.clear();
     if (previousUserId && previousUserId !== userId) {
       getOrCreateDeviceId()
         .then((deviceId) =>
