@@ -14,6 +14,7 @@ const libPaths = {
   'business-edit-payload': 'businesses/business-edit-payload',
   'payout-quote': 'payments/payout-quote',
   'booking-payments': 'payments/booking-payments',
+  'notification-routing': 'notifications/notification-routing',
 };
 function load(name) {
   const output = ts.transpileModule(readFileSync(`src/lib/${libPaths[name] || name}.ts`, 'utf8'), {
@@ -32,6 +33,41 @@ const { parseWithdrawalQuote } = load('payout-quote');
 const { createBookingPayments } = load('booking-payments');
 const { isUserOnline } = load('online-status');
 const { buildBusinessEditPayload } = load('business-edit-payload');
+const { getMobileNotificationDestination, getPushNotificationDestination } =
+  load('notification-routing');
+const { shouldSuppressForegroundNotification } = load('notification-routing');
+
+test('booking reminders opened from a push target the booking detail', () => {
+  assert.equal(
+    getMobileNotificationDestination({
+      type: 'booking_reminder',
+      data: { bookingId: 'booking-1' },
+    }),
+    '/bookings/booking-1'
+  );
+});
+
+test('typed push payloads route correctly without a URL, and explicit web URLs are translated', () => {
+  assert.equal(
+    getPushNotificationDestination({ type: 'message', conversationId: 'conversation-1', url: '/' }),
+    '/chat/conversation-1'
+  );
+  assert.equal(
+    getPushNotificationDestination({ type: 'business_review_received', businessId: 'business-1' }),
+    '/businesses/business-1'
+  );
+  assert.equal(
+    getPushNotificationDestination({ type: 'message', url: '/messages/conversation-2' }),
+    '/chat/conversation-2'
+  );
+});
+
+test('foreground message banners are suppressed only inside the matching conversation', () => {
+  const data = { type: 'message', conversationId: 'conversation-1' };
+  assert.equal(shouldSuppressForegroundNotification(data, '/chat/conversation-1'), true);
+  assert.equal(shouldSuppressForegroundNotification(data, '/chat/conversation-2'), false);
+  assert.equal(shouldSuppressForegroundNotification(data, '/(tabs)/messages'), false);
+});
 
 function loadPlacesAdapter(enabled) {
   let identity = null,

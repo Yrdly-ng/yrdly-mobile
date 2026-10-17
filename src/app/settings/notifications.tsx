@@ -1,5 +1,5 @@
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,14 @@ import {
   Switch,
   ActivityIndicator,
   Alert,
+  AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/use-supabase-auth';
+import * as Notifications from 'expo-notifications';
+import * as Linking from 'expo-linking';
 
 export default function NotificationSettingsScreen() {
   const { theme } = useUnistyles();
@@ -21,14 +24,44 @@ export default function NotificationSettingsScreen() {
   const router = useRouter();
   const { profile, updateProfile } = useAuth();
   const [updating, setUpdating] = useState(false);
+  const [devicePermission, setDevicePermission] = useState<string>('unknown');
 
-  const currentSettings = profile?.notification_settings || {
+  useEffect(() => {
+    let active = true;
+    const refreshPermission = async () => {
+      const { status } = await Notifications.getPermissionsAsync();
+      if (active) setDevicePermission(status);
+    };
+    refreshPermission().catch((error) =>
+      console.warn('Could not read notification permission:', error)
+    );
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        refreshPermission().catch((error) =>
+          console.warn('Could not refresh notification permission:', error)
+        );
+      }
+    });
+    return () => {
+      active = false;
+      subscription.remove();
+    };
+  }, []);
+
+  const currentSettings = {
     friendRequests: true,
     messages: true,
     postUpdates: true,
     comments: true,
     postLikes: true,
     eventInvites: true,
+    marketplaceUpdates: true,
+    bookings: true,
+    orderUpdates: true,
+    paymentReceived: true,
+    disputeUpdates: true,
+    safetyAlerts: true,
+    ...profile?.notification_settings,
   };
 
   const handleToggle = async (key: string, value: boolean) => {
@@ -58,7 +91,7 @@ export default function NotificationSettingsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={s.content}>
-        <Text style={s.desc}>Select what alerts you want to receive on your device.</Text>
+        <Text style={s.desc}>Choose which activity can send alerts to your devices.</Text>
 
         <View style={s.card}>
           {/* Direct Messages */}
@@ -190,7 +223,91 @@ export default function NotificationSettingsScreen() {
               disabled={updating}
             />
           </View>
+
+          {[
+            {
+              key: 'marketplaceUpdates',
+              label: 'Marketplace activity',
+              detail: 'Interest and updates about your marketplace listings',
+              icon: 'shopping-bag' as const,
+            },
+            {
+              key: 'bookings',
+              label: 'Bookings',
+              detail: 'Requests, changes, reminders, and cancellations',
+              icon: 'calendar' as const,
+            },
+            {
+              key: 'orderUpdates',
+              label: 'Orders',
+              detail: 'Payments, shipping, and delivery progress',
+              icon: 'package' as const,
+            },
+            {
+              key: 'paymentReceived',
+              label: 'Payments and payouts',
+              detail: 'Payment receipts, refunds, and payout status',
+              icon: 'credit-card' as const,
+            },
+            {
+              key: 'disputeUpdates',
+              label: 'Disputes',
+              detail: 'Updates about disputes and appeals',
+              icon: 'alert-circle' as const,
+            },
+            {
+              key: 'safetyAlerts',
+              label: 'Safety alerts',
+              detail: 'Important safety notices for your area',
+              icon: 'shield' as const,
+            },
+          ].map((preference) => (
+            <React.Fragment key={preference.key}>
+              <View style={s.divider} />
+              <View style={s.row}>
+                <View style={s.rowLeft}>
+                  <View style={s.iconBox}>
+                    <Feather name={preference.icon} size={18} color={theme.colors.TEXT_PRIMARY} />
+                  </View>
+                  <View style={s.rowText}>
+                    <Text style={s.rowLabel}>{preference.label}</Text>
+                    <Text style={s.rowSub}>{preference.detail}</Text>
+                  </View>
+                </View>
+                <Switch
+                  value={currentSettings[preference.key as keyof typeof currentSettings] ?? true}
+                  onValueChange={(value) => handleToggle(preference.key, value)}
+                  trackColor={{ false: 'rgba(255,255,255,0.1)', true: theme.colors.G }}
+                  thumbColor="#fff"
+                  disabled={updating}
+                />
+              </View>
+            </React.Fragment>
+          ))}
         </View>
+
+        {devicePermission !== 'granted' && devicePermission !== 'unknown' && (
+          <View style={[s.card, { padding: 16 }]}>
+            <Text style={s.rowLabel}>Device notifications are off</Text>
+            <Text style={[s.rowSub, { marginTop: 5, marginBottom: 12 }]}>
+              Turn them on in your device settings to receive alerts while YRDLY is closed.
+            </Text>
+            <TouchableOpacity
+              onPress={() =>
+                Linking.openSettings().catch(() =>
+                  Alert.alert(
+                    'Unable to open settings',
+                    'Open YRDLY notification settings on your device.'
+                  )
+                )
+              }
+            >
+              <Text style={{ color: theme.colors.G, fontFamily: 'Outfit-Bold' }}>
+                Open device settings
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

@@ -40,6 +40,12 @@ export interface AuthUser {
     comments: boolean;
     postLikes: boolean;
     eventInvites: boolean;
+    marketplaceUpdates: boolean;
+    bookings: boolean;
+    orderUpdates: boolean;
+    paymentReceived: boolean;
+    disputeUpdates: boolean;
+    safetyAlerts: boolean;
   };
   is_online?: boolean;
   last_seen?: string;
@@ -341,6 +347,12 @@ export class AuthService {
           comments: true,
           postLikes: true,
           eventInvites: true,
+          marketplaceUpdates: true,
+          bookings: true,
+          orderUpdates: true,
+          paymentReceived: true,
+          disputeUpdates: true,
+          safetyAlerts: true,
         },
       });
 

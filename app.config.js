@@ -1,4 +1,22 @@
 const CRISP_WEBSITE_ID = process.env.EXPO_PUBLIC_CRISP_WEBSITE_ID || "e843a16b-9483-4622-9c42-5586532ab2fa";
+const fs = require("fs");
+const path = require("path");
+
+const inlineGoogleServices = process.env.GOOGLE_SERVICES_JSON;
+const encodedGoogleServices = process.env.GOOGLE_SERVICES_JSON_BASE64;
+const generatedGoogleServicesPath = path.join(__dirname, "google-services.json");
+let googleServicesFile = "./google-services.json";
+
+if (inlineGoogleServices?.trim().startsWith("{")) {
+  JSON.parse(inlineGoogleServices);
+  fs.writeFileSync(generatedGoogleServicesPath, inlineGoogleServices);
+} else if (encodedGoogleServices) {
+  const decoded = Buffer.from(encodedGoogleServices, "base64").toString("utf8");
+  JSON.parse(decoded);
+  fs.writeFileSync(generatedGoogleServicesPath, decoded);
+} else if (inlineGoogleServices && fs.existsSync(path.resolve(__dirname, inlineGoogleServices))) {
+  googleServicesFile = path.relative(__dirname, path.resolve(__dirname, inlineGoogleServices));
+}
 
 module.exports = {
   expo: {
@@ -34,7 +52,7 @@ module.exports = {
         backgroundColor: "#E6F4FE"
       },
       package: "com.yrdly",
-      googleServicesFile: process.env.GOOGLE_SERVICES_JSON || "./google-services.json",
+      googleServicesFile,
       config: {
         googleMaps: {
           apiKey: process.env.GOOGLE_MAPS_ANDROID_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY

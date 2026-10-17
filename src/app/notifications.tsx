@@ -14,14 +14,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase/supabase';
 import { useAuth } from '../hooks/use-supabase-auth';
 import { AlertBanner } from '../components/alerts/AlertBanner';
-import { NotificationService } from '../lib/notifications/notification-service';
 import * as SecureStore from 'expo-secure-store';
 import { AlertService } from '../lib/alerts/alert-service';
-import { getMobileNotificationDestination } from '../lib/notifications/notification-routing';
+import {
+  addNotificationId,
+  getNotificationTarget,
+  getMobileNotificationDestination,
+} from '../lib/notifications/notification-routing';
 
 interface Notification {
   id: string;
@@ -165,18 +168,6 @@ export default function NotificationsScreen() {
     };
   }, [user]);
 
-  // Auto-mark all as read when the screen comes into focus.
-  // Short delay so the list renders first — user briefly sees which items were unread.
-  useFocusEffect(
-    useCallback(() => {
-      if (!user) return;
-      const t = setTimeout(() => {
-        markAllRead();
-      }, 800);
-      return () => clearTimeout(t);
-    }, [user])
-  );
-
   const markAllRead = async () => {
     if (!user) return;
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
@@ -293,29 +284,45 @@ export default function NotificationsScreen() {
                   stylesheet.notifRow,
                   !item.is_read && { backgroundColor: 'rgba(130,219,126,0.03)' },
                 ]}
-                onPress={() => {
-                  if (!item.is_read) {
-                    if (item.id.startsWith('mapped_alert_')) {
-                      SecureStore.setItemAsync(
-                        `yrdly_dismissed_alert_${item.related_id}`,
-                        '1'
-                      ).catch(console.error);
-                    } else {
-                      if (user?.id) {
-                        NotificationService.markAsRead(item.id, user.id).catch(console.error);
-                      } else {
-                        supabase
-                          .from('notifications')
-                          .update({ is_read: true })
-                          .eq('id', item.id)
-                          .then();
+                onPress={async () => {
+                  let destination = getMobileNotificationDestination(item);
+                  const target = getNotificationTarget({
+                    ...(item.data || {}),
+                    type: item.type,
+                    relatedId: item.related_id,
+                  });
+                  if (target) {
+                    const tables =
+                      target.table === 'alerts' ? ['alerts', 'safety_alerts'] : [target.table];
+                    let found = false;
+                    let lookupSucceeded = false;
+                    for (const table of tables) {
+                      const { data, error } = await supabase
+                        .from(table)
+                        .select('id')
+                        .eq('id', target.id)
+                        .maybeSingle();
+                      if (!error) {
+                        lookupSucceeded = true;
+                        if (data) {
+                          found = true;
+                          break;
+                        }
                       }
                     }
-                    setNotifications((prev) =>
-                      prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n))
-                    );
+                    if (lookupSucceeded && !found) {
+                      Alert.alert(
+                        'This item is no longer available',
+                        'We could not find the item linked to this notification. You can continue from the related list.'
+                      );
+                      destination = target.fallback;
+                      router.push(
+                        `${addNotificationId(destination, item.id)}${destination.includes('?') ? '&' : '?'}targetUnavailable=1` as any
+                      );
+                      return;
+                    }
                   }
-                  router.push(getMobileNotificationDestination(item) as any);
+                  router.push(addNotificationId(destination, item.id) as any);
                 }}
               >
                 <View style={stylesheet.avatarWrapper}>
