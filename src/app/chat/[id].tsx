@@ -8,6 +8,7 @@ import {
   FlatList,
   TextInput,
   TouchableOpacity,
+  Modal,
   Platform,
   ActivityIndicator,
   Alert,
@@ -35,6 +36,7 @@ import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/u
 import { useAppTheme } from '../../context/ThemeContext';
 import { formatPrice } from '../../lib/shared/utils';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { setActiveConversationId } from '../../lib/offline/active-chat-tracker';
 import { useVideoEditor, discardEditedVideo } from '@/hooks/media/use-video-editor';
 
@@ -67,6 +69,19 @@ interface ConversationMeta {
   business_name?: string;
   business_image?: string;
 }
+
+interface GiphyResult {
+  id: string;
+  title: string;
+  images: {
+    fixed_height_small?: { url: string };
+    downsized?: { url: string };
+    downsized_large?: { url: string };
+    original?: { url: string };
+  };
+}
+
+const giphyApiKey = process.env.EXPO_PUBLIC_GIPHY_API_KEY;
 
 import { AppState } from 'react-native';
 
@@ -163,6 +178,7 @@ function ChatContent() {
     name: string;
     avatar_url: string | null;
     username?: string | null;
+    phone_verified?: boolean;
   } | null>(null);
   const [avatarError, setAvatarError] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -195,6 +211,56 @@ function ChatContent() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const uploadController = useRef<AbortController | null>(null);
   const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [gifPickerVisible, setGifPickerVisible] = useState(false);
+  const [gifQuery, setGifQuery] = useState('');
+  const [gifResults, setGifResults] = useState<GiphyResult[]>([]);
+  const [gifLoading, setGifLoading] = useState(false);
+  const [gifError, setGifError] = useState('');
+  const [sendingGifId, setSendingGifId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!gifPickerVisible) return;
+    if (!giphyApiKey) {
+      setGifError('GIF search needs a GIPHY API key before it can load.');
+      setGifResults([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    setGifLoading(true);
+    setGifError('');
+    const timer = setTimeout(() => {
+      const endpoint = gifQuery.trim()
+        ? 'https://api.giphy.com/v1/gifs/search'
+        : 'https://api.giphy.com/v1/gifs/trending';
+      const params = new URLSearchParams({
+        api_key: giphyApiKey,
+        limit: '24',
+        rating: 'pg',
+        lang: 'en',
+        ...(gifQuery.trim() ? { q: gifQuery.trim() } : {}),
+      });
+
+      void fetch(`${endpoint}?${params.toString()}`, { signal: controller.signal })
+        .then(async (response) => {
+          if (!response.ok) throw new Error('GIF search is temporarily unavailable.');
+          const payload = (await response.json()) as { data?: GiphyResult[] };
+          if (!controller.signal.aborted) setGifResults(payload.data || []);
+        })
+        .catch((error) => {
+          if (controller.signal.aborted) return;
+          setGifError(error instanceof Error ? error.message : 'Could not load GIFs.');
+          setGifResults([]);
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setGifLoading(false);
+        });
+    }, 300);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [gifPickerVisible, gifQuery]);
   const { editVideo, videoEditor, isEditingVideo } = useVideoEditor();
   const pickingMedia = useRef(false);
   const [viewerImages, setViewerImages] = useState<{ uri: string }[]>([]);
@@ -315,7 +381,7 @@ function ChatContent() {
       if (paramParticipantId) {
         const { data: u } = await supabase
           .from('public_profiles')
-          .select('name, avatar_url, username')
+          .select('name, avatar_url, username, phone_verified')
           .eq('id', paramParticipantId)
           .single();
         if (context !== requestContext.current) return;
@@ -379,7 +445,7 @@ function ChatContent() {
       if (otherId) {
         const { data: u } = await supabase
           .from('public_profiles')
-          .select('name, avatar_url, username')
+          .select('name, avatar_url, username, phone_verified')
           .eq('id', otherId)
           .single();
         if (context !== requestContext.current) return;
@@ -934,6 +1000,42 @@ function ChatContent() {
     await deliverMessage(message);
   };
 
+  const sendGif = async (gif: GiphyResult) => {
+    const gifUrl =
+      gif.images.downsized_large?.url || gif.images.downsized?.url || gif.images.original?.url;
+    if (!gifUrl || !FileSystem.cacheDirectory) {
+      Alert.alert('GIF unavailable', 'This GIF could not be downloaded. Please choose another.');
+      return;
+    }
+
+    setSendingGifId(gif.id);
+    try {
+      const fileName = `giphy-${Crypto.randomUUID()}.gif`;
+      const download = await FileSystem.downloadAsync(
+        gifUrl,
+        `${FileSystem.cacheDirectory}${fileName}`
+      );
+      if (download.status < 200 || download.status >= 300) {
+        throw new Error('Could not download this GIF. Please try another.');
+      }
+      const fileInfo = await FileSystem.getInfoAsync(download.uri);
+      if (fileInfo.exists && fileInfo.size && fileInfo.size > 15 * 1024 * 1024) {
+        await FileSystem.deleteAsync(download.uri, { idempotent: true });
+        throw new Error('This GIF is too large to send. Choose a smaller one.');
+      }
+
+      await uploadAndSendMedia({ uri: download.uri, type: 'image/gif', name: fileName });
+      setGifPickerVisible(false);
+    } catch (error) {
+      Alert.alert(
+        'GIF not sent',
+        error instanceof Error ? error.message : 'Please check your connection and try again.'
+      );
+    } finally {
+      setSendingGifId(null);
+    }
+  };
+
   const openViewer = (url: string) => {
     setViewerImages([{ uri: url }]);
     setViewerVisible(true);
@@ -1459,6 +1561,7 @@ function ChatContent() {
             >
               {title}
             </Text>
+            {!isBusinessChat && otherUser?.phone_verified && <VerifiedBadge size={15} />}
             <Text style={{ fontFamily: 'Inter-Regular', fontSize: 12, color: theme.colors.LABEL }}>
               {`@${otherUser?.username || otherUser?.name || 'user'}`}
             </Text>
@@ -1687,6 +1790,32 @@ function ChatContent() {
             )}
           </TouchableOpacity>
 
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Choose a GIF"
+            onPress={() => {
+              setGifQuery('');
+              setGifError('');
+              setGifPickerVisible(true);
+            }}
+            disabled={uploadingMedia || !!sendingGifId}
+            style={{
+              height: 40,
+              paddingHorizontal: 10,
+              borderRadius: 14,
+              backgroundColor: theme.colors.SURFACE_ALT,
+              borderWidth: 1,
+              borderColor: theme.colors.GLASS_BORDER,
+              justifyContent: 'center',
+              alignItems: 'center',
+              opacity: uploadingMedia || sendingGifId ? 0.5 : 1,
+            }}
+          >
+            <Text style={{ color: theme.colors.G, fontFamily: 'Outfit-Bold', fontSize: 12 }}>
+              GIF
+            </Text>
+          </TouchableOpacity>
+
           <View style={{ flex: 1, flexDirection: 'column' }}>
             {editingMessage && (
               <View
@@ -1784,6 +1913,179 @@ function ChatContent() {
         visible={viewerVisible}
         onRequestClose={() => setViewerVisible(false)}
       />
+
+      <Modal
+        visible={gifPickerVisible}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setGifPickerVisible(false)}
+      >
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.68)' }}>
+          <View
+            style={{
+              height: '82%',
+              backgroundColor: theme.colors.DARK,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              borderWidth: 1,
+              borderColor: theme.colors.GLASS_BORDER,
+              paddingTop: 18,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingHorizontal: 20,
+                paddingBottom: 16,
+              }}
+            >
+              <View>
+                <Text
+                  style={{
+                    color: theme.colors.TEXT_PRIMARY,
+                    fontFamily: 'Outfit-Bold',
+                    fontSize: 20,
+                  }}
+                >
+                  Send a GIF
+                </Text>
+                <Text
+                  style={{
+                    color: theme.colors.LABEL,
+                    fontFamily: 'Inter-Regular',
+                    fontSize: 12,
+                    marginTop: 2,
+                  }}
+                >
+                  Find the right reaction
+                </Text>
+              </View>
+              <TouchableOpacity
+                accessibilityLabel="Close GIF picker"
+                onPress={() => setGifPickerVisible(false)}
+                style={{ padding: 8 }}
+              >
+                <Ionicons name="close" size={24} color={theme.colors.TEXT_PRIMARY} />
+              </TouchableOpacity>
+            </View>
+
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 10,
+                marginHorizontal: 18,
+                marginBottom: 12,
+                paddingHorizontal: 14,
+                height: 46,
+                borderRadius: 16,
+                backgroundColor: theme.colors.SURFACE_ALT,
+                borderWidth: 1,
+                borderColor: theme.colors.GLASS_BORDER,
+              }}
+            >
+              <Ionicons name="search-outline" size={18} color={theme.colors.LABEL} />
+              <TextInput
+                value={gifQuery}
+                onChangeText={setGifQuery}
+                placeholder="Search GIFs"
+                placeholderTextColor={theme.colors.LABEL}
+                returnKeyType="search"
+                style={{ flex: 1, color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-Regular' }}
+              />
+            </View>
+
+            {gifLoading && gifResults.length === 0 ? (
+              <View style={{ flex: 1, justifyContent: 'center' }}>
+                <ActivityIndicator color={theme.colors.G} />
+              </View>
+            ) : gifError && gifResults.length === 0 ? (
+              <View
+                style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 28 }}
+              >
+                <Text style={{ color: theme.colors.LABEL, textAlign: 'center', lineHeight: 21 }}>
+                  {gifError}
+                </Text>
+              </View>
+            ) : gifResults.length === 0 ? (
+              <View
+                style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 28 }}
+              >
+                <Text style={{ color: theme.colors.LABEL, textAlign: 'center' }}>
+                  No GIFs found. Try another search.
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                data={gifResults}
+                keyExtractor={(item) => item.id}
+                numColumns={2}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 12 }}
+                columnWrapperStyle={{ gap: 10, marginBottom: 10 }}
+                renderItem={({ item }) => {
+                  const previewUrl =
+                    item.images.fixed_height_small?.url ||
+                    item.images.downsized?.url ||
+                    item.images.original?.url;
+                  if (!previewUrl) return null;
+                  return (
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel={`Send GIF: ${item.title || 'animated GIF'}`}
+                      onPress={() => void sendGif(item)}
+                      disabled={!!sendingGifId}
+                      style={{
+                        flex: 1,
+                        aspectRatio: 1.05,
+                        borderRadius: 14,
+                        overflow: 'hidden',
+                        backgroundColor: theme.colors.SURFACE,
+                      }}
+                    >
+                      <Image
+                        source={{ uri: previewUrl }}
+                        style={{ width: '100%', height: '100%' }}
+                        contentFit="cover"
+                        transition={120}
+                      />
+                      {sendingGifId === item.id && (
+                        <View
+                          style={{
+                            ...StyleSheet.absoluteFillObject,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            backgroundColor: 'rgba(0,0,0,0.45)',
+                          }}
+                        >
+                          <ActivityIndicator color="#fff" />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            )}
+
+            <Text
+              style={{
+                color: theme.colors.LABEL,
+                fontFamily: 'Inter-SemiBold',
+                fontSize: 11,
+                textAlign: 'center',
+                paddingVertical: 12,
+                borderTopWidth: 1,
+                borderTopColor: theme.colors.GLASS_BORDER,
+              }}
+            >
+              Powered by GIPHY
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }

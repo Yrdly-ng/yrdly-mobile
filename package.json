@@ -90,7 +90,7 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
-    "test:release": "node --test tests/release-contract.test.cjs tests/video-editing.test.cjs tests/onboarding-contrast.test.cjs tests/offline-cache.test.cjs",
+    "test:release": "node --test tests/release-contract.test.cjs tests/video-editing.test.cjs tests/onboarding-contrast.test.cjs tests/offline-cache.test.cjs tests/alert-creation.test.cjs",
     "typecheck": "tsc --noEmit",
     "start": "expo start",
     "android": "expo run:android",

@@ -94,7 +94,7 @@ export function EventList({ searchQuery = '', sortOption = 'newest' }: EventList
         // ── Legacy events from posts table ──
         let postsQuery = supabase
           .from('posts')
-          .select('*, users:public_profiles!posts_user_id_fkey(name, avatar_url)')
+          .select('*, users:public_profiles!posts_user_id_fkey(name, avatar_url, phone_verified)')
           .eq('category', 'Event')
           .or(`event_date.gte.${isoYesterday},event_date.is.null`)
           .order('created_at', { ascending: false })
@@ -111,7 +111,7 @@ export function EventList({ searchQuery = '', sortOption = 'newest' }: EventList
         // ── New events from events table ──
         let eventsQuery = supabase
           .from('events')
-          .select(`*, organizer:public_profiles!events_organizer_id_fkey(id, name, avatar_url)`)
+          .select(`*, organizer:public_profiles!events_organizer_id_fkey(id, name, avatar_url, phone_verified)`)
           .eq('status', 'PUBLISHED')
           .eq('is_archived', false)
           .or(`end_time.gte.${isoNow},start_time.gte.${isoYesterday}`)

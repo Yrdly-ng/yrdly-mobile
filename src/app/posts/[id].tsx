@@ -47,6 +47,9 @@ function PostDetailContent() {
   const [post, setPost] = useState<Post | null>(() => localCache.getPost(id));
   const [comments, setComments] = useState<CommentType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [postLoading, setPostLoading] = useState(true);
+  const [postMissing, setPostMissing] = useState(false);
+  const [postLoadFailed, setPostLoadFailed] = useState(false);
   useNotificationRouteAcknowledgement(!loading && !!post);
   const [replyingTo, setReplyingTo] = useState<{ id: string; name: string } | null>(null);
 
@@ -113,28 +116,42 @@ function PostDetailContent() {
   );
 
   const fetchPost = useCallback(async () => {
-    if (!id) return;
+    if (!id) {
+      setPostLoading(false);
+      return;
+    }
     const snapshot = localCache.getPost(id);
     if (snapshot) setPost(snapshot);
-    const { data, error } = await supabase
-      .from('posts')
-      .select(
-        '*, user:public_profiles!posts_user_id_fkey(id, name, avatar_url, location, created_at)'
-      )
-      .eq('id', id)
-      .single();
+    setPostLoading(true);
+    setPostMissing(false);
+    setPostLoadFailed(false);
+    try {
+      const { data, error } = await supabase
+        .from('posts')
+        .select(
+          '*, user:public_profiles!posts_user_id_fkey(id, name, avatar_url, location, created_at, phone_verified)'
+        )
+        .eq('id', id)
+        .maybeSingle();
 
-    if (!error && data) {
-      setPost(data);
-      localCache.putPost(data);
-    } else {
-      setPost(null);
-      localCache.removePost(id);
-      Alert.alert('Post Unavailable', 'This post is no longer available.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      if (error) throw error;
+      if (data) {
+        setPost(data);
+        localCache.putPost(data);
+      } else {
+        setPost(null);
+        localCache.removePost(id);
+        setPostMissing(true);
+      }
+    } catch {
+      if (!snapshot) {
+        setPost(null);
+        setPostLoadFailed(true);
+      }
+    } finally {
+      setPostLoading(false);
     }
-  }, [id, router]);
+  }, [id]);
 
   const fetchComments = useCallback(async () => {
     if (!id) return;
@@ -407,9 +424,48 @@ function PostDetailContent() {
 
       <View style={{ flex: 1 }}>
         {' '}
-        {loading && !post ? (
+        {postLoading && !post ? (
           <View style={stylesheet.center}>
             <ActivityIndicator size="large" color={theme.colors.G} />
+          </View>
+        ) : !post && (postMissing || postLoadFailed) ? (
+          <View style={[stylesheet.center, { paddingHorizontal: 28 }]}>
+            <Text
+              style={{
+                color: theme.colors.TEXT_PRIMARY,
+                fontFamily: 'Outfit',
+                fontSize: 18,
+                textAlign: 'center',
+                marginBottom: 8,
+              }}
+            >
+              {postMissing ? 'This post is no longer available' : 'Could not load this post'}
+            </Text>
+            <Text
+              style={{
+                color: theme.colors.MUTED,
+                fontFamily: 'Inter',
+                textAlign: 'center',
+                marginBottom: 18,
+              }}
+            >
+              {postMissing
+                ? 'It may have been deleted or is no longer visible.'
+                : 'Check your connection and try again.'}
+            </Text>
+            {postLoadFailed ? (
+              <TouchableOpacity onPress={fetchPost}>
+                <Text style={{ color: theme.colors.G, fontFamily: 'Outfit', fontSize: 16 }}>
+                  Try again
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={() => router.back()}>
+                <Text style={{ color: theme.colors.G, fontFamily: 'Outfit', fontSize: 16 }}>
+                  Go back
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           <FlatList
@@ -457,15 +513,17 @@ function PostDetailContent() {
           />
         )}
         {/* Input */}
-        <CommentInput
-          ref={inputRef}
-          userAvatarSource={userAvatarSource}
-          userInitial={(user?.user_metadata?.name || user?.email || '?').charAt(0).toUpperCase()}
-          replyingTo={replyingTo}
-          onClearReply={() => setReplyingTo(null)}
-          onSubmit={handleSendComment}
-          InputComponent={TextInput}
-        />
+        {post ? (
+          <CommentInput
+            ref={inputRef}
+            userAvatarSource={userAvatarSource}
+            userInitial={(user?.user_metadata?.name || user?.email || '?').charAt(0).toUpperCase()}
+            replyingTo={replyingTo}
+            onClearReply={() => setReplyingTo(null)}
+            onSubmit={handleSendComment}
+            InputComponent={TextInput}
+          />
+        ) : null}
       </View>
     </KeyboardAvoidingView>
   );

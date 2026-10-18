@@ -243,7 +243,7 @@ function MarketplaceSection({
               filter_condition: filterCondition !== 'Any' ? filterCondition : null,
               sort_order: filterSort,
             })
-            .select('*, user:public_profiles!posts_user_id_fkey(id,name,avatar_url)');
+            .select('*, user:public_profiles!posts_user_id_fkey(id,name,avatar_url,phone_verified)');
 
           if (search?.trim()) {
             q = q.ilike('title', `%${search.trim()}%`);
@@ -259,7 +259,7 @@ function MarketplaceSection({
         } else {
           q = supabase
             .from('posts')
-            .select('*, user:public_profiles!posts_user_id_fkey(id,name,avatar_url)')
+            .select('*, user:public_profiles!posts_user_id_fkey(id,name,avatar_url,phone_verified)')
             .in('category', ['For Sale', 'Giveaway'])
             .or('is_sold.eq.false,is_sold.is.null');
           if (category !== 'All') {
@@ -1073,8 +1073,7 @@ function PlacesSection({
                     url={
                       (item as any).logo_url ||
                       item.logo ||
-                      item.cover_image ||
-                      item.image_urls?.[0]
+                      null
                     }
                     name={item.name}
                     style={sStylesheet.placePhoto}

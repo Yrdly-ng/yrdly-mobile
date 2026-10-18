@@ -110,7 +110,7 @@ export default function CommunityPostDetailScreen() {
     if (!postId) return;
     const { data } = await supabase
       .from('community_posts')
-      .select('*, author:public_profiles!community_posts_author_id_fkey(id, name, avatar_url)')
+      .select('*, author:public_profiles!community_posts_author_id_fkey(id, name, avatar_url, phone_verified)')
       .eq('id', postId)
       .single();
     setPost((data as CommunityPost) ?? null);

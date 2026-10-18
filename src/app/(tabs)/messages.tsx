@@ -18,6 +18,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/use-notification-route-ack';
+import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Swipeable } from 'react-native-gesture-handler';
 import { getUserActivityStatus, isUserOnline } from '../../lib/activity/online-status';
@@ -30,6 +31,7 @@ interface Conversation {
   participantId: string;
   participantName: string;
   participantAvatar: string | null;
+  participantVerified: boolean;
   isOnline: boolean;
   isAway: boolean;
   lastSeen: string | null;
@@ -75,7 +77,7 @@ export default function MessagesTab() {
   const [refreshing, setRefreshing] = useState(false);
   const [showNewMessage, setShowNewMessage] = useState(false);
   const [messageableUsers, setMessageableUsers] = useState<
-    { id: string; name: string; avatar_url: string | null }[]
+    { id: string; name: string; avatar_url: string | null; phone_verified?: boolean }[]
   >([]);
   const [loadingMessageableUsers, setLoadingMessageableUsers] = useState(false);
 
@@ -127,7 +129,7 @@ export default function MessagesTab() {
       if (otherUserIds.length > 0) {
         const { data: usersData } = await supabase
           .from('public_profiles')
-          .select('id, name, username, avatar_url, is_online, last_seen')
+          .select('id, name, username, avatar_url, is_online, last_seen, phone_verified')
           .in('id', otherUserIds);
 
         if (usersData) {
@@ -168,6 +170,7 @@ export default function MessagesTab() {
             participantId: otherId || '',
             participantName,
             participantAvatar,
+            participantVerified: !!otherUser?.phone_verified,
             isOnline: isUserOnline(otherUser?.is_online, otherUser?.last_seen),
             isAway: getUserActivityStatus(otherUser?.is_online, otherUser?.last_seen) === 'away',
             lastSeen: otherUser?.last_seen || null,
@@ -317,7 +320,7 @@ export default function MessagesTab() {
 
         const { data: people, error: peopleError } = await supabase
           .from('public_profiles')
-          .select('id, name, avatar_url')
+          .select('id, name, avatar_url, phone_verified')
           .in('id', userIds)
           .order('name');
         if (peopleError) throw peopleError;
@@ -597,6 +600,7 @@ export default function MessagesTab() {
                       >
                         {item.participantName}
                       </Text>
+                      {item.participantVerified && <VerifiedBadge size={14} />}
                       <Text
                         style={[
                           stylesheet.time,
@@ -694,7 +698,12 @@ export default function MessagesTab() {
                         </Text>
                       </View>
                     )}
-                    <Text style={stylesheet.name}>{item.name || 'YRDLY member'}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                      <Text style={stylesheet.name} numberOfLines={1}>
+                        {item.name || 'YRDLY member'}
+                      </Text>
+                      {item.phone_verified && <VerifiedBadge size={14} />}
+                    </View>
                     <Feather name="chevron-right" size={18} color={theme.colors.LABEL} />
                   </TouchableOpacity>
                 )}

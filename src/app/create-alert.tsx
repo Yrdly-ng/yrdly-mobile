@@ -1,6 +1,6 @@
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Platform, Alert } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -47,38 +47,51 @@ export default function CreateAlertScreen() {
   const [severity, setSeverity] = useState<'information' | 'caution' | 'urgent'>('caution');
   const [type, setType] = useState<'safety' | 'amber' | 'info'>('safety');
   const [area, setArea] = useState('');
+  const [areaLookupFailed, setAreaLookupFailed] = useState(false);
   const [alertState, setAlertState] = useState('');
   const [alertLga, setAlertLga] = useState('');
   const [action, setAction] = useState('');
 
   const [published, setPublished] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittingRef = useRef(false);
 
   const canPreview = title.trim() && desc.trim() && area.trim();
 
   const handlePublish = async () => {
-    if (!user) return;
+    if (submittingRef.current) return;
+    if (!user) {
+      Alert.alert('Sign in required', 'Please sign in again to submit your alert.');
+      return;
+    }
+    if (!canPreview) return;
+    submittingRef.current = true;
     setIsSubmitting(true);
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
 
       await api.post('/api/safety-alerts', {
-        title,
-        description: desc,
+        title: title.trim(),
+        description: desc.trim(),
         severity,
         type,
-        area_name: area,
+        area_name: area.trim(),
         ...(alertState ? { state: alertState } : {}),
         ...(alertLga ? { lga: alertLga } : {}),
         ...(action ? { action } : {}),
       });
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
+        () => undefined
+      );
       setPublished(true);
     } catch (err) {
-      console.error(err);
-      alert('Failed to publish alert.');
+      Alert.alert(
+        'Could not submit alert',
+        err instanceof Error ? err.message : 'Please check your connection and try again.'
+      );
     } finally {
+      submittingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -264,6 +277,7 @@ export default function CreateAlertScreen() {
               style={stylesheet.input}
               value={title}
               onChangeText={setTitle}
+              maxLength={200}
               placeholder="e.g. Road closure at Admiralty Way"
               placeholderTextColor={theme.colors.MUTED}
             />
@@ -273,7 +287,10 @@ export default function CreateAlertScreen() {
             <Text style={stylesheet.fieldLabel}>Affected Area</Text>
             <GooglePlacesAutocomplete
               placeholder="e.g. Lekki Phase 1, Lagos"
+              onFail={() => setAreaLookupFailed(true)}
+              onTimeout={() => setAreaLookupFailed(true)}
               onPress={(data, details = null) => {
+                setAreaLookupFailed(false);
                 setArea(data.description);
                 const d = data as any;
                 if (d.terms && d.terms.length > 0) {
@@ -329,8 +346,18 @@ export default function CreateAlertScreen() {
               enablePoweredByContainer={false}
               textInputProps={{
                 placeholderTextColor: theme.colors.MUTED,
+                onChangeText: (text) => {
+                  setArea(text);
+                  setAlertState('');
+                  setAlertLga('');
+                },
               }}
             />
+            <Text style={{ color: theme.colors.MUTED, fontSize: 12, marginTop: 6 }}>
+              {areaLookupFailed
+                ? 'Address suggestions are unavailable. You can still type the affected area and continue.'
+                : 'Type the affected area or choose an address suggestion.'}
+            </Text>
           </View>
 
           <View>
@@ -350,6 +377,7 @@ export default function CreateAlertScreen() {
               style={[stylesheet.input, stylesheet.textArea]}
               value={desc}
               onChangeText={setDesc}
+              maxLength={5000}
               placeholder="Factual description of what is happening…"
               placeholderTextColor={theme.colors.MUTED}
               multiline
@@ -364,7 +392,7 @@ export default function CreateAlertScreen() {
           style={[stylesheet.continueBtn, !canPreview && stylesheet.continueBtnDisabled]}
           disabled={!canPreview}
           onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
             setStep('preview');
           }}
         >

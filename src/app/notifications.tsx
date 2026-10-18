@@ -287,30 +287,35 @@ export default function NotificationsScreen() {
                   !item.is_read && { backgroundColor: 'rgba(130,219,126,0.03)' },
                 ]}
                 onPress={async () => {
-                  let destination = getMobileNotificationDestination(item);
-                  const target = getNotificationTarget({
+                  const notificationData = {
                     ...(item.data || {}),
                     type: item.type,
                     relatedId: item.related_id,
-                  });
+                  };
+                  let destination = getMobileNotificationDestination(notificationData);
+                  const target = getNotificationTarget(notificationData);
                   if (target) {
                     const tables =
                       target.table === 'alerts' ? ['alerts', 'safety_alerts'] : [target.table];
                     let found = false;
                     let lookupSucceeded = false;
-                    for (const table of tables) {
-                      const { data, error } = await supabase
-                        .from(table)
-                        .select('id')
-                        .eq('id', target.id)
-                        .maybeSingle();
-                      if (!error) {
-                        lookupSucceeded = true;
-                        if (data) {
-                          found = true;
-                          break;
+                    try {
+                      for (const table of tables) {
+                        const { data, error } = await supabase
+                          .from(table)
+                          .select('id')
+                          .eq('id', target.id)
+                          .maybeSingle();
+                        if (!error) {
+                          lookupSucceeded = true;
+                          if (data) {
+                            found = true;
+                            break;
+                          }
                         }
                       }
+                    } catch {
+                      // Continue to the destination; the detail screen handles transient failures.
                     }
                     if (lookupSucceeded && !found) {
                       Alert.alert(

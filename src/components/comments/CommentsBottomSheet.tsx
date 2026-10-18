@@ -125,7 +125,7 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
       const { data, error } = await supabase
         .from('posts')
         .select(
-          '*, user:public_profiles!posts_user_id_fkey(id, name, avatar_url, location, created_at)'
+          '*, user:public_profiles!posts_user_id_fkey(id, name, avatar_url, location, created_at, phone_verified)'
         )
         .eq('id', postId)
         .single();

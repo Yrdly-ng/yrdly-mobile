@@ -9,7 +9,6 @@ import {
   setUserEmail,
   setUserNickname,
   openChat,
-  show,
 } from 'crisp-sdk-react-native';
 import { useAuth } from '../hooks/use-supabase-auth';
 import { supabase } from '../lib/supabase/supabase';
@@ -30,10 +29,9 @@ export function openCrispChat() {
         configure(websiteId);
         configuredWebsiteId = websiteId;
       }
-      // openChat selects Crisp's conversation tab before presenting its native UI.
+      // The SDK wrapper calls show() after selecting the chat tab. Calling
+      // show() again here starts the native screen twice on Android.
       openChat();
-      // Android's SDK implements openChat as a no-op; show() presents ChatActivity.
-      show();
     } catch {
       configuredWebsiteId = null;
       Alert.alert(

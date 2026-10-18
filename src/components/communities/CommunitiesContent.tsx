@@ -393,8 +393,6 @@ export function CommunitiesContent({
         <MagnifyingGlass size={18} color={theme.colors.LABEL} />
         <TextInput
           style={[s.searchInput, { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-Regular' }]}
-          placeholder="Search communities…"
-          placeholderTextColor={theme.colors.LABEL}
           value={query}
           onChangeText={onSearch}
           returnKeyType="search"

@@ -132,7 +132,8 @@ export default function OtherUserProfileScreen() {
             name,
             avatar_url,
             location,
-            created_at
+            created_at,
+            phone_verified
           )
         `
         )
