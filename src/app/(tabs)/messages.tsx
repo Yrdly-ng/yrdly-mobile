@@ -256,7 +256,8 @@ export default function MessagesTab() {
                   ? {
                       ...conversation,
                       isOnline: isUserOnline(updated.is_online, updated.last_seen),
-                      isAway: getUserActivityStatus(updated.is_online, updated.last_seen) === 'away',
+                      isAway:
+                        getUserActivityStatus(updated.is_online, updated.last_seen) === 'away',
                       lastSeen: updated.last_seen,
                     }
                   : conversation
@@ -281,7 +282,8 @@ export default function MessagesTab() {
           const status = getUserActivityStatus(conversation.isOnline, conversation.lastSeen);
           const isOnline = status === 'active';
           const isAway = status === 'away';
-          if (isOnline === conversation.isOnline && isAway === conversation.isAway) return conversation;
+          if (isOnline === conversation.isOnline && isAway === conversation.isAway)
+            return conversation;
           changed = true;
           return { ...conversation, isOnline, isAway };
         });
@@ -591,16 +593,18 @@ export default function MessagesTab() {
                   {/* Convo Details */}
                   <View style={stylesheet.convoInfo}>
                     <View style={stylesheet.convoTopRow}>
-                      <Text
-                        style={[
-                          stylesheet.name,
-                          item.unreadCount > 0 && { fontFamily: 'Outfit-Bold' },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {item.participantName}
-                      </Text>
-                      {item.participantVerified && <VerifiedBadge size={14} />}
+                      <View style={stylesheet.convoNameRow}>
+                        <Text
+                          style={[
+                            stylesheet.name,
+                            item.unreadCount > 0 && { fontFamily: 'Outfit-Bold' },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {item.participantName}
+                        </Text>
+                        {item.participantVerified && <VerifiedBadge size={14} />}
+                      </View>
                       <Text
                         style={[
                           stylesheet.time,
@@ -838,8 +842,21 @@ const _stylesheet = StyleSheet.create((theme) => ({
     alignItems: 'center',
     marginBottom: 3,
   },
-  name: { fontFamily: 'Outfit-SemiBold', fontSize: 15, color: theme.colors.TEXT_PRIMARY, flex: 1 },
-  time: { fontFamily: 'Inter-Regular', fontSize: 12, color: theme.colors.LABEL },
+  convoNameRow: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginRight: 8,
+  },
+  name: {
+    fontFamily: 'Outfit-SemiBold',
+    fontSize: 15,
+    color: theme.colors.TEXT_PRIMARY,
+    flexShrink: 1,
+  },
+  time: { fontFamily: 'Inter-Regular', fontSize: 12, color: theme.colors.LABEL, flexShrink: 0 },
   convoBottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   lastMsg: {
     fontFamily: 'Inter-Regular',

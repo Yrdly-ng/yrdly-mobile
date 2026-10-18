@@ -1,3 +1,4 @@
+import { getGiphyMediaUrl, type GiphyGif } from '@/lib/messages/giphy';
 import { privateMediaReference } from '@/lib/media/private-media';
 import { usePrivateMedia } from '@/hooks/media/use-private-media';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
@@ -21,7 +22,6 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import ImagePicker from 'react-native-image-crop-picker';
 import { useIsFocused } from 'expo-router/react-navigation';
-import * as FileSystem from 'expo-file-system/legacy';
 import * as Crypto from 'expo-crypto';
 import { StorageService, type MobileFile } from '@/lib/media/storage-service';
 import NetInfo from '@react-native-community/netinfo';
@@ -46,6 +46,8 @@ interface Message {
   text?: string;
   content?: string;
   media_url?: string;
+  image_url?: string | null;
+  video_url?: string | null;
   media_type?: string;
   created_at: string;
   is_read?: boolean;
@@ -70,16 +72,7 @@ interface ConversationMeta {
   business_image?: string;
 }
 
-interface GiphyResult {
-  id: string;
-  title: string;
-  images: {
-    fixed_height_small?: { url: string };
-    downsized?: { url: string };
-    downsized_large?: { url: string };
-    original?: { url: string };
-  };
-}
+type GiphyResult = GiphyGif;
 
 const giphyApiKey = process.env.EXPO_PUBLIC_GIPHY_API_KEY;
 
@@ -183,7 +176,9 @@ function ChatContent() {
   const [avatarError, setAvatarError] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const mediaUrls = usePrivateMedia(
-    messages.map((message) => message.media_url).filter((value): value is string => !!value),
+    messages
+      .map((message) => message.media_url || message.image_url || message.video_url)
+      .filter((value): value is string => !!value),
     user?.id,
     isFocused
   );
@@ -1001,37 +996,31 @@ function ChatContent() {
   };
 
   const sendGif = async (gif: GiphyResult) => {
-    const gifUrl =
-      gif.images.downsized_large?.url || gif.images.downsized?.url || gif.images.original?.url;
-    if (!gifUrl || !FileSystem.cacheDirectory) {
-      Alert.alert('GIF unavailable', 'This GIF could not be downloaded. Please choose another.');
-      return;
-    }
-
+    if (!user || !id || pickingMedia.current || uploadingMedia) return;
+    pickingMedia.current = true;
     setSendingGifId(gif.id);
     try {
-      const fileName = `giphy-${Crypto.randomUUID()}.gif`;
-      const download = await FileSystem.downloadAsync(
-        gifUrl,
-        `${FileSystem.cacheDirectory}${fileName}`
-      );
-      if (download.status < 200 || download.status >= 300) {
-        throw new Error('Could not download this GIF. Please try another.');
-      }
-      const fileInfo = await FileSystem.getInfoAsync(download.uri);
-      if (fileInfo.exists && fileInfo.size && fileInfo.size > 15 * 1024 * 1024) {
-        await FileSystem.deleteAsync(download.uri, { idempotent: true });
-        throw new Error('This GIF is too large to send. Choose a smaller one.');
-      }
-
-      await uploadAndSendMedia({ uri: download.uri, type: 'image/gif', name: fileName });
+      const source = getGiphyMediaUrl(gif);
+      const message: Message = {
+        id: Crypto.randomUUID(),
+        sender_id: user.id,
+        created_at: new Date().toISOString(),
+        conversation_id: id,
+        text: '',
+        media_type: 'image',
+        media_url: source,
+        local_status: 'sending',
+      };
+      pendingMessages.current.set(message.id, message);
+      persistOutbox();
+      autoScroll.current = true;
+      setMessages((previous) => [...previous, message]);
       setGifPickerVisible(false);
+      await deliverMessage(message);
     } catch (error) {
-      Alert.alert(
-        'GIF not sent',
-        error instanceof Error ? error.message : 'Please check your connection and try again.'
-      );
+      Alert.alert('GIF not sent', error instanceof Error ? error.message : 'Please try again.');
     } finally {
+      pickingMedia.current = false;
       setSendingGifId(null);
     }
   };
@@ -1090,7 +1079,13 @@ function ChatContent() {
           try {
             const { error: delErr } = await supabase
               .from('messages')
-              .update({ text: 'This message was deleted', media_url: null, media_type: null })
+              .update({
+                text: 'This message was deleted',
+                media_url: null,
+                media_type: null,
+                image_url: null,
+                video_url: null,
+              })
               .eq('id', item.id);
 
             if (delErr) {
@@ -1110,6 +1105,8 @@ function ChatContent() {
                       ...m,
                       text: 'This message was deleted',
                       media_url: undefined,
+                      image_url: undefined,
+                      video_url: undefined,
                       media_type: undefined,
                     }
                   : m
@@ -1165,11 +1162,18 @@ function ChatContent() {
 
     const isMine = item.sender_id === user?.id;
     const msgText = item.text || item.content || '';
+    const reference = item.media_url || item.image_url || item.video_url;
+    const mediaType =
+      item.media_type || (item.video_url ? 'video' : item.image_url ? 'image' : undefined);
     const imgUrl =
-      item.media_type === 'image' ? item.local_asset?.uri || mediaUrls[item.media_url] : null;
+      mediaType === 'image'
+        ? item.local_asset?.uri || (reference ? mediaUrls[reference] : null)
+        : null;
     const vidUrl =
-      item.media_type === 'video' ? item.local_asset?.uri || mediaUrls[item.media_url] : null;
-    const hasMedia = !!item.media_url || !!item.local_asset;
+      mediaType === 'video'
+        ? item.local_asset?.uri || (reference ? mediaUrls[reference] : null)
+        : null;
+    const hasMedia = !!reference || !!item.local_asset;
 
     return (
       <View style={[stylesheet.msgRow, isMine ? stylesheet.msgRowRight : stylesheet.msgRowLeft]}>
@@ -1555,13 +1559,20 @@ function ChatContent() {
             </View>
           )}
           <View style={{ flex: 1 }}>
-            <Text
-              style={{ fontFamily: 'Outfit-Bold', fontSize: 15, color: theme.colors.TEXT_PRIMARY }}
-              numberOfLines={1}
-            >
-              {title}
-            </Text>
-            {!isBusinessChat && otherUser?.phone_verified && <VerifiedBadge size={15} />}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, minWidth: 0 }}>
+              <Text
+                style={{
+                  fontFamily: 'Outfit-Bold',
+                  fontSize: 15,
+                  color: theme.colors.TEXT_PRIMARY,
+                  flexShrink: 1,
+                }}
+                numberOfLines={1}
+              >
+                {title}
+              </Text>
+              {!isBusinessChat && otherUser?.phone_verified && <VerifiedBadge size={15} />}
+            </View>
             <Text style={{ fontFamily: 'Inter-Regular', fontSize: 12, color: theme.colors.LABEL }}>
               {`@${otherUser?.username || otherUser?.name || 'user'}`}
             </Text>
