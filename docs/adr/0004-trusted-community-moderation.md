@@ -17,3 +17,10 @@ Verification: `pnpm test:release` passed all 73 tests, including isolated Postgr
 Release remains separate: apply the migration once to the shared Supabase project, deploy `process-community-jobs` plus the updated push sender/outbox worker from web, and deploy the web changes. Confirm the periodic job uses the existing Vault `project_url` and `service_role_key` credentials and that text/image moderation credentials are available. Exercise admission, invitation, moderation, and notification taps with real test accounts before distribution. Mobile changes require a later user-authorized app release.
 
 The command payload interface still accepts a general record; the database remains the authority for validation. A discriminated TypeScript payload map is an optional follow-up to improve compile-time feedback.
+
+
+### Compatibility and production rollout
+
+Installed versions use direct table writes. Invoker triggers adapt their membership, request, and moderation actions to the checked command implementation. Existing clients can still join, mute, leave, submit text, and review requests. Direct content insertion always creates a trusted pending review; only legacy inserts enqueue through the compatibility trigger, avoiding duplicate jobs for command callers. Legacy clients must update before attaching community media. Focused verification after this addition: all 19 communities tests passed.
+
+Production history contains previously applied migrations absent from these checkouts. Deploy using an isolated folder populated by `supabase migration fetch --linked`, then add the new migration and confirm the dry run includes only that migration. Do not revert existing history or replay unrelated schema changes.

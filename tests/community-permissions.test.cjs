@@ -277,3 +277,33 @@ test('stored attachment MIME and size determine photo and video eligibility', as
     videoUrls: [],
   });
 });
+
+test('installed clients can join, mute, leave and post through guarded legacy table writes',async()=>{
+ await actor(4);
+ await db.query("INSERT INTO community_memberships(community_id,user_id,role,status,is_auto_joined) VALUES($1,$2,'member','active',false)",[id(100),id(4)]);
+ await db.query('UPDATE community_memberships SET is_muted=true WHERE community_id=$1 AND user_id=$2',[id(100),id(4)]);
+ const post=(await db.query("INSERT INTO community_posts(community_id,author_id,content,moderation_status) VALUES($1,$2,'Legacy client update','approved') RETURNING id,moderation_status",[id(100),id(4)])).rows[0];
+ assert.equal(post.moderation_status,'pending');
+ await db.query('DELETE FROM community_memberships WHERE community_id=$1 AND user_id=$2',[id(100),id(4)]);
+ assert.equal((await db.query('SELECT status FROM community_memberships WHERE community_id=$1 AND user_id=$2',[id(100),id(4)])).rows[0].status,'left');
+ await db.exec('RESET ROLE');
+ assert.equal((await db.query('SELECT count(*)::int AS count FROM community_content_reviews WHERE target_id=$1',[post.id])).rows[0].count,1);
+});
+
+test('legacy request approval is atomic and old clients cannot remove their own ban',async()=>{
+ await db.exec("UPDATE communities SET privacy='request'");
+ await actor(4);
+ await db.query("INSERT INTO community_join_requests(community_id,user_id,message) VALUES($1,$2,'Please join')",[id(100),id(4)]);
+ await actor(1);
+ await db.query("UPDATE community_join_requests SET status='approved' WHERE community_id=$1 AND user_id=$2",[id(100),id(4)]);
+ await action('ban',{userId:id(4)});
+ await actor(4);
+ await assert.rejects(db.query('DELETE FROM community_memberships WHERE community_id=$1 AND user_id=$2',[id(100),id(4)]),/banned/);
+});
+
+test('new commands enqueue one review while legacy inserts keep their own trusted review',async()=>{
+ await actor(3);
+ const created=await action('submit_post',{content:'One review please',imageUrls:[],videoUrls:[]});
+ await db.exec('RESET ROLE');
+ assert.equal((await db.query('SELECT count(*)::int AS count FROM community_content_reviews WHERE target_id=$1',[created.id])).rows[0].count,1);
+});
