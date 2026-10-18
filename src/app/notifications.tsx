@@ -289,6 +289,7 @@ export default function NotificationsScreen() {
                 onPress={async () => {
                   const notificationData = {
                     ...(item.data || {}),
+                    data:item.data,
                     type: item.type,
                     relatedId: item.related_id,
                   };

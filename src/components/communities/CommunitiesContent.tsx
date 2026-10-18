@@ -45,6 +45,17 @@ export function CommunitiesContent({
 
   const [tab, setTab] = useState<'mine' | 'discover'>('mine');
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [invitations, setInvitations] = useState<any[]>([]);
+  const [loadError, setLoadError] = useState('');
+  const [discoverHasMore, setDiscoverHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const discoverPage = useRef(0);
+  const discoverRequest = useRef(0);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query), 250);
+    return () => clearTimeout(timer);
+  }, [query]);
   const [myComms, setMyComms] = useState<Community[]>([]);
   const [privateOwner, setPrivateOwner] = useState<string | null>(null);
   const currentOwner = useRef(user?.id);
@@ -55,9 +66,13 @@ export function CommunitiesContent({
   }, [user?.id]);
   const [discovered, setDiscovered, communitiesCached] = useCachedRecords<Community>(
     'communities',
-    JSON.stringify([profile?.home_state, query])
+    JSON.stringify([profile?.home_state, debouncedQuery])
   );
   const [submissions, setSubmissions] = useState<Community[]>([]);
+  const discoveredRef = useRef(discovered);
+  useLayoutEffect(() => {
+    discoveredRef.current = discovered;
+  }, [discovered]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -76,9 +91,20 @@ export function CommunitiesContent({
     const owner = user?.id,
       request = ++mineRequest.current;
     if (!owner) return;
-    const data = await CommunityService.listMyCommunities().catch(() => []);
+    let data: Community[], invites: any[];
+    try {
+      [data, invites] = await Promise.all([
+        CommunityService.listMyCommunities(),
+        CommunityService.listInvitations(owner),
+      ]);
+    } catch (error: any) {
+      if (currentOwner.current === owner)
+        setLoadError(error.message || 'Could not refresh your communities.');
+      return;
+    }
     if (currentOwner.current !== owner || mineRequest.current !== request) return;
     setMyComms(data);
+    setInvitations(invites);
     setPrivateOwner(owner);
   }, [user?.id]);
 
@@ -97,6 +123,7 @@ export function CommunitiesContent({
 
   useEffect(() => {
     setMyComms([]);
+    setInvitations([]);
     setSubmissions([]);
     setPendingNames([]);
     setPrivateOwner(null);
@@ -104,23 +131,31 @@ export function CommunitiesContent({
   }, [user?.id]);
 
   const loadDiscover = useCallback(
-    async (q?: string) => {
+    async (q?: string, append = false) => {
+      const request = ++discoverRequest.current;
       try {
+        const nextPage = append ? discoverPage.current + 1 : 0;
         const data = await CommunityService.discoverCommunities({
           state: profile?.home_state ?? undefined,
-          query: q ?? query,
+          query: q ?? debouncedQuery,
+          page: nextPage,
         });
+        if (request !== discoverRequest.current) return;
+        discoverPage.current = nextPage;
+        setDiscoverHasMore(data.length === 30);
         setDiscovered(
-          data.filter(
+          [...(append ? discoveredRef.current : []), ...data].filter(
             (community) =>
               community.approval_status === 'approved' && community.privacy !== 'invite'
           )
         );
-      } catch {
+      } catch (error: any) {
+        if (request === discoverRequest.current)
+          setLoadError(error.message || 'Could not refresh communities.');
         /* Keep public cached metadata visible offline. */
       }
     },
-    [profile?.home_state, query, setDiscovered]
+    [profile?.home_state, debouncedQuery, setDiscovered]
   );
 
   useEffect(() => {
@@ -128,17 +163,37 @@ export function CommunitiesContent({
       .channel('communities-directory')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'communities' }, () => {
         void loadMine();
-        void loadDiscover(query);
+        void loadDiscover(debouncedQuery);
         void loadSubmissions();
       })
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'community_memberships',
+          filter: `user_id=eq.${user?.id}`,
+        },
+        () => void loadMine()
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'community_invites',
+          filter: `invited_user_id=eq.${user?.id}`,
+        },
+        () => void loadMine()
+      )
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [loadMine, loadDiscover, loadSubmissions, query]);
+  }, [loadMine, loadDiscover, loadSubmissions, debouncedQuery, user?.id]);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    setLoadError('');
     await Promise.all([loadMine(), loadDiscover(), loadSubmissions()]);
     setLoading(false);
   }, [loadMine, loadDiscover, loadSubmissions]);
@@ -203,8 +258,8 @@ export function CommunitiesContent({
 
   const submitCommunity = async () => {
     if (submissionInFlight.current || awaitingApproval) return;
-    if (!user?.id || !name.trim() || !description.trim()) {
-      Alert.alert('Missing details', 'Add a community name and description to continue.');
+    if (!user?.id || name.trim().length < 3 || !description.trim()) {
+      Alert.alert('Missing details', 'Use a name of at least 3 characters and add a description.');
       return;
     }
     submissionInFlight.current = true;
@@ -236,7 +291,12 @@ export function CommunitiesContent({
 
   const sections = useMemo(() => {
     if (tab === 'mine') {
-      return privateOwner === user?.id && myComms.length > 0 ? [{ title: '', data: myComms }] : [];
+      const matching = myComms.filter((community) =>
+        community.name.toLowerCase().includes(query.trim().toLowerCase())
+      );
+      return privateOwner === user?.id && matching.length > 0
+        ? [{ title: '', data: matching }]
+        : [];
     }
     if (query.trim()) {
       return discovered.length > 0 ? [{ title: 'Search Results', data: discovered }] : [];
@@ -378,6 +438,56 @@ export function CommunitiesContent({
         </View>
       )}
 
+      {!!loadError && (
+        <Text accessibilityRole="alert" style={{ color: '#ef4444', padding: 16 }}>
+          {loadError} Pull down to try again.
+        </Text>
+      )}
+      {privateOwner === user?.id &&
+        invitations.map((invitation) => (
+          <View
+            key={invitation.id}
+            style={{
+              marginHorizontal: 16,
+              paddingVertical: 12,
+              borderBottomWidth: 1,
+              borderColor: theme.colors.GLASS_BORDER,
+            }}
+          >
+            <Text style={{ color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-SemiBold' }}>
+              Invitation: {invitation.community?.name || 'Community'}
+            </Text>
+            <Text style={{ color: theme.colors.LABEL }}>
+              Expires {new Date(invitation.expires_at).toLocaleDateString()}
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 24 }}>
+              {(['accept_invite', 'decline_invite'] as const).map((action) => (
+                <TouchableOpacity
+                  key={action}
+                  onPress={async () => {
+                    if (submissionInFlight.current) return;
+                    submissionInFlight.current = true;
+                    try {
+                      await CommunityService.command(invitation.community_id, action);
+                      await load();
+                      if (action === 'accept_invite')
+                        router.push(`/communities/${invitation.community_id}` as any);
+                    } catch (error: any) {
+                      Alert.alert('Could not respond', error.message || 'Please try again.');
+                    } finally {
+                      submissionInFlight.current = false;
+                    }
+                  }}
+                  style={{ paddingVertical: 12 }}
+                >
+                  <Text style={{ color: theme.colors.G }}>
+                    {action === 'accept_invite' ? 'Accept' : 'Decline'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        ))}
       {communitiesCached && (
         <Text style={{ color: theme.colors.MUTED, paddingHorizontal: 16, fontSize: 12 }}>
           Saved public communities · reconnect to refresh
@@ -392,6 +502,7 @@ export function CommunitiesContent({
       >
         <MagnifyingGlass size={18} color={theme.colors.LABEL} />
         <TextInput
+          accessibilityLabel="Search communities"
           style={[s.searchInput, { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-Regular' }]}
           value={query}
           onChangeText={onSearch}
@@ -432,6 +543,13 @@ export function CommunitiesContent({
           stickySectionHeadersEnabled={false}
           sections={sections}
           keyExtractor={(c) => c.id}
+          onEndReached={() => {
+            if (tab !== 'discover' || !discoverHasMore || loadingMore) return;
+            setLoadingMore(true);
+            void loadDiscover(undefined, true).finally(() => setLoadingMore(false));
+          }}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={loadingMore ? <ActivityIndicator color={theme.colors.G} /> : null}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
           refreshControl={
             <RefreshControl

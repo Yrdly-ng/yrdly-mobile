@@ -79,6 +79,7 @@
   },
   "devDependencies": {
     "@e2e-dev/mobile": "^0.8.1",
+    "@electric-sql/pglite": "0.3.14",
     "@types/mapbox__polyline": "^1.0.5",
     "@types/react": "~19.2.3",
     "babel-preset-expo": "~57.0.2",
@@ -90,7 +91,7 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
-    "test:release": "node --test tests/release-contract.test.cjs tests/video-editing.test.cjs tests/onboarding-contrast.test.cjs tests/offline-cache.test.cjs tests/alert-creation.test.cjs",
+    "test:release": "node --test tests/release-contract.test.cjs tests/video-editing.test.cjs tests/onboarding-contrast.test.cjs tests/offline-cache.test.cjs tests/alert-creation.test.cjs tests/community-permissions.test.cjs tests/community-jobs.test.cjs tests/community-routing.test.cjs",
     "typecheck": "tsc --noEmit",
     "start": "expo start",
     "android": "expo run:android",

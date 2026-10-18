@@ -98,8 +98,11 @@ export function getMobileNotificationDestination({
     case 'payout_processed':
     case 'payout_failed':
       return '/settings/payout-settings';
-    case 'community_update':
-      return '/(tabs)/catalog?tab=Discover&mode=circle';
+    case 'community_update': {
+      const communityId=firstId(data?.communityId,data?.community_id,relatedId);
+      const postId=firstId(data?.postId,data?.post_id);
+      return communityId?postId?`/communities/${communityId}/posts/${postId}`:`/communities/${communityId}`:'/communities';
+    }
     case 'welcome':
     case 'system_announcement':
       return '/notifications';
@@ -143,6 +146,12 @@ export function getNotificationTarget(data: Record<string, unknown>): {
   fallback: string;
 } | null {
   const type = typeof data.type === 'string' ? data.type : '';
+  if(type==='community_update') {
+    const communityId=firstId(data.communityId,data.community_id,data.relatedId);
+    const postId=firstId(data.postId,data.post_id);
+    if(!communityId)return null;
+    return postId?{table:'community_posts',id:postId,fallback:`/communities/${communityId}`}:{table:'communities',id:communityId,fallback:'/communities'};
+  }
   if (['message', 'message_reaction', 'marketplace_message'].includes(type)) {
     const id = firstId(data.conversationId, data.conversation_id, data.relatedId);
     if (!id) return null;
