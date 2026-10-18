@@ -23,8 +23,7 @@ import * as SecureStore from 'expo-secure-store';
 import { AlertService } from '../lib/alerts/alert-service';
 import {
   addNotificationId,
-  getNotificationTarget,
-  getMobileNotificationDestination,
+  resolveNotificationNavigation,
 } from '../lib/notifications/notification-routing';
 
 interface Notification {
@@ -39,6 +38,7 @@ interface Notification {
   from_user_name?: string;
   from_user_avatar?: string;
   related_id?: string;
+  related_type?: string;
 }
 
 const FILTER_TABS = ['All', 'Alerts', 'Community', 'Unread', 'Marketplace', 'Events'];
@@ -120,6 +120,7 @@ export default function NotificationsScreen() {
           from_user_name: sender?.name || notif.data?.fromUserName || notif.data?.from_user_name,
           from_user_avatar: sender?.avatar_url || notif.data?.from_user_avatar,
           related_id: notif.related_id,
+          related_type: notif.related_type,
         };
       }) as Notification[];
 
@@ -289,48 +290,40 @@ export default function NotificationsScreen() {
                 onPress={async () => {
                   const notificationData = {
                     ...(item.data || {}),
-                    data:item.data,
+                    data: item.data,
                     type: item.type,
                     relatedId: item.related_id,
+                    relatedType: item.related_type,
+                    fromUserId: item.from_user_id,
                   };
-                  let destination = getMobileNotificationDestination(notificationData);
-                  const target = getNotificationTarget(notificationData);
-                  if (target) {
-                    const tables =
-                      target.table === 'alerts' ? ['alerts', 'safety_alerts'] : [target.table];
-                    let found = false;
-                    let lookupSucceeded = false;
-                    try {
-                      for (const table of tables) {
-                        const { data, error } = await supabase
-                          .from(table)
-                          .select('id')
-                          .eq('id', target.id)
-                          .maybeSingle();
-                        if (!error) {
-                          lookupSucceeded = true;
-                          if (data) {
-                            found = true;
-                            break;
-                          }
-                        }
-                      }
-                    } catch {
-                      // Continue to the destination; the detail screen handles transient failures.
+                  const result = await resolveNotificationNavigation(
+                    notificationData,
+                    async (table, id) => {
+                      const { data, error } = await supabase
+                        .from(table)
+                        .select('id')
+                        .eq('id', id)
+                        .maybeSingle();
+                      return { found: !!data, error };
                     }
-                    if (lookupSucceeded && !found) {
-                      Alert.alert(
-                        'This item is no longer available',
-                        'We could not find the item linked to this notification. You can continue from the related list.'
-                      );
-                      destination = target.fallback;
-                      router.push(
-                        `${addNotificationId(destination, item.id)}${destination.includes('?') ? '&' : '?'}targetUnavailable=1` as any
-                      );
-                      return;
-                    }
+                  );
+                  const { data: session } = await supabase.auth.getSession();
+                  if (session.session?.user.id !== user?.id) return;
+                  if (result.failed) {
+                    Alert.alert('Could not open notification', 'Please try again.');
+                    return;
                   }
-                  router.push(addNotificationId(destination, item.id) as any);
+                  if (result.unavailable)
+                    Alert.alert(
+                      'This item is no longer available',
+                      'It was removed or is no longer accessible.'
+                    );
+                  const route = addNotificationId(result.destination, item.id);
+                  router.push(
+                    (result.unavailable
+                      ? `${route}${route.includes('?') ? '&' : '?'}targetUnavailable=1`
+                      : route) as any
+                  );
                 }}
               >
                 <View style={stylesheet.avatarWrapper}>

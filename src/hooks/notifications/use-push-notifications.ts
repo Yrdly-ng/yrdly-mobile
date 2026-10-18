@@ -11,8 +11,8 @@ import { isCrispPushNotification, registerPushToken } from 'crisp-sdk-react-nati
 import { openCrispChat } from '@/components/CrispChat';
 import {
   addNotificationId,
-  getPushNotificationDestination,
-  getNotificationTarget,
+  normalizeNotificationPayload,
+  resolveNotificationNavigation,
   shouldSuppressForegroundNotification,
 } from '@/lib/notifications/notification-routing';
 
@@ -99,7 +99,7 @@ export function usePushNotifications() {
     if (requestId) processingResponsesRef.current.add(requestId);
     let processed = false;
     try {
-      const data = response.notification.request.content.data ?? {};
+      const data = normalizeNotificationPayload(response.notification.request.content.data ?? {});
       if (isCrispNotificationData(data)) {
         openCrispChat();
         processed = true;
@@ -151,45 +151,31 @@ export function usePushNotifications() {
         return;
       }
 
-      let destination = getPushNotificationDestination(data as Record<string, unknown>);
-      const target = getNotificationTarget(data as Record<string, unknown>);
-      if (target) {
-        const tables = target.table === 'alerts' ? ['alerts', 'safety_alerts'] : [target.table];
-        let found = false;
-        let lookupSucceeded = false;
-        for (const table of tables) {
-          const { data: row, error } = await supabase
-            .from(table)
-            .select('id')
-            .eq('id', target.id)
-            .maybeSingle();
-          if (!error) {
-            lookupSucceeded = true;
-            if (row) {
-              found = true;
-              break;
-            }
-          }
-        }
-        if (userIdRef.current !== currentUserId) {
-          if (!userIdRef.current) queuedResponseRef.current = response;
-          return;
-        }
-        if (lookupSucceeded && !found) {
-          Alert.alert(
-            'This item is no longer available',
-            'We could not find the item linked to this notification. You can continue from the related list.'
-          );
-          destination = target.fallback;
-        }
+      const result = await resolveNotificationNavigation(data, async (table, id) => {
+        const { data: row, error } = await supabase
+          .from(table)
+          .select('id')
+          .eq('id', id)
+          .maybeSingle();
+        return { found: !!row, error };
+      });
+      if (result.failed) {
+        Alert.alert('Could not open notification', 'Please try tapping the notification again.');
+        return;
       }
+      if (result.unavailable)
+        Alert.alert(
+          'This item is no longer available',
+          'It was removed or is no longer accessible.'
+        );
+      const destination = result.destination;
       if (userIdRef.current !== currentUserId) {
         if (!userIdRef.current) queuedResponseRef.current = response;
         return;
       }
       const route = addNotificationId(destination, notificationId);
       router.push(
-        (target && destination === target.fallback
+        (result.unavailable
           ? `${route}${route.includes('?') ? '&' : '?'}targetUnavailable=1`
           : route) as any
       );
@@ -209,7 +195,7 @@ export function usePushNotifications() {
 
     Notifications.setNotificationHandler({
       handleNotification: async (incoming) => {
-        const data = incoming.request.content.data ?? {};
+        const data = normalizeNotificationPayload(incoming.request.content.data ?? {});
         if (
           isCrispNotificationData(data) ||
           shouldSuppressForegroundNotification(data as Record<string, unknown>, pathnameRef.current)

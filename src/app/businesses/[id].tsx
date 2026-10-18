@@ -328,7 +328,7 @@ export default function BusinessProfileScreen() {
   const { theme } = useUnistyles();
   const sStylesheet = stylesheet;
 
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, tab } = useLocalSearchParams<{ id: string; tab?: string }>();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
@@ -340,7 +340,10 @@ export default function BusinessProfileScreen() {
   const [loading, setLoading] = useState(true);
   useNotificationRouteAcknowledgement(!loading && !!business);
 
-  const [activeTab, setActiveTab] = useState<Tab>('catalog');
+  const [activeTab, setActiveTab] = useState<Tab>(tab === 'reviews' ? 'reviews' : 'catalog');
+  useEffect(() => {
+    if (tab === 'reviews') setActiveTab('reviews');
+  }, [tab]);
   const [isCustomerView, setIsCustomerView] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [catalogSheet, setCatalogSheet] = useState<CatalogItem | null>(null);

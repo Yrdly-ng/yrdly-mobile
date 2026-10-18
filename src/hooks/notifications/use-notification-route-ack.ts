@@ -40,7 +40,7 @@ export function useNotificationRouteAcknowledgement(targetLoaded: boolean) {
 
       const { data, error } = await supabase
         .from('notifications')
-        .select('type, related_id, data')
+        .select('type, related_id, related_type, sender_id, data')
         .eq('id', notificationId)
         .eq('user_id', user.id)
         .maybeSingle();
@@ -49,13 +49,18 @@ export function useNotificationRouteAcknowledgement(targetLoaded: boolean) {
         ...(data.data as Record<string, unknown>),
         type: data.type,
         relatedId: data.related_id,
+        relatedType: data.related_type,
+        fromUserId: data.sender_id,
       };
       const target = getNotificationTarget(notificationData);
       const expectedPath =
         targetUnavailable === '1' && target
-          ? target.fallback
+          ? target.table === 'community_posts' && pathname === '/communities'
+            ? '/communities'
+            : target.fallback
           : getPushNotificationDestination(notificationData).split('?')[0];
-      const normalizePath = (value: string) => value.replace(/\/\([^/]+\)/g, '') || '/';
+      const normalizePath = (value: string) =>
+        value.split(/[?#]/)[0].replace(/\/\([^/]+\)/g, '') || '/';
       if (normalizePath(pathname) !== normalizePath(expectedPath)) return;
 
       // Recheck existence after the detail route has loaded to avoid acknowledging

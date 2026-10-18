@@ -1,5 +1,6 @@
 import { supabase } from '../supabase/supabase';
 import { api } from '../network/api';
+import { getMobileNotificationDestination } from './notification-routing';
 
 export interface NotificationData {
   id: string;
@@ -60,7 +61,13 @@ export type NotificationType =
   | 'booking_cancelled'
   | 'booking_late_cancelled'
   | 'booking_no_show'
-  | 'booking_reminder';
+  | 'booking_reminder'
+  | 'payment_refunded'
+  | 'quote_estimated'
+  | 'quote_converted'
+  | 'appeal_decided'
+  | 'safety_alert'
+  | 'alert';
 
 export interface CreateNotificationParams {
   userId: string;
@@ -762,49 +769,10 @@ export class NotificationService {
 /**
  * Get notification URL based on type and related ID
  */
-function getNotificationUrl(type: NotificationType, relatedId?: string | null): string {
-  switch (type) {
-    case 'friend_request':
-    case 'friend_request_accepted':
-    case 'friend_request_declined':
-      return '/catalog?tab=Discover&circleMode=circle';
-    case 'message':
-    case 'message_reaction':
-      return relatedId ? `/messages/${relatedId}` : '/messages';
-    case 'post_like':
-    case 'post_share':
-      return relatedId ? `/posts/${relatedId}` : '/home';
-    case 'post_comment':
-      return relatedId ? `/posts/${relatedId}?focusComments=true` : '/home';
-    case 'event_invite':
-    case 'event_reminder':
-    case 'event_cancelled':
-    case 'event_updated':
-      return '/events';
-    case 'ticket':
-    case 'ticket_purchase':
-    case 'ticket_confirmed':
-    case 'event_rsvp':
-      return '/tickets';
-    case 'marketplace_item_sold':
-    case 'marketplace_item_interest':
-    case 'marketplace_message':
-      return '/marketplace';
-    case 'payment_successful':
-    case 'item_shipped':
-    case 'delivery_confirmed':
-    case 'funds_released':
-    case 'dispute_opened':
-    case 'dispute_resolved':
-    case 'payout_processed':
-    case 'payout_failed':
-      return relatedId ? `/transactions/${relatedId}` : '/transactions';
-    case 'community_update':
-    case 'system_announcement':
-    case 'profile_view':
-    case 'mention':
-    case 'welcome':
-    default:
-      return '/home';
-  }
+function getNotificationUrl(
+  type: NotificationType,
+  relatedId?: string | null,
+  data?: Record<string, any> | null
+): string {
+  return getMobileNotificationDestination({ type, relatedId, data });
 }

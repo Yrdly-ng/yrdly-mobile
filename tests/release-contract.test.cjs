@@ -54,7 +54,7 @@ test('typed push payloads route correctly without a URL, and explicit web URLs a
   );
   assert.equal(
     getPushNotificationDestination({ type: 'business_review_received', businessId: 'business-1' }),
-    '/businesses/business-1'
+    '/businesses/business-1?tab=reviews'
   );
   assert.equal(
     getPushNotificationDestination({ type: 'message', url: '/messages/conversation-2' }),
