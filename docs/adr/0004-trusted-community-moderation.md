@@ -24,3 +24,10 @@ The command payload interface still accepts a general record; the database remai
 Installed versions use direct table writes. Invoker triggers adapt their membership, request, and moderation actions to the checked command implementation. Existing clients can still join, mute, leave, submit text, and review requests. Direct content insertion always creates a trusted pending review; only legacy inserts enqueue through the compatibility trigger, avoiding duplicate jobs for command callers. Legacy clients must update before attaching community media. Focused verification after this addition: all 19 communities tests passed.
 
 Production history contains previously applied migrations absent from these checkouts. Deploy using an isolated folder populated by `supabase migration fetch --linked`, then add the new migration and confirm the dry run includes only that migration. Do not revert existing history or replay unrelated schema changes.
+
+
+### Production execution
+
+Both communities migrations were applied to shared project `yoiyqxtpmxnrrbqqidcs`. The follow-up `20261018172756_fix_community_legacy_insert_policy_recursion.sql` removes old insert-policy cycles while retaining checked legacy commands. Production rollback-only verification passed legacy join/post/leave and command submission and confirmed client-supplied publication stays pending. No fixture data was retained.
+
+The community processor, push sender, and push outbox functions were deployed. The every-minute scheduler is active, moderation credentials exist, and the worker processed the migrated backlog. The pre-existing advisor warning about the public profile projection view is outside these changes. Native UI/device validation awaits a separately authorized mobile release; no APK/IPA build was requested or started during this rollout.

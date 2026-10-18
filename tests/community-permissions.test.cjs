@@ -46,6 +46,7 @@ before(async () => {
   }
   await db.exec(`CREATE TABLE public.community_invites(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),community_id uuid REFERENCES communities(id),invited_user_id uuid REFERENCES users(id),invited_by uuid REFERENCES users(id),status text DEFAULT 'pending',created_at timestamptz DEFAULT now(),responded_at timestamptz,UNIQUE(community_id,invited_user_id));
     ALTER TABLE community_invites ENABLE ROW LEVEL SECURITY;
+    CREATE POLICY memberships_insert_invite ON community_memberships FOR INSERT WITH CHECK (EXISTS(SELECT 1 FROM communities c WHERE c.id=community_memberships.community_id AND c.privacy='invite'));
     CREATE POLICY memberships_insert_mod ON community_memberships FOR INSERT WITH CHECK (public.is_community_mod_or_admin(community_id,auth.uid()) AND status='active');
     GRANT USAGE ON SCHEMA public,auth TO authenticated;
     GRANT SELECT ON public.users TO authenticated;
@@ -56,6 +57,7 @@ before(async () => {
   if (!process.env.COMMUNITY_TEST_BASELINE) {
     try {
       await db.exec(fs.readFileSync(path.join(root, 'supabase/migrations', migration), 'utf8'));
+      await db.exec(fs.readFileSync(path.join(root, 'supabase/migrations', '20261018172756_fix_community_legacy_insert_policy_recursion.sql'), 'utf8'));
     } catch (error) {
       throw new Error(`${error.message} (position ${error.position}; ${error.where || ''})`);
     }
