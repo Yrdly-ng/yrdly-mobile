@@ -1,11 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { DeviceEventEmitter, TouchableOpacity } from 'react-native';
+import { Alert, DeviceEventEmitter, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/use-supabase-auth';
 import { supabase } from '@/lib/supabase/supabase';
+import { useRouter } from 'expo-router';
 import type { Post } from '@/types/index';
 export function MarketplaceFavorite({ item }: { item: Post }) {
   const { user } = useAuth();
+  const router = useRouter();
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const busy = useRef(false);
   const revision = useRef(0);
@@ -41,8 +44,16 @@ export function MarketplaceFavorite({ item }: { item: Post }) {
   }, [item.id, user?.id]);
 
   async function toggle() {
-    if (!user || busy.current) return;
+    if (!user) {
+      Alert.alert('Sign in to save listings', 'Keep this listing in your saved items.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign in', onPress: () => router.push('/(auth)/login') },
+      ]);
+      return;
+    }
+    if (busy.current) return;
     busy.current = true;
+    setSaving(true);
     revision.current++;
     const nextSaved = !saved;
     setSaved(nextSaved);
@@ -61,15 +72,18 @@ export function MarketplaceFavorite({ item }: { item: Post }) {
       });
     } catch {
       setSaved(!nextSaved);
+      Alert.alert('Could not update saved listing', 'Please try again.');
     } finally {
       busy.current = false;
+      setSaving(false);
     }
   }
   return (
     <TouchableOpacity
       accessibilityRole="button"
       accessibilityLabel={saved ? 'Unsave listing' : 'Save listing'}
-      accessibilityState={{ selected: saved }}
+      accessibilityState={{ selected: saved, busy: saving, disabled: saving }}
+      disabled={saving}
       hitSlop={8}
       onPress={(event) => {
         event.stopPropagation();

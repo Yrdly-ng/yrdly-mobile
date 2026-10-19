@@ -9,6 +9,7 @@ import {
   TouchableWithoutFeedback,
   ScrollView,
   Dimensions,
+  useWindowDimensions,
   Animated,
   FlatList,
   ActivityIndicator,
@@ -18,6 +19,7 @@ import {
 import { Image } from 'expo-image';
 import { Avatar } from '../../components/Avatar';
 import { MarketplaceFavorite } from '../../components/marketplace/MarketplaceFavorite';
+import { getListingCover, getListingPriceLabel } from '@/lib/marketplace/card-display';
 import { useCachedRecords } from '@/hooks/use-cached-records';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -183,6 +185,36 @@ function CategoryDropdown({ category, setCategory, options, theme, label = 'Cate
   );
 }
 
+function MarketplaceCover({ item }: { item: Post }) {
+  const { theme } = useUnistyles();
+  const imageUrl = getListingCover(item);
+  const [failedImage, setFailedImage] = useState<string>();
+  if (imageUrl && imageUrl !== failedImage) {
+    return (
+      <Image
+        source={{ uri: imageUrl }}
+        style={stylesheet.marketplaceCardImg}
+        contentFit="cover"
+        onError={() => setFailedImage(imageUrl)}
+      />
+    );
+  }
+  return (
+    <View
+      style={[
+        stylesheet.marketplaceCardImg,
+        {
+          backgroundColor: theme.colors.SURFACE_ALT,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+      ]}
+    >
+      <Ionicons name="bag-outline" size={28} color={theme.colors.MUTED} />
+    </View>
+  );
+}
+
 // ─── MARKETPLACE SECTION ─────────────────────────────────────────────────────
 function MarketplaceSection({
   currentLoc,
@@ -192,6 +224,8 @@ function MarketplaceSection({
   search: string;
 }) {
   const { theme } = useUnistyles();
+  const { width: viewportWidth, fontScale } = useWindowDimensions();
+  const columns = viewportWidth < 360 || fontScale >= 1.3 ? 1 : 2;
   const sStylesheet = stylesheet;
   const { activeFilter } = useLocation();
 
@@ -243,7 +277,9 @@ function MarketplaceSection({
               filter_condition: filterCondition !== 'Any' ? filterCondition : null,
               sort_order: filterSort,
             })
-            .select('*, user:public_profiles!posts_user_id_fkey(id,name,avatar_url,phone_verified)');
+            .select(
+              '*, user:public_profiles!posts_user_id_fkey(id,name,avatar_url,phone_verified)'
+            );
 
           if (search?.trim()) {
             q = q.ilike('title', `%${search.trim()}%`);
@@ -342,6 +378,7 @@ function MarketplaceSection({
         <ActivityIndicator color={theme.colors.G} style={{ marginTop: 40 }} />
       ) : (
         <FlatList
+          key={columns}
           data={items}
           ListHeaderComponent={
             isCached ? (
@@ -351,80 +388,84 @@ function MarketplaceSection({
             ) : null
           }
           keyExtractor={(i) => i.id}
-          numColumns={2}
+          numColumns={columns}
           showsVerticalScrollIndicator={false}
-          columnWrapperStyle={{ justifyContent: 'space-between' }}
+          columnWrapperStyle={columns === 2 ? { justifyContent: 'space-between' } : undefined}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100, gap: 16 }}
           renderItem={({ item }) => {
             return (
-              <TouchableOpacity
-                style={sStylesheet.marketplaceCard}
-                onPress={() => router.push(`/marketplace/${item.id}` as any)}
-                activeOpacity={0.9}
+              <View
+                style={[sStylesheet.marketplaceCard, { width: columns === 1 ? '100%' : '48%' }]}
               >
-                <View style={sStylesheet.marketplaceCardImgWrap}>
-                  {(() => {
-                    const imgUrl = Array.isArray(item.image_urls)
-                      ? item.image_urls[0]
-                      : item.image_url;
-                    return imgUrl ? (
-                      <Image
-                        source={{ uri: imgUrl }}
-                        style={sStylesheet.marketplaceCardImg}
-                        contentFit="cover"
-                      />
-                    ) : (
-                      <View
-                        style={[
-                          sStylesheet.marketplaceCardImg,
-                          { backgroundColor: theme.colors.SURFACE_ALT },
-                        ]}
-                      />
-                    );
-                  })()}
-                  <MarketplaceFavorite item={item} />
-                  <View style={sStylesheet.marketplaceCardCond}>
-                    <Text style={sStylesheet.marketplaceCardCondText}>
-                      {item.condition || 'Good'}
+                <TouchableOpacity
+                  onPress={() => router.push(`/marketplace/${item.id}` as any)}
+                  activeOpacity={0.9}
+                  accessibilityRole="link"
+                  accessibilityLabel={[
+                    item.title || item.text || 'Item',
+                    getListingPriceLabel(item.price, formatPrice),
+                    item.condition,
+                    item.user?.name || item.author_name,
+                    item.lga,
+                    item.state,
+                  ]
+                    .filter(Boolean)
+                    .join(', ')}
+                  accessibilityHint="Opens listing details"
+                >
+                  <View style={sStylesheet.marketplaceCardImgWrap}>
+                    <MarketplaceCover item={item} />
+                    {item.condition ? (
+                      <View style={sStylesheet.marketplaceCardCond}>
+                        <Text style={sStylesheet.marketplaceCardCondText}>{item.condition}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text style={sStylesheet.marketplaceCardTitle} numberOfLines={2}>
+                    {item.title || item.text || 'Item'}
+                  </Text>
+                  <Text style={sStylesheet.marketplaceCardPrice}>
+                    {getListingPriceLabel(item.price, formatPrice)}
+                  </Text>
+                  <View style={sStylesheet.marketplaceCardSeller}>
+                    <View style={sStylesheet.marketplaceCardAvatarWrap}>
+                      {item.user?.avatar_url ? (
+                        <Image
+                          source={{ uri: item.user.avatar_url }}
+                          style={sStylesheet.marketplaceCardAvatar}
+                          contentFit="cover"
+                        />
+                      ) : (
+                        <View
+                          style={[
+                            sStylesheet.marketplaceCardAvatar,
+                            {
+                              backgroundColor: theme.colors.G,
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={{ color: theme.colors.DARK, fontSize: 10, fontWeight: '700' }}
+                          >
+                            {(item.user?.name || item.author_name || 'S').charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={sStylesheet.marketplaceCardArea} numberOfLines={1}>
+                      {item.user?.name || item.author_name || 'Seller'}
                     </Text>
                   </View>
-                </View>
-                <Text style={sStylesheet.marketplaceCardTitle} numberOfLines={1}>
-                  {item.title || item.text || 'Item'}
-                </Text>
-                <Text style={sStylesheet.marketplaceCardPrice}>{formatPrice(item.price || 0)}</Text>
-                <View style={sStylesheet.marketplaceCardSeller}>
-                  <View style={sStylesheet.marketplaceCardAvatarWrap}>
-                    {item.user?.avatar_url ? (
-                      <Image
-                        source={{ uri: item.user.avatar_url }}
-                        style={sStylesheet.marketplaceCardAvatar}
-                        contentFit="cover"
-                      />
-                    ) : (
-                      <View
-                        style={[
-                          sStylesheet.marketplaceCardAvatar,
-                          {
-                            backgroundColor: theme.colors.G,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                          },
-                        ]}
-                      >
-                        <Text style={{ color: theme.colors.DARK, fontSize: 10, fontWeight: '700' }}>
-                          {(item.user?.name || item.author_name || 'S').charAt(0).toUpperCase()}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={sStylesheet.marketplaceCardArea} numberOfLines={1}>
-                    {item.user?.home_lga ||
-                      (typeof item.user?.location === 'object' ? item.user?.location?.lga : null) ||
-                      'Lagos'}
-                  </Text>
-                </View>
-              </TouchableOpacity>
+                  {item.lga || item.state ? (
+                    <Text style={[sStylesheet.marketplaceCardArea, { flex: 0 }]} numberOfLines={1}>
+                      {[item.lga, item.state].filter(Boolean).join(', ')}
+                    </Text>
+                  ) : null}
+                </TouchableOpacity>
+                <MarketplaceFavorite item={item} />
+              </View>
             );
           }}
           ListEmptyComponent={
@@ -1070,11 +1111,7 @@ function PlacesSection({
               >
                 <View style={sStylesheet.placePhotoWrap}>
                   <Avatar
-                    url={
-                      (item as any).logo_url ||
-                      item.logo ||
-                      null
-                    }
+                    url={(item as any).logo_url || item.logo || null}
                     name={item.name}
                     style={sStylesheet.placePhoto}
                   />
@@ -1596,7 +1633,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     alignItems: 'center',
   },
 
-  marketplaceCard: { width: (width - 40 - 16) / 2 },
+  marketplaceCard: { width: '48%' },
   marketplaceCardImgWrap: {
     width: '100%',
     aspectRatio: 1,
