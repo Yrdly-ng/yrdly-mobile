@@ -76,3 +76,4 @@ scratch_*.py
 !/docs/agents/*.md
 !/GLOSSARY.md
 !/docs/adr/*.md
+!/docs/mobile-telemetry.md

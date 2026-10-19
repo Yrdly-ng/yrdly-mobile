@@ -8,6 +8,8 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
+import * as Sentry from '@sentry/react-native';
+import { TelemetryHandler } from '../components/TelemetryHandler';
 import { usePushNotifications } from '../hooks/notifications/use-push-notifications';
 import { AuthProvider, useAuth } from '../hooks/use-supabase-auth';
 import { ThemeProvider } from '../context/ThemeContext';
@@ -242,6 +244,7 @@ function Layout() {
             <ThemeProvider>
               <BottomSheetModalProvider>
                 <AuthProvider>
+                  <TelemetryHandler />
                   <ActivityStatusHandler />
                   <LocationProvider>
                     <NotificationBadgeProvider>
@@ -260,7 +263,7 @@ function Layout() {
   );
 }
 
-export default function RootLayout() {
+function RootLayout() {
   useEffect(() => {
     // This also runs if a startup provider fails and the boundary shows its fallback.
     SplashScreen.hideAsync().catch(() => {});
@@ -272,3 +275,5 @@ export default function RootLayout() {
     </ErrorBoundary>
   );
 }
+
+export default Sentry.wrap(RootLayout);

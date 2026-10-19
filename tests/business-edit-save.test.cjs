@@ -85,6 +85,8 @@ async function editBusiness(location) {
     selectedLocationRef: { current: null },
     supabase,
     ...loaded.exports,
+    captureAppError: () => {},
+    trackEvent: () => {},
     Alert: { alert: (...args) => errors.push(args) },
     setLoading: () => {},
     setFetching: () => {},

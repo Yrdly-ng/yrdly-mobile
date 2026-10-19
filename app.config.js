@@ -96,6 +96,14 @@ module.exports = {
     },
     plugins: [
       [
+        "@sentry/react-native/expo",
+        {
+          organization: process.env.SENTRY_ORG || "yrdly-ltd",
+          project: process.env.SENTRY_PROJECT || "yrdly-mobile",
+          url: process.env.SENTRY_URL || "https://sentry.io/"
+        }
+      ],
+      [
         "react-native-maps",
         {
           iosGoogleMapsApiKey: process.env.GOOGLE_MAPS_IOS_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY

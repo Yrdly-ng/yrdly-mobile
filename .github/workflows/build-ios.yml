@@ -21,6 +21,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 90
     env:
+      EXPO_PUBLIC_APP_ENV: production
       CI: '1'
       EXPO_NO_DOTENV: '1'
       EXPO_NO_TELEMETRY: '1'
@@ -36,6 +37,13 @@ jobs:
       EXPO_PUBLIC_VEXO_API_KEY: ${{ secrets.EXPO_PUBLIC_VEXO_API_KEY }}
       EXPO_PUBLIC_GIPHY_API_KEY: ${{ secrets.EXPO_PUBLIC_GIPHY_API_KEY }}
       GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+      EXPO_PUBLIC_POSTHOG_API_KEY: ${{ secrets.EXPO_PUBLIC_POSTHOG_API_KEY }}
+      EXPO_PUBLIC_POSTHOG_KEY: ${{ secrets.EXPO_PUBLIC_POSTHOG_KEY }}
+      EXPO_PUBLIC_POSTHOG_HOST: ${{ secrets.EXPO_PUBLIC_POSTHOG_HOST }}
+      EXPO_PUBLIC_SENTRY_DSN: ${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+      SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
 
     steps:
       - name: Checkout repository
@@ -56,6 +64,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Configure telemetry build uploads
+        run: node scripts/configure-telemetry-build.cjs
 
       - name: Run Expo prebuild
         run: pnpm exec expo prebuild --platform ios --clean --no-install

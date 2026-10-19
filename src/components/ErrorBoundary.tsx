@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { captureAppError } from '../lib/telemetry';
 
 interface Props {
   children: React.ReactNode;
@@ -28,6 +29,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
+    captureAppError(error, 'app.error_boundary');
     const prefix = `[ErrorBoundary${this.props.screenName ? `:${this.props.screenName}` : ''}]`;
     console.error(`${prefix} Caught:`, error.message);
 

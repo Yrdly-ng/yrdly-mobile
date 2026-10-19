@@ -1,3 +1,5 @@
+import './src/telemetry';
+
 // Configure themes before Expo Router imports any screen stylesheets.
 import './src/theme/unistyles';
 

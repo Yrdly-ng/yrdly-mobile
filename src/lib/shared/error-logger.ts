@@ -1,4 +1,5 @@
 import { ErrorMessageFormatter } from './error-messages';
+import { captureAppError } from '../telemetry';
 
 export interface LogErrorOptions {
   context?: string;
@@ -10,7 +11,7 @@ export interface LogErrorOptions {
  * Logs an error and returns a user-friendly error message for display.
  */
 export function logError(error: any, options: LogErrorOptions = {}): string {
-  const { context = 'general_error', extraProps = {}, customMessage } = options;
+  const { context = 'general_error', customMessage } = options;
 
   const errorMessage =
     error instanceof Error
@@ -18,8 +19,7 @@ export function logError(error: any, options: LogErrorOptions = {}): string {
       : typeof error === 'string'
         ? error
         : String(error ?? '');
-  const stack = error instanceof Error ? error.stack : undefined;
-
+  captureAppError(error, 'app.logger');
   console.error(`[${context}] Error:`, error);
 
   if (customMessage) {

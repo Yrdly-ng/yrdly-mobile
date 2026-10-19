@@ -26,6 +26,7 @@ import { resolveCoords } from '../../lib/location/geocoding-service';
 import ImagePicker from 'react-native-image-crop-picker';
 import { OpeningHoursPicker } from '../../components/businesses/OpeningHoursPicker';
 import { GooglePlacesAutocomplete } from '@/components/location/PlacesAutocomplete';
+import { captureAppError, trackEvent } from '@/lib/telemetry';
 
 const CATS = [
   { name: 'Restaurant & Café', icon: 'restaurant-outline' },
@@ -308,6 +309,7 @@ export default function BusinessEditScreen() {
         if (saveLogoError) throw saveLogoError;
       }
 
+      trackEvent('business_saved');
       setSaved(true);
       setTimeout(() => {
         if (id) {
@@ -317,6 +319,7 @@ export default function BusinessEditScreen() {
         }
       }, 1000);
     } catch (e: any) {
+      captureAppError(e, 'business.save');
       Alert.alert('Error', e.message || 'Could not save business');
     } finally {
       setLoading(false);

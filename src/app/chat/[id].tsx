@@ -39,6 +39,7 @@ import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { setActiveConversationId } from '../../lib/offline/active-chat-tracker';
 import { useVideoEditor, discardEditedVideo } from '@/hooks/media/use-video-editor';
+import { captureAppError, trackEvent } from '@/lib/telemetry';
 
 interface Message {
   id: string;
@@ -788,6 +789,7 @@ function ChatContent() {
         ).data;
       if (!confirmed) throw new Error('Message acknowledgement unavailable. Tap to retry.');
       if (currentOwner.current !== owner || requestContext.current !== context) return;
+      if (result.data) trackEvent('message_sent');
       pendingMessages.current.delete(message.id);
       persistOutbox();
       setMessages((previous) =>
@@ -818,13 +820,14 @@ function ChatContent() {
       }
       if (id === 'new' && pendingMessages.current.size === 0 && inFlightMessages.current.size === 1)
         router.replace({ pathname: '/chat/[id]', params: { id: currentConvId } });
-    } catch {
+    } catch (error) {
       if (
         currentOwner.current !== owner ||
         requestContext.current !== context ||
         !pendingMessages.current.has(message.id)
       )
         return;
+      captureAppError(error, 'chat.send');
       const failed = {
         ...(pendingMessages.current.get(message.id) || message),
         local_status: 'failed' as const,
