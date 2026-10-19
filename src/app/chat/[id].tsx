@@ -635,7 +635,7 @@ function ChatContent() {
           item_price: paramItemPrice ? Number(paramItemPrice) : null,
           business_id: paramBusinessId || null,
           business_name: paramBusinessName || null,
-          business_image: paramBusinessImage || null,
+          business_logo: paramBusinessImage || null,
           last_message_text: summary,
           updated_at: new Date().toISOString(),
         })

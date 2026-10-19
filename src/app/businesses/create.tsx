@@ -108,8 +108,15 @@ export default function BusinessEditScreen() {
         setWebsite(data.website || '');
         setCategory(data.category || CATS[0].name);
         setHours(data.hours || '09:00 AM - 05:00 PM');
-        setLocation(data.location || '');
-        selectedLocationRef.current = data.location || null;
+        // Older records store the address in a JSON object rather than a string.
+        const locationAddress =
+          typeof data.location === 'string'
+            ? data.location
+            : typeof data.location?.address === 'string'
+              ? data.location.address
+              : '';
+        setLocation(locationAddress);
+        selectedLocationRef.current = locationAddress || null;
         setBizLat(data.lat ?? null);
         setBizLng(data.lng ?? null);
         setBizState(data.state || '');
