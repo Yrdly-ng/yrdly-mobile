@@ -5,6 +5,7 @@ type Point = { lat: number; lng: number; approximate: boolean; state?: string; l
 type Geocode = (address: string) => Promise<{
   status?: string;
   results?: Array<{
+    types?: string[];
     address_components?: Array<{ long_name: string; types: string[] }>;
     geometry?: { location?: { lat: number; lng: number }; location_type?: string };
   }>;
@@ -110,7 +111,29 @@ export function createMapLocationResolver(geocode: Geocode, timeoutMs = 8000): M
                 if (point) return point;
                 throw new Error('Address lookup unavailable');
               }
-              const match = result.results?.[0];
+              const canonical = (value: string | undefined) =>
+                (value || '')
+                  .toLowerCase()
+                  .replace(/(?: state| local government area| lga)$/g, '')
+                  .replace(/[^a-z0-9]/g, '')
+                  .replace(/^(fct|abujafct)$/, 'federalcapitalterritory');
+              const match = result.results?.find((candidate) => {
+                // A country/state centroid is not a venue. Never label another state's result as this area.
+                if (
+                  candidate.types?.includes('country') ||
+                  candidate.types?.includes('administrative_area_level_1')
+                )
+                  return false;
+                const component = (type: string) =>
+                  candidate.address_components?.find((entry) => entry.types.includes(type))
+                    ?.long_name;
+                const matchedState = component('administrative_area_level_1');
+                const matchedLga = component('administrative_area_level_2');
+                return (
+                  (!state || !matchedState || canonical(state) === canonical(matchedState)) &&
+                  (!lga || !matchedLga || canonical(lga) === canonical(matchedLga))
+                );
+              });
               const point = coordinates(
                 match?.geometry?.location?.lat,
                 match?.geometry?.location?.lng
@@ -145,9 +168,12 @@ export function createMapLocationResolver(geocode: Geocode, timeoutMs = 8000): M
         }
       });
       cache.set(key, pending);
-      void pending.catch(() => {
+      const evict = () => {
         if (cache.get(key) === pending) cache.delete(key);
-      });
+      };
+      void pending.then((point) => {
+        if (!point) evict();
+      }, evict);
     }
     const point = await cache.get(key)!;
     return point
@@ -161,4 +187,51 @@ export function createMapLocationResolver(geocode: Geocode, timeoutMs = 8000): M
         }
       : row;
   };
+}
+
+type DevicePosition = {
+  timestamp: number;
+  coords: { latitude: number; longitude: number; accuracy: number | null };
+};
+
+/** A recent cached fix can recover a temporary GPS failure; never use stale or coarse positions. */
+export async function locateMapDevice(
+  current: () => Promise<DevicePosition>,
+  lastKnown: () => Promise<DevicePosition | null>,
+  timeoutMs = 15000
+) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const position = await Promise.race([
+      current(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Location timed out')), timeoutMs);
+      }),
+    ]);
+    const point = coordinates(position.coords.latitude, position.coords.longitude);
+    if (!point) throw new Error('Invalid location');
+    return { point, cached: false };
+  } catch (error) {
+    clearTimeout(timer);
+    const cached = await Promise.race([
+      lastKnown().catch(() => null),
+      new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), 1000);
+      }),
+    ]);
+    const point = cached && coordinates(cached.coords.latitude, cached.coords.longitude);
+    if (
+      point &&
+      cached &&
+      Date.now() - cached.timestamp <= 120000 &&
+      cached.timestamp <= Date.now() &&
+      cached.coords.accuracy != null &&
+      cached.coords.accuracy >= 0 &&
+      cached.coords.accuracy <= 1000
+    )
+      return { point, cached: true };
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 }

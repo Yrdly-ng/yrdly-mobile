@@ -30,9 +30,10 @@ import { useAuth } from '../hooks/use-supabase-auth';
 import { useLocation } from '../context/LocationContext';
 import states from '../data/states.json';
 import { api } from '../lib/network/api';
-import { createMapLocationResolver } from '../lib/location/map-location';
+import { createMapLocationResolver, locateMapDevice } from '../lib/location/map-location';
 import {
   coordinates,
+  mapCoordinates,
   matchesMapArea,
   normalizeEta,
   filterMarkers,
@@ -106,7 +107,7 @@ function MarkerToken({ marker, selected = false }: { marker: MapMarker; selected
         },
       ]}
     >
-      {marker.type === 'friend' && marker.image && failed !== marker.image ? (
+      {marker.image && failed !== marker.image ? (
         <Image
           source={{ uri: marker.image }}
           style={{ width: '100%', height: '100%' }}
@@ -142,6 +143,7 @@ export default function MapScreen() {
   const [mapReady, setMapReady] = useState(false);
   const [markers, setMarkers] = useState<MapMarker[]>([]);
   const [failedSources, setFailedSources] = useState<string[]>([]);
+  const [unresolvedSources, setUnresolvedSources] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [retry, setRetry] = useState(0);
   const revision = useRef(0);
@@ -178,7 +180,6 @@ export default function MapScreen() {
       const current = ++locationRevision.current;
       setLocating(true);
       setLocationError('');
-      let timer: ReturnType<typeof setTimeout> | undefined;
       try {
         const permission = await Location.requestForegroundPermissionsAsync();
         if (current !== locationRevision.current) return;
@@ -188,19 +189,25 @@ export default function MapScreen() {
           );
           return;
         }
-        const position = await Promise.race([
-          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
-          new Promise<never>((_, reject) => {
-            timer = setTimeout(() => reject(new Error('Timed out')), 10000);
-          }),
-        ]);
+        const servicesEnabled = await Location.hasServicesEnabledAsync();
         if (current !== locationRevision.current) return;
-        const point = coordinates(position.coords.latitude, position.coords.longitude);
-        if (!point) throw new Error('Invalid location');
+        if (!servicesEnabled) {
+          setLocationError(
+            'Device location services are off. Turn them on in Settings or choose an area.'
+          );
+          return;
+        }
+        const { point, cached } = await locateMapDevice(
+          () => Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+          () => Location.getLastKnownPositionAsync({ maxAge: 120000, requiredAccuracy: 1000 })
+        );
+        if (current !== locationRevision.current) return;
+        if (cached)
+          setLocationError('Showing your recent device location. Retry to get a fresh position.');
         setLoc(point);
         if (cameraInteraction.current === interaction && (recenter || !cameraSet.current))
           setPendingCenter(point);
-        if (user?.id) {
+        if (user?.id && !cached) {
           // Keep the existing own-location update; the friend endpoint enforces sharing preferences.
           void supabase
             .from('users')
@@ -219,7 +226,6 @@ export default function MapScreen() {
             "We couldn't find your location. You can still explore the selected area."
           );
       } finally {
-        clearTimeout(timer);
         if (current === locationRevision.current) setLocating(false);
       }
     },
@@ -231,6 +237,7 @@ export default function MapScreen() {
     const controller = new AbortController();
     setMarkers([]);
     setFailedSources([]);
+    setUnresolvedSources([]);
     setLoading(true);
     setSelectedId(null);
     const areaKey = JSON.stringify([activeFilter?.state, activeFilter?.lga]);
@@ -290,7 +297,7 @@ export default function MapScreen() {
           area(
             supabase
               .from('businesses')
-              .select('id,name,location,image_urls,lat,lng,state,lga,ward')
+              .select('id,name,location,logo_url,image_urls,lat,lng,state,lga,ward')
               .eq('is_active', true)
           ).limit(50),
       },
@@ -317,11 +324,30 @@ export default function MapScreen() {
         kind: 'friend',
         load: () => api.post('/api/profiles/friend-locations', {}),
       });
-    void loadMapSources(sources, true, 12000, resolveMapLocation, controller.signal)
+    void loadMapSources(
+      sources,
+      true,
+      12000,
+      (row, kind, signal) => {
+        if (!activeFilter?.state && !activeFilter?.lga && mapCoordinates(row, kind))
+          return Promise.resolve(row);
+        return resolveMapLocation(row, kind, signal);
+      },
+      controller.signal
+    )
       .then((result) => {
         if (current !== revision.current) return;
         setMarkers(result.markers.filter((marker) => matchesMapArea(marker, activeFilter)));
         setFailedSources(result.failedSources);
+        const missingAreaSources = result.markers
+          .filter(
+            (marker) =>
+              marker.type !== 'friend' &&
+              ((activeFilter?.state && !marker.state) || (activeFilter?.lga && !marker.lga))
+          )
+          .map((marker) => sources.find((source) => marker.id.startsWith(`${source.key}-`))?.label)
+          .filter((label): label is string => !!label);
+        setUnresolvedSources([...new Set([...result.unresolvedSources, ...missingAreaSources])]);
       })
       .finally(() => {
         if (current === revision.current) setLoading(false);
@@ -492,10 +518,14 @@ export default function MapScreen() {
           </View>
         </View>
       ) : null}
-      {failedSources.length ? (
+      {failedSources.length || unresolvedSources.length ? (
         <View style={styles.notice}>
           <Text style={styles.noticeText} accessibilityLiveRegion="polite">
-            Couldn't load {failedSources.join(', ')}. Other results are shown.
+            {failedSources.length ? `Couldn't load ${failedSources.join(', ')}. ` : ''}
+            {unresolvedSources.length
+              ? `Some ${unresolvedSources.join(', ')} locations are unavailable. `
+              : ''}
+            Other results are shown.
           </Text>
           <TouchableOpacity
             accessibilityRole="button"
@@ -735,7 +765,9 @@ export default function MapScreen() {
             <View style={styles.panelHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.resultsTitle} accessibilityLiveRegion="polite">
-                  {loading ? 'Loading results…' : `${visibleMarkers.length} results`}
+                  {loading
+                    ? 'Loading results…'
+                    : `${visibleMarkers.length} ${visibleMarkers.length === 1 ? 'result' : 'results'}`}
                 </Text>
                 <Text style={styles.secondary}>
                   {FILTERS.find((option) => option.key === filter)?.label} · selected area
@@ -771,7 +803,11 @@ export default function MapScreen() {
                     <View style={styles.empty}>
                       <Text style={styles.resultsTitle}>No matching results</Text>
                       <Text style={styles.secondary}>
-                        Try another category or search in this area.
+                        {filter === 'friend'
+                          ? 'Friends appear here when you follow each other and they enable location sharing.'
+                          : filter === 'event'
+                            ? 'No mappable events match this area yet. Try another area or clear your search.'
+                            : 'Try another category or search in this area.'}
                       </Text>
                       <TouchableOpacity
                         accessibilityRole="button"
@@ -811,15 +847,19 @@ export default function MapScreen() {
                   </TouchableOpacity>
                 )}
               />
-            ) : locationError || failedSources.length ? (
+            ) : locationError || failedSources.length || unresolvedSources.length ? (
               <TouchableOpacity
                 accessibilityRole="button"
                 onPress={() => setResultsOpen(true)}
                 style={styles.collapsedNotice}
               >
                 <Text style={styles.secondary} accessibilityLiveRegion="polite">
-                  {locationError ? 'Location unavailable' : 'Some results unavailable'} · Show
-                  results to retry
+                  {locationError
+                    ? loc
+                      ? 'Location notice'
+                      : 'Location unavailable'
+                    : 'Some results unavailable'}{' '}
+                  · Show results to retry
                 </Text>
               </TouchableOpacity>
             ) : null}

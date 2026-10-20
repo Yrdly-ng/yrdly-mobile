@@ -86,7 +86,8 @@ test('location resolution cannot leave the map loading forever or discard comple
     result.markers.map((m) => m.targetId),
     ['good']
   );
-  assert.deepEqual(result.failedSources, ['Businesses']);
+  assert.deepEqual(result.failedSources, []);
+  assert.deepEqual(result.unresolvedSources, ['Businesses']);
 });
 
 test('invalid or incomplete primary coordinates fall back to a complete legacy coordinate pair', () => {
@@ -263,4 +264,114 @@ test('a hung address service releases its cache entry and a retry can recover', 
   const retried = await resolve(row, 'business');
   assert.equal(calls, 2);
   assert.equal(retried.lat, 7.1);
+});
+
+test('optional address enrichment cannot report loaded Events as failed', async () => {
+  const row = { id: 'event', title: 'Event', lat: 6.5, lng: 3.4, location_address: 'Venue' };
+  const result = await model.loadMapSources(
+    [{ key: 'events', label: 'Events', kind: 'event', load: async () => ({ data: [row] }) }],
+    false,
+    30,
+    async () => {
+      throw Error('Geocoding unavailable');
+    }
+  );
+  assert.equal(result.markers.length, 1);
+  assert.deepEqual(result.failedSources, []);
+  assert.deepEqual(result.unresolvedSources, []);
+});
+
+test('loaded rows without positions report unavailable locations rather than a failed data source', async () => {
+  const result = await model.loadMapSources(
+    [
+      {
+        key: 'events',
+        label: 'Events',
+        kind: 'event',
+        load: async () => ({ data: [{ id: 'event', location_address: 'Venue' }] }),
+      },
+    ],
+    false,
+    30,
+    async () => {
+      throw Error('Geocoding unavailable');
+    }
+  );
+  assert.deepEqual(result.failedSources, []);
+  assert.deepEqual(result.unresolvedSources, ['Events']);
+});
+
+test('a geocoder match in another state cannot move a Lagos venue to Kano', async () => {
+  const wrong = {
+    status: 'OK',
+    results: [
+      {
+        types: ['street_address'],
+        geometry: { location: { lat: 12, lng: 8.5 }, location_type: 'ROOFTOP' },
+        address_components: [{ long_name: 'Kano', types: ['administrative_area_level_1'] }],
+      },
+    ],
+  };
+  const { resolve } = resolver(async () => wrong, [{ latitude: 6.5, longitude: 3.4 }]);
+  const row = await resolve(
+    { id: 'venue', location: 'Ambiguous venue', state: 'Lagos', lga: 'Ikeja' },
+    'business'
+  );
+  assert.equal(row.lat, 6.5);
+  assert.equal(row.lng, 3.4);
+  assert.equal(row.map_approximate, true);
+});
+
+test('a country-only geocoder match is not a venue location', async () => {
+  const { resolve } = resolver(async () => ({
+    status: 'OK',
+    results: [{ types: ['country'], geometry: { location: { lat: 9, lng: 8 } } }],
+  }));
+  const row = await resolve({ id: 'venue', location: 'Nigeria' }, 'business');
+  assert.equal(model.normalizeMarker(row, 'business', 'business'), null);
+});
+
+test('temporary GPS failure can use only a recent accurate cached device position', async () => {
+  const device = load('src/lib/location/map-location.ts', {
+    './map-model': model,
+    '../supabase/supabase': { supabase: {} },
+  });
+  const fix = { timestamp: Date.now(), coords: { latitude: 6.5, longitude: 3.4, accuracy: 100 } };
+  const located = await device.locateMapDevice(
+    async () => {
+      throw Error('No GPS fix');
+    },
+    async () => fix,
+    20
+  );
+  assert.deepEqual(located, { point: { lat: 6.5, lng: 3.4 }, cached: true });
+  await assert.rejects(
+    device.locateMapDevice(
+      async () => {
+        throw Error('No GPS fix');
+      },
+      async () => ({ ...fix, timestamp: Date.now() - 600000 }),
+      20
+    )
+  );
+  await assert.rejects(
+    device.locateMapDevice(
+      async () => {
+        throw Error('No GPS fix');
+      },
+      async () => ({ ...fix, coords: { ...fix.coords, accuracy: 20000 } }),
+      20
+    )
+  );
+});
+
+test('retry after an empty geocoder match can recover without remounting the map', async () => {
+  let calls = 0;
+  const { resolve } = resolver(async () =>
+    ++calls === 1 ? { status: 'ZERO_RESULTS', results: [] } : geocoded
+  );
+  const row = { id: 'venue', location: 'Venue corrected after retry' };
+  assert.equal(model.mapCoordinates(await resolve(row, 'business'), 'business'), null);
+  assert.equal((await resolve(row, 'business')).lat, 7.1);
+  assert.equal(calls, 2);
 });
