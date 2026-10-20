@@ -1,0 +1,66 @@
+{
+  "license": "https://www.pexels.com/license/",
+  "notes": "Real stock photographs downloaded from original Pexels image endpoints. No AI edits. Photos illustrate app concepts and are not claimed to depict YRDLY users, actual listings, actual businesses, or Nigerian locations. Dates/camera are as reported by Pexels.",
+  "photos": [
+    {
+      "file": "friends-outdoors.jpg",
+      "pexelsId": 5047084,
+      "photographer": "Ketut Subiyanto",
+      "source": "https://www.pexels.com/photo/two-women-friends-smiling-and-hugging-each-other-5047084/",
+      "download": "https://images.pexels.com/photos/5047084/pexels-photo-5047084.jpeg?auto=compress&cs=tinysrgb&w=1800",
+      "published": "2020-08-06",
+      "takenAt": "2018-02-24",
+      "camera": "Sony ILCE-7M3"
+    },
+    {
+      "file": "friends-beach.jpg",
+      "pexelsId": 5161734,
+      "photographer": "SALOMON BYUMA",
+      "source": "https://www.pexels.com/photo/cheerful-black-friends-hugging-on-sandy-beach-5161734/",
+      "download": "https://images.pexels.com/photos/5161734/pexels-photo-5161734.jpeg?auto=compress&cs=tinysrgb&w=1800",
+      "published": "2020-08-21",
+      "takenAt": "2020-07-17",
+      "camera": null
+    },
+    {
+      "file": "friends-toast.jpg",
+      "pexelsId": 5876619,
+      "photographer": "Monstera Production",
+      "source": "https://www.pexels.com/photo/cheerful-diverse-couple-having-dinner-with-guests-5876619/",
+      "download": "https://images.pexels.com/photos/5876619/pexels-photo-5876619.jpeg?auto=compress&cs=tinysrgb&w=1800",
+      "published": "2020-11-13",
+      "takenAt": "2020-01-27",
+      "camera": "Canon EOS R6"
+    },
+    {
+      "file": "bakery.jpg",
+      "pexelsId": 3639541,
+      "photographer": "Lina Kivaka",
+      "source": "https://www.pexels.com/photo/pastry-shop-3639541/",
+      "download": "https://images.pexels.com/photos/3639541/pexels-photo-3639541.jpeg?auto=compress&cs=tinysrgb&w=1800",
+      "published": "2020-01-28",
+      "takenAt": "2018-04-22",
+      "camera": "Canon EOS 5D Mark II"
+    },
+    {
+      "file": "chair.jpg",
+      "pexelsId": 6800557,
+      "photographer": "Ksenia Chernaya",
+      "source": "https://www.pexels.com/photo/photo-of-a-grey-armchair-6800557/",
+      "download": "https://images.pexels.com/photos/6800557/pexels-photo-6800557.jpeg?auto=compress&cs=tinysrgb&w=1800",
+      "published": "2021-02-12",
+      "takenAt": "2021-02-04",
+      "camera": "Nikon D750"
+    },
+    {
+      "file": "camera.jpg",
+      "pexelsId": 4219113,
+      "photographer": "craveiro_ pics",
+      "source": "https://www.pexels.com/photo/vintage-camera-on-white-background-4219113/",
+      "download": "https://images.pexels.com/photos/4219113/pexels-photo-4219113.jpeg?auto=compress&cs=tinysrgb&w=1800",
+      "published": "2020-04-22",
+      "takenAt": "2020-04-22",
+      "camera": "Canon EOS 600D"
+    }
+  ]
+}

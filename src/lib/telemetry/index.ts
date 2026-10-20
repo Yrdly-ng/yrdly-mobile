@@ -46,16 +46,45 @@ export function initializeTelemetry(): void {
         enableUserInteractionTracing: false,
         attachScreenshot: false,
         attachViewHierarchy: false,
+        replaysSessionSampleRate: 0.1,
+        replaysOnErrorSampleRate: 1.0,
         maxBreadcrumbs: 0,
         beforeBreadcrumb: () => null,
         beforeSend: sanitizeSentryEvent,
         // Keep default error/unhandled rejection handlers and native crash support.
-        // Remove integrations that add console, network, or view content.
-        integrations: (defaults) =>
-          defaults.filter(
+        // Replace the default recorder with explicit masking. PostHog replay stays off.
+        integrations: (defaults) => [
+          ...defaults.filter(
             (integration) =>
               !['Breadcrumbs', 'HttpContext', 'MobileReplay'].includes(integration.name)
           ),
+          Sentry.mobileReplayIntegration({
+            maskAllText: true,
+            maskAllImages: true,
+            maskAllVectors: true,
+            networkCaptureBodies: false,
+            networkDetailAllowUrls: [],
+            // Native maps and media surfaces can contain locations or private content
+            // outside React Native Text/Image views. Other-platform names are ignored.
+            maskedViewClasses: [
+              'MKMapView',
+              'GMSMapView',
+              'RNMapsMapView',
+              'RNMapsGoogleMapView',
+              'com.google.android.gms.maps.MapView',
+              'WKWebView',
+              'android.webkit.WebView',
+              'ExpoImage.ImageView',
+              'ExpoVideo.VideoView',
+              'ExpoCamera.CameraView',
+              'expo.modules.image.ExpoImageView',
+              'expo.modules.video.VideoView',
+              'expo.modules.camera.ExpoCameraView',
+              'android.view.SurfaceView',
+              'android.view.TextureView',
+            ],
+          }),
+        ],
       });
       sentryEnabled = true;
       Sentry.setUser(null);

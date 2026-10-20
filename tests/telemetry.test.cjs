@@ -47,6 +47,9 @@ function loadTelemetry({ env = configured, dev = false, failures = {} } = {}) {
       call('sentry.init');
       sentryOptions = options;
     },
+    mobileReplayIntegration(options) {
+      return { name: 'MobileReplay', options };
+    },
     setUser(user) {
       return call('user', user);
     },
@@ -147,6 +150,152 @@ test('debug requires an explicit opt-in and retains the same privacy protections
   assert.equal(runtime.sentryOptions.environment, 'development');
   assert.equal(runtime.sentryOptions.sendDefaultPii, false);
   assert.equal(runtime.posthogOptions.enableSessionReplay, false);
+});
+
+test('Sentry records masked sessions and error replays without duplicate recorders or content breadcrumbs', () => {
+  const runtime = loadTelemetry();
+  runtime.api.initializeTelemetry();
+  const options = runtime.sentryOptions;
+  const integrations = options.integrations(
+    ['ReactNativeErrorHandlers', 'Breadcrumbs', 'HttpContext', 'MobileReplay'].map((name) => ({
+      name,
+    }))
+  );
+  assert.equal(options.replaysSessionSampleRate, 0.1);
+  assert.equal(options.replaysOnErrorSampleRate, 1);
+  assert.deepEqual(
+    integrations.map(({ name }) => name),
+    ['ReactNativeErrorHandlers', 'MobileReplay']
+  );
+  const replay = integrations.find(({ name }) => name === 'MobileReplay').options;
+  assert.equal(replay.maskAllText, true);
+  assert.equal(replay.maskAllImages, true);
+  assert.equal(replay.maskAllVectors, true);
+  assert.equal(replay.networkCaptureBodies, false);
+  assert.deepEqual(replay.networkDetailAllowUrls, []);
+  for (const view of [
+    'MKMapView',
+    'GMSMapView',
+    'com.google.android.gms.maps.MapView',
+    'WKWebView',
+    'android.webkit.WebView',
+    'ExpoVideo.VideoView',
+    'ExpoCamera.CameraView',
+    'android.view.SurfaceView',
+    'android.view.TextureView',
+  ]) {
+    assert.ok(replay.maskedViewClasses.includes(view), `${view} must stay masked`);
+  }
+  // Native unhandled rejections use handled:true; do not exclude these from capture.
+  assert.equal(replay.beforeErrorSampling, undefined);
+  assert.equal(options.beforeBreadcrumb({ message: 'private' }), null);
+  assert.equal(options.attachScreenshot, false);
+  assert.equal(options.attachViewHierarchy, false);
+  assert.equal(runtime.posthogOptions.enableSessionReplay, false);
+});
+
+test('Sentry preserves only validated replay linkage alongside the existing privacy filter', () => {
+  const runtime = loadTelemetry();
+  runtime.api.initializeTelemetry();
+  const replayId = '1db45415c0f04ce88e42c61b4ca3bb5b';
+  for (const id of [replayId, 'private', '', null, 123, { token: 'private' }]) {
+    const event = runtime.sentryOptions.beforeSend({
+      contexts: {
+        replay: { replay_id: id, url: 'private', payload: 'private' },
+        location: { address: 'private' },
+      },
+      exception: {
+        values: [
+          {
+            type: 'Error',
+            value: 'private',
+            mechanism: { type: 'onunhandledrejection', handled: true },
+          },
+        ],
+      },
+    });
+    assert.deepEqual(
+      event.contexts,
+      id === replayId ? { replay: { replay_id: replayId } } : undefined
+    );
+    assert.equal(JSON.stringify(event).includes('private'), false);
+    assert.deepEqual(event.exception.values[0].mechanism, {
+      type: 'onunhandledrejection',
+      handled: true,
+    });
+  }
+});
+
+test('installed Sentry replay hooks link and flush a sanitized native unhandled rejection', async () => {
+  const runtime = loadTelemetry();
+  runtime.api.initializeTelemetry();
+  const replayId = '1db45415c0f04ce88e42c61b4ca3bb5b';
+  let flushes = 0;
+  const native = {
+    getCurrentReplayId: () => replayId,
+    captureReplay: async () => {
+      flushes += 1;
+      return replayId;
+    },
+  };
+  // Execute the installed SDK's real replay setup/link/flush pipeline, replacing
+  // native capture and platform boundaries; no recordings or network requests.
+  const dependencies = {
+    '@sentry/core': { debug: { log() {}, warn() {}, error() {} } },
+    '../misc': { isHardCrash: () => false },
+    '../scopeSync': {},
+    '../utils/clientutils': { hasHooks: () => true },
+    '../utils/environment': { isExpoGo: () => false, notMobileOs: () => false },
+    '../utils/featureMarkers': {},
+    '../wrapper': { NATIVE: native },
+    './foregroundReplayGuard': {},
+    './xhrUtils': { makeEnrichXhrBreadcrumbsForMobileReplay: () => () => {} },
+  };
+  const sdkDirectory = path.dirname(require.resolve('@sentry/react-native/package.json'));
+  const compiled = ts.transpileModule(
+    readFileSync(path.join(sdkDirectory, 'dist/js/replay/mobilereplay.js'), 'utf8'),
+    { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }
+  ).outputText;
+  const module = { exports: {} };
+  new Function('require', 'module', 'exports', compiled)(
+    (id) => {
+      assert.ok(Object.hasOwn(dependencies, id), `Unexpected SDK dependency: ${id}`);
+      return dependencies[id];
+    },
+    module,
+    module.exports
+  );
+  const config = runtime.sentryOptions;
+  const replayOptions = config.integrations([])[0].options;
+  const hooks = {};
+  module.exports.mobileReplayIntegration(replayOptions).setup({
+    getOptions: () => config,
+    on: (name, callback) => {
+      hooks[name] = callback;
+    },
+  });
+  const event = await config.beforeSend(
+    {
+      event_id: 'error-id',
+      contexts: { location: { address: 'private' } },
+      exception: {
+        values: [
+          {
+            type: 'Error',
+            value: 'private',
+            mechanism: { type: 'onunhandledrejection', handled: true },
+          },
+        ],
+      },
+    },
+    {}
+  );
+  assert.deepEqual(event.contexts, { replay: { replay_id: replayId } });
+  assert.equal(JSON.stringify(event).includes('private'), false);
+  assert.equal(flushes, 0, 'replay must wait until the error is sent');
+  hooks.afterSendEvent(event);
+  await new Promise(setImmediate);
+  assert.equal(flushes, 1, 'handled:true native rejections still trigger replay');
 });
 
 test('identity changes reset before identification, dedupe refreshes, and clear logout identity', () => {

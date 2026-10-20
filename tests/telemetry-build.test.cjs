@@ -32,10 +32,12 @@ test('Android Gradle resolves and executes the Sentry CLI with pnpm dependencies
     mkdirSync(android);
     symlinkSync(resolve('node_modules'), join(directory, 'node_modules'), 'dir');
     const sdk = dirname(require.resolve('@sentry/react-native/package.json'));
-    const gradle = readFileSync(join(sdk, 'sentry.gradle'), 'utf8');
+    const gradleEntry = readFileSync(join(sdk, 'sentry.gradle'), 'utf8');
+    assert.ok(gradleEntry.includes('sentry.gradle.kts'), 'Gradle must load the Kotlin upload hook');
+    const gradle = readFileSync(join(sdk, 'sentry.gradle.kts'), 'utf8');
     // Exercise the installed SDK's actual Gradle resolver, from its Android cwd.
     const resolver = gradle.match(
-      /def resolveSentryCliPackagePath[\s\S]*?\["node", "--print", "([^"]+)"\]/
+      /fun resolveSentryCliPackagePath[\s\S]*?"node",\s*"--print",\s*"([^"]+)"/
     );
     assert.ok(resolver, 'the Sentry Gradle CLI resolver must be covered');
     const result = spawnSync(process.execPath, ['--print', resolver[1]], {
@@ -161,6 +163,17 @@ for (const [hook, expectedCommand] of [
     try {
       const ios = join(directory, 'ios');
       mkdirSync(ios);
+      // The native upload hook waits for a complete dSYM before invoking the CLI.
+      const dwarf = join(
+        directory,
+        'symbols',
+        'Fixture.app.dSYM',
+        'Contents',
+        'Resources',
+        'DWARF'
+      );
+      mkdirSync(dwarf, { recursive: true });
+      writeFileSync(join(dwarf, 'Fixture'), 'fixture-symbols');
       symlinkSync(resolve('node_modules'), join(directory, 'node_modules'), 'dir');
       const output = join(directory, 'build-env');
       const configured = spawnSync(process.execPath, ['scripts/configure-telemetry-build.cjs'], {

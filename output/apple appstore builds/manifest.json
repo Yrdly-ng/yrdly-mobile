@@ -1,0 +1,66 @@
+[
+  {
+    "file": "apple-iphone-draft/01-events.png",
+    "width": 1320,
+    "height": 2868,
+    "hasAlpha": false,
+    "source": "event-screen-campaign.png",
+    "status": "DRAFT: reconstructed campaign screen, replace with native platform capture before submission"
+  },
+  {
+    "file": "apple-iphone-draft/02-marketplace.png",
+    "width": 1320,
+    "height": 2868,
+    "hasAlpha": false,
+    "source": "marketplace-screen-campaign.png",
+    "status": "DRAFT: reconstructed campaign screen, replace with native platform capture before submission"
+  },
+  {
+    "file": "apple-iphone-draft/03-businesses.png",
+    "width": 1320,
+    "height": 2868,
+    "hasAlpha": false,
+    "source": "business-screen-campaign.png",
+    "status": "DRAFT: reconstructed campaign screen, replace with native platform capture before submission"
+  },
+  {
+    "file": "apple-iphone-draft/04-communities.png",
+    "width": 1320,
+    "height": 2868,
+    "hasAlpha": false,
+    "source": "community-screen-campaign.png",
+    "status": "DRAFT: reconstructed campaign screen, replace with native platform capture before submission"
+  },
+  {
+    "file": "google-play-phone-draft/01-events.png",
+    "width": 1080,
+    "height": 1920,
+    "hasAlpha": false,
+    "source": "event-screen-campaign.png",
+    "status": "DRAFT: reconstructed campaign screen, replace with native platform capture before submission"
+  },
+  {
+    "file": "google-play-phone-draft/02-marketplace.png",
+    "width": 1080,
+    "height": 1920,
+    "hasAlpha": false,
+    "source": "marketplace-screen-campaign.png",
+    "status": "DRAFT: reconstructed campaign screen, replace with native platform capture before submission"
+  },
+  {
+    "file": "google-play-phone-draft/03-businesses.png",
+    "width": 1080,
+    "height": 1920,
+    "hasAlpha": false,
+    "source": "business-screen-campaign.png",
+    "status": "DRAFT: reconstructed campaign screen, replace with native platform capture before submission"
+  },
+  {
+    "file": "google-play-phone-draft/04-communities.png",
+    "width": 1080,
+    "height": 1920,
+    "hasAlpha": false,
+    "source": "community-screen-campaign.png",
+    "status": "DRAFT: reconstructed campaign screen, replace with native platform capture before submission"
+  }
+]

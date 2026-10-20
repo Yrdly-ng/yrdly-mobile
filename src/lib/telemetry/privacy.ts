@@ -74,6 +74,7 @@ export function sanitizeSentryEvent(event: ErrorEvent): ErrorEvent {
   const operation = event.tags?.operation;
   const screen = event.tags?.screen;
   const code = event.tags?.error_code;
+  const replayId = event.contexts?.replay?.replay_id;
   // Free-form error messages can contain server payloads, chat text, addresses,
   // or credentials. Group by exception class + original stack, not those values.
   const safe: ErrorEvent = {
@@ -96,6 +97,11 @@ export function sanitizeSentryEvent(event: ErrorEvent): ErrorEvent {
         }
       : undefined,
     user: isUserId(event.user?.id) ? { id: event.user.id } : undefined,
+    // Preserve an existing replay link without retaining arbitrary replay metadata.
+    contexts:
+      typeof replayId === 'string' && /^[0-9a-f]{32}$/i.test(replayId)
+        ? { replay: { replay_id: replayId } }
+        : undefined,
     tags: {
       ...(typeof operation === 'string' && errorContexts.has(operation) ? { operation } : {}),
       ...(isScreenName(screen) ? { screen } : {}),
