@@ -12,7 +12,6 @@ import {
   Platform,
   Share,
   DeviceEventEmitter,
-  Linking,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,7 +33,6 @@ import { Image } from 'expo-image';
 import ImageViewing from 'react-native-image-viewing';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import * as ExpoLinking from 'expo-linking';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import { supabase } from '../../../lib/supabase/supabase';
 import { useAuth } from '../../../hooks/use-supabase-auth';
@@ -46,14 +44,7 @@ import { PaylukCheckout } from '../../../components/payments/PaylukCheckout';
 import { formatPrice } from '../../../lib/shared/utils';
 import { AttendeeAvatars } from '../../../components/events/AttendeeAvatars';
 import { VerifiedBadge } from '../../../components/VerifiedBadge';
-import * as Location from 'expo-location';
-
-interface ETAResponse {
-  duration_seconds: number;
-  duration_in_traffic_seconds: number;
-  distance_meters: number;
-  overview_polyline?: string;
-}
+import { directionsHref } from '../../../lib/location/directions';
 
 const DARK_STYLE = [
   { elementType: 'geometry', stylers: [{ color: '#0d1117' }] },
@@ -109,9 +100,6 @@ export default function EventDetailScreen() {
   const [isGalleryVisible, setIsGalleryVisible] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  const [loc, setLoc] = useState<Location.LocationObject | null>(null);
-  const [eta, setEta] = useState<ETAResponse | null>(null);
-
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isFollowingOrganizer, setIsFollowingOrganizer] = useState(false);
   const [relatedEvents, setRelatedEvents] = useState<any[]>([]);
@@ -143,37 +131,6 @@ export default function EventDetailScreen() {
   const successContentOp = useSharedValue(0);
   const successContentY = useSharedValue(20);
 
-  useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return;
-      const l = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      setLoc(l);
-    })();
-  }, []);
-
-  useEffect(() => {
-    if (!event || !event.lat || !event.lng || !loc) return;
-
-    let active = true;
-    const fetchEta = async () => {
-      try {
-        const res = await api.post<ETAResponse>('/api/directions/eta', {
-          origin: { lat: loc.coords.latitude, lng: loc.coords.longitude },
-          destination: { lat: event.lat, lng: event.lng },
-        });
-        if (active) setEta(res);
-      } catch (err) {
-        console.warn('Failed to fetch ETA:', err);
-      }
-    };
-
-    fetchEta();
-    return () => {
-      active = false;
-    };
-  }, [event, loc]);
-
   const successOverlayStyle = useAnimatedStyle(() => ({ opacity: successOverlayOp.value }));
   const successSheetStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: successSheetY.value }],
@@ -204,57 +161,9 @@ export default function EventDetailScreen() {
     }, 220);
   }
 
-  async function getDirections() {
+  function getDirections() {
     if (!event || event.location_online) return;
-    const lat = event.lat;
-    const lng = event.lng;
-    const address =
-      event.location_address || [event.ward, event.lga, event.state].filter(Boolean).join(', ');
-    const encoded = encodeURIComponent(address || '');
-
-    const destCoord = lat && lng ? `${lat},${lng}` : encoded;
-
-    const appleMapsUrl =
-      lat && lng ? `maps://?daddr=${lat},${lng}&dirflg=d` : `maps://?daddr=${encoded}&dirflg=d`;
-
-    const googleMapsUrl =
-      lat && lng
-        ? `comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`
-        : `comgooglemaps://?daddr=${encoded}&directionsmode=driving`;
-
-    const googleMapsWeb = `https://www.google.com/maps/dir/?api=1&destination=${destCoord}&travelmode=driving`;
-
-    let hasGoogleMaps = false;
-    try {
-      hasGoogleMaps = await Linking.canOpenURL('comgooglemaps://');
-    } catch (e) {
-      hasGoogleMaps = false;
-    }
-
-    const buttons: any[] = [
-      {
-        text: '🍎 Apple Maps',
-        onPress: () => {
-          Linking.openURL(appleMapsUrl).catch(() => Linking.openURL(googleMapsWeb));
-        },
-      },
-    ];
-
-    if (hasGoogleMaps) {
-      buttons.push({
-        text: '🗺️ Google Maps',
-        onPress: () => Linking.openURL(googleMapsUrl).catch(() => Linking.openURL(googleMapsWeb)),
-      });
-    } else {
-      buttons.push({
-        text: '🗺️ Google Maps (web)',
-        onPress: () => ExpoLinking.openURL(googleMapsWeb),
-      });
-    }
-
-    buttons.push({ text: 'Cancel', style: 'cancel' as const });
-
-    Alert.alert('Get Directions', `Navigate to ${address || 'the venue'}?`, buttons);
+    router.push(directionsHref({ type: 'event', id: event.id }) as any);
   }
 
   const fetchEvent = useCallback(async () => {
@@ -806,23 +715,6 @@ export default function EventDetailScreen() {
                 </Text>
               </View>
             </View>
-
-            {eta && (
-              <View style={stylesheet.infoRow}>
-                <View style={[stylesheet.iconBox, { backgroundColor: theme.colors.G + '15' }]}>
-                  <Feather name="navigation" size={20} color={theme.colors.G} />
-                </View>
-                <View style={stylesheet.infoTextContainer}>
-                  <Text style={[stylesheet.infoLabel, { color: theme.colors.LABEL }]}>
-                    Drive Time
-                  </Text>
-                  <Text style={[stylesheet.infoValue, { color: theme.colors.TEXT_PRIMARY }]}>
-                    {Math.ceil(eta.duration_in_traffic_seconds / 60)} min drive ·{' '}
-                    {(eta.distance_meters / 1000).toFixed(1)} km
-                  </Text>
-                </View>
-              </View>
-            )}
 
             <View style={stylesheet.infoRow}>
               <View style={[stylesheet.iconBox, { backgroundColor: theme.colors.G + '15' }]}>

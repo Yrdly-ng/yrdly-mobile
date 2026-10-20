@@ -30,6 +30,7 @@ jobs:
       - run: pnpm test:release
       - run: pnpm test:maps
       - run: pnpm test:telemetry
+      - run: pnpm test:directions
 
   native-bundles:
     runs-on: ubuntu-24.04

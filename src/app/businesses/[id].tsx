@@ -1,3 +1,4 @@
+import { directionsHref } from '../../lib/location/directions';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -940,6 +941,24 @@ export default function BusinessProfileScreen() {
           <Text style={sStylesheet.catLocationTxt}>
             {business.category || 'Business'} · {getLocStr()}
           </Text>
+
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Get directions"
+            onPress={() =>
+              router.push(directionsHref({ type: 'business', id: business.id }) as any)
+            }
+            style={{
+              minHeight: 44,
+              paddingVertical: 12,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <Ionicons name="navigate-outline" size={18} color={theme.colors.G} />
+            <Text style={{ color: theme.colors.G, fontWeight: '600' }}>Get directions</Text>
+          </TouchableOpacity>
 
           {/* Stats row */}
           <View style={sStylesheet.statsRow}>

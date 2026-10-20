@@ -1,3 +1,4 @@
+import { directionsHref } from '../../lib/location/directions';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useState, useEffect, useCallback } from 'react';
@@ -40,15 +41,7 @@ import { formatPrice, timeAgo } from '../../lib/shared/utils';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { Avatar } from '../../components/Avatar';
 import { useToast } from '../../components/toast';
-import * as Location from 'expo-location';
-import { api } from '../../lib/network/api';
 
-interface ETAResponse {
-  duration_seconds: number;
-  duration_in_traffic_seconds: number;
-  distance_meters: number;
-  overview_polyline?: string;
-}
 const { width } = Dimensions.get('window');
 
 const MarketVideo = React.memo(({ url, shouldPlay }: { url: string; shouldPlay: boolean }) => {
@@ -121,9 +114,6 @@ function MarketplaceDetailContent() {
   const [isBookmarked, setIsBookmarked] = useState(false);
   const scaleValue = useSharedValue(1);
 
-  const [loc, setLoc] = useState<Location.LocationObject | null>(null);
-  const [eta, setEta] = useState<ETAResponse | null>(null);
-
   const fetchPost = useCallback(async () => {
     if (!id) return;
     try {
@@ -176,37 +166,6 @@ function MarketplaceDetailContent() {
   useEffect(() => {
     fetchPost();
   }, [fetchPost]);
-
-  useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return;
-      const l = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      setLoc(l);
-    })();
-  }, []);
-
-  useEffect(() => {
-    if (!post || !post.lat || !post.lng || !loc) return;
-
-    let active = true;
-    const fetchEta = async () => {
-      try {
-        const res = await api.post<ETAResponse>('/api/directions/eta', {
-          origin: { lat: loc.coords.latitude, lng: loc.coords.longitude },
-          destination: { lat: post.lat, lng: post.lng },
-        });
-        if (active) setEta(res);
-      } catch (err) {
-        console.warn('Failed to fetch ETA:', err);
-      }
-    };
-
-    fetchEta();
-    return () => {
-      active = false;
-    };
-  }, [post, loc]);
 
   const handleMessageSeller = async () => {
     if (!post || !user || user.id === post.user_id) return;
@@ -764,21 +723,23 @@ function MarketplaceDetailContent() {
               </Text>
             </View>
 
-            {eta && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
-                <Ionicons name="navigate-outline" size={14} color={theme.colors.G} />
-                <Text
-                  style={{
-                    fontFamily: 'Inter-Regular',
-                    fontSize: 13,
-                    color: theme.colors.TEXT_PRIMARY,
-                  }}
-                >
-                  {Math.ceil(eta.duration_in_traffic_seconds / 60)} min drive ·{' '}
-                  {(eta.distance_meters / 1000).toFixed(1)} km
-                </Text>
-              </View>
-            )}
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Get directions"
+              onPress={() =>
+                router.push(directionsHref({ type: 'marketplace', id: post.id }) as any)
+              }
+              style={{
+                minHeight: 44,
+                paddingVertical: 12,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <Ionicons name="navigate-outline" size={18} color={theme.colors.G} />
+              <Text style={{ color: theme.colors.G, fontWeight: '600' }}>Get directions</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Seller Card */}

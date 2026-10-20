@@ -48,8 +48,8 @@ export function createApiClient(
     throw new ApiError('Your session has expired. Please sign in again.', 401);
   }
   return {
-    get<T = any>(path: string) {
-      return request<T>('GET', path);
+    get<T = any>(path: string, signal?: AbortSignal) {
+      return request<T>('GET', path, undefined, signal);
     },
     post<T = any>(path: string, body: object, signal?: AbortSignal) {
       return request<T>('POST', path, body, signal);

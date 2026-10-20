@@ -109,7 +109,8 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,json,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,md}\"",
     "postinstall": "node -e \"const fs=require('fs'),path=require('path');try{const corePath=path.dirname(require.resolve('expo-modules-core/package.json'));['android/src/main/kotlin','android/src/release/java'].forEach(d=>{const p=path.join(corePath,d);if(!fs.existsSync(p))fs.mkdirSync(p,{recursive:true});});}catch(e){}\"",
-    "test:maps": "node --test tests/map-model.test.cjs tests/map-location.test.cjs tests/map-query.test.cjs"
+    "test:maps": "node --test tests/map-model.test.cjs tests/map-location.test.cjs tests/map-query.test.cjs",
+    "test:directions": "node --test tests/directions.test.cjs"
   },
   "private": true
 }

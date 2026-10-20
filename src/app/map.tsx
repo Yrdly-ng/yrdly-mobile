@@ -21,8 +21,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import NativeMapView, { Marker, PROVIDER_GOOGLE, Polyline } from 'react-native-maps';
 import ClusteredMap from 'react-native-map-clustering';
 import * as Location from 'expo-location';
-import polyline from '@mapbox/polyline';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { DirectionsPanel } from '../components/location/DirectionsPanel';
+import {
+  readDirectionsTarget,
+  decodeRoutePolyline,
+  type DirectionsTarget,
+  type DirectionsRoute,
+  type DirectionsDestination,
+  type DirectionsPoint,
+} from '../lib/location/directions';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase/supabase';
 import { useAppTheme } from '../context/ThemeContext';
@@ -35,7 +43,6 @@ import {
   coordinates,
   mapCoordinates,
   matchesMapArea,
-  normalizeEta,
   filterMarkers,
   loadMapSources,
   markerRoute,
@@ -72,12 +79,6 @@ const DARK_STYLE = [
   { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#1a2332' }] },
   { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0d2236' }] },
 ];
-interface ETAResponse {
-  duration_seconds: number;
-  duration_in_traffic_seconds: number;
-  distance_meters: number;
-  overview_polyline?: string;
-}
 
 function PlacePhoto({ marker }: { marker: MapMarker }) {
   const [failed, setFailed] = useState<string>();
@@ -130,6 +131,12 @@ export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const { height, fontScale } = useWindowDimensions();
   const router = useRouter();
+  const params = useLocalSearchParams<{ destinationType?: string; destinationId?: string }>();
+  const [directionsTarget, setDirectionsTarget] = useState<DirectionsTarget | null>(null);
+  const [directionsDestination, setDirectionsDestination] = useState<DirectionsDestination | null>(
+    null
+  );
+  const [directionsOrigin, setDirectionsOrigin] = useState<DirectionsPoint | null>(null);
   const { user } = useAuth();
   const { activeFilter, displayLabel, setGlobalFilter, userProfileLocation } = useLocation();
   const resolveMapLocation = useMemo(
@@ -166,12 +173,43 @@ export default function MapScreen() {
   const [areaOpen, setAreaOpen] = useState(false);
   const [areaSearch, setAreaSearch] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
-  const [eta, setEta] = useState<ETAResponse | null>(null);
-  const [etaStatus, setEtaStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [routePoints, setRoutePoints] = useState<{ latitude: number; longitude: number }[]>([]);
+  const [keyboardTop, setKeyboardTop] = useState<number | null>(null);
+  const keyboardOverlap =
+    directionsTarget && keyboardTop !== null ? Math.max(0, height - keyboardTop) : 0;
+  const panelBottom = Math.max(8, insets.bottom, keyboardOverlap);
   const panelHeight = Math.max(
     120,
-    Math.min(height * 0.45, height - insets.top - insets.bottom - (fontScale > 1.2 ? 235 : 200))
+    Math.min(
+      height * 0.45,
+      height - insets.top - panelBottom - (keyboardOverlap ? 48 : fontScale > 1.2 ? 235 : 200)
+    )
+  );
+  useEffect(() => {
+    const shown = Keyboard.addListener('keyboardDidShow', (event) =>
+      setKeyboardTop(event.endCoordinates.screenY)
+    );
+    const hidden = Keyboard.addListener('keyboardDidHide', () => setKeyboardTop(null));
+    return () => {
+      shown.remove();
+      hidden.remove();
+    };
+  }, []);
+  useEffect(() => {
+    setDirectionsDestination(null);
+    setDirectionsOrigin(null);
+    setRoutePoints([]);
+  }, [directionsTarget?.type, directionsTarget?.id, user?.id]);
+  useFocusEffect(
+    useCallback(() => {
+      setDirectionsTarget(readDirectionsTarget(params.destinationType, params.destinationId));
+      return () => {
+        setDirectionsTarget(null);
+        setDirectionsDestination(null);
+        setDirectionsOrigin(null);
+        setRoutePoints([]);
+      };
+    }, [params.destinationType, params.destinationId])
   );
 
   const requestLocation = useCallback(
@@ -389,7 +427,7 @@ export default function MapScreen() {
     if (selectedId && !selectedPin) setSelectedId(null);
   }, [selectedId, selectedPin]);
   useEffect(() => {
-    if (!mapReady || !pendingCenter) return;
+    if (!mapReady || !pendingCenter || directionsTarget) return;
     mapRef.current?.animateToRegion(
       {
         latitude: pendingCenter.lat,
@@ -401,9 +439,9 @@ export default function MapScreen() {
     );
     cameraSet.current = true;
     setPendingCenter(null);
-  }, [mapReady, pendingCenter]);
+  }, [mapReady, pendingCenter, directionsTarget]);
   useEffect(() => {
-    if (!mapReady || loading || cameraSet.current) return;
+    if (!mapReady || loading || cameraSet.current || directionsTarget) return;
     cameraSet.current = true;
     const places = markers.filter((marker) => marker.type !== 'friend');
     if (places.length === 1)
@@ -421,47 +459,74 @@ export default function MapScreen() {
         places.map((marker) => ({ latitude: marker.lat, longitude: marker.lng })),
         { edgePadding: { top: 200, bottom: 160, left: 60, right: 60 }, animated: true }
       );
-  }, [mapReady, loading, markers]);
+  }, [mapReady, loading, markers, directionsTarget]);
 
+  const showDirectionsRoute = useCallback(
+    (route: DirectionsRoute | null, origin: DirectionsPoint | null) => {
+      setDirectionsOrigin(origin);
+      setRoutePoints(route ? decodeRoutePolyline(route.overview_polyline) : []);
+    },
+    []
+  );
   useEffect(() => {
-    setEta(null);
+    if (!mapReady || !directionsTarget) return;
+    setPendingCenter(null);
+    cameraSet.current = true;
+    if (routePoints.length && directionsOrigin && directionsDestination) {
+      mapRef.current?.fitToCoordinates(
+        [
+          ...routePoints,
+          { latitude: directionsOrigin.lat, longitude: directionsOrigin.lng },
+          { latitude: directionsDestination.lat, longitude: directionsDestination.lng },
+        ],
+        {
+          edgePadding: {
+            top: insets.top + 90,
+            bottom: panelHeight + panelBottom + 24,
+            left: 48,
+            right: 48,
+          },
+          animated: true,
+        }
+      );
+    } else if (directionsDestination) {
+      mapRef.current?.animateToRegion(
+        {
+          latitude: directionsDestination.lat,
+          longitude: directionsDestination.lng,
+          latitudeDelta: 0.04,
+          longitudeDelta: 0.04,
+        },
+        400
+      );
+    }
+  }, [
+    mapReady,
+    directionsTarget,
+    directionsDestination,
+    directionsOrigin,
+    routePoints,
+    panelHeight,
+    panelBottom,
+    insets.top,
+    insets.bottom,
+  ]);
+  const closeDirections = () => {
+    Keyboard.dismiss();
+    setDirectionsTarget(null);
+    setDirectionsDestination(null);
+    setDirectionsOrigin(null);
     setRoutePoints([]);
-    setEtaStatus('idle');
-    if (!selectedPin || selectedPin.type === 'friend' || !loc) return;
-    const controller = new AbortController();
-    let disposed = false;
-    setEtaStatus('loading');
-    const timer = setTimeout(() => controller.abort(), 8000);
-    void api
-      .post<ETAResponse>(
-        '/api/directions/eta',
-        { origin: loc, destination: { lat: selectedPin.lat, lng: selectedPin.lng } },
-        controller.signal
-      )
-      .then((response) => {
-        if (disposed || controller.signal.aborted) return;
-        const validEta = normalizeEta(response);
-        if (!validEta) throw new Error('Invalid drive time');
-        const route = validEta.overview_polyline
-          ? polyline
-              .decode(validEta.overview_polyline)
-              .filter((point) => coordinates(point[0], point[1]) !== null)
-              .map((point) => ({ latitude: point[0], longitude: point[1] }))
-          : [];
-        setEta(validEta);
-        setRoutePoints(route);
-        setEtaStatus('idle');
-      })
-      .catch(() => {
-        if (!disposed) setEtaStatus('error');
-      })
-      .finally(() => clearTimeout(timer));
-    return () => {
-      disposed = true;
-      controller.abort();
-      clearTimeout(timer);
-    };
-  }, [selectedPin, loc]);
+    router.setParams({ destinationType: undefined, destinationId: undefined });
+  };
+  const startDirections = (marker: MapMarker) => {
+    if (marker.type === 'friend') return;
+    Keyboard.dismiss();
+    setDirectionsTarget({
+      type: marker.id.startsWith('legacy-event-') ? 'legacy-event' : marker.type,
+      id: marker.targetId,
+    });
+  };
 
   const openPreview = (marker: MapMarker) => {
     Keyboard.dismiss();
@@ -580,7 +645,7 @@ export default function MapScreen() {
           </Marker>
         )}
       >
-        {visibleMarkers.map((marker) => (
+        {(!directionsTarget ? visibleMarkers : []).map((marker) => (
           <Marker
             key={marker.id}
             coordinate={{ latitude: marker.lat, longitude: marker.lng }}
@@ -595,118 +660,151 @@ export default function MapScreen() {
             </View>
           </Marker>
         ))}
+        {directionsDestination && (
+          <Marker
+            key="directions-destination"
+            coordinate={{
+              latitude: directionsDestination.lat,
+              longitude: directionsDestination.lng,
+            }}
+            title={directionsDestination.title}
+            pinColor="#82DB7E"
+          />
+        )}
+        {directionsOrigin && (
+          <Marker
+            key="directions-origin"
+            coordinate={{ latitude: directionsOrigin.lat, longitude: directionsOrigin.lng }}
+            title="Starting point"
+            pinColor="#6FA8FF"
+          />
+        )}
         {routePoints.length ? (
           <Polyline coordinates={routePoints} strokeColor="#82DB7E" strokeWidth={4} />
         ) : null}
       </ClusteredMap>
 
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-            style={styles.control}
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
-          >
-            <Ionicons name="arrow-back" size={21} color="#FFFFFF" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={`Choose map area. ${displayLabel}`}
-            onPress={() => {
-              Keyboard.dismiss();
-              setAreaOpen(true);
-            }}
-            style={styles.heading}
-          >
-            <Text style={styles.headingTitle}>Explore nearby</Text>
-            <Text style={styles.area} numberOfLines={1}>
-              {displayLabel} ▾
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={locating ? 'Finding your location' : 'Locate me'}
-            accessibilityState={{ busy: locating, disabled: locating }}
-            disabled={locating}
-            style={styles.control}
-            onPress={() => void requestLocation()}
-          >
-            {locating ? (
-              <ActivityIndicator color="#82DB7E" />
-            ) : (
-              <Ionicons name="locate-outline" size={21} color="#FFFFFF" />
-            )}
-          </TouchableOpacity>
-        </View>
-        <View style={styles.headerRow}>
-          <View
-            style={[styles.search, searchFocused && { borderColor: '#82DB7E', borderWidth: 2 }]}
-          >
-            <Ionicons name="search" size={18} color="#C7D5CB" />
-            <TextInput
-              accessibilityLabel="Search map results"
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
-              placeholder="Search this area"
-              placeholderTextColor="#C7D5CB"
-              value={search}
-              onChangeText={setSearch}
-              style={styles.searchInput}
-            />
-            {search ? (
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel="Clear search"
-                style={styles.clear}
-                onPress={() => setSearch('')}
-              >
-                <Ionicons name="close" size={20} color="#FFFFFF" />
-              </TouchableOpacity>
-            ) : null}
-          </View>
-          <TouchableOpacity
-            accessibilityRole="switch"
-            accessibilityLabel="Show traffic"
-            accessibilityState={{ checked: showsTraffic }}
-            onPress={() => setShowsTraffic((value) => !value)}
-            style={[styles.control, showsTraffic && { backgroundColor: '#82DB7E' }]}
-          >
-            <Ionicons name="car-outline" size={21} color={showsTraffic ? '#0B0D0B' : '#FFFFFF'} />
-          </TouchableOpacity>
-        </View>
-        <FlatList
-          horizontal
-          data={FILTERS}
-          keyExtractor={(item) => item.key}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chips}
-          renderItem={({ item }) => (
+      {!directionsTarget && (
+        <View style={[styles.header, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
+          <View style={styles.headerRow}>
             <TouchableOpacity
               accessibilityRole="button"
-              accessibilityState={{ selected: filter === item.key }}
-              style={[styles.chip, filter === item.key && styles.activeChip]}
-              onPress={() => setFilter(item.key)}
+              accessibilityLabel="Back"
+              style={styles.control}
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
             >
-              <Text style={[styles.chipText, filter === item.key && { color: '#0B0D0B' }]}>
-                {item.label}
+              <Ionicons name="arrow-back" size={21} color="#FFFFFF" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={`Choose map area. ${displayLabel}`}
+              onPress={() => {
+                Keyboard.dismiss();
+                setAreaOpen(true);
+              }}
+              style={styles.heading}
+            >
+              <Text style={styles.headingTitle}>Explore nearby</Text>
+              <Text style={styles.area} numberOfLines={1}>
+                {displayLabel} ▾
               </Text>
             </TouchableOpacity>
-          )}
-        />
-      </View>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={locating ? 'Finding your location' : 'Locate me'}
+              accessibilityState={{ busy: locating, disabled: locating }}
+              disabled={locating}
+              style={styles.control}
+              onPress={() => void requestLocation()}
+            >
+              {locating ? (
+                <ActivityIndicator color="#82DB7E" />
+              ) : (
+                <Ionicons name="locate-outline" size={21} color="#FFFFFF" />
+              )}
+            </TouchableOpacity>
+          </View>
+          <View style={styles.headerRow}>
+            <View
+              style={[styles.search, searchFocused && { borderColor: '#82DB7E', borderWidth: 2 }]}
+            >
+              <Ionicons name="search" size={18} color="#C7D5CB" />
+              <TextInput
+                accessibilityLabel="Search map results"
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
+                placeholder="Search this area"
+                placeholderTextColor="#C7D5CB"
+                value={search}
+                onChangeText={setSearch}
+                style={styles.searchInput}
+              />
+              {search ? (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear search"
+                  style={styles.clear}
+                  onPress={() => setSearch('')}
+                >
+                  <Ionicons name="close" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+            <TouchableOpacity
+              accessibilityRole="switch"
+              accessibilityLabel="Show traffic"
+              accessibilityState={{ checked: showsTraffic }}
+              onPress={() => setShowsTraffic((value) => !value)}
+              style={[styles.control, showsTraffic && { backgroundColor: '#82DB7E' }]}
+            >
+              <Ionicons name="car-outline" size={21} color={showsTraffic ? '#0B0D0B' : '#FFFFFF'} />
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            horizontal
+            data={FILTERS}
+            keyExtractor={(item) => item.key}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chips}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityState={{ selected: filter === item.key }}
+                style={[styles.chip, filter === item.key && styles.activeChip]}
+                onPress={() => setFilter(item.key)}
+              >
+                <Text style={[styles.chipText, filter === item.key && { color: '#0B0D0B' }]}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      )}
 
       <View
         style={[
           styles.panel,
           {
-            bottom: Math.max(8, insets.bottom),
+            bottom: panelBottom,
             maxHeight: panelHeight,
-            ...(resultsOpen && !selectedPin ? { height: panelHeight } : {}),
+            ...(directionsTarget || (resultsOpen && !selectedPin) ? { height: panelHeight } : {}),
           },
         ]}
       >
-        {selectedPin ? (
+        {directionsTarget ? (
+          <DirectionsPanel
+            key={`${user?.id}:${directionsTarget.type}:${directionsTarget.id}`}
+            target={directionsTarget}
+            deviceOrigin={loc}
+            locating={locating}
+            locationError={locationError}
+            onLocate={() => void requestLocation(false)}
+            onClose={closeDirections}
+            onRoute={showDirectionsRoute}
+            onDestination={setDirectionsDestination}
+          />
+        ) : selectedPin ? (
           <ScrollView
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.panelContent}
@@ -736,17 +834,15 @@ export default function MapScreen() {
                 <Ionicons name="close" size={21} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
-            {selectedPin.type !== 'friend' ? (
-              <Text style={[styles.secondary, { marginTop: 10 }]} accessibilityLiveRegion="polite">
-                {etaStatus === 'loading'
-                  ? 'Calculating drive time…'
-                  : etaStatus === 'error'
-                    ? 'Drive time unavailable'
-                    : eta
-                      ? `${Math.ceil((eta.duration_in_traffic_seconds || eta.duration_seconds || 0) / 60)} min drive · ${(eta.distance_meters / 1000).toFixed(1)} km`
-                      : ''}
-              </Text>
-            ) : null}
+            {selectedPin.type !== 'friend' && (
+              <TouchableOpacity
+                accessibilityRole="button"
+                style={styles.primaryAction}
+                onPress={() => startDirections(selectedPin)}
+              >
+                <Text style={styles.primaryActionText}>Get directions</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               accessibilityRole="link"
               style={styles.primaryAction}
