@@ -21,3 +21,4 @@ allowBuilds:
   unrs-resolver: true
   "@callstack/liquid-glass": true
   esbuild: true
+  "@sentry/cli": true
