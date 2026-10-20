@@ -173,6 +173,29 @@ export const localCache = {
       }
     });
   },
+  async pruneFeed(owner: string) {
+    const epoch = generation;
+    const cutoff = Date.now() - 15 * 60 * 1000;
+    if (owner !== account) return;
+    return enqueue(async () => {
+      if (epoch !== generation || owner !== account) return;
+      for (const [key, entry] of memory) {
+        if (key.startsWith(`${owner}:feed:`) && entry.savedAt < cutoff) memory.delete(key);
+      }
+      try {
+        const db = await openDatabase();
+        if (epoch !== generation || owner !== account) return;
+        await db.runAsync(
+          'DELETE FROM cache_entries WHERE account_id=? AND namespace=? AND saved_at < ?',
+          owner,
+          'feed',
+          cutoff
+        );
+      } catch {
+        /* Memory-only operation remains available without SQLCipher. */
+      }
+    });
+  },
   async remove(owner: string, namespace: string, id: string) {
     return enqueue(async () => {
       memory.delete(`${owner}:${namespace}:${id}`);

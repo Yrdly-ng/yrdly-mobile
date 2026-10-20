@@ -21,7 +21,7 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
   const { user, profile } = useAuth();
   const { showToast } = useToast();
   const [posts, setPosts] = useState<Post[]>([]);
-  const [postsOwner, setPostsOwner] = useState<string | null>(null);
+  const [postsScope, setPostsScope] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -29,55 +29,108 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
   const PAGE_SIZE = 15;
   const requestVersion = useRef(0);
   const [isCached, setIsCached] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<number | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [ageStale, setAgeStale] = useState(false);
+  const offlineRef = useRef(false);
+  const lastRefreshedRef = useRef<number | null>(null);
+  const [pendingPosts, setPendingPosts] = useState<Post[]>([]);
+  const inFlight = useRef<{
+    scope: string;
+    promise: Promise<boolean>;
+    applied: boolean;
+    explicit: boolean;
+    loadMore: boolean;
+    revalidate: boolean;
+  } | null>(null);
+  const suppressed = useRef(new Set<string>());
+  const postsRef = useRef(posts);
+  postsRef.current = posts;
 
   const filterState = filter?.state;
   const filterLga = filter?.lga;
   const filterWard = filter?.ward;
   const blockedKey = JSON.stringify(profile?.blocked_users || []);
+  const cacheKey = JSON.stringify([filterState || null, filterLga || null, filterWard || null]);
+  const scopeKey = JSON.stringify([user?.id || null, cacheKey]);
+  const initializedScope = useRef<string | null>(null);
+  const activeScope = useRef(scopeKey);
+  activeScope.current = scopeKey;
 
   const fetchPosts = useCallback(
-    async (pageNum: number = 0, isLoadMore: boolean = false) => {
-      if (!enabled) {
-        setLoading(false);
-        return;
-      }
-      // Generate a cache key based on filters
-      let filterString: string | undefined = undefined;
-      if (filterWard) filterString = `ward=eq.${filterWard}`;
-      else if (filterLga) filterString = `lga=eq.${filterLga}`;
-      else if (filterState) filterString = `state=eq.${filterState}`;
-
-      const owner = user?.id;
-      const cacheKey = filterString || 'all';
-      const request = ++requestVersion.current;
-      const startedAt = Date.now();
-      if (!owner) {
-        setPosts([]);
-        setLoading(false);
-        return;
-      }
-      if (!isLoadMore) {
-        const cached = await localCache.read<Post[]>(owner, 'feed', cacheKey);
-        if (request !== requestVersion.current) return;
-        if (cached) {
-          setPosts(cached.value);
-          setPostsOwner(owner);
-          setIsCached(true);
+    async (
+      pageNum = 0,
+      isLoadMore = false,
+      mode: 'initial' | 'passive' | 'explicit' = 'explicit'
+    ) => {
+      const existing = inFlight.current;
+      if (existing?.scope === scopeKey) {
+        if (!isLoadMore && !existing.loadMore) {
+          if (mode === 'explicit') existing.explicit = true;
+          return existing.promise;
         }
+        await existing.promise;
+        if (activeScope.current !== scopeKey || isLoadMore) return;
       }
-      const network = await NetInfo.fetch();
-      if (request !== requestVersion.current) return;
-      if (network.isConnected === false) {
-        setLoading(false);
-        setIsFetchingMore(false);
-        return;
-      }
+      const flight = {
+        scope: scopeKey,
+        promise: Promise.resolve(false),
+        applied: false,
+        explicit: mode === 'explicit',
+        loadMore: isLoadMore,
+        revalidate: false,
+      };
+      const run = async () => {
+        if (!enabled) {
+          setLoading(false);
+          return;
+        }
+        const owner = user?.id;
+        const request = ++requestVersion.current;
+        const startedAt = Date.now();
+        if (!owner) {
+          setPosts([]);
+          setLoading(false);
+          return;
+        }
+        try {
+          setRefreshError(null);
+          await localCache.pruneFeed(owner);
+          if (request !== requestVersion.current || activeScope.current !== scopeKey) return;
+          let restored = false;
+          if (mode === 'initial') {
+            const cached = await localCache.read<Post[]>(owner, 'feed', cacheKey);
+            if (request !== requestVersion.current || activeScope.current !== scopeKey) return;
+            if (cached) {
+              restored = true;
+              const visible = cached.value.filter(
+                (post) => !(profile?.blocked_users || []).includes(post.user_id)
+              );
+              postsRef.current = visible;
+              setPosts(visible);
+              setLastRefreshedAt(cached.savedAt);
+              lastRefreshedRef.current = cached.savedAt;
+              setLoading(false);
+              setPostsScope(scopeKey);
+              setIsCached(true);
+            }
+          }
+          const network = await NetInfo.fetch();
+          if (request !== requestVersion.current || activeScope.current !== scopeKey) return;
+          const offline = network.isConnected === false || network.isInternetReachable === false;
+          setIsOffline(offline);
+          offlineRef.current = offline;
+          if (offline) {
+            setLoading(false);
+            setIsFetchingMore(false);
+            return;
+          }
 
-      try {
-        let query = supabase
-          .from('posts')
-          .select(
-            `
+          let query = supabase
+            .from('posts')
+            .select(
+              `
           *,
           user:public_profiles!posts_user_id_fkey(
             id,
@@ -88,13 +141,13 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
             phone_verified
           )
         `
-          )
-          .eq('moderation_status', 'approved');
+            )
+            .eq('moderation_status', 'approved');
 
-        let eventsQuery = supabase
-          .from('events')
-          .select(
-            `
+          let eventsQuery = supabase
+            .from('events')
+            .select(
+              `
           *,
           organizer:public_profiles!events_organizer_id_fkey(
             id,
@@ -105,468 +158,406 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
             phone_verified
           )
         `
-          )
-          .eq('status', 'PUBLISHED')
-          .eq('is_archived', false)
-          .eq('moderation_status', 'approved')
-          .or(
-            `end_time.gte.${new Date().toISOString()},and(end_time.is.null,start_time.gte.${new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()})`
-          );
+            )
+            .eq('status', 'PUBLISHED')
+            .eq('is_archived', false)
+            .eq('moderation_status', 'approved')
+            .or(
+              `end_time.gte.${new Date().toISOString()},and(end_time.is.null,start_time.gte.${new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()})`
+            );
 
-        // Apply location filters (hierarchical: ward > lga > state)
-        if (filterWard) {
-          query = query.eq('ward', filterWard);
-          eventsQuery = eventsQuery.or(`ward.eq."${filterWard}",is_online.eq.true`);
-        } else if (filterLga) {
-          query = query.eq('lga', filterLga);
-          eventsQuery = eventsQuery.or(`lga.eq."${filterLga}",is_online.eq.true`);
-        } else if (filterState) {
-          query = query.eq('state', filterState);
-          eventsQuery = eventsQuery.or(`state.eq."${filterState}",is_online.eq.true`);
-        }
+          // Match every supplied parent; ward names are not globally unique.
+          const locationClauses: string[] = [];
+          for (const [field, value] of [
+            ['state', filterState],
+            ['lga', filterLga],
+            ['ward', filterWard],
+          ] as const) {
+            if (!value) continue;
+            query = query.eq(field, value);
+            locationClauses.push(`${field}.eq.${JSON.stringify(value)}`);
+          }
+          if (locationClauses.length) {
+            eventsQuery = eventsQuery.or(`and(${locationClauses.join(',')}),is_online.eq.true`);
+          }
 
-        // Hide sold marketplace items from the feed
-        query = query.or('category.neq.For Sale,is_sold.eq.false');
+          // Hide sold marketplace items from the feed
+          query = query.or('category.neq.For Sale,is_sold.eq.false');
 
-        // Pagination
-        const from = pageNum * PAGE_SIZE;
-        const to = from + PAGE_SIZE - 1;
+          // Pagination
+          const from = pageNum * PAGE_SIZE;
+          const to = from + PAGE_SIZE - 1;
 
-        const [postsRes, eventsRes] = await Promise.all([
-          query.order('timestamp', { ascending: false }).range(from, to),
-          eventsQuery.order('created_at', { ascending: false }).range(from, to),
-        ]);
+          const [postsRes, eventsRes] = await Promise.all([
+            query.order('timestamp', { ascending: false }).range(from, to),
+            eventsQuery.order('created_at', { ascending: false }).range(from, to),
+          ]);
 
-        if (postsRes.error) {
-          console.error('Fetch posts error:', postsRes.error);
-          setIsCached(true);
-          setLoading(false);
-          return;
-        }
+          if (request !== requestVersion.current || activeScope.current !== scopeKey) return;
+          if (postsRes.error) throw postsRes.error;
+          let partialFailure = Boolean(eventsRes.error);
 
-        if (eventsRes.error) {
-          console.warn('Fetch events warning:', eventsRes.error);
-        }
+          if (request !== requestVersion.current || activeScope.current !== scopeKey) return;
 
-        if (request !== requestVersion.current) return;
-
-        // Filter private posts: only author and accepted friends can view
-        let myFriendsList: string[] = [];
-        if (user) {
-          try {
+          // Filter private posts: only author and accepted friends can view
+          let myFriendsList: string[] = [];
+          if (user) {
             const [following, followers] = await Promise.all([
               supabase.from('followers').select('following_id').eq('follower_id', user.id),
               supabase.from('followers').select('follower_id').eq('following_id', user.id),
             ]);
-            if (following.data && followers.data) {
-              const followingIds = following.data.map((f) => f.following_id);
-              const followerIds = followers.data.map((f) => f.follower_id);
-              myFriendsList = followingIds.filter((id) => followerIds.includes(id));
+            // A failed relationship lookup is not evidence of revoked access.
+            // Keep the displayed feed and its last successful refresh time.
+            if (following.error || followers.error || !following.data || !followers.data) {
+              throw new Error('Could not verify feed relationships');
             }
-          } catch (e) {}
-        }
-
-        if (request !== requestVersion.current) return;
-        const blocked = profile?.blocked_users || [];
-        const unblockedPosts = (postsRes.data || []).filter((p) => !blocked.includes(p.user_id));
-        const unblockedEvents = (eventsRes.data || []).filter(
-          (e) => !blocked.includes(e.organizer_id)
-        );
-
-        const freshPosts = unblockedPosts.filter((post) => {
-          const isPrivate = post.visibility === 'private' || (post as any).is_private === true;
-          if (!isPrivate) return true;
-          if (!user) return false;
-          if (post.user_id === user.id) return true;
-          return myFriendsList.includes(post.user_id);
-        });
-
-        const freshEvents = (eventsRes.data || []).map((event: any): Post => ({
-          id: event.id,
-          user_id: event.organizer_id,
-          author_name: event.organizer?.name || 'Unknown',
-          author_image: event.organizer?.avatar_url || '',
-          text: event.description || '',
-          description: event.description || '',
-          image_urls:
-            event.image_urls && event.image_urls.length > 0
-              ? event.image_urls
-              : event.cover_image_url
-                ? [event.cover_image_url]
-                : [],
-          image_url: event.cover_image_url || undefined,
-          timestamp: event.created_at,
-          comment_count: 0,
-          category: 'Event',
-          state: event.state,
-          lga: event.lga,
-          ward: event.ward,
-          title: event.title,
-          event_date: event.start_time,
-          event_time: event.start_time,
-          event_location: {
-            address: event.location_address || (event.location_online ? 'Online' : 'TBA'),
-          },
-          liked_by: [],
-          created_at: event.created_at,
-          user: event.organizer,
-        }));
-
-        // Filter out duplicate Event posts from posts table if matching event exists in freshEvents
-        const freshPostsDeduplicated = freshPosts.filter((post) => {
-          if (post.category === 'Event') {
-            const eventIdInLink = post.event_link?.split('/').pop();
-            if (eventIdInLink && freshEvents.some((e) => e.id === eventIdInLink)) {
-              return false;
-            }
-            if (freshEvents.some((e) => e.user_id === post.user_id && e.title === post.title)) {
-              return false;
-            }
+            const followingIds = following.data.map((f) => f.following_id);
+            const followerIds = followers.data.map((f) => f.follower_id);
+            myFriendsList = followingIds.filter((id) => followerIds.includes(id));
           }
-          return true;
-        });
 
-        // Merge and sort
-        const merged = [...freshPostsDeduplicated, ...freshEvents].sort(
-          (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        );
-
-        const returnedCount = (postsRes.data?.length || 0) + (eventsRes.data?.length || 0);
-        if (returnedCount < PAGE_SIZE) {
-          setHasMore(false);
-        } else {
-          setHasMore(true);
-        }
-
-        if (isLoadMore) {
-          setPosts((prev) => {
-            const newPosts = [...prev];
-            merged.forEach((p) => {
-              if (!newPosts.some((existing) => existing.id === p.id)) {
-                newPosts.push(p);
-              }
-            });
-            // Re-sort just in case
-            return newPosts.sort(
-              (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-            );
-          });
-        } else {
-          setPosts(merged);
-          // 2. Save fresh data back to cache
-          // Persist only approved public metadata, never private/friends-only posts.
-          void localCache.write(
-            owner,
-            'feed',
-            cacheKey,
-            merged.filter(
-              (p) =>
-                p.category !== 'Event' &&
-                p.visibility === 'public' &&
-                p.moderation_status === 'approved'
-            ),
-            startedAt
+          if (request !== requestVersion.current || activeScope.current !== scopeKey) return;
+          const blocked = profile?.blocked_users || [];
+          const unblockedPosts = (postsRes.data || []).filter((p) => !blocked.includes(p.user_id));
+          const unblockedEvents = (eventsRes.data || []).filter(
+            (e) => !blocked.includes(e.organizer_id)
           );
-        }
 
-        setPostsOwner(owner);
-        setIsCached(false);
-        setLoading(false);
-        setIsFetchingMore(false);
-      } catch (error) {
-        if (request !== requestVersion.current) return;
-        setLoading(false);
-        setIsFetchingMore(false);
-      }
+          const matchesArea = (row: {
+            state?: string | null;
+            lga?: string | null;
+            ward?: string | null;
+          }) =>
+            (!filterState || row.state === filterState) &&
+            (!filterLga || row.lga === filterLga) &&
+            (!filterWard || row.ward === filterWard);
+          const canShowPost = (post: Post) => {
+            if (
+              blocked.includes(post.user_id) ||
+              !matchesArea(post) ||
+              post.moderation_status !== 'approved' ||
+              (post as any).community_id ||
+              (post.category === 'For Sale' && post.is_sold)
+            )
+              return false;
+            const isPrivate = post.visibility === 'private' || (post as any).is_private === true;
+            return !isPrivate || post.user_id === owner || myFriendsList.includes(post.user_id);
+          };
+          const canShowEvent = (event: any) =>
+            !blocked.includes(event.organizer_id) &&
+            (event.is_online || matchesArea(event)) &&
+            event.status === 'PUBLISHED' &&
+            !event.is_archived &&
+            event.moderation_status === 'approved' &&
+            (event.end_time
+              ? new Date(event.end_time).getTime() >= Date.now()
+              : new Date(event.start_time).getTime() >= Date.now() - 86400000);
+          const freshPosts = unblockedPosts.filter(canShowPost);
+
+          const toFeedEvent = (event: any, previous?: Post): Post => ({
+            id: event.id,
+            user_id: event.organizer_id,
+            author_name: event.organizer?.name || previous?.author_name || 'Unknown',
+            author_image: event.organizer?.avatar_url || previous?.author_image || '',
+            text: event.description || '',
+            description: event.description || '',
+            image_urls:
+              event.image_urls && event.image_urls.length > 0
+                ? event.image_urls
+                : event.cover_image_url
+                  ? [event.cover_image_url]
+                  : [],
+            image_url: event.cover_image_url || undefined,
+            timestamp: event.created_at,
+            comment_count: 0,
+            category: 'Event',
+            state: event.state,
+            lga: event.lga,
+            ward: event.ward,
+            title: event.title,
+            event_date: event.start_time,
+            event_time: event.start_time,
+            event_location: {
+              address: event.location_address || (event.location_online ? 'Online' : 'TBA'),
+            },
+            liked_by: [],
+            created_at: event.created_at,
+            user: event.organizer || previous?.user,
+          });
+          const freshEvents = unblockedEvents
+            .filter(canShowEvent)
+            .map((event) => toFeedEvent(event));
+
+          // Filter out duplicate Event posts from posts table if matching event exists in freshEvents
+          const freshPostsDeduplicated = freshPosts.filter((post) => {
+            if (post.category === 'Event') {
+              const eventIdInLink = post.event_link?.split('/').pop();
+              if (eventIdInLink && freshEvents.some((e) => e.id === eventIdInLink)) {
+                return false;
+              }
+              if (freshEvents.some((e) => e.user_id === post.user_id && e.title === post.title)) {
+                return false;
+              }
+            }
+            return true;
+          });
+
+          // Merge and sort
+          const merged = [...freshPostsDeduplicated, ...freshEvents]
+            .filter((post) => !suppressed.current.has(post.id))
+            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+          const returnedCount = (postsRes.data?.length || 0) + (eventsRes.data?.length || 0);
+          const preserveReading =
+            !isLoadMore &&
+            !flight.explicit &&
+            (mode === 'passive' || restored) &&
+            postsRef.current.length > 0;
+          if (!preserveReading && returnedCount < PAGE_SIZE) {
+            setHasMore(false);
+          } else if (!preserveReading) {
+            setHasMore(true);
+          }
+
+          if (isLoadMore) {
+            setPage(pageNum);
+            setPosts((prev) => {
+              const newPosts = [...prev];
+              merged.forEach((p) => {
+                if (!newPosts.some((existing) => existing.id === p.id)) {
+                  newPosts.push(p);
+                }
+              });
+              return newPosts;
+            });
+          } else {
+            if (preserveReading) {
+              // Absence from page one is not deletion. Verify every retained ID in
+              // bounded batches under the caller's RLS before removing older rows.
+              const retained = postsRef.current;
+              const removed = new Set<string>();
+              const verifiedPosts = new Map<string, Post>();
+              for (let offset = 0; offset < retained.length; offset += 100) {
+                const batch = retained.slice(offset, offset + 100);
+                const ids = batch.map((post) => post.id);
+                const [checkedPosts, checkedEvents] = await Promise.all([
+                  supabase.from('posts').select('*').in('id', ids),
+                  batch.some((post) => post.category === 'Event')
+                    ? supabase.from('events').select('*').in('id', ids)
+                    : Promise.resolve({ data: [], error: null }),
+                ]);
+                if (request !== requestVersion.current || activeScope.current !== scopeKey) return;
+                if (checkedPosts.error || checkedEvents.error) {
+                  partialFailure = true;
+                  continue;
+                }
+                for (const post of (checkedPosts.data || []).filter(canShowPost))
+                  verifiedPosts.set(post.id, post);
+                for (const event of (checkedEvents.data || []).filter(canShowEvent)) {
+                  verifiedPosts.set(
+                    event.id,
+                    toFeedEvent(
+                      event,
+                      batch.find((post) => post.id === event.id)
+                    )
+                  );
+                }
+                const allowed = new Set([
+                  ...(checkedPosts.data || []).filter(canShowPost).map((post) => post.id),
+                  ...(checkedEvents.data || []).filter(canShowEvent).map((event) => event.id),
+                ]);
+                for (const post of batch) if (!allowed.has(post.id)) removed.add(post.id);
+              }
+              const freshById = new Map(merged.map((post) => [post.id, post]));
+              if (!flight.explicit) {
+                setPosts((current) =>
+                  current
+                    .filter((post) => !removed.has(post.id) && !suppressed.current.has(post.id))
+                    .map(
+                      (post) =>
+                        freshById.get(post.id) ||
+                        (verifiedPosts.has(post.id)
+                          ? { ...post, ...verifiedPosts.get(post.id) }
+                          : post)
+                    )
+                );
+                setPendingPosts(
+                  merged.filter(
+                    (post) =>
+                      !suppressed.current.has(post.id) &&
+                      !postsRef.current.some((visible) => visible.id === post.id)
+                  )
+                );
+              }
+            }
+            // Explicit intent may arrive while retained rows are being checked.
+            if (!preserveReading || flight.explicit) {
+              setHasMore(returnedCount >= PAGE_SIZE);
+              setPosts(merged.filter((post) => !suppressed.current.has(post.id)));
+              flight.applied = !partialFailure;
+              setPendingPosts([]);
+              setPage(0);
+            }
+            // 2. Save fresh data back to cache
+            // Persist only approved public metadata, never private/friends-only posts.
+            void localCache.write(
+              owner,
+              'feed',
+              cacheKey,
+              merged.filter(
+                (p) =>
+                  !suppressed.current.has(p.id) &&
+                  p.category !== 'Event' &&
+                  !(p as any).community_id &&
+                  !(p as any).is_private &&
+                  p.visibility === 'public' &&
+                  p.moderation_status === 'approved'
+              ),
+              startedAt
+            );
+          }
+
+          setPostsScope(scopeKey);
+          if (!isLoadMore && !partialFailure) {
+            const refreshedAt = Date.now();
+            setLastRefreshedAt(refreshedAt);
+            lastRefreshedRef.current = refreshedAt;
+          }
+          setRefreshError(partialFailure ? 'Some posts could not be refreshed. Try again.' : null);
+          setIsCached(false);
+          setLoading(false);
+          setIsFetchingMore(false);
+        } catch (error) {
+          if (request !== requestVersion.current || activeScope.current !== scopeKey) return;
+          setRefreshError('Could not refresh posts. Try again.');
+          setLoading(false);
+          setIsFetchingMore(false);
+        }
+      };
+      inFlight.current = flight;
+      flight.promise = (async () => {
+        do {
+          flight.revalidate = false;
+          await run();
+          // Coalesce realtime events received while a query was in flight.
+          mode = 'passive';
+          isLoadMore = false;
+          pageNum = 0;
+          flight.explicit = false;
+          flight.loadMore = false;
+        } while (
+          flight.revalidate &&
+          inFlight.current === flight &&
+          activeScope.current === scopeKey
+        );
+        return activeScope.current === scopeKey && flight.applied;
+      })().finally(() => {
+        if (inFlight.current === flight) inFlight.current = null;
+      });
+      return flight.promise;
     },
-    [enabled, filterState, filterLga, filterWard, user?.id, blockedKey]
+    [enabled, filterState, filterLga, filterWard, user?.id, blockedKey, cacheKey, scopeKey]
   );
 
   useEffect(() => {
-    if (!enabled) return;
-    setPage(0);
-    setHasMore(true);
-    fetchPosts(0, false);
-
-    // Set up real-time subscription for all posts
-    let filterString: string | undefined = undefined;
-    if (filterWard) {
-      filterString = `ward=eq.${filterWard}`;
-    } else if (filterLga) {
-      filterString = `lga=eq.${filterLga}`;
-    } else if (filterState) {
-      filterString = `state=eq.${filterState}`;
+    if (!enabled) {
+      initializedScope.current = null;
+      return;
     }
+    const initial = initializedScope.current !== scopeKey;
+    initializedScope.current = scopeKey;
+    if (initial) {
+      suppressed.current.clear();
+      postsRef.current = [];
+      setPosts([]);
+      setPendingPosts([]);
+      setPostsScope(scopeKey);
+      setIsCached(false);
+      setLastRefreshedAt(null);
+      lastRefreshedRef.current = null;
+      setRefreshError(null);
+      setLoading(true);
+      setPage(0);
+      setHasMore(true);
+    } else {
+      const blocked = profile?.blocked_users || [];
+      setPosts((current) => current.filter((post) => !blocked.includes(post.user_id)));
+      setPendingPosts((current) => current.filter((post) => !blocked.includes(post.user_id)));
+    }
+    void fetchPosts(0, false, initial ? 'initial' : 'passive');
 
-    const channelName = `posts-all-${Math.random().toString(36).substring(7)}`;
+    // Requery through the same access checks. Inserts never move the reader.
+    const handleChange = (table: 'posts' | 'events', payload: any) => {
+      if (activeScope.current !== scopeKey) return;
+      void localCache.invalidate('feed');
+      const row = payload.new || {};
+      const id = payload.eventType === 'DELETE' ? payload.old.id : row.id;
+      const outsideArea =
+        !(table === 'events' && row.is_online) &&
+        ((filterState && row.state !== filterState) ||
+          (filterLga && row.lga !== filterLga) ||
+          (filterWard && row.ward !== filterWard));
+      const inaccessible =
+        payload.eventType === 'DELETE' ||
+        (row.moderation_status && row.moderation_status !== 'approved') ||
+        outsideArea ||
+        (profile?.blocked_users || []).includes(
+          table === 'events' ? row.organizer_id : row.user_id
+        ) ||
+        (table === 'posts' && (row.community_id || (row.category === 'For Sale' && row.is_sold))) ||
+        (table === 'events' &&
+          (row.status !== 'PUBLISHED' ||
+            row.is_archived ||
+            (row.end_time
+              ? new Date(row.end_time).getTime() < Date.now()
+              : new Date(row.start_time).getTime() < Date.now() - 86400000)));
+      if (inaccessible) {
+        suppressed.current.add(id);
+        setPosts((current) => current.filter((post) => post.id !== id));
+        setPendingPosts((current) => current.filter((post) => post.id !== id));
+      }
+      if (payload.eventType !== 'DELETE' && !inaccessible) suppressed.current.delete(id);
+      if (inFlight.current?.scope === scopeKey) inFlight.current.revalidate = true;
+      else void fetchPosts(0, false, 'passive');
+    };
     const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'posts',
-          filter: filterString,
-        },
-        (payload) => {
-          void localCache.invalidate('feed');
-          if (payload.eventType === 'INSERT') {
-            const newPost = payload.new as Post;
-
-            if (newPost.moderation_status && newPost.moderation_status !== 'approved') return;
-
-            // Double check filter client-side just in case
-            if (filterState && newPost.state && newPost.state !== filterState) return;
-            if (filterLga && newPost.lga && newPost.lga !== filterLga) return;
-            if (filterWard && newPost.ward && newPost.ward !== filterWard) return;
-            // Don't show sold items in the feed
-            if (newPost.category === 'For Sale' && newPost.is_sold) return;
-
-            // Check private visibility
-            const isPrivate = newPost.visibility === 'private' || (newPost as any).is_private;
-
-            const handleInsert = async () => {
-              if (isPrivate && user && newPost.user_id !== user.id) {
-                const [following, followers] = await Promise.all([
-                  supabase
-                    .from('followers')
-                    .select('id')
-                    .eq('follower_id', user.id)
-                    .eq('following_id', newPost.user_id)
-                    .maybeSingle(),
-                  supabase
-                    .from('followers')
-                    .select('id')
-                    .eq('follower_id', newPost.user_id)
-                    .eq('following_id', user.id)
-                    .maybeSingle(),
-                ]);
-                // If not mutual friends, skip this post
-                if (!following.data || !followers.data) return;
-              }
-
-              // Check if post already exists in state
-              setPosts((currentPosts) => {
-                if (currentPosts.some((p) => p.id === newPost.id)) return currentPosts;
-                return [newPost, ...currentPosts];
-              });
-
-              // Fetch user data for the new post
-              try {
-                const { data: userData, error: userError } = await supabase
-                  .from('public_profiles')
-                  .select('id, name, username, avatar_url, location, created_at')
-                  .eq('id', newPost.user_id)
-                  .single();
-
-                if (!userError && userData) {
-                  const postWithUser = {
-                    ...newPost,
-                    user: userData,
-                  };
-                  setPosts((prevPosts) =>
-                    prevPosts.map((p) => (p.id === newPost.id ? postWithUser : p))
-                  );
-                }
-              } catch (error) {}
-            };
-
-            handleInsert();
-          } else if (payload.eventType === 'UPDATE') {
-            // Update existing post in the list
-            const updatedPost = payload.new as Post;
-
-            // If a post was rejected or pending, remove it from the feed
-            if (updatedPost.moderation_status && updatedPost.moderation_status !== 'approved') {
-              setPosts((prevPosts) => prevPosts.filter((p) => p.id !== updatedPost.id));
-              return;
-            }
-
-            // If a For Sale post just became sold, remove it from the feed instantly
-            if (updatedPost.category === 'For Sale' && updatedPost.is_sold) {
-              setPosts((prevPosts) => prevPosts.filter((p) => p.id !== updatedPost.id));
-              return;
-            }
-
-            // Fetch user data for the updated post
-            const fetchUserData = async () => {
-              try {
-                const { data: userData, error: userError } = await supabase
-                  .from('public_profiles')
-                  .select('id, name, username, avatar_url, location, created_at')
-                  .eq('id', updatedPost.user_id)
-                  .single();
-
-                if (!userError && userData) {
-                  const postWithUser = {
-                    ...updatedPost,
-                    user: userData,
-                  };
-                  setPosts((prevPosts) =>
-                    prevPosts.map((post) => (post.id === updatedPost.id ? postWithUser : post))
-                  );
-                } else {
-                  // Fallback to post without user data
-                  setPosts((prevPosts) =>
-                    prevPosts.map((post) => (post.id === updatedPost.id ? updatedPost : post))
-                  );
-                }
-              } catch (error) {
-                setPosts((prevPosts) =>
-                  prevPosts.map((post) => (post.id === updatedPost.id ? updatedPost : post))
-                );
-              }
-            };
-
-            fetchUserData();
-          } else if (payload.eventType === 'DELETE') {
-            // Remove deleted post from the list
-            const deletedId = payload.old.id;
-            setPosts((prevPosts) => prevPosts.filter((post) => post.id !== deletedId));
-          }
-        }
+      .channel(`posts-all-${Math.random().toString(36).substring(7)}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, (payload) =>
+        handleChange('posts', payload)
       )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'events',
-          filter: filterString,
-        },
-        (payload) => {
-          void localCache.invalidate('feed');
-          if (payload.eventType === 'INSERT') {
-            const newEvent = payload.new as any;
-            if (newEvent.status !== 'PUBLISHED') return;
-            if (newEvent.moderation_status && newEvent.moderation_status !== 'approved') return;
-
-            if (filterState && newEvent.state && newEvent.state !== filterState) return;
-            if (filterLga && newEvent.lga && newEvent.lga !== filterLga) return;
-            if (filterWard && newEvent.ward && newEvent.ward !== filterWard) return;
-
-            setPosts((currentPosts) => {
-              if (currentPosts.some((p) => p.id === newEvent.id)) return currentPosts;
-
-              const postFormat: Post = {
-                id: newEvent.id,
-                user_id: newEvent.organizer_id,
-                author_name: 'Unknown',
-                author_image: '',
-                text: newEvent.description || '',
-                description: newEvent.description || '',
-                image_urls:
-                  newEvent.image_urls && newEvent.image_urls.length > 0
-                    ? newEvent.image_urls
-                    : newEvent.cover_image_url
-                      ? [newEvent.cover_image_url]
-                      : [],
-                image_url: newEvent.cover_image_url || undefined,
-                timestamp: newEvent.created_at,
-                comment_count: 0,
-                category: 'Event',
-                state: newEvent.state,
-                lga: newEvent.lga,
-                ward: newEvent.ward,
-                title: newEvent.title,
-                event_date: newEvent.start_time,
-                event_time: newEvent.start_time,
-                event_location: {
-                  address:
-                    newEvent.location_address || (newEvent.location_online ? 'Online' : 'TBA'),
-                },
-                liked_by: [],
-                created_at: newEvent.created_at,
-              };
-              return [postFormat, ...currentPosts].sort(
-                (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-              );
-            });
-
-            // Fetch user data for the new event
-            const fetchUserData = async () => {
-              try {
-                const { data: userData, error: userError } = await supabase
-                  .from('public_profiles')
-                  .select('id, name, username, avatar_url, location, created_at')
-                  .eq('id', newEvent.organizer_id)
-                  .single();
-
-                if (!userError && userData) {
-                  setPosts((prevPosts) =>
-                    prevPosts.map((p) => {
-                      if (p.id === newEvent.id) {
-                        return {
-                          ...p,
-                          author_name: userData.name || 'Unknown',
-                          author_image: userData.avatar_url || '',
-                          user: userData,
-                        };
-                      }
-                      return p;
-                    })
-                  );
-                }
-              } catch (error) {}
-            };
-            fetchUserData();
-          } else if (payload.eventType === 'UPDATE') {
-            const updatedEvent = payload.new as any;
-            const isExpired =
-              (updatedEvent.end_time && new Date(updatedEvent.end_time).getTime() < Date.now()) ||
-              (!updatedEvent.end_time &&
-                updatedEvent.start_time &&
-                new Date(updatedEvent.start_time).getTime() < Date.now() - 24 * 60 * 60 * 1000);
-
-            if (
-              updatedEvent.status !== 'PUBLISHED' ||
-              isExpired ||
-              (updatedEvent.moderation_status && updatedEvent.moderation_status !== 'approved')
-            ) {
-              setPosts((prevPosts) => prevPosts.filter((p) => p.id !== updatedEvent.id));
-              return;
-            }
-
-            setPosts((prevPosts) =>
-              prevPosts.map((p) => {
-                if (p.id === updatedEvent.id) {
-                  return {
-                    ...p,
-                    text: updatedEvent.description || '',
-                    description: updatedEvent.description || '',
-                    image_urls:
-                      updatedEvent.image_urls && updatedEvent.image_urls.length > 0
-                        ? updatedEvent.image_urls
-                        : updatedEvent.cover_image_url
-                          ? [updatedEvent.cover_image_url]
-                          : [],
-                    image_url: updatedEvent.cover_image_url || undefined,
-                    title: updatedEvent.title,
-                    event_date: updatedEvent.start_time,
-                    event_time: updatedEvent.start_time,
-                    event_location: {
-                      address:
-                        updatedEvent.location_address ||
-                        (updatedEvent.location_online ? 'Online' : 'TBA'),
-                    },
-                  };
-                }
-                return p;
-              })
-            );
-          } else if (payload.eventType === 'DELETE') {
-            const deletedId = payload.old.id;
-            setPosts((prevPosts) => prevPosts.filter((post) => post.id !== deletedId));
-          }
-        }
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, (payload) =>
+        handleChange('events', payload)
       )
       .subscribe();
-
     return () => {
       requestVersion.current++;
+      inFlight.current = null;
       supabase.removeChannel(channel);
     };
+  }, [enabled, fetchPosts]);
+
+  useEffect(() => {
+    const remaining = lastRefreshedAt === null ? 0 : 30_000 - (Date.now() - lastRefreshedAt);
+    setAgeStale(remaining <= 0);
+    if (remaining <= 0) return;
+    const timer = setTimeout(() => setAgeStale(true), remaining);
+    return () => clearTimeout(timer);
+  }, [lastRefreshedAt]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    return NetInfo.addEventListener((network) => {
+      const offline = network.isConnected === false || network.isInternetReachable === false;
+      setIsOffline(offline);
+      if (
+        offlineRef.current &&
+        !offline &&
+        (lastRefreshedRef.current === null || Date.now() - lastRefreshedRef.current >= 30_000)
+      ) {
+        void fetchPosts(0, false, 'passive');
+      }
+      offlineRef.current = offline;
+    });
   }, [enabled, fetchPosts]);
 
   // Listen for ANY user's profile changes (avatar, name) via realtime
@@ -625,10 +616,12 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
     if (!enabled) return;
     const sub = DeviceEventEmitter.addListener('post_deleted', (deletedId: string) => {
       void localCache.invalidate('feed');
+      suppressed.current.add(deletedId);
+      setPendingPosts((current) => current.filter((post) => post.id !== deletedId));
       setPosts((prev) => prev.filter((p) => p.id !== deletedId));
     });
     return () => sub.remove();
-  }, []);
+  }, [enabled, scopeKey]);
 
   const uploadImages = useCallback(
     async (
@@ -1252,17 +1245,23 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
   );
 
   const fetchMore = useCallback(async () => {
-    if (isFetchingMore || !hasMore || loading) return;
+    if (isFetchingMore || !hasMore || loading || inFlight.current?.scope === scopeKey) return;
     setIsFetchingMore(true);
     const nextPage = page + 1;
-    setPage(nextPage);
     await fetchPosts(nextPage, true);
-  }, [fetchPosts, isFetchingMore, hasMore, loading, page]);
+  }, [fetchPosts, isFetchingMore, hasMore, loading, page, scopeKey]);
 
-  const refreshPosts = useCallback(async () => {
-    setPage(0);
-    setHasMore(true);
-    await fetchPosts(0, false);
+  const refreshPosts = useCallback(
+    async (mode: 'passive' | 'explicit' = 'explicit') => {
+      return (await fetchPosts(0, false, mode)) === true;
+    },
+    [fetchPosts]
+  );
+
+  const refreshIfStale = useCallback(async () => {
+    if (lastRefreshedRef.current === null || Date.now() - lastRefreshedRef.current >= 30_000) {
+      await fetchPosts(0, false, 'passive');
+    }
   }, [fetchPosts]);
 
   const optimisticUpdatePost = useCallback(
@@ -1277,8 +1276,16 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
   );
 
   return {
-    posts: postsOwner === user?.id ? posts : [],
+    posts:
+      enabled && postsScope === scopeKey
+        ? posts.filter((post) => !(profile?.blocked_users || []).includes(post.user_id))
+        : [],
     isCached,
+    isOffline,
+    lastRefreshedAt: postsScope === scopeKey ? lastRefreshedAt : null,
+    isStale: ageStale || isOffline || refreshError !== null,
+    refreshError,
+    pendingCount: postsScope === scopeKey ? pendingPosts.length : 0,
     loading,
     hasMore,
     isFetchingMore,
@@ -1288,6 +1295,7 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
     deletePost,
     deleteBusiness,
     refreshPosts,
+    refreshIfStale,
     optimisticUpdatePost,
   };
 };

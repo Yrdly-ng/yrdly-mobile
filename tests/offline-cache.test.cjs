@@ -42,6 +42,10 @@ function loadOfflineCache({
     runAsync: async (query, ...args) => {
       if (query.startsWith('DELETE FROM cache_entries WHERE account_id <>')) {
         for (const [key, row] of rows) if (row.account_id !== args[0]) rows.delete(key);
+      } else if (query.includes('AND saved_at < ?')) {
+        for (const [key, row] of rows)
+          if (row.account_id === args[0] && row.namespace === args[1] && row.saved_at < args[2])
+            rows.delete(key);
       } else if (query.startsWith('DELETE FROM cache_entries WHERE account_id=?')) {
         rows.delete(`${args[0]}:${args[1]}:${args[2]}`);
       } else if (query.startsWith('DELETE FROM cache_entries WHERE namespace=?')) {
@@ -171,4 +175,25 @@ test('account switches preserve media cache while sign-out clears it', () => {
 
   localCache.setAccount(null);
   assert.deepEqual(imageCacheCalls, ['memory', 'disk']);
+});
+
+test('feed maintenance deletes expired snapshots while preserving the boundary, drafts, and outbox', async (t) => {
+  t.mock.method(Date, 'now', () => 2_000_000);
+  for (const platform of ['web', 'ios']) {
+    const { localCache } = loadOfflineCache({ platform });
+    localCache.setAccount('user-a');
+    await localCache.write('user-a', 'feed', 'expired', ['old'], 1_099_999);
+    await localCache.write('user-a', 'feed', 'boundary', ['valid'], 1_100_000);
+    await localCache.write('user-a', 'drafts', 'draft', ['draft'], 1);
+    await localCache.write('user-a', 'outbox', 'message', ['pending'], 1);
+    await localCache.pruneFeed('user-a');
+    assert.equal(await localCache.read('user-a', 'feed', 'expired', Infinity), null);
+    assert.deepEqual((await localCache.read('user-a', 'feed', 'boundary')).value, ['valid']);
+    assert.deepEqual((await localCache.read('user-a', 'drafts', 'draft', Infinity)).value, [
+      'draft',
+    ]);
+    assert.deepEqual((await localCache.read('user-a', 'outbox', 'message', Infinity)).value, [
+      'pending',
+    ]);
+  }
 });

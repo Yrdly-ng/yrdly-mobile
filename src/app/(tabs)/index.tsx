@@ -185,6 +185,12 @@ export default function HomeTab() {
     posts: allPosts,
     loading,
     isCached,
+    isOffline,
+    isStale,
+    lastRefreshedAt,
+    refreshError,
+    pendingCount,
+    refreshIfStale,
     refreshPosts,
     hasMore,
     isFetchingMore,
@@ -205,8 +211,6 @@ export default function HomeTab() {
   const flashListRef = useRef<any>(null);
   const [activeAlerts, setActiveAlerts] = useState<Alert[]>([]);
   const isFocused = useIsFocused();
-  const lastFetchTimeRef = useRef(0);
-  const STALE_AFTER_MS = 30_000; // only re-fetch if data is older than 30s
   const scrollOffsetShared = useSharedValue(0);
 
   useEffect(() => {
@@ -348,8 +352,12 @@ export default function HomeTab() {
   const onRefresh = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setRefreshing(true);
-    await Promise.all([refreshPosts(), fetchAlerts()]);
-    setRefreshing(false);
+    try {
+      const [applied] = await Promise.all([refreshPosts(), fetchAlerts().catch(() => {})]);
+      return applied;
+    } finally {
+      setRefreshing(false);
+    }
   }, [refreshPosts, fetchAlerts]);
 
   const params = useLocalSearchParams<{ scrollToTop?: string }>();
@@ -357,27 +365,14 @@ export default function HomeTab() {
   useFocusEffect(
     useCallback(() => {
       fetchAlerts();
-      const now = Date.now();
-      const isStale = now - lastFetchTimeRef.current > STALE_AFTER_MS;
-      if (isStale) {
-        const offsetToRestore = scrollOffsetShared.value;
-        refreshPosts().then(() => {
-          lastFetchTimeRef.current = Date.now();
-          // Restore scroll position after data re-loads
-          if (offsetToRestore > 0) {
-            setTimeout(() => {
-              flashListRef.current?.scrollToOffset({ offset: offsetToRestore, animated: false });
-            }, 50);
-          }
-        });
-      }
+      void refreshIfStale();
       if (params.scrollToTop === 'true' && flashListRef.current) {
         setTimeout(() => {
           flashListRef.current?.scrollToOffset({ offset: 0, animated: true });
         }, 100);
         router.setParams({ scrollToTop: undefined });
       }
-    }, [refreshPosts, fetchAlerts, params.scrollToTop])
+    }, [refreshIfStale, fetchAlerts, params.scrollToTop])
   );
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
@@ -564,9 +559,35 @@ export default function HomeTab() {
         </View>
       </Animated.View>
 
+      {pendingCount > 0 && (
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={`${pendingCount} new posts. Refresh feed`}
+          onPress={async () => {
+            if (await onRefresh()) {
+              flashListRef.current?.scrollToOffset({ offset: 0, animated: true });
+            }
+          }}
+          style={{
+            position: 'absolute',
+            top: HEADER_HEIGHT + 8,
+            alignSelf: 'center',
+            zIndex: 20,
+            backgroundColor: theme.colors.G,
+            borderRadius: 24,
+            paddingHorizontal: 20,
+            paddingVertical: 12,
+          }}
+        >
+          <Text style={{ color: theme.colors.DARK, fontWeight: '700' }}>
+            New posts · {pendingCount}
+          </Text>
+        </TouchableOpacity>
+      )}
       <AnimatedFlashList
         ref={flashListRef}
         data={posts}
+        maintainVisibleContentPosition={{ disabled: false }}
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         keyExtractor={(item: Post) => item.id}
@@ -586,18 +607,35 @@ export default function HomeTab() {
         }
         ListHeaderComponent={
           <View>
-            {isCached && (
+            <View style={{ paddingHorizontal: 20, paddingVertical: 8, minHeight: 44 }}>
               <Text
-                style={{
-                  color: theme.colors.MUTED,
-                  paddingHorizontal: 20,
-                  paddingVertical: 8,
-                  fontSize: 12,
-                }}
+                style={{ color: theme.colors.MUTED, fontSize: 12 }}
+                accessibilityLiveRegion="polite"
               >
-                Saved posts · reconnect to refresh
+                {isOffline
+                  ? 'Offline · '
+                  : isCached
+                    ? 'Saved posts · '
+                    : isStale
+                      ? 'May be out of date · '
+                      : ''}
+                {lastRefreshedAt
+                  ? `Last refreshed ${new Date(lastRefreshedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                  : isOffline
+                    ? 'Connect to load posts for this area'
+                    : 'No saved feed for this area'}
               </Text>
-            )}
+              {refreshError && (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Retry loading posts"
+                  onPress={onRefresh}
+                  style={{ paddingVertical: 12 }}
+                >
+                  <Text style={{ color: theme.colors.G }}>{refreshError} Retry</Text>
+                </TouchableOpacity>
+              )}
+            </View>
             {activeAlerts.length > 0 && (
               <ScrollView
                 horizontal
@@ -637,7 +675,11 @@ export default function HomeTab() {
         ListEmptyComponent={
           <View style={stylesheet.emptyContainer}>
             <Text style={[stylesheet.emptyText, { color: theme.colors.MUTED }]}>
-              No posts yet. Be the first to post!
+              {isOffline
+                ? 'No saved posts for this area. Connect to load this feed.'
+                : refreshError
+                  ? 'Posts could not be loaded. Retry above or pull to refresh.'
+                  : 'No posts yet. Be the first to post!'}
             </Text>
           </View>
         }
