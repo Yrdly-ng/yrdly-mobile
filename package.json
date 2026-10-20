@@ -82,6 +82,7 @@
   "devDependencies": {
     "@e2e-dev/mobile": "^0.8.1",
     "@electric-sql/pglite": "0.3.14",
+    "@sentry/cli": "2.58.4",
     "@types/mapbox__polyline": "^1.0.5",
     "@types/react": "~19.2.3",
     "babel-preset-expo": "~57.0.2",

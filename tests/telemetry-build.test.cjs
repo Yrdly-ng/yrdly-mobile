@@ -25,6 +25,36 @@ function readBuildEnvironment(output) {
   );
 }
 
+test('Android Gradle resolves and executes the Sentry CLI with pnpm dependencies', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'yrdly android sentry-'));
+  try {
+    const android = join(directory, 'android');
+    mkdirSync(android);
+    symlinkSync(resolve('node_modules'), join(directory, 'node_modules'), 'dir');
+    const sdk = dirname(require.resolve('@sentry/react-native/package.json'));
+    const gradle = readFileSync(join(sdk, 'sentry.gradle'), 'utf8');
+    // Exercise the installed SDK's actual Gradle resolver, from its Android cwd.
+    const resolver = gradle.match(
+      /def resolveSentryCliPackagePath[\s\S]*?\["node", "--print", "([^"]+)"\]/
+    );
+    assert.ok(resolver, 'the Sentry Gradle CLI resolver must be covered');
+    const result = spawnSync(process.execPath, ['--print', resolver[1]], {
+      cwd: android,
+      encoding: 'utf8',
+      env: { ...process.env, NODE_PATH: '', NODE_OPTIONS: '' },
+    });
+    assert.equal(result.status, 0, `Gradle must find @sentry/cli: ${result.stderr}`);
+    const cliManifest = result.stdout.trim();
+    assert.equal(cliManifest, require.resolve('@sentry/cli/package.json', { paths: [sdk] }));
+    const cli = resolve(dirname(cliManifest), require(cliManifest).bin['sentry-cli']);
+    const executable = spawnSync(cli, ['--version'], { encoding: 'utf8', timeout: 10000 });
+    assert.equal(executable.status, 0, executable.stderr);
+    assert.ok(executable.stdout.includes(require(cliManifest).version));
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 for (const [label, settings, disabled] of [
   ['missing upload credentials', {}, true],
   [

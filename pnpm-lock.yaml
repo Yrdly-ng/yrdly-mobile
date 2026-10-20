@@ -242,6 +242,9 @@ importers:
       '@electric-sql/pglite':
         specifier: 0.3.14
         version: 0.3.14
+      '@sentry/cli':
+        specifier: 2.58.4
+        version: 2.58.4
       '@types/mapbox__polyline':
         specifier: ^1.0.5
         version: 1.0.5
