@@ -30,9 +30,10 @@ import { useAuth } from '../hooks/use-supabase-auth';
 import { useLocation } from '../context/LocationContext';
 import states from '../data/states.json';
 import { api } from '../lib/network/api';
+import { createMapLocationResolver } from '../lib/location/map-location';
 import {
   coordinates,
-  mappableRowsFilter,
+  matchesMapArea,
   normalizeEta,
   filterMarkers,
   loadMapSources,
@@ -130,6 +131,13 @@ export default function MapScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { activeFilter, displayLabel, setGlobalFilter, userProfileLocation } = useLocation();
+  const resolveMapLocation = useMemo(
+    () =>
+      createMapLocationResolver((address) =>
+        api.get(`/api/maps/geocode/json?address=${encodeURIComponent(address)}`)
+      ),
+    [user?.id]
+  );
   const mapRef = useRef<NativeMapView | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [markers, setMarkers] = useState<MapMarker[]>([]);
@@ -196,9 +204,14 @@ export default function MapScreen() {
           // Keep the existing own-location update; the friend endpoint enforces sharing preferences.
           void supabase
             .from('users')
-            .update({ current_location: point, lat: point.lat, lng: point.lng })
+            .update({ current_location: point })
             .eq('id', user.id)
-            .then(() => {});
+            .then(({ error }) => {
+              if (error && current === locationRevision.current)
+                setLocationError(
+                  'Your position is shown, but sharing it failed. Tap locate to retry.'
+                );
+            });
         }
       } catch {
         if (current === locationRevision.current)
@@ -215,6 +228,9 @@ export default function MapScreen() {
 
   useEffect(() => {
     const current = ++revision.current;
+    const controller = new AbortController();
+    setMarkers([]);
+    setFailedSources([]);
     setLoading(true);
     setSelectedId(null);
     const areaKey = JSON.stringify([activeFilter?.state, activeFilter?.lga]);
@@ -224,10 +240,17 @@ export default function MapScreen() {
       lastArea.current = areaKey;
     }
     const area = <T,>(query: T): T => {
-      type Filterable = { eq: (column: string, value: string) => unknown };
+      type Filterable = { or: (filter: string) => unknown };
       let result = query;
-      if (activeFilter?.state) result = (result as Filterable).eq('state', activeFilter.state) as T;
-      if (activeFilter?.lga) result = (result as Filterable).eq('lga', activeFilter.lga) as T;
+      // Keep legacy rows with missing area columns so their public address can be resolved.
+      if (activeFilter?.state)
+        result = (result as Filterable).or(
+          `state.eq.${JSON.stringify(activeFilter.state)},state.is.null`
+        ) as T;
+      if (activeFilter?.lga)
+        result = (result as Filterable).or(
+          `lga.eq.${JSON.stringify(activeFilter.lga)},lga.is.null`
+        ) as T;
       return result;
     };
     const sources: MapSource[] = [
@@ -239,10 +262,10 @@ export default function MapScreen() {
           area(
             supabase
               .from('posts')
-              .select('id,title,event_location,image_urls,lat,lng')
+              .select('id,title,event_location,location,image_urls,lat,lng,state,lga,ward')
               .eq('category', 'Event')
+              .or('event_link.is.null,event_link.not.like.yrdly://events/%')
               .gte('event_date', new Date().toISOString())
-              .or(mappableRowsFilter('event_location'))
           ).limit(30),
       },
       {
@@ -253,13 +276,10 @@ export default function MapScreen() {
           area(
             supabase
               .from('events')
-              .select('id,title,location_address,cover_image_url,lat,lng')
+              .select('id,title,location_address,cover_image_url,lat,lng,state,lga,ward')
               .eq('status', 'PUBLISHED')
-              .neq('is_archived', true)
-              .gte('lat', -90)
-              .lte('lat', 90)
-              .gte('lng', -180)
-              .lte('lng', 180)
+              .or('is_archived.eq.false,is_archived.is.null')
+              .or('location_online.eq.false,location_online.is.null')
           ).limit(50),
       },
       {
@@ -270,9 +290,8 @@ export default function MapScreen() {
           area(
             supabase
               .from('businesses')
-              .select('id,name,location,image_urls,lat,lng')
+              .select('id,name,location,image_urls,lat,lng,state,lga,ward')
               .eq('is_active', true)
-              .or(mappableRowsFilter('location'))
           ).limit(50),
       },
       {
@@ -284,11 +303,10 @@ export default function MapScreen() {
             supabase
               .from('posts')
               .select(
-                'id,title,price,image_urls,image_url,video_thumbnail_url,event_location,lat,lng,location_address'
+                'id,title,price,image_urls,image_url,video_thumbnail_url,event_location,location,lat,lng,state,lga,ward'
               )
-              .eq('category', 'For Sale')
+              .in('category', ['For Sale', 'Giveaway'])
               .or('is_sold.eq.false,is_sold.is.null')
-              .or(mappableRowsFilter('event_location'))
           ).limit(30),
       },
     ];
@@ -299,10 +317,10 @@ export default function MapScreen() {
         kind: 'friend',
         load: () => api.post('/api/profiles/friend-locations', {}),
       });
-    void loadMapSources(sources)
+    void loadMapSources(sources, true, 12000, resolveMapLocation, controller.signal)
       .then((result) => {
         if (current !== revision.current) return;
-        setMarkers(result.markers);
+        setMarkers(result.markers.filter((marker) => matchesMapArea(marker, activeFilter)));
         setFailedSources(result.failedSources);
       })
       .finally(() => {
@@ -310,10 +328,13 @@ export default function MapScreen() {
       });
     return () => {
       revision.current++;
+      controller.abort();
     };
-  }, [user?.id, activeFilter?.state, activeFilter?.lga, retry]);
+  }, [user?.id, activeFilter?.state, activeFilter?.lga, retry, resolveMapLocation]);
 
   useEffect(() => {
+    setLoc(null);
+    setPendingCenter(null);
     void requestLocation(false);
     return () => {
       locationRevision.current++;
