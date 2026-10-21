@@ -6,7 +6,8 @@ export class UserActivityService {
       const { error } = await supabase
         .from('users')
         .update({ last_seen: new Date().toISOString(), is_online: isOnline })
-        .eq('id', userId);
+        .eq('id', userId)
+        .eq('account_kind', 'human');
 
       if (error) console.error('Error updating user online status:', error);
     } catch (error) {
@@ -28,6 +29,7 @@ export class UserActivityService {
       const { data, error } = await supabase
         .from('public_profiles')
         .select('id, last_seen')
+        .eq('account_kind', 'human')
         .gte('last_seen', cutoffTime.toISOString());
 
       if (error) {
@@ -51,6 +53,7 @@ export class UserActivityService {
       const { data, error } = await supabase
         .from('public_profiles')
         .select('id, last_seen')
+        .eq('account_kind', 'human')
         .gte('last_seen', today.toISOString());
 
       if (error) {

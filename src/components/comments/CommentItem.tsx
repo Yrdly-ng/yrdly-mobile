@@ -12,6 +12,7 @@ import { VerifiedBadge } from '../VerifiedBadge';
 export interface CommentType {
   id: string;
   user_id: string;
+  activity_origin?: 'organic' | 'synthetic';
   author_name: string;
   author_image: string;
   text: string;
@@ -20,6 +21,7 @@ export interface CommentType {
   parent_id?: string;
   replies?: CommentType[];
   user?: {
+    account_kind?: 'human' | 'managed_virtual';
     name: string;
     avatar_url: string;
     phone_verified?: boolean;
@@ -110,6 +112,12 @@ export const CommentItem: React.FC<CommentItemProps> = ({
             <Text style={[styles.timestamp, { color: '#9CA3AF' }]}>{timeAgo(item.timestamp)}</Text>
           </View>
 
+          {(item.activity_origin === 'synthetic' ||
+            item.user?.account_kind === 'managed_virtual') && (
+            <Text style={{ color: theme.colors.TEXT_PRIMARY, fontSize: 12, marginBottom: 4 }}>
+              YRDLY virtual account
+            </Text>
+          )}
           <Text style={[styles.commentText, { color: '#9CA3AF' }]}>{item.text}</Text>
 
           <View style={styles.commentActionsRow}>

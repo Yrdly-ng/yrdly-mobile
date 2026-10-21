@@ -101,6 +101,9 @@ export type PostCategory =
   | 'Business';
 
 export interface Post {
+  activity_origin?: 'organic' | 'synthetic';
+  synthetic_like_count?: number;
+  synthetic_comment_count?: number;
   id: string;
   user_id: string;
   author_name: string;
@@ -141,6 +144,7 @@ export interface Post {
   created_at?: string;
   updated_at?: string;
   user?: {
+    account_kind?: 'human' | 'managed_virtual';
     id: string;
     name: string;
     avatar_url?: string;
@@ -172,6 +176,7 @@ export interface Comment {
 }
 
 export interface User {
+  account_kind?: 'human' | 'managed_virtual';
   id: string;
   uid: string;
   name: string;
@@ -449,6 +454,7 @@ export interface SafetyAlert {
   created_at: string;
   updated_at: string;
   user?: {
+    account_kind?: 'human' | 'managed_virtual';
     id: string;
     name: string;
     avatar_url?: string;

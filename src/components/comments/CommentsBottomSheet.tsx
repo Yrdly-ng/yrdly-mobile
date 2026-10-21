@@ -125,7 +125,7 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
       const { data, error } = await supabase
         .from('posts')
         .select(
-          '*, user:public_profiles!posts_user_id_fkey(id, name, avatar_url, location, created_at, phone_verified)'
+          '*, user:public_profiles!posts_user_id_fkey(id, name, avatar_url, location, created_at, phone_verified, account_kind)'
         )
         .eq('id', postId)
         .single();
@@ -140,7 +140,9 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
       setLoading(true);
       const { data, error } = await supabase
         .from('comments')
-        .select('*, user:public_profiles!comments_user_id_fkey(name, avatar_url, phone_verified)')
+        .select(
+          '*, user:public_profiles!comments_user_id_fkey(name, avatar_url, phone_verified, account_kind)'
+        )
         .eq('post_id', postId)
         .order('timestamp', { ascending: true });
 

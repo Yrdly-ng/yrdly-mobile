@@ -793,6 +793,12 @@ export const PostCard = React.memo(
                 </Text>
                 {(post.user as any)?.phone_verified && <VerifiedBadge size={15} />}
               </View>
+              {(post.activity_origin === 'synthetic' ||
+                post.user?.account_kind === 'managed_virtual') && (
+                <Text style={{ color: theme.colors.TEXT_PRIMARY, fontSize: 12 }}>
+                  YRDLY virtual account
+                </Text>
+              )}
               <View
                 style={{
                   flexDirection: 'row',
@@ -1256,6 +1262,12 @@ export const PostCard = React.memo(
             />
           </TouchableOpacity>
         </View>
+        {post.synthetic_like_count || post.synthetic_comment_count ? (
+          <Text style={{ color: theme.colors.TEXT_PRIMARY, fontSize: 12 }}>
+            {post.synthetic_like_count || 0} virtual likes · {post.synthetic_comment_count || 0}{' '}
+            virtual comments
+          </Text>
+        ) : null}
       </View>
     );
   },
@@ -1271,6 +1283,10 @@ export const PostCard = React.memo(
       prevProps.post.id === nextProps.post.id &&
       likesEqual &&
       prevProps.post.comment_count === nextProps.post.comment_count &&
+      prevProps.post.synthetic_like_count === nextProps.post.synthetic_like_count &&
+      prevProps.post.synthetic_comment_count === nextProps.post.synthetic_comment_count &&
+      prevProps.post.user?.account_kind === nextProps.post.user?.account_kind &&
+      prevProps.post.activity_origin === nextProps.post.activity_origin &&
       prevProps.isVisible === nextProps.isVisible
     );
   }

@@ -138,7 +138,8 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
             avatar_url,
             location,
             created_at,
-            phone_verified
+            phone_verified,
+            account_kind
           )
         `
             )
@@ -155,7 +156,8 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
             avatar_url,
             location,
             created_at,
-            phone_verified
+            phone_verified,
+            account_kind
           )
         `
             )
@@ -592,6 +594,7 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
                   author_name: updatedUser.name || post.author_name,
                   author_image: updatedUser.avatar_url || post.author_image,
                   user: {
+                    ...post.user,
                     id: updatedUser.id,
                     name: updatedUser.name,
                     avatar_url: updatedUser.avatar_url,

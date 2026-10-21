@@ -46,6 +46,7 @@ function isMediaPost(p: Post): boolean {
 }
 
 interface UserProfile {
+  account_kind?: 'human' | 'managed_virtual';
   id: string;
   name: string;
   bio: string | null;
@@ -133,7 +134,8 @@ export default function OtherUserProfileScreen() {
             avatar_url,
             location,
             created_at,
-            phone_verified
+            phone_verified,
+            account_kind
           )
         `
         )
@@ -255,6 +257,7 @@ export default function OtherUserProfileScreen() {
   };
 
   const handleMessage = async () => {
+    if (profile?.account_kind === 'managed_virtual') return;
     if (!currentUser || !currentProfile || !profile) return;
     try {
       const { data: convs, error } = await supabase
@@ -477,6 +480,12 @@ export default function OtherUserProfileScreen() {
                 <Text style={stylesheet.heroName}>{profile.name}</Text>
                 {profile.phone_verified && <VerifiedBadge size={16} />}
               </View>
+              {profile.account_kind === 'managed_virtual' && (
+                <Text style={{ color: theme.colors.TEXT_PRIMARY, fontSize: 12 }}>
+                  YRDLY virtual account · Fictional persona managed by YRDLY. Private messages and
+                  follow requests are unavailable.
+                </Text>
+              )}
               <Text style={stylesheet.heroHandle}>@{profile.username || 'user'}</Text>
 
               <View style={stylesheet.locationRow}>
@@ -522,7 +531,7 @@ export default function OtherUserProfileScreen() {
           {/* Note: if you have mutuals logic, insert it here */}
 
           {/* Action buttons */}
-          {!isOwnProfile && (
+          {!isOwnProfile && profile.account_kind !== 'managed_virtual' && (
             <View style={stylesheet.actionRow}>
               <TouchableOpacity
                 style={[

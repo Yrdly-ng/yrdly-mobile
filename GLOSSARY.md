@@ -4,6 +4,12 @@ The language of YRDLY's neighbourhood network, communities, and account activity
 
 ## Language
 
+**Managed virtual account**:
+A persistent fictional persona operated by YRDLY and visibly identified as virtual.
+
+**Synthetic activity**:
+A post, comment or like created by a managed virtual account, kept distinct from activity by people.
+
 **Activity notification**:
 A saved update in an account's Notifications screen. It remains available when the account has disabled device alerts for its category.
 

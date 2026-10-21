@@ -8,6 +8,7 @@ import { makeRedirectUri } from 'expo-auth-session';
 WebBrowser.maybeCompleteAuthSession();
 
 export interface AuthUser {
+  account_kind?: 'human' | 'managed_virtual';
   id: string;
   email?: string;
   phone?: string;
@@ -62,6 +63,11 @@ export interface AuthUser {
   discoverable?: boolean;
 }
 
+// app_metadata is assigned by the backend; user_metadata is never an authority.
+export function isManagedVirtualIdentity(user: User | null | undefined): boolean {
+  return user?.app_metadata?.account_kind === 'managed_virtual';
+}
+
 export class AuthService {
   private static getRedirectUrl() {
     const url = makeRedirectUri({
@@ -89,6 +95,11 @@ export class AuthService {
           },
         },
       });
+
+      if (isManagedVirtualIdentity(data?.user)) {
+        await supabase.auth.signOut({ scope: 'local' });
+        throw new Error('YRDLY virtual accounts cannot sign in.');
+      }
 
       if (error) {
         const errMsg = (error.message || '').toLowerCase();
@@ -135,6 +146,10 @@ export class AuthService {
 
       if (error) throw error;
 
+      if (isManagedVirtualIdentity(data.user)) {
+        await supabase.auth.signOut({ scope: 'local' });
+        throw new Error('YRDLY virtual accounts cannot sign in.');
+      }
       if (data.user && (await checkActiveSession(true)) === false) {
         await endRevokedSession();
         throw new Error('This session has been replaced by a newer sign-in.');
@@ -142,10 +157,14 @@ export class AuthService {
       if (data.user) {
         const { data: profile } = await supabase
           .from('users')
-          .select('is_suspended, is_banned, status, suspension_reason')
+          .select('is_suspended, is_banned, status, suspension_reason, account_kind')
           .eq('id', data.user.id)
           .maybeSingle();
 
+        if (profile?.account_kind === 'managed_virtual') {
+          await supabase.auth.signOut({ scope: 'local' });
+          throw new Error('YRDLY virtual accounts cannot sign in.');
+        }
         if (
           profile &&
           (profile.is_suspended ||
@@ -260,6 +279,10 @@ export class AuthService {
       }
       // A cached token is useful offline, but must pass the server's session
       // policy before restoring authenticated access when connected.
+      if (isManagedVirtualIdentity(session?.user)) {
+        await supabase.auth.signOut({ scope: 'local' });
+        return null;
+      }
       if (session && (await checkActiveSession()) === false) {
         await endRevokedSession();
         return null;
@@ -324,6 +347,7 @@ export class AuthService {
 
   // Create user profile in public.users table
   static async createUserProfile(user: User, name: string) {
+    if (isManagedVirtualIdentity(user)) throw new Error('YRDLY virtual accounts cannot sign in.');
     try {
       const existingProfile = await this.getUserProfile(user.id);
       if (existingProfile) {
@@ -467,6 +491,11 @@ export class AuthService {
             (await supabase.auth.getSession()).data.session?.access_token !== session.access_token
           )
             return;
+          if (isManagedVirtualIdentity(session?.user)) {
+            await supabase.auth.signOut({ scope: 'local' });
+            callback('SIGNED_OUT', null);
+            return;
+          }
           if (session && event !== 'INITIAL_SESSION') {
             const active = await checkActiveSession(event === 'SIGNED_IN');
             if (active === false) {
