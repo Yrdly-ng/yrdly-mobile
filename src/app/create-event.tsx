@@ -1,4 +1,4 @@
-import { isPaidPrice, MINIMUM_PRICE_MESSAGE } from '@/lib/marketplace/price-policy';
+import { getEventSchedule, getTicketValidationError } from '@/lib/events/create-event-validation';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect } from 'react';
 import {
@@ -224,6 +224,7 @@ export default function CreateEventScreen() {
   };
 
   const addTier = () => {
+    if (tiers.length >= 30) return;
     setTiers((prev) => [
       ...prev,
       {
@@ -256,15 +257,22 @@ export default function CreateEventScreen() {
     );
   };
 
-  const canNext = [
-    eventName.trim() && eventCategory,
-    true, // date/time always valid due to Date object
-    isOnline ? true : !!venue.trim(),
-    tiers.length > 0 &&
-      tiers.every((t) => t.name.trim() && (t.isFree || isPaidPrice(Number(t.price)))),
-    attachedFiles.some((f) => f.type?.startsWith('image/')),
-    true,
-  ][step];
+  const schedule = getEventSchedule(eventDate, startTime, endTime);
+  const stepErrors = [
+    !eventName.trim() || !eventCategory
+      ? 'Enter an event title and choose a category.'
+      : eventName.trim().length > 200
+        ? 'Keep the event title to 200 characters or fewer.'
+        : null,
+    schedule.error,
+    !isOnline && !venue.trim() ? 'Enter an event venue.' : null,
+    getTicketValidationError(tiers),
+    attachedFiles.some((f) => f.type?.startsWith('image/'))
+      ? null
+      : 'Add at least one event photo.',
+  ];
+  const currentError = stepErrors[step] ?? null;
+  const canNext = !currentError;
 
   const [hasPayoutAccount, setHasPayoutAccount] = useState<boolean | null>(null);
 
@@ -284,11 +292,11 @@ export default function CreateEventScreen() {
     if (pickingMedia.current || isEditingVideo) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    if (
-      (step === 3 || step === STEPS.length - 1) &&
-      tiers.some((t) => !t.isFree && !isPaidPrice(Number(t.price)))
-    ) {
-      Alert.alert('Invalid ticket price', MINIMUM_PRICE_MESSAGE);
+    const invalidStep =
+      step === STEPS.length - 1 ? stepErrors.findIndex(Boolean) : currentError ? step : -1;
+    if (invalidStep !== -1) {
+      setStep(invalidStep);
+      Alert.alert('Check event details', stepErrors[invalidStep]!);
       return;
     }
     // Enforce payout account check at step 3 (Tickets step) before moving forward
@@ -382,28 +390,12 @@ export default function CreateEventScreen() {
 
         const coverUrl = imageUrls.length > 0 ? imageUrls[0] : '';
 
-        // Parse start and end time ISOs safely
-        const startISO = new Date(
-          eventDate.getFullYear(),
-          eventDate.getMonth(),
-          eventDate.getDate(),
-          startTime.getHours(),
-          startTime.getMinutes()
-        ).toISOString();
-        const endISO = new Date(
-          eventDate.getFullYear(),
-          eventDate.getMonth(),
-          eventDate.getDate(),
-          endTime.getHours(),
-          endTime.getMinutes()
-        ).toISOString();
-
         // Call backend API to create event, validate payout account for paid tiers, and cross-post to community feed
         const formattedTicketTiers = tiers.map((t) => ({
           name: t.name.trim(),
           description: null,
-          price: t.isFree ? 0 : parseFloat(t.price) || 0,
-          capacity: t.capacity ? parseInt(t.capacity, 10) : null,
+          price: t.isFree ? 0 : Number(t.price),
+          capacity: Number(t.capacity),
         }));
 
         const res = await api.post<any>('/api/events/create', {
@@ -421,8 +413,8 @@ export default function CreateEventScreen() {
           ward: isOnline ? null : postWard || null,
           lga: isOnline ? null : postLga || null,
           state: isOnline ? null : postState || null,
-          startTime: startISO,
-          endTime: endISO,
+          startTime: schedule.startTime,
+          endTime: schedule.endTime,
           visibility: visibility || 'PUBLIC',
           publish: true,
           ticketTiers: formattedTicketTiers,
@@ -442,13 +434,16 @@ export default function CreateEventScreen() {
         setPublishing(false);
         setUploadProgress(0);
         const errMsg = err?.response?.data?.error || err?.response?.data?.message || err?.message;
-        if (errMsg === 'PAYOUT_ACCOUNT_REQUIRED') {
+        if (err?.code === 'PAYOUT_ACCOUNT_REQUIRED' || errMsg === 'PAYOUT_ACCOUNT_REQUIRED') {
           Alert.alert(
             'Payout Account Required',
             'To sell paid tickets, please link your bank account in Settings → Payout Settings.',
             [
               { text: 'Cancel', style: 'cancel' },
-              { text: 'Go to Settings', onPress: () => router.push('/(tabs)/settings' as any) },
+              {
+                text: 'Go to Settings',
+                onPress: () => router.push('/settings/payout-settings' as any),
+              },
             ]
           );
         } else {
@@ -567,6 +562,7 @@ export default function CreateEventScreen() {
               style={stylesheet.input}
               placeholder="e.g. Block Party & BBQ"
               placeholderTextColor={theme.colors.MUTED}
+              maxLength={200}
               value={eventName}
               onChangeText={setEventName}
             />
@@ -844,7 +840,11 @@ export default function CreateEventScreen() {
               </View>
             ))}
 
-            <TouchableOpacity style={stylesheet.addTierBtn} onPress={addTier}>
+            <TouchableOpacity
+              style={stylesheet.addTierBtn}
+              onPress={addTier}
+              disabled={tiers.length >= 30}
+            >
               <Ionicons name="add" size={20} color={theme.colors.G} />
               <Text style={{ fontFamily: 'Outfit-Bold', color: theme.colors.G, fontSize: 14 }}>
                 Add Ticket Tier
@@ -1293,6 +1293,11 @@ export default function CreateEventScreen() {
       </ScrollView>
 
       <View style={[stylesheet.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+        {currentError && (
+          <Text accessibilityLiveRegion="polite" style={stylesheet.validationMessage}>
+            {currentError}
+          </Text>
+        )}
         <TouchableOpacity
           style={[stylesheet.btnPrimary, !canNext && stylesheet.btnDisabled]}
           disabled={!canNext || publishing || picking || isEditingVideo}
@@ -1320,6 +1325,12 @@ export default function CreateEventScreen() {
 
 const _stylesheet = StyleSheet.create((theme) => ({
   container: { flex: 1 },
+  validationMessage: {
+    color: theme.colors.TEXT_PRIMARY,
+    fontFamily: 'Inter-Medium',
+    fontSize: 13,
+    marginBottom: 12,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

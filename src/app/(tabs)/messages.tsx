@@ -22,6 +22,7 @@ import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Swipeable } from 'react-native-gesture-handler';
 import { getUserActivityStatus, isUserOnline } from '../../lib/activity/online-status';
+import { createMessagesChannel } from '../../lib/messages/realtime';
 type ConvType = 'friend' | 'marketplace' | 'briefcase';
 type FilterTab = 'all' | 'friends' | 'marketplace' | 'business';
 
@@ -203,8 +204,7 @@ export default function MessagesTab() {
       fetchConversations();
 
       if (!user) return;
-      const channel = supabase
-        .channel('conversations_realtime')
+      const channel = createMessagesChannel(supabase, 'conversations_realtime')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () =>
           fetchConversations()
         )
@@ -234,8 +234,7 @@ export default function MessagesTab() {
 
     for (let index = 0; index < participantIds.length; index += 100) {
       const chunk = participantIds.slice(index, index + 100);
-      const channel = supabase
-        .channel(`messages-user-status-${user.id}-${index}`)
+      const channel = createMessagesChannel(supabase, `messages-user-status-${user.id}-${index}`)
         .on(
           'postgres_changes',
           {
