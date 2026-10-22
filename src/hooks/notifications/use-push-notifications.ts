@@ -5,6 +5,7 @@ import Constants from 'expo-constants';
 import { AppState, Alert, Platform } from 'react-native';
 import { useAuth } from '@/hooks/use-supabase-auth';
 import { supabase } from '@/lib/supabase/supabase';
+import { lookupPayoutReceipt } from '@/lib/notifications/payout-access';
 import { getOrCreateDeviceId } from '@/lib/offline/device-id';
 import { router, usePathname } from 'expo-router';
 import { isCrispPushNotification, registerPushToken } from 'crisp-sdk-react-native';
@@ -152,6 +153,7 @@ export function usePushNotifications() {
       }
 
       const result = await resolveNotificationNavigation(data, async (table, id) => {
+        if (table === 'payout_requests') return lookupPayoutReceipt(id);
         const { data: row, error } = await supabase
           .from(table)
           .select('id')

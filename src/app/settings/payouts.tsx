@@ -15,17 +15,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase/supabase';
 import { api } from '../../lib/network/api';
 import { useAuth } from '../../hooks/use-supabase-auth';
-type PayoutStatus = 'pending' | 'processing' | 'completed' | 'failed';
-
-interface PayoutRequest {
-  id: string;
-  amount: number;
-  status: PayoutStatus;
-  requested_at: string;
-  processed_at: string | null;
-  bank_name?: string;
-  account_number?: string;
-}
+import { BankLogo } from '../../components/payments/BankLogo';
+import {
+  normalizePayoutReceipt,
+  formatPayoutDate,
+  payoutStatusText,
+  type PayoutReceipt,
+} from '../../lib/payments/payout-receipt';
 
 export default function PayoutsScreen() {
   const { theme } = useUnistyles();
@@ -44,7 +40,7 @@ export default function PayoutsScreen() {
   const [lifetimeEarned, setLifetimeEarned] = useState(0);
   const [pendingEscrow, setPendingEscrow] = useState(0);
 
-  const [payouts, setPayouts] = useState<PayoutRequest[]>([]);
+  const [payouts, setPayouts] = useState<PayoutReceipt[]>([]);
   const [bankInfo, setBankInfo] = useState<any>(null);
 
   const [loading, setLoading] = useState(true);
@@ -54,7 +50,13 @@ export default function PayoutsScreen() {
 
   const fetchData = useCallback(
     async (isRefresh = false) => {
-      if (!user) return;
+      if (!user) {
+        setPayouts([]);
+        setBalance(0);
+        setBankInfo(null);
+        setLoading(false);
+        return;
+      }
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
       try {
@@ -66,7 +68,7 @@ export default function PayoutsScreen() {
             .eq('payment_provider', 'payluk')
             .neq('item_type', 'ticket')
             .in('status', ['paid', 'shipped', 'delivered']),
-          api.get<{ payouts: PayoutRequest[] }>('/api/seller/payouts/history'),
+          api.get<{ payouts: PayoutReceipt[] }>('/api/seller/payouts/history'),
           api.get('/api/seller/setup-account'),
           api.get<{ availableBalance: number; totalEarnings: number }>(
             '/api/seller/payouts/balance'
@@ -84,7 +86,7 @@ export default function PayoutsScreen() {
           (txRes.data || []).reduce((sum, row) => sum + Number(row.seller_amount || 0), 0)
         );
         setBalance(ledger.availableBalance);
-        setPayouts(history.payouts);
+        setPayouts(history.payouts.map(normalizePayoutReceipt));
 
         if (bankRes.account) {
           setBankInfo(bankRes.account);
@@ -125,26 +127,27 @@ export default function PayoutsScreen() {
     router.push('/settings/withdraw' as any);
   };
 
-  const renderItem = ({ item, index }: { item: PayoutRequest; index: number }) => {
+  const renderItem = ({ item, index }: { item: PayoutReceipt; index: number }) => {
     const s = sStylesheet;
 
     const col = STATUS_COLOR[item.status] || STATUS_COLOR.pending;
-    const dateStr = new Date(item.requested_at).toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
+    const dateStr = formatPayoutDate(item.requestedAt);
 
     return (
       <View>
-        <View style={s.payoutRow}>
+        <TouchableOpacity
+          style={s.payoutRow}
+          accessibilityRole="button"
+          accessibilityLabel={`View ${payoutStatusText(item.status).toLowerCase()} withdrawal receipt, ₦${item.amount.toLocaleString()}, ${dateStr}`}
+          onPress={() => router.push(`/settings/payouts/${encodeURIComponent(item.id)}` as any)}
+        >
           <View style={[s.payoutIconWrap, { backgroundColor: `${col}14` }]}>
-            <Ionicons name="swap-vertical" size={20} color={col} />
+            <BankLogo code={item.bankCode ?? ''} name={item.bankName ?? 'Bank'} size={36} />
           </View>
           <View style={s.payoutMid}>
             <Text style={s.payoutBank}>
-              {item.bank_name || 'Bank'} · ****
-              {item.account_number ? item.account_number.slice(-4) : '****'}
+              {item.bankName || 'Bank withdrawal'}
+              {item.accountNumber ? ` · ${item.accountNumber}` : ''}
             </Text>
             <Text style={s.payoutDate}>
               {dateStr} · {item.id.slice(0, 8).toUpperCase()}
@@ -152,9 +155,12 @@ export default function PayoutsScreen() {
           </View>
           <View style={s.payoutRight}>
             <Text style={s.payoutAmount}>₦{item.amount.toLocaleString()}</Text>
-            <Text style={[s.payoutStatus, { color: col }]}>{item.status.toUpperCase()}</Text>
+            <Text style={[s.payoutStatus, { color: col }]}>
+              {payoutStatusText(item.status).toUpperCase()}
+            </Text>
           </View>
-        </View>
+          <Ionicons name="chevron-forward" size={16} color={theme.colors.LABEL} />
+        </TouchableOpacity>
         {index < payouts.length - 1 && <View style={s.divider} />}
       </View>
     );
@@ -230,7 +236,7 @@ export default function PayoutsScreen() {
                   style={s.bankPreview}
                 >
                   <View style={s.bankIconBox}>
-                    <Ionicons name="business" size={16} color={theme.colors.G} />
+                    <BankLogo code={bankInfo?.bankCode ?? ''} name={bankInfo?.bankName ?? 'Bank'} size={32} />
                   </View>
                   {bankInfo ? (
                     <>

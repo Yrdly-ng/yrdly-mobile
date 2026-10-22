@@ -16,6 +16,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase/supabase';
+import { lookupPayoutReceipt } from '../lib/notifications/payout-access';
 import { useAuth } from '../hooks/use-supabase-auth';
 import { useNotificationRouteAcknowledgement } from '../hooks/notifications/use-notification-route-ack';
 import { AlertBanner } from '../components/alerts/AlertBanner';
@@ -299,6 +300,7 @@ export default function NotificationsScreen() {
                   const result = await resolveNotificationNavigation(
                     notificationData,
                     async (table, id) => {
+                      if (table === 'payout_requests') return lookupPayoutReceipt(id);
                       const { data, error } = await supabase
                         .from(table)
                         .select('id')

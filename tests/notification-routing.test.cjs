@@ -132,9 +132,11 @@ const cases = [
   ]),
   ...['payout_processed', 'payout_failed'].map((type) => [
     type,
-    {},
-    '/profile/payout-settings',
-    '/settings/payout-settings',
+    { payoutId: 'payout' },
+    '/profile/payouts/payout',
+    '/settings/payouts/payout',
+    'payout_requests',
+    'payout',
   ]),
   ...['safety_alert', 'alert'].map((type) => [
     type,
@@ -331,16 +333,28 @@ test('every generated destination and unavailable-target fallback has a real app
   function exists(destination) {
     const segments = destination.split(/[?#]/)[0].split('/').filter(Boolean);
     function match(directory, offset) {
-      if (offset === segments.length) return fs.existsSync(path.join(directory, mobile ? 'index.tsx' : 'page.tsx'));
+      if (offset === segments.length)
+        return fs.existsSync(path.join(directory, mobile ? 'index.tsx' : 'page.tsx'));
       const segment = segments[offset];
-      if (mobile && offset === segments.length - 1 && fs.existsSync(path.join(directory, segment + '.tsx'))) return true;
+      if (
+        mobile &&
+        offset === segments.length - 1 &&
+        fs.existsSync(path.join(directory, segment + '.tsx'))
+      )
+        return true;
       if (!fs.existsSync(directory)) return false;
       const entries = fs.readdirSync(directory, { withFileTypes: true });
       for (const entry of entries) {
         if (entry.isDirectory() && (entry.name === segment || /^\[[^\]]+\]$/.test(entry.name))) {
           if (match(path.join(directory, entry.name), offset + 1)) return true;
         }
-        if (mobile && offset === segments.length - 1 && entry.isFile() && /^\[[^\]]+\]\.tsx$/.test(entry.name)) return true;
+        if (
+          mobile &&
+          offset === segments.length - 1 &&
+          entry.isFile() &&
+          /^\[[^\]]+\]\.tsx$/.test(entry.name)
+        )
+          return true;
       }
       return false;
     }
@@ -353,4 +367,45 @@ test('every generated destination and unavailable-target fallback has a real app
     const target = r.getNotificationTarget(input);
     if (target) assert.ok(exists(target.fallback), `${type} fallback: ${target.fallback}`);
   }
+});
+
+test('payout receipts override stale settings links and support legacy IDs and URLs', () => {
+  for (const type of ['payout_failed', 'payout_processed']) {
+    assert.equal(
+      r.getPushNotificationDestination({
+        type,
+        related_id: 'payout',
+        url: '/profile/payout-settings',
+      }),
+      '/settings/payouts/payout'
+    );
+    assert.equal(route({ type, data: { payout_id: 'payout' } }), '/settings/payouts/payout');
+    assert.equal(route({ type }), '/settings/payouts');
+    assert.equal(
+      r.getPushNotificationDestination({ type, url: '/profile/payouts/payout' }),
+      '/settings/payouts/payout'
+    );
+  }
+  assert.equal(r.translateNotificationUrl('/profile/payouts/payout'), '/settings/payouts/payout');
+  assert.equal(
+    r.getNotificationTarget({ url: '/profile/payouts/payout' }).table,
+    'payout_requests'
+  );
+});
+
+test('legacy escrow withdrawal notifications retain their transaction destination', () => {
+  for (const type of ['payout_failed', 'payout_processed']) {
+    const payload = {type, related_type:'escrow_transaction',related_id:'tx',transactionId:'tx',url:'/profile/payout-settings'};
+    assert.equal(r.getPushNotificationDestination(payload),'/transactions/tx');
+    assert.equal(r.getNotificationTarget(payload).table,'escrow_transactions');
+    assert.equal(r.getPushNotificationDestination({...payload,payoutId:'payout'}),'/settings/payouts/payout');
+    assert.equal(r.getPushNotificationDestination({type,url:'/profile/payout-settings'}),'/settings/payouts');
+  }
+});
+
+test('receipt preflight falls back to payout history for unavailable records',async()=>{
+  const result=await r.resolveNotificationNavigation({type:'payout_failed',payoutId:'payout'},async(table,id)=>{
+    assert.equal(table,'payout_requests');assert.equal(id,'payout');return {found:false};
+  });
+  assert.equal(result.destination,'/settings/payouts');assert.equal(result.unavailable,true);
 });

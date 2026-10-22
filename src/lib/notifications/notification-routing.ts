@@ -130,8 +130,14 @@ export function getMobileNotificationDestination(input: NotificationRouteInput):
       return disputeId ? `/disputes/${disputeId}` : '/disputes';
     }
     case 'payout_processed':
-    case 'payout_failed':
-      return '/settings/payout-settings';
+    case 'payout_failed': {
+      if (!firstId(data.payoutId, data.payout_id) && data.relatedType === 'escrow_transaction') {
+        const transaction = firstId(data.transactionId, data.transaction_id, relatedId);
+        return transaction ? `/transactions/${encodeURIComponent(transaction)}` : '/transactions';
+      }
+      const id = firstId(data.payoutId, data.payout_id, relatedId);
+      return id ? `/settings/payouts/${encodeURIComponent(id)}` : '/settings/payouts';
+    }
     case 'community_update': {
       const communityId = firstId(data?.communityId, data?.community_id, relatedId);
       const postId = firstId(data?.postId, data?.post_id);
@@ -164,6 +170,12 @@ export function getPushNotificationDestination(data: Record<string, unknown>): s
   const typed = getMobileNotificationDestination({ type: String(data.type || ''), data });
   // Prefer authoritative resource IDs over stale URLs; URLs support legacy payloads.
   if (getNotificationTarget({ ...data, url: undefined })) return typed;
+  if (['payout_processed', 'payout_failed'].includes(String(data.type))) {
+    const target = getNotificationTarget(data);
+    return target?.table === 'payout_requests'
+      ? `/settings/payouts/${encodeURIComponent(target.id)}`
+      : typed;
+  }
   const translated =
     typeof data.url === 'string' ? translateNotificationUrl(data.url) : '/notifications';
   return translated !== '/notifications' ? translated : typed;
@@ -280,6 +292,17 @@ export function getNotificationTarget(data: Record<string, unknown>): {
     if (!id) return data.url ? getNotificationTarget({ url: data.url }) : null;
     return { table: 'escrow_transactions', id, fallback: '/transactions' };
   }
+  if (['payout_processed', 'payout_failed'].includes(type)) {
+    if (!firstId(data.payoutId, data.payout_id) && data.relatedType === 'escrow_transaction') {
+      const transaction = firstId(data.transactionId, data.transaction_id, data.relatedId);
+      return transaction
+        ? { table: 'escrow_transactions', id: transaction, fallback: '/transactions' }
+        : null;
+    }
+    const id = firstId(data.payoutId, data.payout_id, data.relatedId);
+    if (!id) return data.url ? getNotificationTarget({ url: data.url }) : null;
+    return { table: 'payout_requests', id, fallback: '/settings/payouts' };
+  }
   if (type.startsWith('dispute_')) {
     const id = firstId(data.disputeId, data.dispute_id, data.relatedId);
     if (!id) return data.url ? getNotificationTarget({ url: data.url }) : null;
@@ -301,6 +324,12 @@ export function getNotificationTarget(data: Record<string, unknown>): {
       if (['/profile/payout-settings', '/settings/payout-settings'].includes(url.pathname))
         return null;
       const parts = url.pathname.split('/').filter(Boolean);
+      if (['profile', 'settings'].includes(parts[0]) && parts[1] === 'payouts' && parts[2])
+        return {
+          table: 'payout_requests',
+          id: decodeURIComponent(parts[2]),
+          fallback: '/settings/payouts',
+        };
       const types: Record<string, string> = {
         messages: 'message',
         chat: 'message',
@@ -369,6 +398,11 @@ export function shouldSuppressForegroundNotification(
       : pathname === '/transactions';
   }
 
+  if (['payout_processed', 'payout_failed'].includes(type)) {
+    const id = firstId(data.payoutId, data.payout_id, data.relatedId);
+    return !!id && pathname === `/settings/payouts/${encodeURIComponent(id)}`;
+  }
+
   if (['dispute_opened', 'dispute_resolved'].includes(type)) {
     const disputeId = firstId(data.disputeId, data.dispute_id, data.relatedId);
     return disputeId ? pathname === `/disputes/${disputeId}` : pathname === '/disputes';
@@ -412,6 +446,9 @@ export function translateNotificationUrl(url: string): string {
     const alertMatch = path.match(/^\/alerts\/([^/]+)$/);
     if (alertMatch) return withSuffix(`/alert/${alertMatch[1]}`);
     if (path === '/alerts') return '/alerts';
+    const payoutMatch = path.match(/^\/(?:profile|settings)\/payouts\/([^/]+)$/);
+    if (payoutMatch) return withSuffix(`/settings/payouts/${payoutMatch[1]}`);
+    if (path === '/profile/payouts') return '/settings/payouts';
     if (path === '/profile/payout-settings') return '/settings/payout-settings';
     if (
       [
@@ -422,6 +459,7 @@ export function translateNotificationUrl(url: string): string {
         '/communities',
         '/tickets',
         '/settings/payout-settings',
+        '/settings/payouts',
       ].includes(path) ||
       /^\/(?:posts|chat|profile|bookings|transactions|disputes|marketplace|alert|communities)\/[^/]+$/.test(
         path

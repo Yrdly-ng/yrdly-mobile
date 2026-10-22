@@ -1,21 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text } from 'react-native';
 import { Image } from 'expo-image';
 import { useBankLogos } from '../../hooks/payments/use-bank-logos';
-import { StyleSheet, useUnistyles } from 'react-native-unistyles';
+import { StyleSheet } from 'react-native-unistyles';
 
 export function BankLogo({ code, name, size = 24 }: { code: string; name: string; size?: number }) {
-  const { theme } = useUnistyles();
   const s = stylesheet;
   const { getBankLogo } = useBankLogos();
-  const logoUrl = getBankLogo(code);
+  const logoUrl = getBankLogo(code, name);
+  const [failedLogo, setFailedLogo] = useState<number | null>(null);
 
-  if (logoUrl) {
+  if (logoUrl && failedLogo !== logoUrl) {
     return (
       <Image
-        source={{ uri: logoUrl }}
+        source={logoUrl}
+        accessibilityLabel={name}
+        onError={() => setFailedLogo(logoUrl)}
         style={[s.image, { width: size, height: size, borderRadius: size / 2 }]}
-        contentFit="cover"
+        contentFit="contain"
+        contentPosition="center"
       />
     );
   }
@@ -31,7 +34,7 @@ export function BankLogo({ code, name, size = 24 }: { code: string; name: string
 
 const stylesheet = StyleSheet.create((theme) => ({
   image: {
-    backgroundColor: theme.colors.SURFACE_ALT,
+    backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: theme.colors.DIVIDER,
   },

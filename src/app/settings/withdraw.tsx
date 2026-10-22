@@ -16,6 +16,7 @@ import { api } from '../../lib/network/api';
 import { ApiError } from '../../lib/network/api-client';
 import { parseWithdrawalQuote } from '../../lib/payments/payout-quote';
 import { useAuth } from '../../hooks/use-supabase-auth';
+import { BankLogo } from '../../components/payments/BankLogo';
 
 export default function WithdrawScreen() {
   const { theme } = useUnistyles();
@@ -121,16 +122,18 @@ export default function WithdrawScreen() {
     withdrawalInFlight.current = true;
     setConfirming(true);
     try {
-      const result = await api.post<{ success: boolean; amountSentToBank: number }>(
-        '/api/seller/payouts/request',
-        { amount: numAmount }
-      );
+      const result = await api.post<{
+        success: boolean;
+        amountSentToBank: number;
+        payoutId?: string;
+      }>('/api/seller/payouts/request', { amount: numAmount });
       if (!result.success)
         throw new Error('Withdrawal has not been confirmed. Contact support before retrying.');
-      router.replace({
-        pathname: '/settings/withdraw-success',
-        params: { amount: result.amountSentToBank },
-      } as any);
+      router.replace(
+        (result.payoutId
+          ? `/settings/payouts/${encodeURIComponent(result.payoutId)}`
+          : '/settings/payouts') as any
+      );
     } catch (e: any) {
       if (!(e instanceof ApiError) || e.status >= 500) {
         setPreviewData(null);
@@ -202,6 +205,9 @@ export default function WithdrawScreen() {
           </View>
 
           <View style={{ gap: 8, marginBottom: 24 }}>
+            <View style={{ alignItems: 'center', paddingBottom: 8 }}>
+              <BankLogo code={bankInfo?.bankCode ?? ''} name={bankInfo?.bankName ?? 'Bank'} size={44} />
+            </View>
             {[
               { l: 'Destination Bank', v: bankInfo?.bankName || 'Bank' },
               { l: 'Account Number', v: `**** ${(bankInfo?.accountNumber || '').slice(-4)}` },
@@ -315,7 +321,7 @@ export default function WithdrawScreen() {
         {/* Destination */}
         <View style={s.destCard}>
           <View style={s.destIconBox}>
-            <Ionicons name="business" size={20} color={theme.colors.G} />
+            <BankLogo code={bankInfo?.bankCode ?? ''} name={bankInfo?.bankName ?? 'Bank'} size={36} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.destBank}>{bankInfo?.bankName || 'No bank linked'}</Text>
