@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
   DeviceEventEmitter,
   ScrollView,
-  Switch,
   useWindowDimensions,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
@@ -330,27 +329,15 @@ export default function HomeTab() {
     };
   });
 
-  const [hideVirtualAccounts, setHideVirtualAccounts] = useState(false);
-  useEffect(() => {
-    void SecureStore.getItemAsync('yrdly.hideVirtualAccounts')
-      .then((value) => setHideVirtualAccounts(value === 'true'))
-      .catch(() => {});
-  }, []);
-
   const posts = useMemo(() => {
     return allPosts.filter((post) => {
-      if (
-        hideVirtualAccounts &&
-        (post.activity_origin === 'synthetic' || post.user?.account_kind === 'managed_virtual')
-      )
-        return false;
       if ((post.category as any) === 'DELETED') return false;
       if (post.category === 'Event' && post.event_date) {
         return new Date(post.event_date).getTime() >= Date.now();
       }
       return true;
     });
-  }, [allPosts, hideVirtualAccounts]);
+  }, [allPosts]);
 
   const fetchAlerts = useCallback(async () => {
     const alerts = await AlertService.getActiveAlerts();
@@ -620,29 +607,6 @@ export default function HomeTab() {
         }
         ListHeaderComponent={
           <View>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingHorizontal: 20,
-                minHeight: 48,
-              }}
-            >
-              <Text style={{ color: theme.colors.TEXT_PRIMARY, fontSize: 13 }}>
-                Hide virtual account posts
-              </Text>
-              <Switch
-                accessibilityLabel="Hide virtual account posts"
-                value={hideVirtualAccounts}
-                onValueChange={(value) => {
-                  setHideVirtualAccounts(value);
-                  void SecureStore.setItemAsync('yrdly.hideVirtualAccounts', String(value)).catch(
-                    () => {}
-                  );
-                }}
-              />
-            </View>
             <View style={{ paddingHorizontal: 20, paddingVertical: 8, minHeight: 44 }}>
               <Text
                 style={{ color: theme.colors.MUTED, fontSize: 12 }}
