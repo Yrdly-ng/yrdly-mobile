@@ -47,9 +47,7 @@ export default function WithdrawScreen() {
       ]);
       setBalance(Math.max(0, ledger.availableBalance));
 
-      if (bankRes.account) {
-        setBankInfo(bankRes.account);
-      }
+      setBankInfo(bankRes.account ?? null);
     } catch (e) {
       console.error(e);
       setBalance(0);
@@ -324,7 +322,9 @@ export default function WithdrawScreen() {
             <BankLogo code={bankInfo?.bankCode ?? ''} name={bankInfo?.bankName ?? 'Bank'} size={36} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={s.destBank}>{bankInfo?.bankName || 'No bank linked'}</Text>
+            <Text style={s.destBank}>
+              {bankInfo ? bankInfo.bankName?.trim() || 'Linked bank account' : 'No bank linked'}
+            </Text>
             <Text style={s.destUser}>
               {bankInfo
                 ? `**** ${(bankInfo.accountNumber || '').slice(-4)} · ${bankInfo.accountName}`

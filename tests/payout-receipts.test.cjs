@@ -17,7 +17,7 @@ const payout = {
   netAmount: 1200,
 };
 
-function mount(filename, { record = payout, error, signedIn = true } = {}) {
+function mount(filename, { record = payout, error, signedIn = true, bankAccount = null } = {}) {
   const state = [],
     effects = [],
     routes = [],
@@ -104,7 +104,7 @@ function mount(filename, { record = payout, error, signedIn = true } = {}) {
                 if (error) throw error;
                 if (url.endsWith('/history')) return { payouts: [record] };
                 if (url.endsWith('/balance')) return { availableBalance: 0, totalEarnings: 0 };
-                if (url.endsWith('/setup-account')) return { account: null };
+                if (url.endsWith('/setup-account')) return { account: bankAccount };
                 return { payout: record };
               },
             },
@@ -233,5 +233,19 @@ test('receipt notification access uses the seller API and distinguishes missing 
     const {lookupPayoutReceipt}=loadUtility('src/lib/notifications/payout-access.ts',{'../network/api':{api:{get:async url=>{requests.push(url);if(status)throw {status};return {payout:{id:'payout-1'}};}}}});
     const result=await lookupPayoutReceipt('payout-1');assert.equal(requests[0],'/api/seller/payouts/payout-1');
     assert.equal(result.found,status===null);assert.equal(!!result.error,status===401||status===500);
+  }
+});
+
+test('withdrawal distinguishes linked unnamed banks from missing accounts', async () => {
+  for (const bankAccount of [null, { accountNumber: '0123456494', accountName: 'Test Seller' }, { bankName: 'Test Bank', accountNumber: '0123456494', accountName: 'Test Seller' }]) {
+    const app = mount('src/app/settings/withdraw.tsx', { bankAccount });
+    const tree = await app.ready();
+    const content = app.text(tree);
+    if (!bankAccount) assert.match(content, /No bank linked/);
+    else {
+      assert.doesNotMatch(content, /No bank linked/);
+      assert.match(content, bankAccount.bankName ? /Test Bank/ : /Linked bank account/);
+      assert.match(content, /6494/);
+    }
   }
 });
