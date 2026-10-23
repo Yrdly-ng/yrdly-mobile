@@ -18,8 +18,10 @@ import { Community, CommunityService } from '@/lib/communities/community-service
 import { useAuth } from '@/hooks/use-supabase-auth';
 import { supabase } from '@/lib/supabase/supabase';
 import { VerifiedBadge } from '@/components/VerifiedBadge';
+import { Avatar } from '@/components/Avatar';
 import { CommunityActions, CommunityActionOption } from './CommunityActions';
 import { CommunityMedia } from './CommunityMedia';
+import { communityScreenStyles as s } from './community-screen-styles';
 
 export function CommunityManagement({
   community,
@@ -37,9 +39,13 @@ export function CommunityManagement({
   const router = useRouter();
   const leader = ['owner', 'admin', 'moderator', 'staff'].includes(role);
   const settingsAllowed = ['owner', 'admin', 'staff'].includes(role);
-  const [tab, setTab] = useState('members');
+  const [selectedTab, setTab] = useState('members');
+  const tab = !leader || (selectedTab === 'settings' && !settingsAllowed) ? 'members' : selectedTab;
   const [query, setQuery] = useState('');
   const [rows, setRows] = useState<any[]>([]);
+  const [loadedSection, setLoadedSection] = useState('');
+  const sectionKey = `${community.id}:${role}:${tab}:${query}`;
+  const visibleRows = loadedSection === sectionKey ? rows : [];
   const [candidates, setCandidates] = useState<any[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -49,6 +55,7 @@ export function CommunityManagement({
   const request = useRef(0);
   const [error, setError] = useState('');
   const [actions, setActions] = useState<{
+    role: string;
     title: string;
     options: CommunityActionOption[];
   } | null>(null);
@@ -85,6 +92,7 @@ export function CommunityManagement({
       }
       if (revision === request.current) {
         setRows(data);
+        setLoadedSection(sectionKey);
         setHasMore(tab === 'members' && data.length === 50);
       }
     } catch (e: any) {
@@ -92,7 +100,7 @@ export function CommunityManagement({
     } finally {
       if (revision === request.current) setLoading(false);
     }
-  }, [community.id, tab, query]);
+  }, [community.id, tab, query, sectionKey]);
   useEffect(() => {
     const timer = setTimeout(() => void load(), 200);
     return () => {
@@ -199,7 +207,7 @@ export function CommunityManagement({
       member.status === 'active'
     )
       options.push({ label: 'Assign owner', run: () => void run('staff_recover', data) });
-    if (options.length) setActions({ title: member.user?.name || 'Member', options });
+    if (options.length) setActions({ role, title: member.user?.name || 'Member', options });
   };
   const pickBrand = async (kind: 'avatar' | 'banner') => {
     if (busy || !user) return;
@@ -235,8 +243,8 @@ export function CommunityManagement({
     <Text
       style={{
         color: theme.colors.TEXT_PRIMARY,
-        fontSize: 17,
-        fontFamily: 'Inter-SemiBold',
+        fontSize: 20,
+        fontFamily: 'Outfit-SemiBold',
         marginVertical: 8,
       }}
     >
@@ -248,36 +256,63 @@ export function CommunityManagement({
       accessibilityRole="button"
       disabled={busy}
       onPress={callback}
-      style={{ paddingVertical: 12, paddingHorizontal: 8, opacity: busy ? 0.5 : 1 }}
+      style={[s.button, { opacity: busy ? 0.5 : 1, marginRight: 8 }]}
     >
-      <Text style={{ color: danger ? '#ef4444' : theme.colors.G }}>{label}</Text>
+      <Text style={[s.buttonLabel, { color: danger ? '#ef4444' : theme.colors.G }]}>{label}</Text>
     </TouchableOpacity>
   );
-  const inputStyle = {
-    color: theme.colors.TEXT_PRIMARY,
-    backgroundColor: theme.colors.SURFACE,
-    borderRadius: 10,
-    padding: 12,
-    marginVertical: 6,
+  const inputStyle = s.input;
+  const sectionCopy: Record<string, { label: string; description: string; empty: string }> = {
+    members: {
+      label: 'Members',
+      description: leader
+        ? 'The people in your community. Tap a member to see available actions.'
+        : 'Get to know the people in your community.',
+      empty: query.trim() ? 'No members match your search.' : 'No members to show yet.',
+    },
+    requests: {
+      label: 'Join requests',
+      description: 'Review who wants to become part of your community.',
+      empty: 'You’re all caught up. No join requests to review.',
+    },
+    invites: {
+      label: 'Invitations',
+      description: 'Manage invitations and invite eligible mutual friends.',
+      empty: 'No pending invitations.',
+    },
+    review: {
+      label: 'Post review',
+      description: 'Check posts and edits before they appear in the community.',
+      empty: 'You’re all caught up. Nothing is awaiting review.',
+    },
+    reports: {
+      label: 'Reports',
+      description: 'Review reported content and help keep this space welcoming.',
+      empty: 'No reports to review.',
+    },
+    settings: {
+      label: 'Settings',
+      description: 'Update your community’s identity, membership and rules.',
+      empty: '',
+    },
   };
   return (
     <Modal visible animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.DARK }}>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: 16,
-          }}
-        >
-          {title(leader ? 'Manage community' : 'Community members')}
-          {button('Close', onClose)}
+        <View style={s.managementHeader}>
+          <View style={s.headerCopy}>
+            <Text style={s.managementTitle}>{leader ? 'Manage community' : 'Members'}</Text>
+            <Text style={s.caption} numberOfLines={1}>
+              {community.name}
+            </Text>
+          </View>
+          {button('Done', onClose)}
         </View>
         <ScrollView
           horizontal
           style={{ flexGrow: 0 }}
-          contentContainerStyle={{ paddingHorizontal: 12 }}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 20, gap: 8, paddingBottom: 12 }}
         >
           {(leader
             ? [
@@ -296,27 +331,19 @@ export function CommunityManagement({
                 setTab(section);
                 setQuery('');
               }}
-              style={{
-                padding: 12,
-                borderBottomWidth: tab === section ? 2 : 0,
-                borderColor: theme.colors.G,
-              }}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: tab === section }}
+              style={[s.tab, tab === section && s.activeTab]}
             >
-              <Text
-                style={{
-                  color: tab === section ? theme.colors.G : theme.colors.LABEL,
-                  textTransform: 'capitalize',
-                }}
-              >
-                {section}
+              <Text style={[s.tabLabel, tab === section && s.activeTabLabel]}>
+                {sectionCopy[section].label}
               </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ padding: 16, paddingBottom: 50 }}
-        >
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.list}>
+          <Text style={[s.sectionTitle, { marginTop: 8 }]}>{sectionCopy[tab].label}</Text>
+          <Text style={[s.caption, { marginBottom: 16 }]}>{sectionCopy[tab].description}</Text>
           {!!error && (
             <View>
               <Text accessibilityRole="alert" style={{ color: '#ef4444' }}>
@@ -331,6 +358,10 @@ export function CommunityManagement({
                 tab === 'members' ? 'Find community members' : 'Find mutual friends'
               }
               style={inputStyle}
+              placeholder={tab === 'members' ? 'Search members by name' : 'Search mutual friends'}
+              placeholderTextColor={theme.colors.LABEL}
+              autoCorrect={false}
+              returnKeyType="search"
               value={query}
               onChangeText={setQuery}
             />
@@ -343,6 +374,8 @@ export function CommunityManagement({
               {title('Community details')}
               <TextInput
                 accessibilityLabel="Community name"
+                placeholder="Community name"
+                placeholderTextColor={theme.colors.LABEL}
                 style={inputStyle}
                 value={name}
                 onChangeText={setName}
@@ -350,6 +383,8 @@ export function CommunityManagement({
               />
               <TextInput
                 accessibilityLabel="Description"
+                placeholder="Tell people what this community is about"
+                placeholderTextColor={theme.colors.LABEL}
                 style={inputStyle}
                 value={description}
                 onChangeText={setDescription}
@@ -391,30 +426,46 @@ export function CommunityManagement({
             </View>
           ) : (
             <View>
-              {!rows.length && (
-                <Text style={{ color: theme.colors.LABEL, paddingVertical: 16 }}>
-                  Nothing here yet.
-                </Text>
+              {!visibleRows.length && (
+                <View style={s.empty}>
+                  <Text style={s.emptyBody}>{sectionCopy[tab].empty}</Text>
+                </View>
               )}
-              {rows.map((row) => (
-                <View
-                  key={row.id}
-                  style={{
-                    paddingVertical: 12,
-                    borderBottomWidth: 1,
-                    borderColor: theme.colors.GLASS_BORDER,
-                  }}
-                >
+              {visibleRows.map((row) => (
+                <View key={row.id} style={s.managementRow}>
                   {tab === 'members' && (
-                    <TouchableOpacity onPress={() => memberActions(row)}>
-                      <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-                        {title(row.user?.name || 'Member')}
-                        {row.user?.phone_verified && <VerifiedBadge size={16} />}
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel={`${row.user?.name || 'Member'}, ${row.user_id === community.owner_id ? 'owner' : row.role}, ${row.status}`}
+                      accessibilityHint={
+                        leader ? 'Shows available member actions' : 'Opens their profile'
+                      }
+                      onPress={() => {
+                        if (leader) memberActions(row);
+                        else {
+                          onClose();
+                          router.push(`/profile/${row.user_id}` as any);
+                        }
+                      }}
+                      style={{ minHeight: 52 }}
+                    >
+                      <View style={s.authorRow}>
+                        <Avatar
+                          url={row.user?.avatar_url}
+                          name={row.user?.name || 'Member'}
+                          size={44}
+                          style={{ width: 44, height: 44, borderRadius: 16 }}
+                        />
+                        <View style={s.authorCopy}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                            <Text style={s.authorName}>{row.user?.name || 'Member'}</Text>
+                            {row.user?.phone_verified && <VerifiedBadge size={16} />}
+                          </View>
+                          <Text style={s.role}>
+                            {row.user_id === community.owner_id ? 'Owner' : row.role} · {row.status}
+                          </Text>
+                        </View>
                       </View>
-                      <Text style={{ color: theme.colors.LABEL }}>
-                        {row.user_id === community.owner_id ? 'owner' : row.role} · {row.status}
-                        {leader ? ' · Tap to manage' : ''}
-                      </Text>
                     </TouchableOpacity>
                   )}
                   {tab === 'requests' && (
@@ -514,10 +565,24 @@ export function CommunityManagement({
                       {button(
                         'Remove reported content',
                         () =>
-                          void run(row.kind === 'post' ? 'delete_post' : 'delete_comment', {
-                            targetId: row.target_id,
-                            kind: row.kind,
-                          }),
+                          Alert.alert(
+                            'Remove reported content?',
+                            'This permanently removes the content from the community.',
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              {
+                                text: 'Remove',
+                                style: 'destructive',
+                                onPress: () =>
+                                  void run(
+                                    row.kind === 'post' ? 'delete_post' : 'delete_comment',
+                                    row.kind === 'post'
+                                      ? { postId: row.target_id }
+                                      : { commentId: row.target_id }
+                                  ),
+                              },
+                            ]
+                          ),
                         true
                       )}
                       {button(
@@ -528,7 +593,9 @@ export function CommunityManagement({
                   )}
                 </View>
               ))}
-              {hasMore &&
+              {tab === 'members' &&
+                loadedSection === sectionKey &&
+                hasMore &&
                 button('Load more members', () => {
                   if (loading) return;
                   setLoading(true);
@@ -567,7 +634,13 @@ export function CommunityManagement({
             </View>
           )}
         </ScrollView>
-        {actions && <CommunityActions {...actions} onClose={() => setActions(null)} />}
+        {leader && actions?.role === role && (
+          <CommunityActions
+            title={actions.title}
+            options={actions.options}
+            onClose={() => setActions(null)}
+          />
+        )}
       </SafeAreaView>
     </Modal>
   );

@@ -419,7 +419,7 @@ export class CommunityService {
   // ── Posts ─────────────────────────────────────────────────────────────────
 
   /** Fetch paginated feed for a community. Pinned posts are always first. */
-  static async fetchPosts(communityId: string, page = 0): Promise<CommunityPost[]> {
+  static async fetchPosts(communityId: string, page = 0, pageCount = 1): Promise<CommunityPost[]> {
     const PAGE = 20;
     const {
       data: { session },
@@ -436,7 +436,7 @@ export class CommunityService {
       .or(`moderation_status.eq.approved,author_id.eq.${session?.user.id}`)
       .order('is_pinned', { ascending: false })
       .order('created_at', { ascending: false })
-      .range(page * PAGE, page * PAGE + PAGE - 1);
+      .range(page * PAGE, (page + pageCount) * PAGE - 1);
 
     if (error) throw error;
     return this.withMedia((data ?? []) as CommunityPost[]);

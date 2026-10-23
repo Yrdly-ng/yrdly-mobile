@@ -24,12 +24,104 @@ import {
   ArrowRight,
   Plus,
   ShieldCheck,
+  X,
+  Compass,
 } from 'phosphor-react-native';
 import { CommunityService, Community, CommunityPrivacy } from '@/lib/communities/community-service';
 import type { MobileFile } from '@/lib/media/storage-service';
 import { useAuth } from '@/hooks/use-supabase-auth';
 import { supabase } from '@/lib/supabase/supabase';
 import { useCachedRecords } from '@/hooks/use-cached-records';
+
+let directoryChannelSequence = 0;
+
+function CommunityDirectoryCard({
+  community,
+  joined,
+  onPress,
+}: {
+  community: Community;
+  joined: boolean;
+  onPress: () => void;
+}) {
+  const { theme } = useUnistyles();
+  const s = stylesheet;
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
+  const privacyLabel =
+    community.privacy === 'invite'
+      ? 'Invite only'
+      : community.privacy === 'request'
+        ? 'Request to join'
+        : 'Open to join';
+  const initials = community.name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join('')
+    .toUpperCase();
+  return (
+    <TouchableOpacity
+      style={s.card}
+      activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={`${community.name}, ${community.member_count} members, ${joined ? 'Joined' : privacyLabel}`}
+      accessibilityHint={joined ? 'Opens the community and its posts' : 'Opens community details'}
+      onPress={onPress}
+    >
+      <View style={s.cardIdentity}>
+        {community.avatar_url && failedImageUrl !== community.avatar_url ? (
+          <Image
+            source={{ uri: community.avatar_url }}
+            style={s.avatar}
+            onError={() => setFailedImageUrl(community.avatar_url || null)}
+          />
+        ) : (
+          <View style={s.avatarFallback}>
+            <Text style={s.initials}>{initials || 'C'}</Text>
+          </View>
+        )}
+        <View style={s.cardIdentityText}>
+          <Text style={s.communityKind}>
+            {community.type === 'ward'
+              ? 'WARD COMMUNITY'
+              : community.type === 'lga'
+                ? 'LOCAL COMMUNITY'
+                : 'SHARED INTEREST'}
+          </Text>
+          <Text style={s.commName} numberOfLines={2}>
+            {community.name}
+          </Text>
+        </View>
+        {community.is_official && <ShieldCheck size={20} weight="fill" color={theme.colors.G} />}
+      </View>
+      <Text style={s.commDesc} numberOfLines={2}>
+        {community.description ||
+          (community.type === 'interest'
+            ? 'A place to connect over the things you love.'
+            : 'Meet your neighbours and stay in the loop.')}
+      </Text>
+      <View style={s.cardFooter}>
+        <View style={s.memberMeta}>
+          <UsersThree size={16} color={theme.colors.TEXT_SECONDARY} />
+          <Text style={s.commMeta}>
+            {community.member_count.toLocaleString()}{' '}
+            {community.member_count === 1 ? 'member' : 'members'}
+          </Text>
+        </View>
+        <View style={[s.membershipBadge, joined && s.joinedBadge]}>
+          {community.privacy === 'invite' && !joined && (
+            <Lock size={12} color={theme.colors.TEXT_SECONDARY} />
+          )}
+          <Text style={[s.membershipText, joined && s.joinedText]}>
+            {joined ? 'Joined' : privacyLabel}
+          </Text>
+          <ArrowRight size={14} color={joined ? theme.colors.G : theme.colors.TEXT_SECONDARY} />
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
 
 export function CommunitiesContent({
   embedded = false,
@@ -160,7 +252,7 @@ export function CommunitiesContent({
 
   useEffect(() => {
     const channel = supabase
-      .channel('communities-directory')
+      .channel(`communities-directory-${++directoryChannelSequence}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'communities' }, () => {
         void loadMine();
         void loadDiscover(debouncedQuery);
@@ -295,7 +387,7 @@ export function CommunitiesContent({
         community.name.toLowerCase().includes(query.trim().toLowerCase())
       );
       return privateOwner === user?.id && matching.length > 0
-        ? [{ title: '', data: matching }]
+        ? [{ title: 'Your communities', data: matching }]
         : [];
     }
     if (query.trim()) {
@@ -307,7 +399,7 @@ export function CommunitiesContent({
 
     const res = [];
     if (interests.length > 0) {
-      res.push({ title: 'Popular Interests', data: interests });
+      res.push({ title: 'Shared interests', data: interests });
     }
     if (local.length > 0) {
       res.push({
@@ -326,9 +418,10 @@ export function CommunitiesContent({
     >
       {/* Header */}
       <View style={s.header}>
-        <Text style={[s.title, { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-Bold' }]}>
-          Communities
-        </Text>
+        <View style={{ flex: 1 }}>
+          <Text style={s.eyebrow}>YOUR PEOPLE, YOUR PLACE</Text>
+          <Text style={s.title}>Communities</Text>
+        </View>
         <TouchableOpacity
           style={[
             s.createButton,
@@ -337,6 +430,12 @@ export function CommunitiesContent({
               borderColor: theme.colors.GLASS_BORDER,
             },
           ]}
+          accessibilityRole="button"
+          accessibilityLabel={
+            profile?.phone_verified
+              ? 'Create a community'
+              : 'Verify your phone to create a community'
+          }
           onPress={() =>
             profile?.phone_verified ? setShowCreate(true) : router.push('/verify-phone' as any)
           }
@@ -353,17 +452,20 @@ export function CommunitiesContent({
               fontSize: 12,
             }}
           >
-            {profile?.phone_verified ? 'Create' : 'Verify to create'}
+            Create
           </Text>
         </TouchableOpacity>
       </View>
+
+      <Text style={s.introduction}>Find your circle. Keep up with your neighbourhood.</Text>
 
       {(profile?.role === 'admin' ||
         profile?.role === 'moderator' ||
         (profile as any)?.is_admin) && (
         <TouchableOpacity
           onPress={() => router.push('/community-review' as any)}
-          style={{ marginHorizontal: 16, marginTop: 6, marginBottom: 4 }}
+          accessibilityRole="button"
+          style={{ marginHorizontal: 20, minHeight: 44, justifyContent: 'center' }}
         >
           <Text style={{ color: theme.colors.G, fontFamily: 'Inter-SemiBold', fontSize: 12 }}>
             Review community submissions
@@ -429,7 +531,7 @@ export function CommunitiesContent({
                     Alert.alert('Could not dismiss', 'Please try again.');
                   }
                 }}
-                style={{ padding: 8 }}
+                style={{ minHeight: 44, minWidth: 60, padding: 8, justifyContent: 'center' }}
               >
                 <Text style={{ color: theme.colors.G, fontSize: 12 }}>Dismiss</Text>
               </TouchableOpacity>
@@ -507,7 +609,21 @@ export function CommunitiesContent({
           value={query}
           onChangeText={onSearch}
           returnKeyType="search"
+          placeholder={tab === 'mine' ? 'Search your communities' : 'Search communities nationwide'}
+          placeholderTextColor={theme.colors.LABEL}
+          autoCorrect={false}
+          autoCapitalize="none"
         />
+        {!!query && (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Clear search"
+            onPress={() => setQuery('')}
+            style={s.clearSearch}
+          >
+            <X size={18} color={theme.colors.TEXT_SECONDARY} />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Tabs */}
@@ -515,32 +631,40 @@ export function CommunitiesContent({
         {(['mine', 'discover'] as const).map((t) => (
           <TouchableOpacity
             key={t}
-            style={[
-              s.tab,
-              tab === t && { borderBottomColor: theme.colors.G, borderBottomWidth: 2 },
-            ]}
+            style={[s.tab, tab === t && s.activeTab]}
             onPress={() => setTab(t)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: tab === t }}
           >
             <Text
               style={[
                 s.tabLabel,
                 {
-                  color: tab === t ? theme.colors.G : theme.colors.LABEL,
+                  color: tab === t ? theme.colors.TEXT_PRIMARY : theme.colors.LABEL,
                   fontFamily: tab === t ? 'Inter-SemiBold' : 'Inter-Regular',
                 },
               ]}
             >
-              {t === 'mine' ? 'My Communities' : 'Discover'}
+              {t === 'mine' ? 'My communities' : 'Explore'}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color={theme.colors.G} />
+        <View
+          style={s.loadingWrap}
+          accessibilityRole="progressbar"
+          accessibilityLabel="Loading communities"
+        >
+          <ActivityIndicator color={theme.colors.G} />
+          <Text style={s.emptyText}>Finding your communities…</Text>
+        </View>
       ) : (
         <SectionList
           stickySectionHeadersEnabled={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           sections={sections}
           keyExtractor={(c) => c.id}
           onEndReached={() => {
@@ -550,7 +674,7 @@ export function CommunitiesContent({
           }}
           onEndReachedThreshold={0.4}
           ListFooterComponent={loadingMore ? <ActivityIndicator color={theme.colors.G} /> : null}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
+          contentContainerStyle={s.listContent}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -560,14 +684,58 @@ export function CommunitiesContent({
           }
           ListEmptyComponent={
             <View style={s.emptyWrap}>
-              <UsersThree size={48} color={theme.colors.LABEL} weight="light" />
-              <Text
-                style={[s.emptyText, { color: theme.colors.LABEL, fontFamily: 'Inter-Regular' }]}
-              >
-                {tab === 'mine'
-                  ? "You haven't joined any communities yet."
-                  : 'No communities found.'}
+              <View style={s.emptyIcon}>
+                <Compass size={36} color={theme.colors.G} weight="duotone" />
+              </View>
+              <Text style={s.emptyTitle}>
+                {loadError
+                  ? 'Couldn’t load communities'
+                  : query.trim()
+                    ? 'No matches yet'
+                    : tab === 'mine'
+                      ? 'Your circle starts here'
+                      : 'More connections ahead'}
               </Text>
+              <Text style={s.emptyText}>
+                {loadError
+                  ? 'Check your connection and try again.'
+                  : query.trim()
+                    ? 'Try another name or clear your search.'
+                    : tab === 'mine'
+                      ? 'Join a community to swap ideas, ask questions and meet people around you.'
+                      : 'Search nationwide or start a community of your own.'}
+              </Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                style={s.emptyAction}
+                onPress={() => {
+                  if (loadError) {
+                    void onRefresh();
+                    return;
+                  }
+                  if (query.trim()) {
+                    setQuery('');
+                    return;
+                  }
+                  if (tab === 'mine') {
+                    setTab('discover');
+                    return;
+                  }
+                  if (profile?.phone_verified) setShowCreate(true);
+                  else router.push('/verify-phone' as any);
+                }}
+              >
+                <Text style={s.emptyActionLabel}>
+                  {loadError
+                    ? 'Try again'
+                    : query.trim()
+                      ? 'Clear search'
+                      : tab === 'mine'
+                        ? 'Explore communities'
+                        : 'Start a community'}
+                </Text>
+                <ArrowRight size={18} color="#000" />
+              </TouchableOpacity>
             </View>
           }
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
@@ -584,62 +752,13 @@ export function CommunitiesContent({
             ) : null
           }
           renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[
-                s.card,
-                {
-                  backgroundColor: 'transparent',
-                  borderColor: theme.colors.GLASS_BORDER,
-                  borderWidth: 0,
-                  borderBottomWidth: 1,
-                  marginBottom: 0,
-                },
-              ]}
-              activeOpacity={0.82}
+            <CommunityDirectoryCard
+              community={item}
+              joined={
+                privateOwner === user?.id && myComms.some((community) => community.id === item.id)
+              }
               onPress={() => router.push(`/communities/${item.id}` as any)}
-            >
-              {item.avatar_url ? (
-                <Image source={{ uri: item.avatar_url }} style={s.avatar} />
-              ) : (
-                <View style={[s.avatarFallback, { backgroundColor: theme.colors.G + '22' }]}>
-                  <UsersThree size={22} color={theme.colors.G} weight="fill" />
-                </View>
-              )}
-              <View style={{ flex: 1 }}>
-                <View style={s.nameRow}>
-                  <Text
-                    style={[
-                      s.commName,
-                      { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-SemiBold' },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {item.name}
-                  </Text>
-                  {item.privacy === 'invite' && (
-                    <Lock size={13} color={theme.colors.LABEL} weight="fill" />
-                  )}
-                </View>
-                <Text
-                  style={[s.commMeta, { color: theme.colors.LABEL, fontFamily: 'Inter-Regular' }]}
-                >
-                  {item.member_count} {item.member_count === 1 ? 'member' : 'members'} ·{' '}
-                  {item.type === 'ward' ? 'Ward' : item.type === 'lga' ? 'LGA' : 'Group'}
-                </Text>
-                {item.description ? (
-                  <Text
-                    style={[
-                      s.commDesc,
-                      { color: theme.colors.TEXT_SECONDARY, fontFamily: 'Inter-Regular' },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {item.description}
-                  </Text>
-                ) : null}
-              </View>
-              <ArrowRight size={18} color={theme.colors.LABEL} />
-            </TouchableOpacity>
+            />
           )}
         />
       )}
@@ -804,21 +923,44 @@ export function CommunitiesContent({
 const stylesheet = StyleSheet.create((theme) => ({
   root: { flex: 1 },
   header: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingHorizontal: 20,
+    paddingTop: 12,
     paddingBottom: 4,
+    gap: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  title: { fontSize: 26 },
+  eyebrow: {
+    fontFamily: 'Inter-SemiBold',
+    fontSize: 9,
+    letterSpacing: 1.2,
+    color: theme.colors.G,
+    marginBottom: 5,
+  },
+  title: {
+    fontSize: 30,
+    fontFamily: 'Outfit-Bold',
+    color: theme.colors.TEXT_PRIMARY,
+    letterSpacing: -0.8,
+  },
+  introduction: {
+    paddingHorizontal: 20,
+    marginTop: 4,
+    marginBottom: 14,
+    fontSize: 13,
+    lineHeight: 19,
+    color: theme.colors.TEXT_SECONDARY,
+    fontFamily: 'Inter-Regular',
+  },
   createButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: 20,
+    paddingVertical: 11,
+    minHeight: 44,
+    borderRadius: 16,
     borderWidth: 1,
   },
   submissionBox: {
@@ -832,46 +974,164 @@ const stylesheet = StyleSheet.create((theme) => ({
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginHorizontal: 16,
+    gap: 10,
+    marginHorizontal: 20,
     marginVertical: 8,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingLeft: 14,
+    paddingRight: 4,
+    minHeight: 52,
   },
-  searchInput: { flex: 1, fontSize: 15, height: 28 },
+  searchInput: { flex: 1, fontSize: 14, minHeight: 48, paddingVertical: 10 },
+  clearSearch: { width: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   tabs: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.GLASS_BORDER,
-    marginBottom: 12,
-  },
-  tab: { flex: 1, alignItems: 'center', paddingVertical: 10 },
-  tabLabel: { fontSize: 14 },
-  sectionTitle: { fontSize: 18, marginTop: 24, marginBottom: 12 },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    borderRadius: 14,
+    gap: 4,
+    backgroundColor: theme.colors.SURFACE,
+    borderColor: theme.colors.GLASS_BORDER,
     borderWidth: 1,
+    padding: 4,
+    borderRadius: 16,
+    marginHorizontal: 20,
+    marginTop: 6,
+    marginBottom: 4,
   },
-  avatar: { width: 46, height: 46, borderRadius: 23 },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 12,
+  },
+  activeTab: {
+    backgroundColor: theme.colors.DARK,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+  },
+  tabLabel: { fontSize: 13 },
+  listContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 120,
+    flexGrow: 1,
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
+  },
+  sectionTitle: { fontSize: 20, marginTop: 22, marginBottom: 14 },
+  card: {
+    padding: 18,
+    borderRadius: 22,
+    borderWidth: 1,
+    backgroundColor: theme.colors.SURFACE,
+    borderColor: theme.colors.GLASS_BORDER,
+    gap: 14,
+  },
+  cardIdentity: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  cardIdentityText: { flex: 1, minWidth: 0, gap: 4 },
+  communityKind: {
+    color: theme.colors.TEXT_SECONDARY,
+    fontFamily: 'Inter-SemiBold',
+    fontSize: 9,
+    letterSpacing: 1,
+  },
+  avatar: { width: 58, height: 58, borderRadius: 18 },
   avatarFallback: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 58,
+    height: 58,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: theme.colors.G + '20',
+    borderWidth: 1,
+    borderColor: theme.colors.G + '35',
   },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
-  commName: { fontSize: 15, flexShrink: 1 },
-  commMeta: { fontSize: 12, marginBottom: 2 },
-  commDesc: { fontSize: 12 },
-  emptyWrap: { alignItems: 'center', paddingTop: 60, gap: 12 },
-  emptyText: { fontSize: 14, textAlign: 'center', maxWidth: 240 },
+  initials: { fontFamily: 'Outfit-Bold', color: theme.colors.G, fontSize: 23 },
+  commName: {
+    fontSize: 19,
+    lineHeight: 24,
+    color: theme.colors.TEXT_PRIMARY,
+    fontFamily: 'Outfit-SemiBold',
+  },
+  commMeta: {
+    fontSize: 12,
+    color: theme.colors.TEXT_SECONDARY,
+    fontFamily: 'Inter-Regular',
+    flexShrink: 1,
+  },
+  commDesc: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: theme.colors.TEXT_SECONDARY,
+    fontFamily: 'Inter-Regular',
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.GLASS_BORDER,
+    paddingTop: 12,
+  },
+  memberMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  membershipBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    borderRadius: 9,
+    backgroundColor: theme.colors.DARK,
+  },
+  joinedBadge: { backgroundColor: theme.colors.G + '16' },
+  membershipText: {
+    fontFamily: 'Inter-SemiBold',
+    color: theme.colors.TEXT_SECONDARY,
+    fontSize: 11,
+  },
+  joinedText: { color: theme.colors.G },
+  loadingWrap: { alignItems: 'center', paddingTop: 56, gap: 14 },
+  emptyWrap: { alignItems: 'center', paddingTop: 42, paddingBottom: 24, gap: 14 },
+  emptyIcon: {
+    width: 76,
+    height: 76,
+    borderRadius: 26,
+    backgroundColor: theme.colors.G + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  emptyTitle: {
+    fontSize: 24,
+    color: theme.colors.TEXT_PRIMARY,
+    fontFamily: 'Outfit-SemiBold',
+    textAlign: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: theme.colors.TEXT_SECONDARY,
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
+    maxWidth: 300,
+  },
+  emptyAction: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    backgroundColor: theme.colors.G,
+    borderRadius: 15,
+    paddingHorizontal: 20,
+    paddingVertical: 13,
+    marginTop: 4,
+  },
+  emptyActionLabel: { color: '#000', fontFamily: 'Inter-SemiBold', fontSize: 14 },
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.65)',

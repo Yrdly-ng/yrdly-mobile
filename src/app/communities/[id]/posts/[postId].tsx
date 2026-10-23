@@ -12,7 +12,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useUnistyles } from 'react-native-unistyles';
 import { useLocalSearchParams, useRouter, useFocusEffect, Stack } from 'expo-router';
-import { Image } from 'expo-image';
 import { ArrowLeft, DotsThree } from 'phosphor-react-native';
 import { supabase } from '@/lib/supabase/supabase';
 import { useAuth } from '@/hooks/use-supabase-auth';
@@ -27,6 +26,8 @@ import { CommunityMedia, CommunityRevisionNotice } from '@/components/communitie
 import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { useNotificationRouteAcknowledgement } from '@/hooks/notifications/use-notification-route-ack';
 import { timeAgo } from '@/lib/shared/utils';
+import { Avatar } from '@/components/Avatar';
+import { communityScreenStyles as s } from '@/components/communities/community-screen-styles';
 
 export default function CommunityPostDetailScreen() {
   const { theme } = useUnistyles();
@@ -46,6 +47,7 @@ export default function CommunityPostDetailScreen() {
     null
   );
   const revision = useRef(0);
+  const loadedIdentity = useRef('');
   const inFlight = useRef(false);
   useNotificationRouteAcknowledgement(!loading && !!post && active);
   const load = useCallback(async () => {
@@ -81,8 +83,16 @@ export default function CommunityPostDetailScreen() {
   }, [id, postId, user?.id, profile?.is_admin, profile?.role]);
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
-      setPost(null);
+      const identity = `${id}:${postId}:${user?.id || ''}`;
+      if (loadedIdentity.current !== identity) {
+        loadedIdentity.current = identity;
+        setLoading(true);
+        setPost(null);
+        setComments([]);
+        setActive(false);
+        setLeader(false);
+        setComposing(false);
+      }
       void load();
       const channel = supabase
         .channel(`community-replies-${postId}`)
@@ -129,7 +139,7 @@ export default function CommunityPostDetailScreen() {
         app.remove();
         void supabase.removeChannel(channel);
       };
-    }, [id, postId, load])
+    }, [id, postId, user?.id, load])
   );
   const run = async (action: string, data: Record<string, unknown>) => {
     if (inFlight.current) return;
@@ -185,29 +195,26 @@ export default function CommunityPostDetailScreen() {
     setMenu({ title: 'Reply options', options });
   };
   const button = (label: string, callback: () => void) => (
-    <TouchableOpacity
-      accessibilityRole="button"
-      onPress={callback}
-      style={{
-        padding: 14,
-        marginVertical: 8,
-        backgroundColor: theme.colors.SURFACE,
-        borderRadius: 12,
-      }}
-    >
-      <Text style={{ color: theme.colors.G, textAlign: 'center' }}>{label}</Text>
+    <TouchableOpacity accessibilityRole="button" onPress={callback} style={s.button}>
+      <Text style={s.buttonLabel}>{label}</Text>
     </TouchableOpacity>
   );
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.DARK }} edges={['top', 'bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={{ flexDirection: 'row', padding: 16, gap: 12, alignItems: 'center' }}>
-        <TouchableOpacity accessibilityLabel="Go back" onPress={() => router.back()}>
+      <View style={s.header}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          onPress={() => router.back()}
+          style={s.iconButton}
+        >
           <ArrowLeft color={theme.colors.TEXT_PRIMARY} size={24} />
         </TouchableOpacity>
-        <Text style={{ color: theme.colors.TEXT_PRIMARY, fontSize: 20, fontFamily: 'Inter-Bold' }}>
-          Community replies
-        </Text>
+        <View style={s.headerCopy}>
+          <Text style={s.headerTitle}>Conversation</Text>
+          <Text style={s.caption}>Post & replies</Text>
+        </View>
       </View>
       {loading ? (
         <ActivityIndicator color={theme.colors.G} style={{ marginTop: 50 }} />
@@ -230,7 +237,7 @@ export default function CommunityPostDetailScreen() {
         <FlatList
           data={comments}
           keyExtractor={(comment) => comment.id}
-          contentContainerStyle={{ padding: 16, paddingBottom: 30 }}
+          contentContainerStyle={s.list}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -242,20 +249,32 @@ export default function CommunityPostDetailScreen() {
             />
           }
           ListHeaderComponent={
-            <View style={{ paddingBottom: 18, gap: 10 }}>
+            <View style={[s.overview, { marginBottom: 18 }]}>
               {!!error && <Text style={{ color: '#ef4444' }}>{error}</Text>}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={{ color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-Bold' }}>
-                  {post.author?.name || post.author_name}
-                </Text>
-                {post.author?.phone_verified && <VerifiedBadge size={16} />}
+              <View style={s.authorRow}>
+                <Avatar
+                  url={post.author?.avatar_url || post.author_image}
+                  name={post.author?.name || post.author_name || 'Member'}
+                  size={42}
+                  style={s.avatar}
+                />
+                <View style={s.authorCopy}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                    <Text style={s.authorName}>
+                      {post.author?.name || post.author_name || 'Member'}
+                    </Text>
+                    {post.author?.phone_verified && <VerifiedBadge size={16} />}
+                  </View>
+                  <Text style={s.caption}>
+                    {timeAgo(post.created_at)}
+                    {post.is_edited ? ' · Edited' : ''}
+                  </Text>
+                </View>
               </View>
-              <Text style={{ color: theme.colors.TEXT_PRIMARY, fontSize: 16, lineHeight: 23 }}>
-                {post.content}
-              </Text>
+              <Text style={s.body}>{post.content}</Text>
               <CommunityMedia images={post.resolved_image_urls} videos={post.resolved_video_urls} />
-              <Text style={{ color: theme.colors.LABEL }}>
-                {post.comment_count} replies · {timeAgo(post.created_at)}
+              <Text style={s.caption}>
+                {post.comment_count} {post.comment_count === 1 ? 'reply' : 'replies'}
               </Text>
               {post.moderation_status !== 'approved' && (
                 <Text style={{ color: '#e8b54a' }}>
@@ -271,42 +290,47 @@ export default function CommunityPostDetailScreen() {
             </View>
           }
           ListEmptyComponent={
-            <Text style={{ color: theme.colors.LABEL, textAlign: 'center', padding: 24 }}>
-              No published replies yet.
-            </Text>
+            <View style={s.empty}>
+              <Text style={s.emptyTitle}>
+                {error ? 'Replies couldn’t refresh' : 'Keep the conversation going'}
+              </Text>
+              <Text style={s.emptyBody}>
+                {error
+                  ? 'Pull down to try again.'
+                  : 'No published replies yet. Be the first to add your thoughts.'}
+              </Text>
+            </View>
           }
           renderItem={({ item: comment }) => (
-            <View
-              style={{
-                padding: 14,
-                backgroundColor: theme.colors.SURFACE,
-                borderRadius: 12,
-                marginBottom: 12,
-                gap: 8,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Image
-                  source={{ uri: comment.author?.avatar_url || comment.author_image || undefined }}
-                  style={{ height: 32, width: 32, borderRadius: 16 }}
+            <View style={s.post}>
+              <View style={s.authorRow}>
+                <Avatar
+                  url={comment.author?.avatar_url || comment.author_image}
+                  name={comment.author?.name || comment.author_name || 'Member'}
+                  size={42}
+                  style={s.avatar}
                 />
-                <Text style={{ color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-SemiBold' }}>
-                  {comment.author?.name || comment.author_name || 'Member'}
-                </Text>
-                {comment.author?.phone_verified && <VerifiedBadge size={15} />}
-                <View style={{ flex: 1 }} />
+                <View style={s.authorCopy}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                    <Text style={s.authorName}>
+                      {comment.author?.name || comment.author_name || 'Member'}
+                    </Text>
+                    {comment.author?.phone_verified && <VerifiedBadge size={15} />}
+                  </View>
+                  <Text style={s.caption}>{timeAgo(comment.created_at)}</Text>
+                </View>
                 <TouchableOpacity
                   onPress={() => commentActions(comment)}
                   accessibilityLabel="Reply options"
+                  accessibilityRole="button"
+                  style={s.iconButton}
                 >
                   <DotsThree size={24} color={theme.colors.LABEL} />
                 </TouchableOpacity>
               </View>
-              <Text style={{ color: theme.colors.TEXT_PRIMARY }}>{comment.content}</Text>
+              <Text style={s.body}>{comment.content}</Text>
               <CommunityRevisionNotice item={comment} />
-              <Text style={{ color: theme.colors.LABEL, fontSize: 12 }}>
-                {timeAgo(comment.created_at)}
-              </Text>
+
               {comment.moderation_status !== 'approved' && (
                 <Text
                   style={{

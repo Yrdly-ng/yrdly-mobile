@@ -14,7 +14,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useUnistyles } from 'react-native-unistyles';
 import { useLocalSearchParams, useRouter, useFocusEffect, Stack } from 'expo-router';
 import { Image } from 'expo-image';
-import { ArrowLeft, DotsThree, Heart, ChatCircle, Bell, BellSlash } from 'phosphor-react-native';
+import {
+  ArrowLeft,
+  DotsThree,
+  Heart,
+  ChatCircle,
+  Bell,
+  BellSlash,
+  Plus,
+  CaretDown,
+  UsersThree,
+} from 'phosphor-react-native';
 import {
   CommunityService,
   Community,
@@ -31,12 +41,15 @@ import { CommunityManagement } from '@/components/communities/CommunityManagemen
 import { CommunityComposer } from '@/components/communities/CommunityComposer';
 import { CommunityMedia, CommunityRevisionNotice } from '@/components/communities/CommunityMedia';
 import { timeAgo } from '@/lib/shared/utils';
+import { Avatar } from '@/components/Avatar';
+import { communityScreenStyles as s } from '@/components/communities/community-screen-styles';
 
 export default function CommunityFeedScreen() {
   const { theme } = useUnistyles();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user, profile } = useAuth();
+  const [rulesExpanded, setRulesExpanded] = useState(false);
   const [community, setCommunity] = useState<Community | null>(null);
   const [membership, setMembership] = useState<CommunityMembership | null>(null);
   const [request, setRequest] = useState<CommunityJoinRequest | null>(null);
@@ -59,6 +72,8 @@ export default function CommunityFeedScreen() {
     null
   );
   const revision = useRef(0);
+  const loadedIdentity = useRef('');
+  const revalidating = useRef(false);
   const likedInFlight = useRef(new Set<string>());
   const active = membership?.status === 'active';
   const role =
@@ -71,64 +86,83 @@ export default function CommunityFeedScreen() {
           : '';
   const leader = ['staff', 'owner', 'admin', 'moderator'].includes(role);
   useNotificationRouteAcknowledgement(!loading && !!community);
-  const load = useCallback(async () => {
-    if (!id || !user?.id) return;
-    const started = ++revision.current;
-    setError('');
-    try {
-      const [comm, mem, join, feed, ownership, invitation] = await Promise.all([
-        CommunityService.getCommunity(id),
-        CommunityService.getMyMembership(id, user.id),
-        CommunityService.getMyJoinRequest(id, user.id),
-        CommunityService.fetchPosts(id),
-        CommunityService.ownershipOffer(id),
-        CommunityService.getMyInvite(id, user.id),
-      ]);
-      if (started !== revision.current) return;
-      setCommunity(comm);
-      setMembership(mem);
-      setRequest(join);
-      setInvite(invitation);
-      setOffer(ownership);
-      page.current = 0;
-      setHasMore(feed.length === 20);
-      if (feed.length) {
-        const liked = await supabase
-          .from('community_post_likes')
-          .select('post_id')
-          .eq('user_id', user.id)
-          .in(
-            'post_id',
-            feed.map((post) => post.id)
-          );
-        if (liked.error) throw liked.error;
-        const ids = new Set((liked.data || []).map((row) => row.post_id));
-        if (started === revision.current)
-          setPosts(feed.map((post) => ({ ...post, liked_by_me: ids.has(post.id) })));
-      } else setPosts([]);
-      if (
-        comm?.type === 'ward' &&
-        mem?.status === 'active' &&
-        (await CommunityService.isWardSparse(id))
-      ) {
-        const parent = await CommunityService.fetchParentLgaPosts(id);
-        if (started === revision.current) setAreaPosts(parent);
-      } else setAreaPosts([]);
-    } catch (e: any) {
-      if (started === revision.current) setError(e.message || 'Could not load this community.');
-    } finally {
-      if (started === revision.current) {
-        setLoading(false);
-        setRefreshing(false);
+  const load = useCallback(
+    async (resetPages = false) => {
+      if (!id || !user?.id) return;
+      const started = ++revision.current;
+      const pageCount = resetPages ? 1 : page.current + 1;
+      revalidating.current = true;
+      setError('');
+      try {
+        const [comm, mem, join, feed, ownership, invitation] = await Promise.all([
+          CommunityService.getCommunity(id),
+          CommunityService.getMyMembership(id, user.id),
+          CommunityService.getMyJoinRequest(id, user.id),
+          CommunityService.fetchPosts(id, 0, pageCount),
+          CommunityService.ownershipOffer(id),
+          CommunityService.getMyInvite(id, user.id),
+        ]);
+        if (started !== revision.current) return;
+        setCommunity(comm);
+        setMembership(mem);
+        setRequest(join);
+        setInvite(invitation);
+        setOffer(ownership);
+        page.current = Math.max(0, Math.ceil(feed.length / 20) - 1);
+        setHasMore(feed.length === pageCount * 20);
+        if (feed.length) {
+          const liked = await supabase
+            .from('community_post_likes')
+            .select('post_id')
+            .eq('user_id', user.id)
+            .in(
+              'post_id',
+              feed.map((post) => post.id)
+            );
+          if (liked.error) throw liked.error;
+          const ids = new Set((liked.data || []).map((row) => row.post_id));
+          if (started === revision.current)
+            setPosts(feed.map((post) => ({ ...post, liked_by_me: ids.has(post.id) })));
+        } else setPosts([]);
+        if (
+          comm?.type === 'ward' &&
+          mem?.status === 'active' &&
+          (await CommunityService.isWardSparse(id))
+        ) {
+          const parent = await CommunityService.fetchParentLgaPosts(id);
+          if (started === revision.current) setAreaPosts(parent);
+        } else setAreaPosts([]);
+      } catch (e: any) {
+        if (started === revision.current) setError(e.message || 'Could not load this community.');
+      } finally {
+        if (started === revision.current) {
+          revalidating.current = false;
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
-    }
-  }, [id, user?.id]);
+    },
+    [id, user?.id]
+  );
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
-      setCommunity(null);
-      setMembership(null);
-      setPosts([]);
+      // Keep the mounted feed and scroll position when returning from replies.
+      // A different community or account must never reuse the old content.
+      const identity = `${id}:${user?.id || ''}`;
+      if (loadedIdentity.current !== identity) {
+        loadedIdentity.current = identity;
+        setLoading(true);
+        setCommunity(null);
+        setMembership(null);
+        setPosts([]);
+        setAreaPosts([]);
+        setInvite(null);
+        setOffer(null);
+        setRequest(null);
+        setManaging(false);
+        setComposing(false);
+        page.current = 0;
+      }
       void load();
       const channel = supabase.channel(`community-screen-${id}`);
       for (const table of [
@@ -169,7 +203,7 @@ export default function CommunityFeedScreen() {
         app.remove();
         void supabase.removeChannel(channel);
       };
-    }, [id, load])
+    }, [id, user?.id, load])
   );
   const run = async (action: string, data: Record<string, unknown> = {}) => {
     if (inFlight.current) return;
@@ -302,7 +336,7 @@ export default function CommunityFeedScreen() {
     setMenu({ title: community?.name || 'Community', options });
   };
   const more = async () => {
-    if (!hasMore || loadingMore || !user || !active) return;
+    if (!hasMore || loadingMore || revalidating.current || !user || !active) return;
     setLoadingMore(true);
     const started = revision.current;
     try {
@@ -342,17 +376,9 @@ export default function CommunityFeedScreen() {
       accessibilityRole="button"
       disabled={disabled || busy}
       onPress={onPress}
-      style={{
-        padding: 13,
-        backgroundColor: theme.colors.SURFACE,
-        borderRadius: 12,
-        marginVertical: 5,
-        opacity: disabled || busy ? 0.5 : 1,
-      }}
+      style={[s.button, { opacity: disabled || busy ? 0.5 : 1 }]}
     >
-      <Text style={{ color: theme.colors.G, textAlign: 'center', fontFamily: 'Inter-SemiBold' }}>
-        {label}
-      </Text>
+      <Text style={s.buttonLabel}>{label}</Text>
     </TouchableOpacity>
   );
   const cooldown =
@@ -362,41 +388,33 @@ export default function CommunityFeedScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.DARK }} edges={['top', 'bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View
-        style={{
-          padding: 14,
-          flexDirection: 'row',
-          gap: 12,
-          alignItems: 'center',
-          borderBottomWidth: 1,
-          borderColor: theme.colors.GLASS_BORDER,
-        }}
-      >
-        <TouchableOpacity accessibilityLabel="Go back" onPress={() => router.back()}>
+      <View style={s.header}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          onPress={() => router.back()}
+          style={s.iconButton}
+        >
           <ArrowLeft size={24} color={theme.colors.TEXT_PRIMARY} />
         </TouchableOpacity>
-        {community?.avatar_url && (
-          <Image
-            source={{ uri: community.avatar_url }}
-            style={{ width: 38, height: 38, borderRadius: 19 }}
-          />
+        {community && (
+          <Avatar url={community.avatar_url} name={community.name} size={42} style={s.avatar} />
         )}
-        <View style={{ flex: 1 }}>
-          <Text
-            numberOfLines={1}
-            style={{ fontFamily: 'Inter-Bold', fontSize: 18, color: theme.colors.TEXT_PRIMARY }}
-          >
+        <View style={s.headerCopy}>
+          <Text numberOfLines={1} style={s.headerTitle}>
             {community?.name || 'Community'}
           </Text>
           {community && (
-            <Text style={{ color: theme.colors.LABEL }}>{community.member_count} members</Text>
+            <Text style={s.caption}>{community.member_count.toLocaleString()} members</Text>
           )}
         </View>
         {active && (
           <TouchableOpacity
             disabled={busy}
+            accessibilityRole="button"
             accessibilityLabel={membership?.is_muted ? 'Unmute community' : 'Mute community'}
             onPress={() => void run('mute', { muted: !membership?.is_muted })}
+            style={s.iconButton}
           >
             {membership?.is_muted ? (
               <BellSlash size={22} color={theme.colors.LABEL} />
@@ -406,7 +424,12 @@ export default function CommunityFeedScreen() {
           </TouchableOpacity>
         )}
         {community && (
-          <TouchableOpacity accessibilityLabel="Community options" onPress={openMenu}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Community options"
+            onPress={openMenu}
+            style={s.iconButton}
+          >
             <DotsThree size={26} color={theme.colors.TEXT_PRIMARY} />
           </TouchableOpacity>
         )}
@@ -417,13 +440,13 @@ export default function CommunityFeedScreen() {
         <FlatList
           data={active ? posts : []}
           keyExtractor={(post) => post.id}
-          contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+          contentContainerStyle={s.list}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => {
                 setRefreshing(true);
-                void load();
+                void load(true);
               }}
               tintColor={theme.colors.G}
             />
@@ -446,27 +469,71 @@ export default function CommunityFeedScreen() {
                 </Text>
               )}
               {community?.banner_url && (
-                <Image
-                  source={{ uri: community.banner_url }}
-                  style={{ height: 140, borderRadius: 14, marginBottom: 14 }}
-                  contentFit="cover"
-                />
+                <Image source={{ uri: community.banner_url }} style={s.banner} contentFit="cover" />
               )}
-              {!!community?.description && (
-                <Text style={{ color: theme.colors.TEXT_PRIMARY, marginBottom: 12 }}>
-                  {community.description}
-                </Text>
-              )}
-              {!!community?.rules?.length && (
-                <View style={{ marginBottom: 14 }}>
-                  <Text style={{ color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-Bold' }}>
-                    Community rules
-                  </Text>
-                  {community.rules.map((rule, index) => (
-                    <Text key={index} style={{ color: theme.colors.LABEL, marginTop: 5 }}>
-                      {index + 1}. {rule}
+              {community && (
+                <View style={s.overview}>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 8,
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <Text style={s.eyebrow}>ABOUT THIS COMMUNITY</Text>
+                    <Text style={s.role}>
+                      {community.privacy === 'open'
+                        ? 'Open membership'
+                        : community.privacy === 'request'
+                          ? 'Join by request'
+                          : 'Invite only'}
                     </Text>
-                  ))}
+                  </View>
+                  {!!community.description && <Text style={s.body}>{community.description}</Text>}
+                  {active && (
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        ['owner', 'admin', 'moderator', 'staff'].includes(role)
+                          ? 'Manage community and members'
+                          : 'View community members'
+                      }
+                      style={[s.postAction, { gap: 8 }]}
+                      onPress={() => setManaging(true)}
+                    >
+                      <UsersThree size={20} color={theme.colors.G} />
+                      <Text style={s.buttonLabel}>
+                        {['owner', 'admin', 'moderator', 'staff'].includes(role)
+                          ? 'Manage community'
+                          : 'View members'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  {!!community.rules?.length && (
+                    <View>
+                      <TouchableOpacity
+                        accessibilityRole="button"
+                        accessibilityState={{ expanded: rulesExpanded }}
+                        onPress={() => setRulesExpanded((value) => !value)}
+                        style={[s.postAction, { justifyContent: 'space-between' }]}
+                      >
+                        <Text style={s.authorName}>Community rules · {community.rules.length}</Text>
+                        <CaretDown
+                          size={16}
+                          color={theme.colors.TEXT_SECONDARY}
+                          style={{ transform: [{ rotate: rulesExpanded ? '180deg' : '0deg' }] }}
+                        />
+                      </TouchableOpacity>
+                      {rulesExpanded &&
+                        community.rules.map((rule, index) => (
+                          <Text key={index} style={[s.caption, { marginTop: 8 }]}>
+                            {index + 1}. {rule}
+                          </Text>
+                        ))}
+                    </View>
+                  )}
                 </View>
               )}
               {!!offer && (
@@ -529,42 +596,70 @@ export default function CommunityFeedScreen() {
                   )}
                 </View>
               )}
-              {active &&
-                button('Write a post', () => {
-                  setEditing(undefined);
-                  setComposing(true);
-                })}
+              {active && (
+                <>
+                  <TouchableOpacity
+                    style={s.composer}
+                    accessibilityRole="button"
+                    accessibilityLabel="Write a post in this community"
+                    onPress={() => {
+                      setEditing(undefined);
+                      setComposing(true);
+                    }}
+                  >
+                    <Avatar
+                      url={profile?.avatar_url}
+                      name={profile?.name || 'You'}
+                      size={42}
+                      style={s.avatar}
+                    />
+                    <View style={s.composerCopy}>
+                      <Text style={s.composerTitle}>What’s on your mind?</Text>
+                      <Text style={s.caption}>Ask, share or start a conversation</Text>
+                    </View>
+                    <View style={s.composerIcon}>
+                      <Plus size={20} color="#000" />
+                    </View>
+                  </TouchableOpacity>
+                  <Text style={s.sectionTitle}>Conversations</Text>
+                </>
+              )}
             </View>
           }
           ListEmptyComponent={
             active ? (
-              <Text style={{ color: theme.colors.LABEL, textAlign: 'center', padding: 30 }}>
-                No posts yet. Share something with your community.
-              </Text>
+              <View style={s.empty}>
+                <ChatCircle size={32} color={theme.colors.G} weight="duotone" />
+                <Text style={s.emptyTitle}>
+                  {error ? 'Posts couldn’t refresh' : 'Start the conversation'}
+                </Text>
+                <Text style={s.emptyBody}>
+                  {error
+                    ? 'Pull down to try again.'
+                    : 'Ask a question or share something your community would love to know.'}
+                </Text>
+              </View>
             ) : null
           }
           renderItem={({ item: post }) => (
-            <View
-              style={{
-                padding: 14,
-                borderRadius: 14,
-                backgroundColor: theme.colors.SURFACE,
-                marginVertical: 6,
-                gap: 10,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <TouchableOpacity onPress={() => router.push(`/profile/${post.author_id}` as any)}>
-                  <Image
-                    source={{ uri: post.author?.avatar_url || post.author_image || undefined }}
-                    style={{ width: 38, height: 38, borderRadius: 19 }}
+            <View style={s.post}>
+              <View style={s.authorRow}>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={`View ${post.author?.name || post.author_name || 'member'}’s profile`}
+                  style={s.iconButton}
+                  onPress={() => router.push(`/profile/${post.author_id}` as any)}
+                >
+                  <Avatar
+                    url={post.author?.avatar_url || post.author_image}
+                    name={post.author?.name || post.author_name || 'Member'}
+                    size={42}
+                    style={s.avatar}
                   />
                 </TouchableOpacity>
-                <View style={{ flex: 1 }}>
+                <View style={s.authorCopy}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                    <Text
-                      style={{ color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-SemiBold' }}
-                    >
+                    <Text style={s.authorName}>
                       {post.author?.name || post.author_name || 'Member'}
                     </Text>
                     {post.author?.phone_verified && <VerifiedBadge size={15} />}
@@ -578,6 +673,8 @@ export default function CommunityFeedScreen() {
                 </View>
                 <TouchableOpacity
                   accessibilityLabel="Post options"
+                  accessibilityRole="button"
+                  style={s.iconButton}
                   onPress={() => postActions(post)}
                 >
                   <DotsThree color={theme.colors.LABEL} size={24} />
@@ -592,17 +689,15 @@ export default function CommunityFeedScreen() {
                     : 'Only you can see this · awaiting review'}
                 </Text>
               )}
-              <Text style={{ color: theme.colors.TEXT_PRIMARY, fontSize: 15, lineHeight: 22 }}>
-                {post.content}
-              </Text>
+              <Text style={s.body}>{post.content}</Text>
               <CommunityRevisionNotice item={post} />
               <CommunityMedia images={post.resolved_image_urls} videos={post.resolved_video_urls} />
-              <View style={{ flexDirection: 'row', gap: 25 }}>
+              <View style={s.actionRow}>
                 <TouchableOpacity
                   accessibilityLabel={post.liked_by_me ? 'Unlike post' : 'Like post'}
                   disabled={post.moderation_status !== 'approved'}
                   onPress={() => void like(post)}
-                  style={{ flexDirection: 'row', gap: 6 }}
+                  style={s.postAction}
                 >
                   <Heart
                     size={21}
@@ -612,8 +707,10 @@ export default function CommunityFeedScreen() {
                   <Text style={{ color: theme.colors.LABEL }}>{post.like_count}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={`View ${post.comment_count} replies`}
                   onPress={() => router.push(`/communities/${id}/posts/${post.id}` as any)}
-                  style={{ flexDirection: 'row', gap: 6 }}
+                  style={s.postAction}
                 >
                   <ChatCircle size={21} color={theme.colors.LABEL} />
                   <Text style={{ color: theme.colors.LABEL }}>{post.comment_count} replies</Text>

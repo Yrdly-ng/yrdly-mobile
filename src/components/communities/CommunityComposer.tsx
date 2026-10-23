@@ -21,6 +21,9 @@ import {
 } from '@/lib/communities/community-service';
 import { useAuth } from '@/hooks/use-supabase-auth';
 import { MobileFile } from '@/lib/media/storage-service';
+import { ImageSquare, VideoCamera, At, X } from 'phosphor-react-native';
+import { Avatar } from '@/components/Avatar';
+import { communityScreenStyles as s } from './community-screen-styles';
 
 export function CommunityComposer({
   communityId,
@@ -40,7 +43,7 @@ export function CommunityComposer({
   onSaved: () => void;
 }) {
   const { theme } = useUnistyles();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [text, setText] = useState(comment?.content || post?.content || '');
   const [files, setFiles] = useState<MobileFile[]>([]);
   const [keepImages, setKeepImages] = useState(post?.image_urls || []);
@@ -157,7 +160,14 @@ export function CommunityComposer({
       setBusy(false);
     }
   };
-  const labelStyle = { color: theme.colors.TEXT_PRIMARY, fontSize: 15, marginVertical: 8 };
+  const labelStyle = {
+    color: theme.colors.TEXT_PRIMARY,
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    lineHeight: 21,
+  };
+  const submitDisabled =
+    busy || picking || (!text.trim() && !files.length && !keepImages.length && !keepVideos.length);
   return (
     <Modal
       visible
@@ -171,28 +181,47 @@ export function CommunityComposer({
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
+          <View style={s.managementHeader}>
+            <View style={s.headerCopy}>
+              <Text style={s.managementTitle}>
+                {post || comment
+                  ? 'Edit your words'
+                  : reply
+                    ? 'Add a reply'
+                    : 'Start a conversation'}
+              </Text>
+              <Text style={s.caption}>
+                {reply
+                  ? 'Keep the conversation going'
+                  : 'A little thought can bring people together'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Close composer"
+              disabled={busy}
+              onPress={onClose}
+              style={s.iconButton}
+            >
+              <X size={22} color={theme.colors.TEXT_PRIMARY} />
+            </TouchableOpacity>
+          </View>
           <ScrollView
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ padding: 20, gap: 12 }}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24, gap: 14 }}
           >
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <Text style={{ ...labelStyle, fontSize: 22, fontFamily: 'Inter-Bold' }}>
-                {post || comment ? 'Edit' : reply ? 'New reply' : 'New post'}
-              </Text>
-              <TouchableOpacity disabled={busy} onPress={onClose}>
-                <Text style={{ color: theme.colors.G }}>Close</Text>
-              </TouchableOpacity>
+            <View style={s.authorRow}>
+              <Avatar
+                url={profile?.avatar_url}
+                name={profile?.name || 'You'}
+                size={42}
+                style={s.avatar}
+              />
+              <View style={s.authorCopy}>
+                <Text style={s.authorName}>{profile?.name || 'You'}</Text>
+                <Text style={s.caption}>Posting to your community</Text>
+              </View>
             </View>
-            <Text style={{ color: theme.colors.LABEL }}>
-              Safe content publishes after review. You can track pending submissions in the
-              community. Videos may need a moderator’s review.
-            </Text>
             <TextInput
               accessibilityLabel={reply ? 'Reply text' : 'Post text'}
               multiline
@@ -200,24 +229,43 @@ export function CommunityComposer({
               onChangeText={setText}
               maxLength={reply ? 500 : 1000}
               editable={!busy}
-              placeholder="Share with your community…"
+              placeholder={
+                reply ? 'Add your thoughts…' : 'Ask a question, share an idea or say hello…'
+              }
               placeholderTextColor={theme.colors.LABEL}
-              style={{
-                color: theme.colors.TEXT_PRIMARY,
-                backgroundColor: theme.colors.SURFACE,
-                padding: 14,
-                minHeight: 150,
-                borderRadius: 14,
-                textAlignVertical: 'top',
-              }}
+              style={[
+                s.input,
+                {
+                  minHeight: 190,
+                  fontSize: 16,
+                  lineHeight: 25,
+                  textAlignVertical: 'top',
+                  marginVertical: 0,
+                },
+              ]}
             />
+            <Text style={[s.caption, { textAlign: 'right' }]}>
+              {text.length} / {reply ? 500 : 1000}
+            </Text>
             {!reply && (
-              <View style={{ flexDirection: 'row', gap: 20 }}>
-                <TouchableOpacity disabled={busy || picking} onPress={() => pick('photo')}>
-                  <Text style={{ color: theme.colors.G }}>Add photos</Text>
+              <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  disabled={busy || picking}
+                  onPress={() => pick('photo')}
+                  style={[s.button, s.postAction, { paddingHorizontal: 14 }]}
+                >
+                  <ImageSquare size={19} color={theme.colors.G} />
+                  <Text style={s.buttonLabel}>Photos</Text>
                 </TouchableOpacity>
-                <TouchableOpacity disabled={busy || picking} onPress={() => pick('video')}>
-                  <Text style={{ color: theme.colors.G }}>Add videos</Text>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  disabled={busy || picking}
+                  onPress={() => pick('video')}
+                  style={[s.button, s.postAction, { paddingHorizontal: 14 }]}
+                >
+                  <VideoCamera size={19} color={theme.colors.G} />
+                  <Text style={s.buttonLabel}>Videos</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -226,6 +274,8 @@ export function CommunityComposer({
               <TouchableOpacity
                 key={url}
                 disabled={busy}
+                accessibilityRole="button"
+                style={s.button}
                 onPress={() => setKeepImages(keepImages.filter((_, i) => i !== index))}
               >
                 <Text style={labelStyle}>Photo {index + 1} · Remove</Text>
@@ -235,6 +285,8 @@ export function CommunityComposer({
               <TouchableOpacity
                 key={url}
                 disabled={busy}
+                accessibilityRole="button"
+                style={s.button}
                 onPress={() => setKeepVideos(keepVideos.filter((_, i) => i !== index))}
               >
                 <Text style={labelStyle}>Video {index + 1} · Remove</Text>
@@ -244,6 +296,8 @@ export function CommunityComposer({
               <TouchableOpacity
                 key={`${file.uri}-${index}`}
                 disabled={busy}
+                accessibilityRole="button"
+                style={s.button}
                 onPress={() => setFiles(files.filter((_, i) => i !== index))}
               >
                 <Text style={labelStyle}>
@@ -256,6 +310,7 @@ export function CommunityComposer({
                 disabled={busy}
                 onPress={() => setAnnouncement(!announcement)}
                 accessibilityRole="checkbox"
+                style={s.button}
                 accessibilityState={{ checked: announcement }}
               >
                 <Text style={labelStyle}>
@@ -263,8 +318,17 @@ export function CommunityComposer({
                 </Text>
               </TouchableOpacity>
             )}
-            <TouchableOpacity onPress={() => setShowMentions(!showMentions)}>
-              <Text style={{ color: theme.colors.G }}>Mention members ({mentions.length})</Text>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showMentions }}
+              disabled={busy}
+              onPress={() => setShowMentions(!showMentions)}
+              style={[s.postAction, { gap: 8 }]}
+            >
+              <At size={19} color={theme.colors.G} />
+              <Text style={s.buttonLabel}>
+                Mention members{mentions.length ? ` · ${mentions.length} selected` : ''}
+              </Text>
             </TouchableOpacity>
             {showMentions && (
               <View>
@@ -272,7 +336,9 @@ export function CommunityComposer({
                   accessibilityLabel="Find members to mention"
                   value={query}
                   onChangeText={setQuery}
-                  style={{ ...labelStyle, padding: 10, backgroundColor: theme.colors.SURFACE }}
+                  placeholder="Search members by name"
+                  placeholderTextColor={theme.colors.LABEL}
+                  style={s.input}
                 />
                 {members.map((member) => (
                   <TouchableOpacity
@@ -284,9 +350,18 @@ export function CommunityComposer({
                           : [...mentions, member.user_id]
                       );
                     }}
-                    style={{ padding: 12 }}
+                    disabled={busy}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: mentions.includes(member.user_id) }}
+                    style={[s.authorRow, { paddingVertical: 12, minHeight: 48 }]}
                   >
-                    <Text style={labelStyle}>
+                    <Avatar
+                      url={member.user?.avatar_url}
+                      name={member.user?.name || 'Member'}
+                      size={36}
+                      style={{ width: 36, height: 36, borderRadius: 12 }}
+                    />
+                    <Text style={[labelStyle, { flex: 1 }]}>
                       {mentions.includes(member.user_id) ? '☑' : '☐'}{' '}
                       {member.user?.name || 'Member'}
                     </Text>
@@ -294,30 +369,51 @@ export function CommunityComposer({
                 ))}
               </View>
             )}
+            <View style={[s.overview, { marginBottom: 0 }]}>
+              <Text style={s.caption}>
+                Posts and replies are reviewed before publishing. You can track pending submissions
+                in the community. Videos may need a moderator’s review.
+              </Text>
+            </View>
+          </ScrollView>
+          <View
+            style={{
+              paddingHorizontal: 20,
+              paddingTop: 12,
+              paddingBottom: 16,
+              borderTopWidth: 1,
+              borderColor: theme.colors.GLASS_BORDER,
+            }}
+          >
             <TouchableOpacity
               accessibilityRole="button"
-              disabled={
-                busy ||
-                picking ||
-                (!text.trim() && !files.length && !keepImages.length && !keepVideos.length)
-              }
+              accessibilityState={{ disabled: submitDisabled, busy }}
+              disabled={submitDisabled}
               onPress={submit}
               style={{
                 backgroundColor: theme.colors.G,
+                minHeight: 52,
                 padding: 16,
-                borderRadius: 14,
-                opacity: busy ? 0.6 : 1,
+                borderRadius: 16,
+                opacity: submitDisabled ? 0.5 : 1,
               }}
             >
               {busy ? (
-                <ActivityIndicator color="#111" />
+                <ActivityIndicator color="#111" accessibilityLabel="Submitting your content" />
               ) : (
-                <Text style={{ color: '#111', textAlign: 'center', fontFamily: 'Inter-Bold' }}>
-                  Submit
+                <Text
+                  style={{
+                    color: '#111',
+                    textAlign: 'center',
+                    fontFamily: 'Inter-Bold',
+                    fontSize: 15,
+                  }}
+                >
+                  {post || comment ? 'Save changes' : reply ? 'Submit reply' : 'Submit post'}
                 </Text>
               )}
             </TouchableOpacity>
-          </ScrollView>
+          </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
