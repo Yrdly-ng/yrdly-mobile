@@ -1,3 +1,4 @@
+import { businessScreenStyles as businessUI } from '../../components/businesses/business-screen-styles';
 import { isPaidPrice, MINIMUM_PRICE_MESSAGE } from '@/lib/marketplace/price-policy';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect } from 'react';
@@ -78,12 +79,12 @@ export default function CreateCatalogItemScreen() {
       else if (typeof data.images === 'string') {
         try {
           imgs = JSON.parse(data.images);
-        } catch (_) {}
+        } catch {}
       }
       setExistingImageUrls(imgs);
       setInitLoading(false);
     })();
-  }, [itemId, isEditMode]);
+  }, [itemId, isEditMode, router]);
 
   const pickImage = async () => {
     try {
@@ -111,11 +112,17 @@ export default function CreateCatalogItemScreen() {
     setExistingImageUrls((prev) => prev.filter((_, i) => i !== index));
 
   const handleSave = async () => {
+    if (!user?.id) return Alert.alert('Sign in required', 'Sign in to manage your catalog.');
     if (!title.trim() || !price.trim()) {
       return Alert.alert('Error', 'Please enter a title and price.');
     }
 
     if (!isPaidPrice(Number(price))) return Alert.alert('Invalid price', MINIMUM_PRICE_MESSAGE);
+
+    const inventoryCount = Number(quantity);
+    if (!quantity.trim() || !Number.isSafeInteger(inventoryCount) || inventoryCount < 0) {
+      return Alert.alert('Invalid quantity', 'Enter a whole number of items, zero or greater.');
+    }
 
     if (!isEditMode && (!businessId || typeof businessId !== 'string')) {
       return Alert.alert('Error', 'Invalid business context.');
@@ -129,7 +136,7 @@ export default function CreateCatalogItemScreen() {
         price: parseFloat(price) || 0,
         category,
         in_stock: inStock,
-        inventory_count: parseInt(quantity, 10) || 0,
+        inventory_count: inventoryCount,
       };
 
       let targetItemId = itemId;
@@ -210,8 +217,21 @@ export default function CreateCatalogItemScreen() {
       >
         {/* Header */}
         <View style={sStylesheet.header}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <TouchableOpacity onPress={() => router.back()} style={sStylesheet.backBtn}>
+          <View
+            style={{
+              flex: 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+              marginRight: 12,
+            }}
+          >
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+              onPress={() => router.back()}
+              style={sStylesheet.backBtn}
+            >
               <Ionicons name="chevron-back" size={20} color={theme.colors.TEXT_PRIMARY} />
             </TouchableOpacity>
             <Text style={sStylesheet.headerTitle}>{isEditMode ? 'Edit Item' : 'Add Item'}</Text>
@@ -223,6 +243,16 @@ export default function CreateCatalogItemScreen() {
           contentContainerStyle={sStylesheet.contentPad}
           keyboardShouldPersistTaps="handled"
         >
+          <View style={businessUI.section}>
+            <Text style={businessUI.eyebrow}>YOUR CATALOG</Text>
+            <Text style={businessUI.title}>
+              {isEditMode ? 'Keep your shelf fresh.' : 'Something worth discovering.'}
+            </Text>
+            <Text style={businessUI.subtitle}>
+              Add clear photos, a helpful title and a price customers can trust.
+            </Text>
+          </View>
+          <Text style={businessUI.sectionHint}>Photos · Your first photo is the cover</Text>
           {/* Photo Picker */}
           <ScrollView
             horizontal
@@ -244,6 +274,9 @@ export default function CreateCatalogItemScreen() {
                     contentFit="cover"
                   />
                   <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove photo ${i + 1}`}
+                    hitSlop={12}
                     style={sStylesheet.removePhotoBtn}
                     onPress={() => {
                       if (img.isNew) {
@@ -260,8 +293,14 @@ export default function CreateCatalogItemScreen() {
                 </View>
               );
             })}
-            <TouchableOpacity style={sStylesheet.addPhotoBtn} onPress={pickImage}>
-              <Ionicons name="images-outline" size={22} color={theme.colors.LABEL} />
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Add item photo"
+              style={sStylesheet.addPhotoBtn}
+              onPress={pickImage}
+            >
+              <Ionicons name="images-outline" size={26} color={theme.colors.LABEL} />
+              <Text style={businessUI.muted}>Add photo</Text>
             </TouchableOpacity>
           </ScrollView>
 
@@ -302,6 +341,8 @@ export default function CreateCatalogItemScreen() {
                 return (
                   <TouchableOpacity
                     key={c.name}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: active }}
                     onPress={() => setCategory(c.name)}
                     style={[
                       sStylesheet.catBtn,
@@ -334,13 +375,21 @@ export default function CreateCatalogItemScreen() {
             </View>
           </View>
 
+          <View style={businessUI.section}>
+            <Text style={businessUI.eyebrow}>AVAILABILITY</Text>
+            <Text style={businessUI.title}>Ready when they are.</Text>
+            <Text style={businessUI.subtitle}>
+              Keep your stock accurate so customers know what they can order.
+            </Text>
+          </View>
           {/* In Stock toggle */}
           <View style={sStylesheet.stockRow}>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={sStylesheet.stockTitle}>In Stock</Text>
               <Text style={sStylesheet.stockDesc}>Visible and available to order</Text>
             </View>
             <Switch
+              accessibilityLabel="Item is in stock"
               value={inStock}
               onValueChange={setInStock}
               trackColor={{ false: 'rgba(255,255,255,0.1)', true: theme.colors.G }}
@@ -407,8 +456,8 @@ const stylesheet = StyleSheet.create((theme) => ({
     borderBottomColor: theme.colors.GLASS_BORDER,
   },
   backBtn: {
-    width: 34,
-    height: 34,
+    width: 44,
+    height: 44,
     borderRadius: 11,
     backgroundColor: theme.colors.SURFACE,
     borderWidth: 1,
@@ -416,7 +465,12 @@ const stylesheet = StyleSheet.create((theme) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: { fontFamily: 'Outfit-Bold', fontSize: 18, color: theme.colors.TEXT_PRIMARY },
+  headerTitle: {
+    flexShrink: 1,
+    fontFamily: 'Outfit-Bold',
+    fontSize: 18,
+    color: theme.colors.TEXT_PRIMARY,
+  },
 
   contentPad: { paddingHorizontal: 20, paddingVertical: 20, gap: 20 },
 
@@ -434,8 +488,8 @@ const stylesheet = StyleSheet.create((theme) => ({
     right: 4,
     backgroundColor: theme.colors.TEXT_PRIMARY,
     borderRadius: 10,
-    width: 20,
-    height: 20,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },

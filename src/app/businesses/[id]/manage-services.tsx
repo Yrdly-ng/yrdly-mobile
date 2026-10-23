@@ -1,3 +1,4 @@
+import { businessScreenStyles as businessUI } from '../../../components/businesses/business-screen-styles';
 import { isPaidPrice, MINIMUM_PRICE_MESSAGE } from '@/lib/marketplace/price-policy';
 import React, { useState } from 'react';
 import {
@@ -9,7 +10,9 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Platform,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,7 +26,7 @@ export default function ManageServicesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
-  const { offerings, loading, refresh } = useServiceOfferings(id);
+  const { offerings, loading, error, refresh } = useServiceOfferings(id);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -49,15 +52,15 @@ export default function ManageServicesScreen() {
     setName(offering.name);
     setDescription(offering.description || '');
     setDurationMinutes(String(offering.duration_minutes));
-    setPrice(offering.price ? String(offering.price) : '');
+    setPrice(offering.price !== null && offering.price !== undefined ? String(offering.price) : '');
     setPriceIsFrom(offering.price_is_from || false);
     setModalVisible(true);
   };
 
   const handleSave = async () => {
     if (!name.trim()) return Alert.alert('Error', 'Service name is required');
-    const duration = parseInt(durationMinutes, 10);
-    if (isNaN(duration) || duration <= 0)
+    const duration = Number(durationMinutes);
+    if (!Number.isSafeInteger(duration) || duration <= 0)
       return Alert.alert('Error', 'Valid duration in minutes is required');
 
     if (price.trim() && !isPaidPrice(Number(price), true))
@@ -115,11 +118,21 @@ export default function ManageServicesScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          style={s.backBtn}
+          onPress={() => router.back()}
+        >
           <Ionicons name="arrow-back" size={24} color={theme.colors.TEXT_PRIMARY} />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Manage Services</Text>
-        <TouchableOpacity style={s.addBtnHeader} onPress={openAddModal}>
+        <Text style={s.headerTitle}>Services</Text>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Add service"
+          style={s.addBtnHeader}
+          onPress={openAddModal}
+        >
           <Ionicons name="add" size={24} color={theme.colors.G} />
         </TouchableOpacity>
       </View>
@@ -129,13 +142,32 @@ export default function ManageServicesScreen() {
           <ActivityIndicator size="large" color={theme.colors.G} />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={s.content}>
-          {offerings.length === 0 ? (
+        <ScrollView
+          contentContainerStyle={s.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={businessUI.section}>
+            <Text style={businessUI.eyebrow}>YOUR SERVICE MENU</Text>
+            <Text style={businessUI.title}>What can you help with?</Text>
+            <Text style={businessUI.subtitle}>
+              Clear names, prices and durations make it easier for customers to book.
+            </Text>
+          </View>
+          {error && (
+            <View style={businessUI.notice}>
+              <Text style={businessUI.noticeText}>{error}</Text>
+              <TouchableOpacity style={businessUI.secondaryButton} onPress={refresh}>
+                <Text style={businessUI.secondaryButtonText}>Try again</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {offerings.length === 0 && !error ? (
             <View style={s.emptyBox}>
               <Ionicons name="cut-outline" size={48} color={theme.colors.LABEL} />
-              <Text style={s.emptyText}>No service offerings added yet</Text>
+              <Text style={s.emptyText}>Your first booking starts here.</Text>
               <TouchableOpacity style={s.addBtn} onPress={openAddModal}>
-                <Text style={s.addBtnText}>+ Add First Service</Text>
+                <Text style={s.addBtnText}>Add your first service</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -144,10 +176,20 @@ export default function ManageServicesScreen() {
                 <View style={s.cardHeader}>
                   <Text style={s.cardTitle}>{item.name}</Text>
                   <View style={s.actionRow}>
-                    <TouchableOpacity onPress={() => openEditModal(item)} style={s.iconBtn}>
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel={`Edit ${item.name}`}
+                      onPress={() => openEditModal(item)}
+                      style={s.iconBtn}
+                    >
                       <Ionicons name="pencil" size={18} color={theme.colors.LABEL} />
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleDelete(item.id)} style={s.iconBtn}>
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel={`Delete ${item.name}`}
+                      onPress={() => handleDelete(item.id)}
+                      style={s.iconBtn}
+                    >
                       <Ionicons name="trash-outline" size={18} color="#FF3B30" />
                     </TouchableOpacity>
                   </View>
@@ -176,9 +218,23 @@ export default function ManageServicesScreen() {
       )}
 
       {/* Add / Edit Modal */}
-      <Modal visible={modalVisible} animationType="slide" transparent>
-        <View style={s.modalOverlay}>
-          <View style={s.modalContent}>
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => {
+          if (!saving) setModalVisible(false);
+        }}
+      >
+        <KeyboardAvoidingView
+          style={s.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView
+            style={s.modalContent}
+            contentContainerStyle={{ padding: 20 }}
+            keyboardShouldPersistTaps="handled"
+          >
             <Text style={s.modalTitle}>{editingId ? 'Edit Service' : 'Add Service'}</Text>
 
             <Text style={s.label}>Service Name *</Text>
@@ -210,7 +266,10 @@ export default function ManageServicesScreen() {
               keyboardType="number-pad"
             />
 
-            <Text style={s.label}>Price (₦)</Text>
+            <Text style={s.label}>Price (₦) · optional</Text>
+            <Text style={businessUI.muted}>
+              Leave blank if the price is agreed with the customer.
+            </Text>
             <TextInput
               style={s.input}
               placeholder="e.g. 5000"
@@ -220,7 +279,12 @@ export default function ManageServicesScreen() {
               keyboardType="decimal-pad"
             />
 
-            <TouchableOpacity style={s.checkboxRow} onPress={() => setPriceIsFrom(!priceIsFrom)}>
+            <TouchableOpacity
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: priceIsFrom }}
+              style={s.checkboxRow}
+              onPress={() => setPriceIsFrom(!priceIsFrom)}
+            >
               <Ionicons
                 name={priceIsFrom ? 'checkbox' : 'square-outline'}
                 size={20}
@@ -240,14 +304,14 @@ export default function ManageServicesScreen() {
 
               <TouchableOpacity style={s.saveBtn} onPress={handleSave} disabled={saving}>
                 {saving ? (
-                  <ActivityIndicator size="small" color="#FFF" />
+                  <ActivityIndicator size="small" color="#000" />
                 ) : (
                   <Text style={s.saveBtnText}>Save Service</Text>
                 )}
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -262,20 +326,27 @@ const stylesheet = StyleSheet.create((theme) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.GLASS_BORDER,
   },
-  backBtn: { padding: 4 },
+  backBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    backgroundColor: theme.colors.SURFACE,
+  },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: theme.colors.TEXT_PRIMARY,
   },
-  addBtnHeader: { padding: 4 },
+  addBtnHeader: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  content: { padding: 16 },
+  content: { padding: 20, paddingBottom: 48 },
   emptyBox: {
     alignItems: 'center',
     justify: 'center',
@@ -290,13 +361,13 @@ const stylesheet = StyleSheet.create((theme) => ({
     backgroundColor: theme.colors.G,
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 14,
   },
   addBtnText: { color: '#000', fontWeight: '600', fontSize: 14 },
   card: {
     backgroundColor: theme.colors.SURFACE,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 22,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: theme.colors.GLASS_BORDER,
@@ -307,20 +378,23 @@ const stylesheet = StyleSheet.create((theme) => ({
     alignItems: 'center',
   },
   cardTitle: {
-    fontSize: 16,
+    fontFamily: 'Outfit-Bold',
+    fontSize: 21,
     fontWeight: '700',
     color: theme.colors.TEXT_PRIMARY,
     flex: 1,
   },
-  actionRow: { flexDirection: 'row', gap: 12 },
-  iconBtn: { padding: 4 },
+  actionRow: { flexDirection: 'row', gap: 2 },
+  iconBtn: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   cardDesc: {
     fontSize: 14,
     color: theme.colors.LABEL,
     marginTop: 6,
+    lineHeight: 21,
   },
   metaRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
     marginTop: 12,
   },
@@ -339,15 +413,16 @@ const stylesheet = StyleSheet.create((theme) => ({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
-    padding: 16,
+    padding: 20,
   },
   modalContent: {
     backgroundColor: theme.colors.SURFACE,
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 24,
+    maxHeight: '90%',
   },
   modalTitle: {
-    fontSize: 18,
+    fontFamily: 'Outfit-Bold',
+    fontSize: 26,
     fontWeight: '700',
     color: theme.colors.TEXT_PRIMARY,
     marginBottom: 16,
@@ -363,7 +438,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     backgroundColor: theme.colors.DARK,
     borderWidth: 1,
     borderColor: theme.colors.GLASS_BORDER,
-    borderRadius: 8,
+    borderRadius: 14,
     padding: 12,
     fontSize: 14,
     color: theme.colors.TEXT_PRIMARY,
@@ -373,9 +448,10 @@ const stylesheet = StyleSheet.create((theme) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    minHeight: 44,
     marginTop: 14,
   },
-  checkboxLabel: { fontSize: 14, color: theme.colors.TEXT_PRIMARY },
+  checkboxLabel: { flex: 1, fontSize: 14, color: theme.colors.TEXT_PRIMARY },
   modalActions: {
     flexDirection: 'row',
     gap: 12,
@@ -383,9 +459,10 @@ const stylesheet = StyleSheet.create((theme) => ({
   },
   cancelBtn: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 14,
+    minHeight: 48,
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: theme.colors.GLASS_BORDER,
   },
@@ -393,9 +470,10 @@ const stylesheet = StyleSheet.create((theme) => ({
   saveBtn: {
     flex: 1,
     backgroundColor: theme.colors.G,
-    paddingVertical: 12,
+    paddingVertical: 14,
+    minHeight: 48,
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 14,
   },
   saveBtnText: { color: '#000', fontWeight: '600' },
 }));

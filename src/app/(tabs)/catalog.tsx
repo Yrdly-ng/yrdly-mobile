@@ -18,6 +18,13 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Avatar } from '../../components/Avatar';
+import { BusinessImage } from '../../components/businesses/BusinessImage';
+import { businessScreenStyles as businessUI } from '../../components/businesses/business-screen-styles';
+import {
+  getBusinessModeLabel,
+  getBusinessLocation,
+  getBusinessRating,
+} from '../../lib/businesses/presentation';
 import { MarketplaceFavorite } from '../../components/marketplace/MarketplaceFavorite';
 import { getListingCover, getListingPriceLabel } from '@/lib/marketplace/card-display';
 import { useCachedRecords } from '@/hooks/use-cached-records';
@@ -1057,6 +1064,8 @@ function EventsSection({
 }
 
 // ─── PLACES SECTION ──────────────────────────────────────────────────────────
+let placesChannelGeneration = 0;
+
 function PlacesSection({
   currentLoc,
   search,
@@ -1087,6 +1096,8 @@ function PlacesSection({
     'Gyms & Fitness',
   ];
   const [category, setCategory] = useState('All');
+  const [placesError, setPlacesError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -1117,13 +1128,14 @@ function PlacesSection({
         }
         const { data, error } = await q.limit(20);
         if (!active || request !== latestRequest) return;
+        setPlacesError(error ? 'We couldn’t refresh businesses. Please try again.' : null);
         if (error) console.error('Places fetch error:', error);
         if (!error && data) setBusinesses(data as Business[]);
         setLoading(false);
       }
       void fetchPlaces();
       const channel = supabase
-        .channel('places-active-businesses')
+        .channel(`places-active-businesses-${++placesChannelGeneration}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'businesses' }, () => {
           void fetchPlaces();
         })
@@ -1132,106 +1144,157 @@ function PlacesSection({
         active = false;
         void supabase.removeChannel(channel);
       };
-    }, [category, activeFilter, search])
+    }, [category, activeFilter, search, reloadKey])
   );
 
   return (
     <View style={sStylesheet.sectionContainer}>
-      <View
-        style={[
-          sStylesheet.eventsToolbar,
-          {
-            paddingHorizontal: 20,
-            paddingVertical: 12,
-            borderBottomWidth: 1,
-            borderBottomColor: theme.colors.GLASS_BORDER,
-            backgroundColor: theme.colors.DARK,
-            alignItems: 'flex-start',
-          },
-        ]}
-      >
-        <CategoryDropdown
-          category={category}
-          setCategory={setCategory}
-          options={PLACE_CATS}
-          theme={theme}
-          label="Category"
-        />
+      <View style={sStylesheet.placesHeader}>
+        <Text style={businessUI.eyebrow}>THE LOCAL DIRECTORY</Text>
+        <Text style={businessUI.title}>Good things. Close to home.</Text>
+        <Text style={businessUI.subtitle}>
+          Find your next favourite shop, service or everyday essential.
+        </Text>
+        <View style={sStylesheet.placesFilterRow}>
+          <CategoryDropdown
+            category={category}
+            setCategory={setCategory}
+            options={PLACE_CATS}
+            theme={theme}
+            label="Category"
+          />
+          <Text style={businessUI.sectionHint}>
+            {category === 'All' ? 'All categories' : category}
+          </Text>
+        </View>
       </View>
-
       {loading ? (
-        <ActivityIndicator color={theme.colors.G} style={{ marginTop: 40 }} />
+        <ActivityIndicator
+          accessibilityLabel="Loading businesses"
+          color={theme.colors.G}
+          style={{ marginTop: 40 }}
+        />
       ) : (
         <FlatList
           data={businesses}
-          ListHeaderComponent={
-            businessesCached ? (
-              <Text style={{ color: theme.colors.MUTED, fontSize: 12 }}>
-                Saved businesses · details refresh when connected
-              </Text>
-            ) : null
-          }
-          keyExtractor={(i) => i.id}
+          keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100, gap: 12 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100, gap: 18 }}
+          ListHeaderComponent={
+            <View style={{ gap: 10 }}>
+              <View style={businessUI.sectionHeader}>
+                <Text style={businessUI.sectionTitle}>
+                  {search ? 'Search results' : 'Explore businesses'}
+                </Text>
+                <Text style={businessUI.sectionHint}>{businesses.length} shown</Text>
+              </View>
+              {businessesCached && (
+                <Text style={businessUI.sectionHint}>
+                  Saved businesses · details refresh when connected
+                </Text>
+              )}
+              {placesError && (
+                <View style={businessUI.notice}>
+                  <Text style={businessUI.noticeText}>{placesError}</Text>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    style={businessUI.secondaryButton}
+                    onPress={() => setReloadKey((key) => key + 1)}
+                  >
+                    <Text style={businessUI.secondaryButtonText}>Try again</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          }
+          ListEmptyComponent={
+            <View style={businessUI.empty}>
+              <Ionicons name="storefront-outline" size={38} color={theme.colors.TEXT_SECONDARY} />
+              <Text style={businessUI.emptyTitle}>Your next find is out there</Text>
+              <Text style={businessUI.emptyText}>
+                Try another category, search or location to discover more businesses.
+              </Text>
+              {category !== 'All' && (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  style={businessUI.secondaryButton}
+                  onPress={() => setCategory('All')}
+                >
+                  <Text style={businessUI.secondaryButtonText}>Show all categories</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          }
           renderItem={({ item }) => {
+            const location = getBusinessLocation(item.location, item.lga, item.state);
+            const rating = getBusinessRating(item.rating, item.review_count);
+            const latitude = item.lat ?? item.location?.geopoint?.latitude;
+            const longitude = item.lng ?? item.location?.geopoint?.longitude;
+            const distance =
+              currentLoc && Number.isFinite(latitude) && Number.isFinite(longitude)
+                ? getDistanceStr(
+                    currentLoc.coords.latitude,
+                    currentLoc.coords.longitude,
+                    latitude,
+                    longitude
+                  )
+                : null;
             return (
               <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={`View ${item.name}, ${item.category || getBusinessModeLabel(item.mode)}`}
                 style={sStylesheet.placeRow}
                 onPress={() => router.push(`/businesses/${item.id}` as any)}
-                activeOpacity={0.9}
+                activeOpacity={0.88}
               >
                 <View style={sStylesheet.placePhotoWrap}>
-                  <Avatar
-                    url={(item as any).logo_url || item.logo || null}
-                    name={item.name}
+                  <BusinessImage
+                    uri={item.cover_image || item.image_urls?.[0] || item.logo_url || item.logo}
                     style={sStylesheet.placePhoto}
+                    contentFit="cover"
                   />
+                  <View style={sStylesheet.placeModeBadge}>
+                    <Text style={sStylesheet.placeModeText}>{getBusinessModeLabel(item.mode)}</Text>
+                  </View>
                 </View>
                 <View style={sStylesheet.placeInfo}>
+                  <Text style={sStylesheet.placeCategory}>
+                    {item.category || 'Independent business'}
+                  </Text>
                   <View style={sStylesheet.placeTitleRow}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
-                      <Text style={sStylesheet.placeName} numberOfLines={1}>
-                        {item.name}
-                      </Text>
-                      {/* Verification badge strictly bound to phone_verified */}
-                      {(item as any).phone_verified && (
-                        <View style={{ marginLeft: 2 }}>
-                          <VerifiedBadge size={14} />
+                    <Text style={sStylesheet.placeName} numberOfLines={2}>
+                      {item.name}
+                    </Text>
+                    {(item as any).phone_verified && <VerifiedBadge size={17} />}
+                    <Ionicons name="arrow-forward" size={20} color={theme.colors.TEXT_PRIMARY} />
+                  </View>
+                  {!!item.description && (
+                    <Text style={sStylesheet.placeDescription} numberOfLines={2}>
+                      {item.description}
+                    </Text>
+                  )}
+                  {(location || distance || rating) && (
+                    <View style={sStylesheet.placeMetaRow}>
+                      {(location || distance) && (
+                        <View style={[sStylesheet.placeMetaItem, { flex: 1 }]}>
+                          <Ionicons
+                            name="location-outline"
+                            size={14}
+                            color={theme.colors.TEXT_SECONDARY}
+                          />
+                          <Text style={[sStylesheet.placeDistText, { flex: 1 }]} numberOfLines={1}>
+                            {distance || location}
+                          </Text>
+                        </View>
+                      )}
+                      {rating && (
+                        <View style={sStylesheet.placeMetaItem}>
+                          <Ionicons name="star" size={13} color={theme.colors.GOLD} />
+                          <Text style={sStylesheet.placeRating}>{rating}</Text>
                         </View>
                       )}
                     </View>
-                    <Ionicons
-                      name="heart-outline"
-                      size={16}
-                      color={theme.colors.LABEL}
-                      style={{ marginLeft: 8 }}
-                    />
-                  </View>
-                  <Text style={sStylesheet.placeCategory}>{item.category || 'Business'}</Text>
-                  <View style={sStylesheet.placeMetaRow}>
-                    <View style={sStylesheet.placeMetaItem}>
-                      <Ionicons name="star" size={12} color={theme.colors.GOLD} />
-                      <Text style={sStylesheet.placeRating}>
-                        {item.rating?.toFixed(1) || '0.0'}
-                      </Text>
-                    </View>
-                    <Text style={sStylesheet.placeDistText}>
-                      {getDistanceStr(
-                        currentLoc?.coords.latitude,
-                        currentLoc?.coords.longitude,
-                        item.lat ??
-                          item.location?.geopoint?.latitude ??
-                          (item.location as any)?.lat,
-                        item.lng ??
-                          item.location?.geopoint?.longitude ??
-                          (item.location as any)?.lng
-                      )}
-                    </Text>
-                    <View style={sStylesheet.placeOpenPill}>
-                      <Text style={sStylesheet.placeOpenText}>OPEN</Text>
-                    </View>
-                  </View>
+                  )}
                 </View>
               </TouchableOpacity>
             );
@@ -1826,44 +1889,60 @@ const stylesheet = StyleSheet.create((theme) => ({
   eventCardMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   eventCardMetaText: { fontFamily: 'Inter-Regular', fontSize: 12, color: theme.colors.LABEL },
 
-  // Places Section
-  placeRow: {
-    flexDirection: 'row',
-    backgroundColor: theme.colors.SURFACE_ALT,
-    borderWidth: 1,
-    borderColor: theme.colors.GLASS_BORDER,
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  placePhotoWrap: { width: 96, height: 96, flexShrink: 0 },
-  placePhoto: { width: '100%', height: '100%' },
-  placeInfo: { flex: 1, padding: 12, justifyContent: 'center' },
-  placeTitleRow: {
+  // Neighborhood field guide: photography first, useful recorded details second.
+  placesHeader: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 22, gap: 10 },
+  placesFilterRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 8,
   },
-  placeName: { fontFamily: 'Outfit-Bold', fontSize: 14, color: theme.colors.TEXT_PRIMARY },
-  placeCategory: {
-    fontFamily: 'Inter-Regular',
-    fontSize: 12,
-    color: theme.colors.LABEL,
-    marginBottom: 8,
-  },
-  placeMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  placeMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  placeRating: { fontFamily: 'Outfit-Bold', fontSize: 12, color: theme.colors.TEXT_PRIMARY },
-  placeDistText: { fontFamily: 'Inter-Regular', fontSize: 12, color: theme.colors.LABEL },
-  placeOpenPill: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-    backgroundColor: 'rgba(130,219,126,0.1)',
+  placeRow: {
+    backgroundColor: theme.colors.SURFACE,
     borderWidth: 1,
-    borderColor: 'rgba(130,219,126,0.2)',
+    borderColor: theme.colors.GLASS_BORDER,
+    borderRadius: 24,
+    overflow: 'hidden',
   },
-  placeOpenText: { fontFamily: 'Inter-Bold', fontSize: 10, color: theme.colors.G },
+  placePhotoWrap: { height: 170, width: '100%', backgroundColor: theme.colors.SURFACE_ALT },
+  placePhoto: { width: '100%', height: '100%' },
+  placeModeBadge: {
+    position: 'absolute',
+    left: 14,
+    bottom: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    backgroundColor: '#242017',
+  },
+  placeModeText: { fontFamily: 'Inter-SemiBold', fontSize: 11, color: '#F6D8A5' },
+  placeInfo: { padding: 18, gap: 8 },
+  placeTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  placeName: {
+    flex: 1,
+    fontFamily: 'Outfit-Bold',
+    fontSize: 23,
+    lineHeight: 28,
+    color: theme.colors.TEXT_PRIMARY,
+  },
+  placeCategory: {
+    fontFamily: 'Inter-SemiBold',
+    fontSize: 11,
+    letterSpacing: 0.7,
+    textTransform: 'uppercase',
+    color: theme.colors.TEXT_SECONDARY,
+  },
+  placeDescription: {
+    fontFamily: 'Inter-Regular',
+    fontSize: 13,
+    lineHeight: 20,
+    color: theme.colors.TEXT_SECONDARY,
+  },
+  placeMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 3 },
+  placeMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  placeRating: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: theme.colors.TEXT_PRIMARY },
+  placeDistText: { fontFamily: 'Inter-Regular', fontSize: 12, color: theme.colors.TEXT_SECONDARY },
 
   // Bottom Sheet
   sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)' },

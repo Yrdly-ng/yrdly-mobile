@@ -1,3 +1,4 @@
+import { businessScreenStyles as businessUI } from '../../components/businesses/business-screen-styles';
 import React, { useState } from 'react';
 import {
   View,
@@ -7,7 +8,9 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -36,7 +39,7 @@ export default function CreateBookingScreen() {
     for (let i = 0; i < 14; i++) {
       const d = new Date(today);
       d.setDate(today.getDate() + i);
-      const isoDate = d.toISOString().split('T')[0];
+      const isoDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const displayDay = d.toLocaleDateString('en-US', { weekday: 'short' });
       const displayNum = d.getDate();
       list.push({ isoDate, displayDay, displayNum });
@@ -54,6 +57,8 @@ export default function CreateBookingScreen() {
   const [service, setService] = useState<any>(null);
   const [business, setBusiness] = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
 
   const { slots, loading: slotsLoading } = useAvailableSlots(
     businessId,
@@ -66,12 +71,17 @@ export default function CreateBookingScreen() {
     const fetchDetails = async () => {
       try {
         setLoadingDetails(true);
+        setDetailsError(null);
         const [serviceRes, bizRes, allStaff, serviceStaff] = await Promise.all([
           supabase.from('service_offerings').select('*').eq('id', serviceId).single(),
           supabase.from('businesses').select('*').eq('id', businessId).single(),
           StaffService.listStaff(businessId!),
           StaffService.getServiceStaff(serviceId!),
         ]);
+        if (serviceRes.error) throw serviceRes.error;
+        if (bizRes.error) throw bizRes.error;
+        if (!serviceRes.data || !bizRes.data)
+          throw new Error('This service is no longer available.');
         if (serviceRes.data) setService(serviceRes.data);
         if (bizRes.data) setBusiness(bizRes.data);
 
@@ -82,15 +92,25 @@ export default function CreateBookingScreen() {
         setStaffList(eligible);
       } catch (err) {
         console.error('Error fetching booking details:', err);
+        setDetailsError('We could not load this service. Please try again.');
       } finally {
         setLoadingDetails(false);
       }
     };
-    if (businessId && serviceId) fetchDetails();
-  }, [businessId, serviceId]);
+    if (businessId && serviceId) void fetchDetails();
+    else {
+      setDetailsError('Choose a service from a business to request an appointment.');
+      setLoadingDetails(false);
+    }
+  }, [businessId, serviceId, reload]);
 
   const handleSubmit = async () => {
-    if (!selectedSlotTime) {
+    if (submitting || loadingDetails || detailsError) return;
+    if (
+      !selectedSlotTime ||
+      slotsLoading ||
+      !slots.some((slot) => slot.time === selectedSlotTime && slot.available)
+    ) {
       return Alert.alert('Select Time', 'Please choose an available appointment slot');
     }
     if (!user) {
@@ -148,190 +168,238 @@ export default function CreateBookingScreen() {
     );
   }
 
+  if (detailsError || !service || !business) {
+    return (
+      <SafeAreaView style={s.container}>
+        <View style={businessUI.empty}>
+          <Ionicons name="calendar-outline" size={40} color={theme.colors.LABEL} />
+          <Text style={businessUI.emptyTitle}>Service unavailable</Text>
+          <Text style={businessUI.emptyText}>{detailsError}</Text>
+          <TouchableOpacity
+            style={businessUI.primaryButton}
+            onPress={() => setReload((value) => value + 1)}
+          >
+            <Text style={businessUI.primaryButtonText}>Try again</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={businessUI.secondaryButton} onPress={() => router.back()}>
+            <Text style={businessUI.secondaryButtonText}>Go back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={s.container}>
-      <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={theme.colors.TEXT_PRIMARY} />
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>Request Appointment</Text>
-        <View style={{ width: 32 }} />
-      </View>
-
-      <ScrollView contentContainerStyle={s.content}>
-        {/* Service Overview */}
-        <View style={s.serviceCard}>
-          <Text style={s.bizName}>{business?.name}</Text>
-          <Text style={s.serviceTitle}>{service?.name}</Text>
-          {!!service?.description && <Text style={s.serviceDesc}>{service.description}</Text>}
-
-          <View style={s.metaRow}>
-            <View style={s.metaPill}>
-              <Ionicons name="time-outline" size={14} color={theme.colors.LABEL} />
-              <Text style={s.metaTxt}>{service?.duration_minutes} minutes</Text>
-            </View>
-
-            {service?.price !== undefined && (
-              <View style={s.metaPill}>
-                <Text style={s.priceTxt}>
-                  {service.price_is_from ? 'From ' : ''}₦{service.price.toLocaleString()}
-                </Text>
-              </View>
-            )}
-          </View>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View style={s.header}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            style={s.backBtn}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={24} color={theme.colors.TEXT_PRIMARY} />
+          </TouchableOpacity>
+          <Text style={s.headerTitle}>Request Appointment</Text>
+          <View style={{ width: 32 }} />
         </View>
 
-        {/* Flag Warning Banner */}
-        {business?.is_flagged && (
-          <View style={s.flagWarningCard}>
-            <Ionicons name="warning" size={20} color="#FF9500" />
-            <View style={{ flex: 1 }}>
-              <Text style={s.flagWarningTitle}>Notice: High Cancellation Rate</Text>
-              <Text style={s.flagWarningBody}>
-                This service provider has accumulated previous late cancellations or no-shows.
-              </Text>
+        <ScrollView
+          contentContainerStyle={s.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={businessUI.section}>
+            <Text style={businessUI.eyebrow}>MAKE A LITTLE TIME</Text>
+            <Text style={businessUI.title}>Your next appointment.</Text>
+            <Text style={businessUI.subtitle}>
+              Choose a day and time. The business will review your request before confirming.
+            </Text>
+          </View>
+          {/* Service Overview */}
+          <View style={s.serviceCard}>
+            <Text style={s.bizName}>{business?.name}</Text>
+            <Text style={s.serviceTitle}>{service?.name}</Text>
+            {!!service?.description && <Text style={s.serviceDesc}>{service.description}</Text>}
+
+            <View style={s.metaRow}>
+              <View style={s.metaPill}>
+                <Ionicons name="time-outline" size={14} color={theme.colors.LABEL} />
+                <Text style={s.metaTxt}>{service?.duration_minutes} minutes</Text>
+              </View>
+
+              {service?.price !== undefined && service?.price !== null && (
+                <View style={s.metaPill}>
+                  <Text style={s.priceTxt}>
+                    {service.price_is_from ? 'From ' : ''}₦{service.price.toLocaleString()}
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
-        )}
 
-        {/* Staff Selector (Optional) */}
-        {staffList.length > 0 && (
-          <View style={{ marginBottom: 16 }}>
-            <Text style={s.sectionTitle}>Select Staff (Optional)</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={s.datesRow}
-            >
-              <TouchableOpacity
-                style={[s.dateChip, selectedStaffId === null && s.dateChipSelected]}
-                onPress={() => {
-                  setSelectedStaffId(null);
-                  setSelectedSlotTime(null);
-                }}
+          {/* Flag Warning Banner */}
+          {business?.is_flagged && (
+            <View style={s.flagWarningCard}>
+              <Ionicons name="warning" size={20} color="#FF9500" />
+              <View style={{ flex: 1 }}>
+                <Text style={s.flagWarningTitle}>Notice: High Cancellation Rate</Text>
+                <Text style={s.flagWarningBody}>
+                  This service provider has accumulated previous late cancellations or no-shows.
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Staff Selector (Optional) */}
+          {staffList.length > 0 && (
+            <View style={{ marginBottom: 16 }}>
+              <Text style={s.sectionTitle}>Choose your professional · optional</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={s.datesRow}
               >
-                <Text style={[s.dateDayTxt, selectedStaffId === null && s.dateDayTxtSelected]}>
-                  Any
-                </Text>
-                <Text style={[s.dateNumTxt, selectedStaffId === null && s.dateNumTxtSelected]}>
-                  Staff
-                </Text>
-              </TouchableOpacity>
-              {staffList.map((st) => {
-                const isSel = st.id === selectedStaffId;
-                return (
-                  <TouchableOpacity
-                    key={st.id}
-                    style={[s.dateChip, isSel && s.dateChipSelected]}
-                    onPress={() => {
-                      setSelectedStaffId(st.id);
-                      setSelectedSlotTime(null);
-                    }}
-                  >
-                    <Text style={[s.dateDayTxt, isSel && s.dateDayTxtSelected]}>
-                      {st.role || 'Staff'}
-                    </Text>
-                    <Text style={[s.dateNumTxt, isSel && s.dateNumTxtSelected]} numberOfLines={1}>
-                      {st.name}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-        )}
+                <TouchableOpacity
+                  style={[s.dateChip, selectedStaffId === null && s.dateChipSelected]}
+                  onPress={() => {
+                    setSelectedStaffId(null);
+                    setSelectedSlotTime(null);
+                  }}
+                >
+                  <Text style={[s.dateDayTxt, selectedStaffId === null && s.dateDayTxtSelected]}>
+                    Any
+                  </Text>
+                  <Text style={[s.dateNumTxt, selectedStaffId === null && s.dateNumTxtSelected]}>
+                    Staff
+                  </Text>
+                </TouchableOpacity>
+                {staffList.map((st) => {
+                  const isSel = st.id === selectedStaffId;
+                  return (
+                    <TouchableOpacity
+                      key={st.id}
+                      style={[s.dateChip, isSel && s.dateChipSelected]}
+                      onPress={() => {
+                        setSelectedStaffId(st.id);
+                        setSelectedSlotTime(null);
+                      }}
+                    >
+                      <Text style={[s.dateDayTxt, isSel && s.dateDayTxtSelected]}>
+                        {st.role || 'Staff'}
+                      </Text>
+                      <Text style={[s.dateNumTxt, isSel && s.dateNumTxtSelected]} numberOfLines={1}>
+                        {st.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
 
-        {/* Date Selector */}
-        <Text style={s.sectionTitle}>1. Select Date</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.datesRow}
-        >
-          {dates.map((item) => {
-            const isSelected = item.isoDate === selectedDate;
-            return (
-              <TouchableOpacity
-                key={item.isoDate}
-                style={[s.dateChip, isSelected && s.dateChipSelected]}
-                onPress={() => {
-                  setSelectedDate(item.isoDate);
-                  setSelectedSlotTime(null);
-                }}
-              >
-                <Text style={[s.dateDayTxt, isSelected && s.dateDayTxtSelected]}>
-                  {item.displayDay}
-                </Text>
-                <Text style={[s.dateNumTxt, isSelected && s.dateNumTxtSelected]}>
-                  {item.displayNum}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-
-        {/* Slot Picker */}
-        <Text style={s.sectionTitle}>2. Select Time Slot</Text>
-        {slotsLoading ? (
-          <ActivityIndicator size="small" color={theme.colors.G} style={{ marginVertical: 20 }} />
-        ) : slots.length === 0 ? (
-          <View style={s.noSlotsBox}>
-            <Text style={s.noSlotsTxt}>No available appointment slots on this date.</Text>
-          </View>
-        ) : (
-          <View style={s.slotsGrid}>
-            {slots.map((slot) => {
-              const isSelected = slot.time === selectedSlotTime;
+          {/* Date Selector */}
+          <Text style={s.sectionTitle}>01 · Pick a day</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.datesRow}
+          >
+            {dates.map((item) => {
+              const isSelected = item.isoDate === selectedDate;
               return (
                 <TouchableOpacity
-                  key={slot.time}
-                  disabled={!slot.available}
-                  style={[
-                    s.slotChip,
-                    !slot.available && s.slotDisabled,
-                    isSelected && s.slotSelected,
-                  ]}
-                  onPress={() => setSelectedSlotTime(slot.time)}
+                  key={item.isoDate}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: isSelected }}
+                  accessibilityLabel={item.isoDate}
+                  style={[s.dateChip, isSelected && s.dateChipSelected]}
+                  onPress={() => {
+                    setSelectedDate(item.isoDate);
+                    setSelectedSlotTime(null);
+                  }}
                 >
-                  <Text
-                    style={[
-                      s.slotTxt,
-                      !slot.available && s.slotDisabledTxt,
-                      isSelected && s.slotSelectedTxt,
-                    ]}
-                  >
-                    {slot.formattedTime}
+                  <Text style={[s.dateDayTxt, isSelected && s.dateDayTxtSelected]}>
+                    {item.displayDay}
+                  </Text>
+                  <Text style={[s.dateNumTxt, isSelected && s.dateNumTxtSelected]}>
+                    {item.displayNum}
                   </Text>
                 </TouchableOpacity>
               );
             })}
-          </View>
-        )}
+          </ScrollView>
 
-        {/* Optional Notes */}
-        <Text style={s.sectionTitle}>3. Notes for Provider (Optional)</Text>
-        <TextInput
-          style={s.notesInput}
-          placeholder="Add any specific requests or instructions..."
-          placeholderTextColor={theme.colors.LABEL}
-          value={notes}
-          onChangeText={setNotes}
-          multiline
-        />
-
-        {/* Submit Action */}
-        <TouchableOpacity
-          style={[s.submitBtn, (!selectedSlotTime || submitting) && s.submitDisabled]}
-          onPress={handleSubmit}
-          disabled={!selectedSlotTime || submitting}
-        >
-          {submitting ? (
-            <ActivityIndicator size="small" color="#FFF" />
+          {/* Slot Picker */}
+          <Text style={s.sectionTitle}>02 · Find a time</Text>
+          {slotsLoading ? (
+            <ActivityIndicator size="small" color={theme.colors.G} style={{ marginVertical: 20 }} />
+          ) : slots.length === 0 ? (
+            <View style={s.noSlotsBox}>
+              <Text style={s.noSlotsTxt}>No times available. Try another day or professional.</Text>
+            </View>
           ) : (
-            <Text style={s.submitBtnText}>Submit Booking Request</Text>
+            <View style={s.slotsGrid}>
+              {slots.map((slot) => {
+                const isSelected = slot.time === selectedSlotTime;
+                return (
+                  <TouchableOpacity
+                    key={slot.time}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: isSelected, disabled: !slot.available }}
+                    accessibilityLabel={slot.formattedTime}
+                    disabled={!slot.available}
+                    style={[
+                      s.slotChip,
+                      !slot.available && s.slotDisabled,
+                      isSelected && s.slotSelected,
+                    ]}
+                    onPress={() => setSelectedSlotTime(slot.time)}
+                  >
+                    <Text
+                      style={[
+                        s.slotTxt,
+                        !slot.available && s.slotDisabledTxt,
+                        isSelected && s.slotSelectedTxt,
+                      ]}
+                    >
+                      {slot.formattedTime}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           )}
-        </TouchableOpacity>
-      </ScrollView>
+
+          {/* Optional Notes */}
+          <Text style={s.sectionTitle}>03 · Anything we should know?</Text>
+          <TextInput
+            style={s.notesInput}
+            placeholder="Add any specific requests or instructions..."
+            placeholderTextColor={theme.colors.LABEL}
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+          />
+
+          {/* Submit Action */}
+          <TouchableOpacity
+            style={[s.submitBtn, (!selectedSlotTime || submitting) && s.submitDisabled]}
+            onPress={handleSubmit}
+            disabled={!selectedSlotTime || submitting || slotsLoading}
+          >
+            {submitting ? (
+              <ActivityIndicator size="small" color="#FFF" />
+            ) : (
+              <Text style={s.submitBtnText}>Submit Booking Request</Text>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -342,25 +410,44 @@ const stylesheet = StyleSheet.create((theme) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.GLASS_BORDER,
   },
-  backBtn: { padding: 4 },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: theme.colors.TEXT_PRIMARY },
+  backBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    backgroundColor: theme.colors.SURFACE,
+  },
+  headerTitle: {
+    flexShrink: 1,
+    fontFamily: 'Outfit-Bold',
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.TEXT_PRIMARY,
+  },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  content: { padding: 16 },
+  content: { padding: 20, paddingBottom: 48 },
   serviceCard: {
     backgroundColor: theme.colors.SURFACE,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: theme.colors.GLASS_BORDER,
     marginBottom: 16,
   },
   bizName: { fontSize: 13, color: theme.colors.LABEL, fontWeight: '600' },
-  serviceTitle: { fontSize: 18, fontWeight: '700', color: theme.colors.TEXT_PRIMARY, marginTop: 4 },
+  serviceTitle: {
+    fontFamily: 'Outfit-Bold',
+    fontSize: 26,
+    fontWeight: '700',
+    color: theme.colors.TEXT_PRIMARY,
+    marginTop: 4,
+  },
   serviceDesc: { fontSize: 14, color: theme.colors.LABEL, marginTop: 6 },
   metaRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
   metaPill: {
@@ -382,7 +469,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     borderWidth: 1,
     borderColor: '#FF950040',
     padding: 12,
-    borderRadius: 10,
+    borderRadius: 22,
     marginBottom: 16,
   },
   flagWarningTitle: { fontSize: 13, fontWeight: '700', color: '#FF9500' },
@@ -396,10 +483,12 @@ const stylesheet = StyleSheet.create((theme) => ({
   },
   datesRow: { gap: 8, paddingBottom: 8 },
   dateChip: {
-    width: 60,
-    height: 64,
+    minWidth: 68,
+    maxWidth: 160,
+    paddingHorizontal: 12,
+    minHeight: 76,
     backgroundColor: theme.colors.SURFACE,
-    borderRadius: 10,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
@@ -413,7 +502,7 @@ const stylesheet = StyleSheet.create((theme) => ({
   noSlotsBox: {
     padding: 20,
     backgroundColor: theme.colors.SURFACE,
-    borderRadius: 10,
+    borderRadius: 18,
     alignItems: 'center',
   },
   noSlotsTxt: { color: theme.colors.LABEL, fontSize: 14 },
@@ -423,10 +512,11 @@ const stylesheet = StyleSheet.create((theme) => ({
     gap: 8,
   },
   slotChip: {
+    minHeight: 48,
     width: '31%',
     paddingVertical: 12,
     backgroundColor: theme.colors.SURFACE,
-    borderRadius: 8,
+    borderRadius: 14,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: theme.colors.GLASS_BORDER,
@@ -440,18 +530,18 @@ const stylesheet = StyleSheet.create((theme) => ({
     backgroundColor: theme.colors.SURFACE,
     borderWidth: 1,
     borderColor: theme.colors.GLASS_BORDER,
-    borderRadius: 10,
+    borderRadius: 18,
     padding: 12,
     fontSize: 14,
     color: theme.colors.TEXT_PRIMARY,
-    height: 80,
+    minHeight: 100,
     textAlignVertical: 'top',
     marginBottom: 20,
   },
   submitBtn: {
     backgroundColor: theme.colors.G,
     paddingVertical: 14,
-    borderRadius: 10,
+    borderRadius: 18,
     alignItems: 'center',
     marginBottom: 40,
   },

@@ -6,7 +6,6 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
   ActivityIndicator,
   Linking,
   Alert,
@@ -17,7 +16,7 @@ import {
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Image } from 'expo-image';
 import { BusinessImage } from '@/components/businesses/BusinessImage';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../../components/Avatar';
 import { VerifiedBadge, BusinessBadge } from '../../components/VerifiedBadge';
@@ -26,20 +25,28 @@ import { useAuth } from '../../hooks/use-supabase-auth';
 import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/use-notification-route-ack';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { Business, CatalogItem } from '../../types';
-const { width } = Dimensions.get('window');
-type Tab = 'catalog' | 'reviews' | 'analytics';
+import { businessScreenStyles as businessUI } from '../../components/businesses/business-screen-styles';
+import {
+  getBusinessModeLabel,
+  getBusinessLocation,
+  getBusinessRating,
+} from '../../lib/businesses/presentation';
+import { useServiceOfferings } from '../../hooks/bookings/use-bookings';
+type Tab = 'catalog' | 'services' | 'reviews' | 'analytics';
+let businessDetailGeneration = 0;
 
 // duplicate stylesheet removed
 
 const stylesheet = StyleSheet.create((theme) => ({
   root: { flex: 1, backgroundColor: theme.colors.DARK },
-  coverContainer: { height: 155, width: '100%', position: 'relative' },
+  coverContainer: { height: 270, width: '100%', position: 'relative' },
   backBtn: {
     position: 'absolute',
     left: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: 'rgba(10,14,12,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -50,22 +57,34 @@ const stylesheet = StyleSheet.create((theme) => ({
     alignItems: 'center',
     gap: 10,
   },
-  customerToggleTxt: { fontFamily: 'Inter', fontSize: 13, color: theme.colors.TEXT_PRIMARY },
-  toggleTrack: { width: 36, height: 20, borderRadius: 10, padding: 2 },
-  toggleKnob: { width: 16, height: 16, borderRadius: 8, backgroundColor: theme.colors.DARK },
+  customerToggleTxt: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#FFFFFF' },
+  toggleTrack: {
+    width: 52,
+    height: 44,
+    borderRadius: 16,
+    paddingHorizontal: 4,
+    justifyContent: 'center',
+  },
+  toggleKnob: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#FFFFFF' },
 
   infoPad: { paddingHorizontal: 20 },
-  avatarOverlapWrap: { marginTop: -28, marginBottom: 12 },
+  avatarOverlapWrap: { marginTop: -36, marginBottom: 18 },
   avatarImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 18,
+    width: 78,
+    height: 78,
+    borderRadius: 24,
     borderWidth: 3,
     borderColor: theme.colors.DARK,
   },
 
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
-  nameTxt: { fontFamily: 'Outfit-Bold', fontSize: 24, color: theme.colors.TEXT_PRIMARY },
+  nameTxt: {
+    flexShrink: 1,
+    fontFamily: 'Outfit-Bold',
+    fontSize: 32,
+    lineHeight: 38,
+    color: theme.colors.TEXT_PRIMARY,
+  },
   catLocationTxt: {
     fontFamily: 'Inter',
     fontSize: 14,
@@ -73,7 +92,16 @@ const stylesheet = StyleSheet.create((theme) => ({
     marginBottom: 16,
   },
 
-  statsRow: { flexDirection: 'row', gap: 24, marginBottom: 20 },
+  statsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 24,
+    marginVertical: 20,
+    paddingVertical: 18,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+  },
   statItem: { alignItems: 'flex-start' },
   statVal: {
     fontFamily: 'Outfit-Bold',
@@ -83,27 +111,29 @@ const stylesheet = StyleSheet.create((theme) => ({
   },
   statLabel: { fontFamily: 'Inter', fontSize: 13, color: theme.colors.LABEL },
 
-  quickActionsRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  quickActionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 44,
-    borderRadius: 12,
+    minHeight: 48,
+    borderRadius: 16,
+    paddingVertical: 12,
     paddingHorizontal: 16,
   },
-  actionBtnPrimary: { backgroundColor: 'rgba(130,219,126,0.1)' },
-  actionBtnPrimaryTxt: { fontFamily: 'Outfit-Bold', fontSize: 14, color: theme.colors.G },
+  actionBtnPrimary: { backgroundColor: theme.colors.G },
+  actionBtnPrimaryTxt: { fontFamily: 'Outfit-Bold', fontSize: 14, color: '#102110' },
   actionBtnSecondary: { backgroundColor: theme.colors.SURFACE },
   actionBtnSecondaryTxt: { fontFamily: 'Inter', fontSize: 14, color: theme.colors.TEXT_PRIMARY },
 
   tabsWrap: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 22,
+    flexWrap: 'wrap',
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.GLASS_BORDER,
   },
-  tabBtn: { paddingBottom: 12, position: 'relative' },
+  tabBtn: { minHeight: 48, justifyContent: 'center', paddingVertical: 12, position: 'relative' },
   tabTxt: { fontSize: 14, textTransform: 'capitalize' },
   tabIndicator: {
     position: 'absolute',
@@ -115,7 +145,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     backgroundColor: theme.colors.G,
   },
 
-  tabContentPad: { paddingHorizontal: 20, paddingBottom: 32, marginTop: 16 },
+  tabContentPad: { paddingHorizontal: 20, paddingBottom: 32, marginTop: 22 },
 
   customerWarningBox: {
     flexDirection: 'row',
@@ -131,7 +161,7 @@ const stylesheet = StyleSheet.create((theme) => ({
   },
   customerWarningTxt: { fontFamily: 'Inter', fontSize: 12, color: theme.colors.G },
 
-  catalogGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  catalogGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 },
   catalogCard: {
     width: '48%',
     backgroundColor: theme.colors.SURFACE_ALT,
@@ -141,7 +171,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     overflow: 'hidden',
     marginBottom: 10,
   },
-  catalogImgBox: { position: 'relative', height: 100, width: '100%' },
+  catalogImgBox: { position: 'relative', aspectRatio: 1, width: '100%' },
   catalogImg: { width: '100%', height: '100%' },
   outOfStockOverlay: {
     position: 'absolute',
@@ -336,6 +366,10 @@ export default function BusinessProfileScreen() {
 
   const [business, setBusiness] = useState<Business | null>(null);
   const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
+  const [catalogError, setCatalogError] = useState(false);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [businessError, setBusinessError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [reviews, setReviews] = useState<any[]>([]);
   const [inquiriesCount, setInquiriesCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -346,20 +380,31 @@ export default function BusinessProfileScreen() {
     if (tab === 'reviews') setActiveTab('reviews');
   }, [tab]);
   const [isCustomerView, setIsCustomerView] = useState(false);
-  const [menuVisible, setMenuVisible] = useState(false);
   const [catalogSheet, setCatalogSheet] = useState<CatalogItem | null>(null);
+
+  const {
+    offerings,
+    loading: servicesLoading,
+    error: servicesError,
+    refresh: refreshServices,
+  } = useServiceOfferings(business?.id);
+  useEffect(() => {
+    if (business?.mode === 'service' && tab !== 'reviews') setActiveTab('services');
+  }, [business?.mode, tab]);
 
   const isOwner = user?.id === business?.owner_id;
   const viewAsCustomer = !isOwner || isCustomerView;
 
   const fetchCatalog = useCallback(async () => {
     if (!id) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('catalog_items')
       .select('*')
       .eq('business_id', id)
       .order('created_at', { ascending: false });
     if (data) setCatalogItems(data);
+    setCatalogError(!!error);
+    setCatalogLoading(false);
   }, [id]);
 
   useFocusEffect(
@@ -371,13 +416,15 @@ export default function BusinessProfileScreen() {
   useEffect(() => {
     if (!id) return;
     const fetchBusiness = async () => {
+      setBusinessError(false);
       try {
-        const { data: bData } = await supabase
+        const { data: bData, error: bError } = await supabase
           .from('businesses')
           .select('*')
           .or(`id.eq.${id},owner_id.eq.${id}`)
           .limit(1)
           .maybeSingle();
+        if (bError) throw bError;
         if (bData) {
           let oData = null;
           if (bData.owner_id) {
@@ -397,6 +444,7 @@ export default function BusinessProfileScreen() {
           });
         }
       } catch (e) {
+        setBusinessError(true);
         console.error(e);
       } finally {
         setLoading(false);
@@ -421,12 +469,12 @@ export default function BusinessProfileScreen() {
     fetchCatalog();
     fetchReviews();
     fetchInquiries();
-  }, [id, fetchCatalog]);
+  }, [id, fetchCatalog, reloadKey]);
 
   useEffect(() => {
     if (!id) return;
     const channel = supabase
-      .channel(`business-detail-${id}`)
+      .channel(`business-detail-${id}-${++businessDetailGeneration}`)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'businesses', filter: `id=eq.${id}` },
@@ -450,7 +498,6 @@ export default function BusinessProfileScreen() {
   }, [id, business?.owner_id, user?.id]);
 
   const handleDeactivate = useCallback(() => {
-    setMenuVisible(false);
     Alert.alert(
       'Deactivate Business',
       'Your business will be hidden from all listings. You can contact support to reactivate it.',
@@ -560,16 +607,9 @@ export default function BusinessProfileScreen() {
     }
   };
 
-  const shortenAddress = (addr: string, len: number) =>
-    addr.length > len ? addr.substring(0, len) + '...' : addr;
-  const getLocStr = () => {
-    if (!business) return '';
-    if (typeof business.location === 'string') return shortenAddress(business.location, 50);
-    if (business.location?.address) return shortenAddress(business.location.address, 50);
-    if (business.state || business.lga)
-      return [business.lga, business.state].filter(Boolean).join(', ');
-    return 'Location not specified';
-  };
+  const getLocStr = () =>
+    getBusinessLocation(business?.location, business?.lga, business?.state) ||
+    'Location not provided';
 
   if (loading)
     return (
@@ -579,8 +619,31 @@ export default function BusinessProfileScreen() {
     );
   if (!business)
     return (
-      <View style={[sStylesheet.root, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ color: theme.colors.TEXT_PRIMARY }}>Business not found</Text>
+      <View
+        style={[
+          sStylesheet.root,
+          businessUI.empty,
+          { justifyContent: 'center', paddingTop: insets.top + 24 },
+        ]}
+      >
+        <Ionicons name="storefront-outline" size={40} color={theme.colors.TEXT_SECONDARY} />
+        <Text style={businessUI.emptyTitle}>
+          {businessError ? 'Couldn’t load this business' : 'Business unavailable'}
+        </Text>
+        <Text style={businessUI.emptyText}>
+          {businessError
+            ? 'Check your connection and try again.'
+            : 'This business may have moved or is no longer listed.'}
+        </Text>
+        <TouchableOpacity
+          accessibilityRole="button"
+          style={businessUI.secondaryButton}
+          onPress={() => (businessError ? setReloadKey((key) => key + 1) : router.back())}
+        >
+          <Text style={businessUI.secondaryButtonText}>
+            {businessError ? 'Try again' : 'Go back'}
+          </Text>
+        </TouchableOpacity>
       </View>
     );
 
@@ -876,7 +939,7 @@ export default function BusinessProfileScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 20) + 40 }}
       >
         {/* Cover banner */}
         <View style={sStylesheet.coverContainer}>
@@ -891,10 +954,12 @@ export default function BusinessProfileScreen() {
           />
 
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
             style={[sStylesheet.backBtn, { top: insets.top + 10 }]}
             onPress={() => router.back()}
           >
-            <Ionicons name="chevron-back" size={24} color={theme.colors.TEXT_PRIMARY} />
+            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
 
           {isOwner && (
@@ -905,8 +970,15 @@ export default function BusinessProfileScreen() {
                   sStylesheet.toggleTrack,
                   { backgroundColor: isCustomerView ? theme.colors.G : 'rgba(255,255,255,0.18)' },
                 ]}
+                accessibilityRole="switch"
+                accessibilityLabel="Preview storefront as a customer"
+                accessibilityState={{ checked: isCustomerView }}
                 activeOpacity={0.8}
-                onPress={() => setIsCustomerView(!isCustomerView)}
+                onPress={() => {
+                  setIsCustomerView(!isCustomerView);
+                  if (activeTab === 'analytics')
+                    setActiveTab(business.mode === 'service' ? 'services' : 'catalog');
+                }}
               >
                 <View
                   style={[
@@ -925,6 +997,9 @@ export default function BusinessProfileScreen() {
             <BusinessImage uri={logoImg} style={sStylesheet.avatarImage} contentFit="contain" />
           </View>
 
+          <Text style={[businessUI.eyebrow, { marginBottom: 8 }]}>
+            {getBusinessModeLabel(business.mode)} · {business.category || 'Independent business'}
+          </Text>
           {/* Name + verified */}
           <View style={sStylesheet.nameRow}>
             <Text style={sStylesheet.nameTxt}>{business.name}</Text>
@@ -938,9 +1013,7 @@ export default function BusinessProfileScreen() {
             </View>
           </View>
 
-          <Text style={sStylesheet.catLocationTxt}>
-            {business.category || 'Business'} · {getLocStr()}
-          </Text>
+          <Text style={sStylesheet.catLocationTxt}>{getLocStr()}</Text>
 
           <TouchableOpacity
             accessibilityRole="button"
@@ -960,41 +1033,68 @@ export default function BusinessProfileScreen() {
             <Text style={{ color: theme.colors.G, fontWeight: '600' }}>Get directions</Text>
           </TouchableOpacity>
 
-          {/* Stats row */}
+          {!!business.description && <Text style={businessUI.body}>{business.description}</Text>}
+          {!!business.hours?.trim() && (
+            <View style={[businessUI.row, { marginTop: 16 }]}>
+              <Ionicons name="time-outline" size={18} color={theme.colors.TEXT_SECONDARY} />
+              <Text style={[businessUI.muted, { flex: 1 }]}>{business.hours}</Text>
+            </View>
+          )}
+          {!!business.phone && (
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={`Call ${business.name}`}
+              onPress={() => {
+                void Linking.openURL(`tel:${business.phone}`).catch(() =>
+                  Alert.alert(
+                    'Couldn’t open phone',
+                    'Please try calling this business from your phone app.'
+                  )
+                );
+              }}
+              style={[businessUI.row, { minHeight: 44, marginTop: 8 }]}
+            >
+              <Ionicons name="call-outline" size={18} color={theme.colors.TEXT_PRIMARY} />
+              <Text style={businessUI.label}>{business.phone}</Text>
+              <Ionicons name="open-outline" size={16} color={theme.colors.TEXT_SECONDARY} />
+            </TouchableOpacity>
+          )}
           <View style={sStylesheet.statsRow}>
             <View style={sStylesheet.statItem}>
-              <Text style={sStylesheet.statVal}>{(business as any).followers_count || '0'}</Text>
-              <Text style={sStylesheet.statLabel}>Followers</Text>
-            </View>
-            <View style={sStylesheet.statItem}>
               <Text style={sStylesheet.statVal}>{catalogItems.length}</Text>
-              <Text style={sStylesheet.statLabel}>Items</Text>
+              <Text style={sStylesheet.statLabel}>Products</Text>
             </View>
-            <View style={sStylesheet.statItem}>
-              <Text style={sStylesheet.statVal}>
-                {business.rating ? `${business.rating.toFixed(1)} ★` : '0 ★'}
-              </Text>
-              <Text style={sStylesheet.statLabel}>Rating</Text>
-            </View>
+            {(business.mode === 'service' || business.mode === 'both') && (
+              <View style={sStylesheet.statItem}>
+                <Text style={sStylesheet.statVal}>{offerings.length}</Text>
+                <Text style={sStylesheet.statLabel}>Services</Text>
+              </View>
+            )}
+            {getBusinessRating(business.rating, business.review_count) && (
+              <View style={sStylesheet.statItem}>
+                <Text style={sStylesheet.statVal}>{business.rating?.toFixed(1)} ★</Text>
+                <Text style={sStylesheet.statLabel}>{business.review_count} reviews</Text>
+              </View>
+            )}
           </View>
-
           {/* Quick actions */}
           <View style={sStylesheet.quickActionsRow}>
             {isOwner && !isCustomerView ? (
               <>
                 <TouchableOpacity
                   onPress={() =>
-                    router.push(`/businesses/create-catalog-item?business_id=${business.id}` as any)
+                    router.push(
+                      (business.mode === 'service'
+                        ? `/businesses/${business.id}/manage-services`
+                        : `/businesses/create-catalog-item?business_id=${business.id}`) as any
+                    )
                   }
                   style={[sStylesheet.actionBtn, sStylesheet.actionBtnPrimary]}
                 >
-                  <Ionicons
-                    name="add"
-                    size={18}
-                    color={theme.colors.G}
-                    style={{ marginRight: 4 }}
-                  />
-                  <Text style={sStylesheet.actionBtnPrimaryTxt}>Add Item</Text>
+                  <Ionicons name="add" size={18} color="#102110" style={{ marginRight: 4 }} />
+                  <Text style={sStylesheet.actionBtnPrimaryTxt}>
+                    {business.mode === 'service' ? 'Add service' : 'Add product'}
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => router.push(`/businesses/create?id=${business.id}` as any)}
@@ -1014,12 +1114,7 @@ export default function BusinessProfileScreen() {
                 onPress={() => handleMessage()}
                 style={[sStylesheet.actionBtn, sStylesheet.actionBtnPrimary, { flex: 1 }]}
               >
-                <Ionicons
-                  name="chatbubbles"
-                  size={18}
-                  color={theme.colors.G}
-                  style={{ marginRight: 4 }}
-                />
+                <Ionicons name="chatbubbles" size={18} color="#102110" style={{ marginRight: 4 }} />
                 <Text style={sStylesheet.actionBtnPrimaryTxt}>Message</Text>
               </TouchableOpacity>
             )}
@@ -1041,35 +1136,150 @@ export default function BusinessProfileScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Tabs */}
+          {isOwner &&
+            !isCustomerView &&
+            (business.mode === 'service' || business.mode === 'both') && (
+              <View style={[businessUI.notice, { marginBottom: 22 }]}>
+                <Text style={businessUI.eyebrow}>YOUR BUSINESS TOOLS</Text>
+                <Text style={businessUI.noticeText}>
+                  Keep your services, hours and storefront ready for your next customer.
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {(business.mode === 'service' || business.mode === 'both') && (
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      style={businessUI.secondaryButton}
+                      onPress={() =>
+                        router.push(`/businesses/${business.id}/manage-services` as any)
+                      }
+                    >
+                      <Ionicons name="list-outline" size={17} color={theme.colors.TEXT_PRIMARY} />
+                      <Text style={businessUI.secondaryButtonText}>Services</Text>
+                    </TouchableOpacity>
+                  )}
+                  {(business.mode === 'service' || business.mode === 'both') && (
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      style={businessUI.secondaryButton}
+                      onPress={() =>
+                        router.push(`/businesses/${business.id}/manage-availability` as any)
+                      }
+                    >
+                      <Ionicons name="time-outline" size={17} color={theme.colors.TEXT_PRIMARY} />
+                      <Text style={businessUI.secondaryButtonText}>Availability</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            )}
           <View style={sStylesheet.tabsWrap}>
-            {(['catalog', 'reviews', 'analytics'] as const).map((t) => {
-              return (
-                <TouchableOpacity
-                  key={t}
-                  onPress={() => setActiveTab(t)}
-                  style={sStylesheet.tabBtn}
+            {(
+              [
+                ...(business.mode !== 'service' ? ['catalog'] : []),
+                ...(business.mode === 'service' || business.mode === 'both' ? ['services'] : []),
+                'reviews',
+                ...(isOwner && !isCustomerView ? ['analytics'] : []),
+              ] as Tab[]
+            ).map((t) => (
+              <TouchableOpacity
+                key={t}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: activeTab === t }}
+                onPress={() => setActiveTab(t)}
+                style={sStylesheet.tabBtn}
+              >
+                <Text
+                  style={[
+                    sStylesheet.tabTxt,
+                    {
+                      color:
+                        activeTab === t ? theme.colors.TEXT_PRIMARY : theme.colors.TEXT_SECONDARY,
+                      fontFamily: activeTab === t ? 'Outfit-Bold' : 'Outfit-Medium',
+                    },
+                  ]}
                 >
-                  <Text
-                    style={[
-                      sStylesheet.tabTxt,
-                      {
-                        color: activeTab === t ? '#fff' : theme.colors.LABEL,
-                        fontFamily: activeTab === t ? 'Outfit-Bold' : 'Outfit-Medium',
-                      },
-                    ]}
-                  >
-                    {t}
-                  </Text>
-                  {activeTab === t && <View style={sStylesheet.tabIndicator} />}
-                </TouchableOpacity>
-              );
-            })}
+                  {t === 'catalog' ? 'Products' : t === 'analytics' ? 'Insights' : t}
+                </Text>
+                {activeTab === t && <View style={sStylesheet.tabIndicator} />}
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
         {/* Tab Content */}
         <View style={sStylesheet.tabContentPad}>
+          {activeTab === 'services' && (
+            <View style={businessUI.section}>
+              <Text style={businessUI.sectionTitle}>Make time for what you need</Text>
+              <Text style={businessUI.subtitle}>
+                Choose a service to see available times and request a booking.
+              </Text>
+              {servicesLoading ? (
+                <ActivityIndicator color={theme.colors.G} accessibilityLabel="Loading services" />
+              ) : servicesError ? (
+                <View style={businessUI.notice}>
+                  <Text style={businessUI.noticeText}>
+                    Services couldn’t load. Please try again.
+                  </Text>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    style={businessUI.secondaryButton}
+                    onPress={() => void refreshServices()}
+                  >
+                    <Text style={businessUI.secondaryButtonText}>Try again</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : offerings.length === 0 ? (
+                <View style={businessUI.empty}>
+                  <Ionicons name="calendar-outline" size={32} color={theme.colors.TEXT_SECONDARY} />
+                  <Text style={businessUI.emptyTitle}>Services coming soon</Text>
+                  <Text style={businessUI.emptyText}>
+                    This business hasn’t listed any services yet. Message them to ask what’s
+                    available.
+                  </Text>
+                </View>
+              ) : (
+                offerings.map((offering) => (
+                  <View key={offering.id} style={businessUI.card}>
+                    <View style={businessUI.sectionHeader}>
+                      <Text style={[businessUI.sectionTitle, { flex: 1 }]}>{offering.name}</Text>
+                      <Ionicons
+                        name="calendar-outline"
+                        size={22}
+                        color={theme.colors.TEXT_SECONDARY}
+                      />
+                    </View>
+                    {!!offering.description && (
+                      <Text style={businessUI.muted}>{offering.description}</Text>
+                    )}
+                    <View style={businessUI.row}>
+                      <Text style={businessUI.label}>{offering.duration_minutes} min</Text>
+                      <Text style={businessUI.muted}>
+                        {offering.price === undefined || offering.price === null
+                          ? 'Ask for pricing'
+                          : `${offering.price_is_from ? 'From ' : ''}₦${offering.price.toLocaleString()}`}
+                      </Text>
+                    </View>
+                    {viewAsCustomer && (
+                      <TouchableOpacity
+                        accessibilityRole="button"
+                        accessibilityLabel={`Book ${offering.name}`}
+                        style={businessUI.primaryButton}
+                        onPress={() =>
+                          router.push(
+                            `/bookings/create?businessId=${business.id}&serviceId=${offering.id}` as any
+                          )
+                        }
+                      >
+                        <Text style={businessUI.primaryButtonText}>Choose a time</Text>
+                        <Ionicons name="arrow-forward" size={18} color="#102110" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))
+              )}
+            </View>
+          )}
           {activeTab === 'catalog' && (
             <>
               {isOwner && viewAsCustomer && (
@@ -1077,6 +1287,36 @@ export default function BusinessProfileScreen() {
                   <Ionicons name="cube" size={14} color={theme.colors.G} />
                   <Text style={sStylesheet.customerWarningTxt}>
                     Viewing as customer — this is how your storefront appears
+                  </Text>
+                </View>
+              )}
+              <View style={[businessUI.sectionHeader, { marginBottom: 16 }]}>
+                <Text style={businessUI.sectionTitle}>The collection</Text>
+                <Text style={businessUI.sectionHint}>{catalogItems.length} products</Text>
+              </View>
+              {catalogLoading && (
+                <ActivityIndicator accessibilityLabel="Loading products" color={theme.colors.G} />
+              )}
+              {catalogError && (
+                <View style={[businessUI.notice, { marginBottom: 16 }]}>
+                  <Text style={businessUI.noticeText}>
+                    Products couldn’t refresh. Please try again.
+                  </Text>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    style={businessUI.secondaryButton}
+                    onPress={() => void fetchCatalog()}
+                  >
+                    <Text style={businessUI.secondaryButtonText}>Try again</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {catalogItems.length === 0 && viewAsCustomer && !catalogLoading && !catalogError && (
+                <View style={businessUI.empty}>
+                  <Ionicons name="bag-outline" size={34} color={theme.colors.TEXT_SECONDARY} />
+                  <Text style={businessUI.emptyTitle}>A little more to discover soon</Text>
+                  <Text style={businessUI.emptyText}>
+                    No products have been listed yet. Message this business to ask what’s available.
                   </Text>
                 </View>
               )}
@@ -1090,10 +1330,8 @@ export default function BusinessProfileScreen() {
                       activeOpacity={0.8}
                     >
                       <View style={sStylesheet.catalogImgBox}>
-                        <Image
-                          source={{
-                            uri: item.images?.[0],
-                          }}
+                        <BusinessImage
+                          uri={item.images?.[0]}
                           style={sStylesheet.catalogImg}
                           contentFit="cover"
                         />
@@ -1145,8 +1383,23 @@ export default function BusinessProfileScreen() {
 
           {activeTab === 'reviews' && (
             <View>
+              {reviews.length === 0 && (
+                <View style={businessUI.empty}>
+                  <Ionicons
+                    name="chatbox-ellipses-outline"
+                    size={34}
+                    color={theme.colors.TEXT_SECONDARY}
+                  />
+                  <Text style={businessUI.emptyTitle}>Every business starts somewhere</Text>
+                  <Text style={businessUI.emptyText}>No reviews have been shared yet.</Text>
+                </View>
+              )}
               <View style={sStylesheet.ratingHeader}>
-                <Text style={sStylesheet.ratingBigNum}>{business.rating?.toFixed(1) || '0.0'}</Text>
+                <Text style={sStylesheet.ratingBigNum}>
+                  {getBusinessRating(business.rating, business.review_count)
+                    ? business.rating?.toFixed(1)
+                    : '—'}
+                </Text>
                 <View>
                   <View style={sStylesheet.ratingStars}>
                     {[1, 2, 3, 4, 5].map((n) => (
@@ -1175,7 +1428,14 @@ export default function BusinessProfileScreen() {
                     <View style={sStylesheet.reviewBody}>
                       <View style={sStylesheet.reviewNameRow}>
                         <Text style={sStylesheet.reviewName}>{r.users?.name || 'Anonymous'}</Text>
-                        <Text style={sStylesheet.reviewDate}>2d ago</Text>
+                        <Text style={sStylesheet.reviewDate}>
+                          {r.created_at && !Number.isNaN(Date.parse(r.created_at))
+                            ? new Date(r.created_at).toLocaleDateString(undefined, {
+                                day: 'numeric',
+                                month: 'short',
+                              })
+                            : ''}
+                        </Text>
                       </View>
                       <View style={sStylesheet.reviewStarsRow}>
                         {[1, 2, 3, 4, 5].map((n) => (
@@ -1195,7 +1455,7 @@ export default function BusinessProfileScreen() {
             </View>
           )}
 
-          {activeTab === 'analytics' && (
+          {activeTab === 'analytics' && isOwner && !isCustomerView && (
             <View style={{ gap: 12 }}>
               {[
                 { l: 'Total Catalog Items', v: catalogItems.length.toString(), icon: '📦' },

@@ -1,3 +1,4 @@
+import { businessScreenStyles as businessUI } from '../../components/businesses/business-screen-styles';
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
@@ -24,12 +25,14 @@ export default function BookingDetailScreen() {
 
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   useNotificationRouteAcknowledgement(!loading && !!booking);
   const [actionLoading, setActionLoading] = useState(false);
 
   const fetchBooking = async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const { data, error } = await supabase
         .from('bookings')
         .select(
@@ -41,21 +44,45 @@ export default function BookingDetailScreen() {
       if (error) throw error;
       setBooking(data);
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to load booking');
+      setLoadError(err.message || 'We could not load this booking.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (id) fetchBooking();
+    if (id) void fetchBooking();
+    else {
+      setLoading(false);
+      setLoadError('This booking link is incomplete.');
+    }
   }, [id]);
 
-  if (loading || !booking) {
+  if (loading) {
     return (
       <SafeAreaView style={s.container}>
         <View style={s.center}>
           <ActivityIndicator size="large" color={theme.colors.G} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!booking || loadError) {
+    return (
+      <SafeAreaView style={s.container}>
+        <View style={businessUI.empty}>
+          <Ionicons name="calendar-outline" size={40} color={theme.colors.LABEL} />
+          <Text style={businessUI.emptyTitle}>Booking unavailable</Text>
+          <Text style={businessUI.emptyText}>
+            {loadError || 'This booking could not be found.'}
+          </Text>
+          <TouchableOpacity style={businessUI.primaryButton} onPress={fetchBooking}>
+            <Text style={businessUI.primaryButtonText}>Try again</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={businessUI.secondaryButton} onPress={() => router.back()}>
+            <Text style={businessUI.secondaryButtonText}>Go back</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -220,17 +247,43 @@ export default function BookingDetailScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          style={s.backBtn}
+          onPress={() => router.back()}
+        >
           <Ionicons name="arrow-back" size={24} color={theme.colors.TEXT_PRIMARY} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Booking Details</Text>
         <View style={{ width: 32 }} />
       </View>
 
-      <ScrollView contentContainerStyle={s.content}>
+      <ScrollView
+        contentContainerStyle={s.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={businessUI.section}>
+          <Text style={businessUI.eyebrow}>YOUR APPOINTMENT</Text>
+          <Text style={businessUI.title}>{booking.service?.name || 'Booking details'}</Text>
+          <Text style={businessUI.subtitle}>{booking.business?.name || 'Your local business'}</Text>
+        </View>
         {/* Status Card */}
         <View style={s.statusCard}>
-          <Text style={s.statusTitle}>Status: {booking.status.toUpperCase()}</Text>
+          <Text style={businessUI.eyebrow}>BOOKING STATUS</Text>
+          <Text style={s.statusTitle}>
+            {(
+              {
+                requested: 'Awaiting confirmation',
+                confirmed: 'You’re booked in',
+                completed: 'Visit completed',
+                cancelled: 'Booking cancelled',
+                late_cancelled: 'Cancelled late',
+                no_show: 'Visit missed',
+              } as Record<string, string>
+            )[booking.status] || booking.status}
+          </Text>
           <Text style={s.appointmentTime}>
             {apptTime.toLocaleString('en-US', {
               weekday: 'long',
@@ -251,7 +304,7 @@ export default function BookingDetailScreen() {
                 fontWeight: '600',
               }}
             >
-              Payment: {(booking.payment_status || 'unpaid').toUpperCase()}
+              Payment · {(booking.payment_status || 'unpaid').replace(/_/g, ' ')}
             </Text>
           </View>
           {isCustomer &&
@@ -312,7 +365,7 @@ export default function BookingDetailScreen() {
 
           <View style={s.metaRow}>
             <Text style={s.metaTxt}>Duration: {booking.service?.duration_minutes} mins</Text>
-            {booking.service?.price !== undefined && (
+            {booking.service?.price !== undefined && booking.service?.price !== null && (
               <Text style={s.priceTxt}>
                 {booking.service.price_is_from ? 'From ' : ''}₦
                 {booking.service.price.toLocaleString()}
@@ -323,7 +376,7 @@ export default function BookingDetailScreen() {
 
         {/* Parties Card */}
         <View style={s.card}>
-          <Text style={s.sectionHeader}>Parties</Text>
+          <Text style={s.sectionHeader}>Who you’re meeting</Text>
           <Text style={s.partyLabel}>
             Business: <Text style={s.partyVal}>{booking.business?.name}</Text>
           </Text>
@@ -348,11 +401,13 @@ export default function BookingDetailScreen() {
             </View>
           )}
 
-          {!actionLoading && ['requested', 'confirmed'].includes(booking.status) && (
-            <TouchableOpacity style={[s.btn, s.btnDanger]} onPress={handleCancel}>
-              <Text style={s.btnDangerTxt}>Cancel Booking</Text>
-            </TouchableOpacity>
-          )}
+          {!actionLoading &&
+            (isCustomer || isProvider) &&
+            ['requested', 'confirmed'].includes(booking.status) && (
+              <TouchableOpacity style={[s.btn, s.btnDanger]} onPress={handleCancel}>
+                <Text style={s.btnDangerTxt}>Cancel Booking</Text>
+              </TouchableOpacity>
+            )}
 
           {!actionLoading && booking.status === 'confirmed' && isPast && isProvider && (
             <View style={s.btnRow}>
@@ -385,24 +440,43 @@ const stylesheet = StyleSheet.create((theme) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.GLASS_BORDER,
   },
-  backBtn: { padding: 4 },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: theme.colors.TEXT_PRIMARY },
+  backBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    backgroundColor: theme.colors.SURFACE,
+  },
+  headerTitle: {
+    flexShrink: 1,
+    fontFamily: 'Outfit-Bold',
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.TEXT_PRIMARY,
+  },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  content: { padding: 16 },
+  content: { padding: 20, paddingBottom: 48 },
   statusCard: {
     backgroundColor: theme.colors.SURFACE,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 22,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: theme.colors.GLASS_BORDER,
   },
-  statusTitle: { fontSize: 16, fontWeight: '800', color: theme.colors.G },
+  statusTitle: {
+    fontFamily: 'Outfit-Bold',
+    fontSize: 26,
+    fontWeight: '800',
+    color: theme.colors.TEXT_PRIMARY,
+    marginTop: 8,
+  },
   appointmentTime: {
     fontSize: 14,
     color: theme.colors.TEXT_PRIMARY,
@@ -415,7 +489,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     gap: 10,
     backgroundColor: '#FF950015',
     padding: 12,
-    borderRadius: 10,
+    borderRadius: 22,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#FF950040',
@@ -424,7 +498,7 @@ const stylesheet = StyleSheet.create((theme) => ({
   card: {
     backgroundColor: theme.colors.SURFACE,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 22,
     marginBottom: 14,
     borderWidth: 1,
     borderColor: theme.colors.GLASS_BORDER,
@@ -432,7 +506,13 @@ const stylesheet = StyleSheet.create((theme) => ({
   sectionHeader: { fontSize: 13, fontWeight: '700', color: theme.colors.LABEL, marginBottom: 8 },
   serviceTitle: { fontSize: 18, fontWeight: '700', color: theme.colors.TEXT_PRIMARY },
   serviceDesc: { fontSize: 14, color: theme.colors.LABEL, marginTop: 4 },
-  metaRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 },
+  metaRow: {
+    flexWrap: 'wrap',
+    gap: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
   metaTxt: { fontSize: 13, color: theme.colors.LABEL },
   priceTxt: { fontSize: 14, fontWeight: '700', color: theme.colors.G },
   partyLabel: { fontSize: 14, color: theme.colors.LABEL, marginBottom: 4 },
@@ -442,8 +522,10 @@ const stylesheet = StyleSheet.create((theme) => ({
   btnRow: { flexDirection: 'row', gap: 12 },
   btn: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 10,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    minHeight: 52,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },

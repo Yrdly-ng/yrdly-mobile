@@ -1,3 +1,4 @@
+import { businessScreenStyles as businessUI } from '../../components/businesses/business-screen-styles';
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
@@ -7,7 +8,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { useCustomerBookings } from '../../hooks/bookings/use-bookings';
 import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/use-notification-route-ack';
-import { Booking } from '../../types';
 
 export default function BookingsDashboardScreen() {
   const { theme } = useUnistyles();
@@ -58,18 +58,37 @@ export default function BookingsDashboardScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          style={s.backBtn}
+          onPress={() => router.back()}
+        >
           <Ionicons name="arrow-back" size={24} color={theme.colors.TEXT_PRIMARY} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>My Bookings</Text>
-        <TouchableOpacity style={s.backBtn} onPress={refresh}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Refresh bookings"
+          style={s.backBtn}
+          onPress={refresh}
+        >
           <Ionicons name="refresh" size={20} color={theme.colors.TEXT_PRIMARY} />
         </TouchableOpacity>
       </View>
 
+      <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+        <Text style={businessUI.eyebrow}>YOUR PLANS</Text>
+        <Text style={businessUI.title}>Good things, booked.</Text>
+        <Text style={businessUI.subtitle}>
+          Keep track of requests, appointments and past visits.
+        </Text>
+      </View>
       {/* Segmented Tabs */}
       <View style={s.tabBar}>
         <TouchableOpacity
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === 'upcoming' }}
           style={[s.tabItem, activeTab === 'upcoming' && s.tabActive]}
           onPress={() => setActiveTab('upcoming')}
         >
@@ -77,6 +96,8 @@ export default function BookingsDashboardScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === 'past' }}
           style={[s.tabItem, activeTab === 'past' && s.tabActive]}
           onPress={() => setActiveTab('past')}
         >
@@ -89,11 +110,29 @@ export default function BookingsDashboardScreen() {
           <ActivityIndicator size="large" color={theme.colors.G} />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={s.content}>
+        <ScrollView
+          contentContainerStyle={s.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           {filteredBookings.length === 0 ? (
             <View style={s.emptyBox}>
               <Ionicons name="calendar-outline" size={48} color={theme.colors.LABEL} />
-              <Text style={s.emptyText}>No {activeTab} bookings found.</Text>
+              <Text style={businessUI.emptyTitle}>
+                {activeTab === 'upcoming'
+                  ? 'Your calendar is clear.'
+                  : 'Your visits will live here.'}
+              </Text>
+              <Text style={businessUI.emptyText}>
+                {activeTab === 'upcoming'
+                  ? 'Find a local business and choose a service to make your first booking.'
+                  : 'Completed and cancelled appointments appear here.'}
+              </Text>
+              {activeTab === 'upcoming' && (
+                <TouchableOpacity style={businessUI.secondaryButton} onPress={() => router.back()}>
+                  <Text style={businessUI.secondaryButtonText}>Back to browsing</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : (
             filteredBookings.map((b) => {
@@ -109,6 +148,8 @@ export default function BookingsDashboardScreen() {
               return (
                 <TouchableOpacity
                   key={b.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${b.service?.name || 'Appointment'}, ${b.business?.name || 'Business'}, ${badge.label}, ${dateStr}`}
                   style={s.bookingCard}
                   onPress={() => router.push(`/bookings/${b.id}` as any)}
                 >
@@ -147,45 +188,70 @@ const stylesheet = StyleSheet.create((theme) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.GLASS_BORDER,
   },
-  backBtn: { padding: 4 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: theme.colors.TEXT_PRIMARY },
+  backBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    backgroundColor: theme.colors.SURFACE,
+  },
+  headerTitle: {
+    flexShrink: 1,
+    fontFamily: 'Outfit-Bold',
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.TEXT_PRIMARY,
+  },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   tabBar: {
     flexDirection: 'row',
-    marginHorizontal: 16,
+    marginHorizontal: 20,
     marginTop: 12,
     marginBottom: 4,
     backgroundColor: theme.colors.SURFACE,
-    borderRadius: 10,
+    borderRadius: 16,
     padding: 4,
     borderWidth: 1,
     borderColor: theme.colors.GLASS_BORDER,
   },
-  tabItem: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
+  tabItem: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 12, minHeight: 44 },
   tabActive: { backgroundColor: theme.colors.G },
   tabText: { fontSize: 14, fontWeight: '600', color: theme.colors.LABEL },
   tabTextActive: { color: '#000' },
-  content: { padding: 16 },
-  emptyBox: { alignItems: 'center', justifyContent: 'center', marginTop: 80 },
+  content: { padding: 20, paddingBottom: 48 },
+  emptyBox: { alignItems: 'center', justifyContent: 'center', marginTop: 48 },
   emptyText: { fontSize: 15, color: theme.colors.LABEL, marginTop: 12 },
   bookingCard: {
     backgroundColor: theme.colors.SURFACE,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 22,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: theme.colors.GLASS_BORDER,
   },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardTop: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   bizName: { fontSize: 13, fontWeight: '600', color: theme.colors.LABEL },
   badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   badgeTxt: { fontSize: 12, fontWeight: '700' },
-  serviceTitle: { fontSize: 16, fontWeight: '700', color: theme.colors.TEXT_PRIMARY, marginTop: 4 },
+  serviceTitle: {
+    fontFamily: 'Outfit-Bold',
+    fontSize: 22,
+    fontWeight: '700',
+    color: theme.colors.TEXT_PRIMARY,
+    marginTop: 4,
+  },
   timeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
   timeTxt: { fontSize: 13, color: theme.colors.TEXT_PRIMARY, fontWeight: '600' },
   notesTxt: { fontSize: 12, color: theme.colors.LABEL, marginTop: 6, fontStyle: 'italic' },

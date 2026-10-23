@@ -1,3 +1,4 @@
+import { businessScreenStyles as businessUI } from './business-screen-styles';
 import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
@@ -7,8 +8,6 @@ import {
   TouchableOpacity,
   ScrollView,
   FlatList,
-  ActivityIndicator,
-  Alert,
   RefreshControl,
   Animated,
   Pressable,
@@ -19,8 +18,6 @@ import { Avatar } from '../Avatar';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase/supabase';
-import { useAppTheme } from '../../context/ThemeContext';
-import { useLocation } from '../../context/LocationContext';
 import { Skeleton } from '../Skeleton';
 import type { Business } from '../../types/index';
 import { useAuth } from '../../hooks/use-supabase-auth';
@@ -39,14 +36,13 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
   const { theme } = useUnistyles();
   const s = sStylesheet;
 
-  const { isDarkMode } = useAppTheme();
   const router = useRouter();
-  const { activeFilter } = useLocation();
   const { user } = useAuth();
 
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   const latestFetch = useRef(0);
@@ -54,18 +50,22 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
     const request = ++latestFetch.current;
     if (!isRefresh) setLoading(true);
     try {
-      let q = supabase
+      const q = supabase
         .from('businesses')
         .select('*')
         .eq('is_active', true)
+        .eq('moderation_status', 'approved')
         .order('created_at', { ascending: false });
 
       const { data, error } = await q;
       if (error) throw error;
-      if (request === latestFetch.current) setBusinesses((data as Business[]) || []);
+      if (request === latestFetch.current) {
+        setBusinesses((data as Business[]) || []);
+        setLoadError(false);
+      }
     } catch (e) {
       console.error('Error fetching businesses:', e);
-      if (request === latestFetch.current) setBusinesses([]);
+      if (request === latestFetch.current) setLoadError(true);
     } finally {
       if (request === latestFetch.current) setLoading(false);
     }
@@ -73,7 +73,7 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
 
   useFocusEffect(
     useCallback(() => {
-      void fetchBusinesses();
+      void fetchBusinesses(true);
     }, [fetchBusinesses])
   );
 
@@ -86,7 +86,7 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
 
   useEffect(() => {
     const channel = supabase
-      .channel('business-hub-updates')
+      .channel(`business-hub-updates-${Date.now()}-${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'businesses' }, () => {
         void fetchBusinesses(true);
       })
@@ -209,6 +209,8 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
 
     return (
       <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel={`View ${item.name}`}
         activeOpacity={0.7}
         onPress={() => router.push(`/businesses/${item.id}` as any)}
         style={[
@@ -222,11 +224,7 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
       >
         <View style={[s.bizImgContainer, { backgroundColor: theme.colors.DARK }]}>
           <Avatar
-            url={
-              (item as any).logo_url ||
-              item.logo ||
-              null
-            }
+            url={(item as any).logo_url || item.logo || null}
             name={item.name}
             style={s.bizImg}
           />
@@ -243,17 +241,20 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
             <View style={s.bizRating}>
               <Ionicons name="star" size={12} color="#FBBF24" />
               <Text style={[s.bizRatingTxt, { color: theme.colors.TEXT_PRIMARY }]}>
-                {item.rating?.toFixed(1) || '0.0'}
+                {item.review_count ? item.rating?.toFixed(1) : 'New here'}
               </Text>
               <Text style={[s.bizReviewCount, { color: theme.colors.MUTED }]}>
-                ({item.review_count || 0})
+                {item.review_count ? `(${item.review_count})` : ''}
               </Text>
             </View>
           </View>
         </View>
 
         <Pressable
-          style={{ padding: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={saved ? `Unsave ${item.name}` : `Save ${item.name}`}
+          accessibilityState={{ selected: saved }}
+          style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}
           onPress={(e) => {
             e.stopPropagation();
             toggleSave();
@@ -273,6 +274,27 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
 
   return (
     <View style={s.container}>
+      <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
+        <Text style={businessUI.eyebrow}>THE LOCAL DIRECTORY</Text>
+        <Text style={businessUI.title}>{activeCategory || 'Find your next favourite.'}</Text>
+        <Text style={businessUI.subtitle}>
+          {showingList
+            ? `${visibleBusinesses.length} ${visibleBusinesses.length === 1 ? 'business' : 'businesses'} to explore`
+            : 'Good food, everyday essentials and people who know their craft.'}
+        </Text>
+      </View>
+      {loadError && (
+        <View style={[businessUI.notice, { marginHorizontal: 20 }]}>
+          <Text style={businessUI.noticeText}>We couldn’t refresh the directory.</Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            onPress={onRefresh}
+            style={businessUI.secondaryButton}
+          >
+            <Text style={businessUI.secondaryButtonText}>Try again</Text>
+          </TouchableOpacity>
+        </View>
+      )}
       {activeCategory && !searchQuery.trim() && (
         <TouchableOpacity style={s.backBtn} onPress={() => setActiveCategory(null)}>
           <Ionicons name="chevron-back" size={18} color={theme.colors.MUTED} />
@@ -292,11 +314,22 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
           }
           contentContainerStyle={s.contentPad}
         >
+          {categoryTiles.length === 0 && !loadError && (
+            <View style={businessUI.empty}>
+              <Ionicons name="storefront-outline" size={40} color={theme.colors.LABEL} />
+              <Text style={businessUI.emptyTitle}>The neighbourhood is growing.</Text>
+              <Text style={businessUI.emptyText}>
+                Local businesses will appear here as they join.
+              </Text>
+            </View>
+          )}
           <View style={s.grid}>
             {categoryTiles.map((tile) => {
               return (
                 <TouchableOpacity
                   key={tile.name}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${tile.name}, ${tile.count} businesses`}
                   activeOpacity={0.8}
                   onPress={() => setActiveCategory(tile.name)}
                   style={s.tile}
@@ -308,7 +341,7 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
                       contentFit="cover"
                     />
                   ) : (
-                    <View style={[StyleSheet.absoluteFill, { backgroundColor: '#2e7d32' }]} />
+                    <View style={[StyleSheet.absoluteFill, { backgroundColor: '#493723' }]} />
                   )}
                   <View style={s.tileOverlay} />
                   <View style={s.tileBadge}>
@@ -341,7 +374,18 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
                 color={theme.colors.MUTED}
                 style={{ opacity: 0.4, marginBottom: 12 }}
               />
-              <Text style={[s.emptyTxt, { color: theme.colors.MUTED }]}>No businesses found</Text>
+              <Text style={[s.emptyTxt, { color: theme.colors.MUTED }]}>
+                No businesses match yet.
+              </Text>
+              <Text style={businessUI.emptyText}>Try another name or category.</Text>
+              {!!activeCategory && (
+                <TouchableOpacity
+                  style={businessUI.secondaryButton}
+                  onPress={() => setActiveCategory(null)}
+                >
+                  <Text style={businessUI.secondaryButtonText}>All categories</Text>
+                </TouchableOpacity>
+              )}
             </View>
           }
           renderItem={({ item }) => <BusinessCard item={item} />}
@@ -357,7 +401,7 @@ const sStylesheet = UnistylesStyleSheet.create((theme) => ({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
   skeletonCard: {
     width: '48%',
@@ -370,15 +414,15 @@ const sStylesheet = UnistylesStyleSheet.create((theme) => ({
   backBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 10,
     gap: 6,
   },
   backTxt: { fontSize: 13, fontWeight: '600' },
-  contentPad: { paddingHorizontal: 16, paddingBottom: 100 },
+  contentPad: { paddingHorizontal: 20, paddingBottom: 100 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  tile: { width: '48%', height: 160, borderRadius: 20, overflow: 'hidden', marginBottom: 14 },
-  tileOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.35)' },
+  tile: { width: '48%', height: 180, borderRadius: 22, overflow: 'hidden', marginBottom: 14 },
+  tileOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.48)' },
   tileBadge: {
     position: 'absolute',
     top: 10,
@@ -394,8 +438,9 @@ const sStylesheet = UnistylesStyleSheet.create((theme) => ({
     bottom: 12,
     left: 12,
     right: 12,
-    color: theme.colors.TEXT_PRIMARY,
-    fontSize: 16,
+    color: '#FFFFFF',
+    fontFamily: 'Outfit-Bold',
+    fontSize: 20,
     fontWeight: '800',
   },
   empty: { paddingVertical: 60, alignItems: 'center' },
@@ -411,7 +456,7 @@ const sStylesheet = UnistylesStyleSheet.create((theme) => ({
   bizImgContainer: { width: 64, height: 64, borderRadius: 16, overflow: 'hidden', marginRight: 12 },
   bizImg: { width: '100%', height: '100%' },
   bizInfo: { flex: 1 },
-  bizName: { fontSize: 16, fontWeight: '700', marginBottom: 2 },
+  bizName: { fontFamily: 'Outfit-Bold', fontSize: 19, fontWeight: '700', marginBottom: 2 },
   bizCat: { fontSize: 13, marginBottom: 6 },
   bizMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   bizRating: { flexDirection: 'row', alignItems: 'center', gap: 4 },

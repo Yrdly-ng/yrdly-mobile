@@ -1,3 +1,4 @@
+import { businessScreenStyles as businessUI } from '../../components/businesses/business-screen-styles';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -365,13 +366,30 @@ export default function BusinessEditScreen() {
       >
         {/* Header */}
         <View style={sStylesheet.header}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <TouchableOpacity onPress={() => router.back()} style={sStylesheet.backBtn}>
+          <View
+            style={{
+              flex: 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+              marginRight: 12,
+            }}
+          >
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+              onPress={() => router.back()}
+              style={sStylesheet.backBtn}
+            >
               <Ionicons name="chevron-back" size={20} color={theme.colors.TEXT_PRIMARY} />
             </TouchableOpacity>
             <Text style={sStylesheet.headerTitle}>{id ? 'Edit Business' : 'Create Business'}</Text>
           </View>
-          <TouchableOpacity onPress={handleSave} style={sStylesheet.saveBtn} disabled={loading}>
+          <TouchableOpacity
+            onPress={handleSave}
+            style={sStylesheet.saveBtn}
+            disabled={loading || saved}
+          >
             {loading ? (
               <ActivityIndicator size="small" color="#000" />
             ) : (
@@ -387,6 +405,15 @@ export default function BusinessEditScreen() {
           contentContainerStyle={sStylesheet.contentPad}
           keyboardShouldPersistTaps="handled"
         >
+          <View style={businessUI.section}>
+            <Text style={businessUI.eyebrow}>YOUR STOREFRONT</Text>
+            <Text style={businessUI.title}>
+              {id ? 'Make a great impression.' : 'Give your business a home.'}
+            </Text>
+            <Text style={businessUI.subtitle}>
+              Help neighbours recognise your business, find you and get in touch.
+            </Text>
+          </View>
           {/* Cover */}
           <View style={sStylesheet.coverContainer}>
             <Image
@@ -400,7 +427,10 @@ export default function BusinessEditScreen() {
               activeOpacity={0.8}
             >
               <View style={sStylesheet.changeCoverBadge}>
-                <Text style={sStylesheet.changeCoverTxt}>Change Cover</Text>
+                <Ionicons name="camera-outline" size={20} color="#FFFFFF" />
+                <Text style={sStylesheet.changeCoverTxt}>
+                  {coverUri ? 'Change cover photo' : 'Add a cover photo'}
+                </Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -413,7 +443,12 @@ export default function BusinessEditScreen() {
                 style={sStylesheet.logoImg}
                 contentFit="cover"
               />
-              <TouchableOpacity style={sStylesheet.changeLogoBtn} onPress={pickLogo}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Change business logo"
+                style={sStylesheet.changeLogoBtn}
+                onPress={pickLogo}
+              >
                 <Ionicons name="camera" size={16} color={theme.colors.TEXT_PRIMARY} />
               </TouchableOpacity>
             </View>
@@ -425,6 +460,13 @@ export default function BusinessEditScreen() {
             </View>
           </View>
 
+          <View style={businessUI.section}>
+            <Text style={businessUI.eyebrow}>01 · THE ESSENTIALS</Text>
+            <Text style={businessUI.title}>Your business, at a glance.</Text>
+            <Text style={businessUI.subtitle}>
+              Use the name and contact details your customers know.
+            </Text>
+          </View>
           {/* Form Fields */}
           <View style={sStylesheet.fieldBlock}>
             <Text style={sStylesheet.fieldLabel}>Business Name</Text>
@@ -444,6 +486,8 @@ export default function BusinessEditScreen() {
               value={phone}
               onChangeText={setPhone}
               placeholder="+234..."
+              keyboardType="phone-pad"
+              accessibilityLabel="Business phone number"
               placeholderTextColor={theme.colors.MUTED}
             />
           </View>
@@ -468,10 +512,20 @@ export default function BusinessEditScreen() {
               value={website}
               onChangeText={setWebsite}
               placeholder="https://..."
+              keyboardType="url"
+              autoCapitalize="none"
+              autoCorrect={false}
               placeholderTextColor={theme.colors.MUTED}
             />
           </View>
 
+          <View style={businessUI.section}>
+            <Text style={businessUI.eyebrow}>02 · FIND & VISIT</Text>
+            <Text style={businessUI.title}>Make the trip easy.</Text>
+            <Text style={businessUI.subtitle}>
+              A precise address and opening hours help customers plan ahead.
+            </Text>
+          </View>
           <View style={[sStylesheet.fieldBlock, { zIndex: 10 }]}>
             <Text style={sStylesheet.fieldLabel}>Location</Text>
             <GooglePlacesAutocomplete
@@ -502,7 +556,7 @@ export default function BusinessEditScreen() {
                 },
               }}
               textInputProps={{
-                placeholderTextColor: location ? '#fff' : theme.colors.MUTED,
+                placeholderTextColor: theme.colors.MUTED,
                 onChangeText: handleLocationTextChange,
               }}
             />
@@ -513,6 +567,13 @@ export default function BusinessEditScreen() {
             <OpeningHoursPicker value={hours} onChange={setHours} />
           </View>
 
+          <View style={businessUI.section}>
+            <Text style={businessUI.eyebrow}>03 · WHAT YOU DO</Text>
+            <Text style={businessUI.title}>Tell your story.</Text>
+            <Text style={businessUI.subtitle}>
+              Choose the right category and describe what makes your business worth a visit.
+            </Text>
+          </View>
           <View style={sStylesheet.fieldBlock}>
             <Text style={sStylesheet.fieldLabel}>What does your business offer?</Text>
             <View style={sStylesheet.modeWrap}>
@@ -622,8 +683,8 @@ const stylesheet = StyleSheet.create((theme) => ({
     borderBottomColor: theme.colors.GLASS_BORDER,
   },
   backBtn: {
-    width: 34,
-    height: 34,
+    width: 44,
+    height: 44,
     borderRadius: 11,
     backgroundColor: theme.colors.SURFACE,
     borderWidth: 1,
@@ -631,11 +692,17 @@ const stylesheet = StyleSheet.create((theme) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: { fontFamily: 'Outfit-Bold', fontSize: 18, color: theme.colors.TEXT_PRIMARY },
+  headerTitle: {
+    flexShrink: 1,
+    fontFamily: 'Outfit-Bold',
+    fontSize: 18,
+    color: theme.colors.TEXT_PRIMARY,
+  },
   saveBtn: {
     paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingVertical: 12,
+    minHeight: 44,
+    borderRadius: 14,
     backgroundColor: theme.colors.G,
   },
   saveBtnTxt: { fontFamily: 'Outfit-Bold', fontSize: 14, color: '#000' },
@@ -671,7 +738,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     borderWidth: 1,
     borderColor: theme.colors.GLASS_BORDER,
   },
-  changeCoverTxt: { fontFamily: 'Outfit-Bold', fontSize: 13, color: theme.colors.TEXT_PRIMARY },
+  changeCoverTxt: { fontFamily: 'Outfit-Bold', fontSize: 14, color: '#FFFFFF' },
 
   logoSection: {
     flexDirection: 'row',
@@ -698,8 +765,8 @@ const stylesheet = StyleSheet.create((theme) => ({
     bottom: -4,
     right: -4,
     backgroundColor: theme.colors.SURFACE,
-    width: 28,
-    height: 28,
+    width: 44,
+    height: 44,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
