@@ -22,7 +22,6 @@ import { useIsFocused } from 'expo-router/react-navigation';
 import { supabase } from '../../lib/supabase/supabase';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/use-notification-route-ack';
-import { usePosts } from '../../hooks/posts/use-posts';
 import { PostCard } from '../../components/posts/PostCard';
 import { Post } from '../../types';
 import { localCache } from '@/lib/offline/local-cache';
@@ -52,8 +51,6 @@ function PostDetailContent() {
   const [postLoadFailed, setPostLoadFailed] = useState(false);
   useNotificationRouteAcknowledgement(!loading && !!post);
   const [replyingTo, setReplyingTo] = useState<{ id: string; name: string } | null>(null);
-
-  const { deletePost } = usePosts(undefined, false);
 
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<CommentInputRef>(null);
@@ -318,27 +315,6 @@ function PostDetailContent() {
     }));
   }, [comments]);
 
-  const handleDeletePost = () => {
-    Alert.alert(
-      'Delete Post',
-      'Are you sure you want to delete this post? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            if (id) {
-              await deletePost(id);
-              DeviceEventEmitter.emit('post_deleted', id);
-              router.back();
-            }
-          },
-        },
-      ]
-    );
-  };
-
   const renderComment = useCallback(
     ({ item }: { item: CommentType }) => {
       return (
@@ -401,25 +377,7 @@ function PostDetailContent() {
           Post
         </Text>
 
-        {post?.user_id === user?.id ? (
-          <TouchableOpacity
-            onPress={handleDeletePost}
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: 19,
-              backgroundColor: theme.colors.SURFACE_ALT,
-              borderWidth: 1,
-              borderColor: theme.colors.GLASS_BORDER,
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-          >
-            <Feather name="trash-2" size={18} color="#EF4444" />
-          </TouchableOpacity>
-        ) : (
-          <View style={{ width: 38 }} />
-        )}
+        <View style={{ width: 38 }} />
       </View>
 
       <View style={{ flex: 1 }}>
@@ -539,7 +497,6 @@ const _stylesheet = StyleSheet.create((theme) => ({
     borderBottomWidth: 1,
   },
   backBtn: { width: 40, justifyContent: 'center', alignItems: 'flex-start' },
-  deleteBtn: { width: 40, justifyContent: 'center', alignItems: 'flex-end' },
   headerTitle: { fontSize: 18, fontWeight: 'bold', flex: 1, textAlign: 'center' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContent: { paddingBottom: 20 },
