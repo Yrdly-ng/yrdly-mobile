@@ -304,6 +304,15 @@ export default function ManageEventScreen() {
                 </Text>
               </View>
             </View>
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={() => router.push(`/events/${id}/team` as any)}
+              style={[stylesheet.scanButton, { backgroundColor: theme.colors.G + '20' }]}
+            >
+              <Text style={[stylesheet.scanButtonText, { color: theme.colors.TEXT_PRIMARY }]}>
+                Manage event team →
+              </Text>
+            </TouchableOpacity>
             <View style={stylesheet.metricsRow}>
               <Metric label="Sold" value={String(metrics.sold)} />
               <Metric label="Ticket sales" value={`₦${metrics.revenue.toLocaleString()}`} />

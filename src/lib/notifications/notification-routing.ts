@@ -60,6 +60,10 @@ export function getMobileNotificationDestination(input: NotificationRouteInput):
       if (!postId) return '/(tabs)';
       return type === 'post_comment' ? `/posts/${postId}?focusComments=true` : `/posts/${postId}`;
     }
+    case 'event_team':
+    case 'event_team_invite':
+    case 'event_team_updated':
+      return '/events/team';
     case 'event_cancelled': {
       const eventId = firstId(data?.eventId, data?.event_id);
       if (eventId) return `/events/${eventId}`;
@@ -431,6 +435,9 @@ export function translateNotificationUrl(url: string): string {
     if (path === '/home') return '/(tabs)';
     if (path === '/businesses') return '/(tabs)/catalog?tab=Businesses';
     if (path === '/events') return '/(tabs)/catalog?tab=Events';
+    if (path === '/events/team') return withSuffix('/events/team');
+    const teamMatch = path.match(/^\/events\/([^/]+)\/team$/);
+    if (teamMatch) return withSuffix(`/events/${teamMatch[1]}/team`);
     const eventMatch = path.match(/^\/events\/([^/]+)$/);
     if (eventMatch) return withSuffix(`/events/${eventMatch[1]}`);
     const catalogChat = path.match(/^\/businesses\/[^/]+\/catalog\/([^/]+)\/chat$/);

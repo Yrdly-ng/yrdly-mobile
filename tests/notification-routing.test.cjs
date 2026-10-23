@@ -409,3 +409,10 @@ test('receipt preflight falls back to payout history for unavailable records',as
   });
   assert.equal(result.destination,'/settings/payouts');assert.equal(result.unavailable,true);
 });
+
+
+test('event team invitations and access updates open assigned duties, never a guest ticket', () => {
+  for (const type of ['event_team', 'event_team_invite', 'event_team_updated']) {
+    assert.equal(route({ type, relatedId: 'event-id', data: { event_id: 'event-id' } }), '/events/team');
+  }
+});

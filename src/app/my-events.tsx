@@ -265,6 +265,15 @@ export default function MyEventsScreen() {
           Your events, tickets and guest check-ins in one place.
         </Text>
       </View>
+      <TouchableOpacity
+        accessibilityRole="button"
+        onPress={() => router.push('/events/team' as any)}
+        style={{ minHeight: 48, paddingHorizontal: 20, justifyContent: 'center' }}
+      >
+        <Text style={{ color: theme.colors.G, fontFamily: 'Outfit-Bold', fontSize: 16 }}>
+          Assigned events →
+        </Text>
+      </TouchableOpacity>
       {loadError && (
         <TouchableOpacity
           accessibilityRole="button"
