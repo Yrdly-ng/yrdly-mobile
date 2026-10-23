@@ -5,7 +5,7 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
+  useWindowDimensions,
   Alert,
   Modal,
   TextInput,
@@ -14,7 +14,7 @@ import {
   DeviceEventEmitter,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useAnimatedScrollHandler,
   useSharedValue,
@@ -42,6 +42,8 @@ import { getEventById } from '../../../lib/events/event-service';
 import { api, WEB_APP_URL } from '../../../lib/network/api';
 import { PaylukCheckout } from '../../../components/payments/PaylukCheckout';
 import { formatPrice } from '../../../lib/shared/utils';
+import { eventScreenStyles as eventUI } from '../../../components/events/event-screen-styles';
+import { getEventDateInfo } from '../../../lib/events/event-presentation';
 import { AttendeeAvatars } from '../../../components/events/AttendeeAvatars';
 import { VerifiedBadge } from '../../../components/VerifiedBadge';
 import { directionsHref } from '../../../lib/location/directions';
@@ -54,8 +56,6 @@ const DARK_STYLE = [
   { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0d2236' }] },
   { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#0d1a0f' }] },
 ];
-
-const { width } = Dimensions.get('window');
 
 // Custom Skeleton Component
 const SkeletonCard = ({ height = 20, width = '100%', style }: any) => {
@@ -89,6 +89,10 @@ const SkeletonCard = ({ height = 20, width = '100%', style }: any) => {
 export default function EventDetailScreen() {
   const { theme } = useUnistyles();
   const stylesheet = _stylesheet;
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const eventScrollRef = useRef<Animated.ScrollView>(null);
+  const ticketSectionY = useRef(0);
 
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -377,7 +381,7 @@ export default function EventDetailScreen() {
       Alert.alert(
         'Payment awaiting confirmation',
         'Check My Tickets before paying again. Your ticket will appear after payment is verified.',
-        [{ text: 'My Tickets', onPress: () => router.push('/my-tickets' as any) }]
+        [{ text: 'My Tickets', onPress: () => router.push('/tickets' as any) }]
       );
     } finally {
       verifyInFlight.current = false;
@@ -459,8 +463,10 @@ export default function EventDetailScreen() {
   };
 
   const scrollToTickets = () => {
-    // If we had a ref, we'd scroll to tickets.
-    // For now we just open the ticket selection if it's a simple event, or just scroll down manually by user.
+    eventScrollRef.current?.scrollTo({
+      y: ticketSectionY.current + width * 0.9 - insets.top - 76,
+      animated: true,
+    });
   };
 
   if (loading) {
@@ -518,19 +524,14 @@ export default function EventDetailScreen() {
   const isOwner = user?.id === event.organizer_id;
   const statusObj = getEventStatus(event);
   const isExpired = statusObj.label === 'Ended' || statusObj.label === 'Cancelled';
-  const allTicketsSoldOut = event.ticket_tiers?.every((t) => t.is_sold_out);
+  const visibleTiers = event.ticket_tiers?.filter((tier) => tier.is_visible) || [];
+  const allTicketsSoldOut =
+    visibleTiers.length > 0 && visibleTiers.every((tier) => tier.is_sold_out);
+  const noTickets = visibleTiers.length === 0;
+  const dateInfo = getEventDateInfo(event.start_time);
 
-  const formattedDate = event.start_time
-    ? new Date(event.start_time).toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      })
-    : 'Date TBD';
-  const formattedTime = event.start_time
-    ? new Date(event.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-    : 'Time TBD';
+  const formattedDate = dateInfo?.full || 'Date to be announced';
+  const formattedTime = dateInfo?.time || 'Time to be announced';
 
   return (
     <View style={[stylesheet.container, { backgroundColor: theme.colors.DARK }]}>
@@ -545,10 +546,12 @@ export default function EventDetailScreen() {
       >
         <View style={stylesheet.headerRow}>
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
             onPress={() => router.back()}
-            style={[stylesheet.iconBtn, { backgroundColor: 'rgba(0,0,0,0.4)' }]}
+            style={[stylesheet.iconBtn, { backgroundColor: 'rgba(0,0,0,0.65)' }]}
           >
-            <Ionicons name="chevron-back" size={28} color={theme.colors.TEXT_PRIMARY} />
+            <Ionicons name="chevron-back" size={28} color="#fff" />
           </TouchableOpacity>
           <View style={{ flex: 1 }} />
           <View style={stylesheet.headerRightActions}>
@@ -564,19 +567,24 @@ export default function EventDetailScreen() {
               </TouchableOpacity>
             )}
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Share event"
               onPress={handleShare}
               style={[stylesheet.iconBtn, { backgroundColor: 'rgba(0,0,0,0.4)', marginRight: 8 }]}
             >
-              <Feather name="share" size={20} color={theme.colors.TEXT_PRIMARY} />
+              <Feather name="share" size={20} color="#fff" />
             </TouchableOpacity>
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={isBookmarked ? 'Unsave event' : 'Save event'}
+              accessibilityState={{ selected: isBookmarked }}
               onPress={handleBookmark}
               style={[stylesheet.iconBtn, { backgroundColor: 'rgba(0,0,0,0.4)' }]}
             >
               <Ionicons
                 name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
                 size={20}
-                color={isBookmarked ? theme.colors.G : theme.colors.TEXT_PRIMARY}
+                color={isBookmarked ? '#82DB7E' : '#fff'}
               />
             </TouchableOpacity>
           </View>
@@ -584,11 +592,12 @@ export default function EventDetailScreen() {
       </SafeAreaView>
 
       <Animated.ScrollView
+        ref={eventScrollRef}
         style={stylesheet.scrollContent}
         showsVerticalScrollIndicator={false}
         onScroll={scrollHandler}
         scrollEventThrottle={16}
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{ paddingBottom: 125 + insets.bottom }}
       >
         {/* HERO GALLERY */}
         <View style={stylesheet.heroContainer}>
@@ -648,6 +657,7 @@ export default function EventDetailScreen() {
         </View>
 
         <View style={stylesheet.infoSection}>
+          <Text style={[eventUI.eyebrow, { marginBottom: 12 }]}>YOUR NEXT GOOD PLAN</Text>
           {/* TITLE & STATUS */}
           <View style={stylesheet.titleRow}>
             <Text style={[stylesheet.title, { color: theme.colors.TEXT_PRIMARY }]}>
@@ -660,10 +670,12 @@ export default function EventDetailScreen() {
             </View>
           </View>
 
-          {/* PREMIUM INFO CARD */}
+          {/* AT A GLANCE */}
+          <Text style={[eventUI.sectionTitle, { marginBottom: 14 }]}>The plan</Text>
           <View
             style={[
               stylesheet.premiumCard,
+              stylesheet.infoGrid,
               { backgroundColor: theme.colors.SURFACE, borderColor: theme.colors.GLASS_BORDER },
             ]}
           >
@@ -746,8 +758,12 @@ export default function EventDetailScreen() {
                   paddingVertical: 12,
                   borderRadius: 16,
                   backgroundColor: theme.colors.G,
-                  marginTop: 16,
+                  marginTop: 0,
+                  minHeight: 48,
+                  width: '100%',
                 }}
+                accessibilityRole="button"
+                accessibilityLabel="Get directions to this event"
                 onPress={getDirections}
                 activeOpacity={0.8}
               >
@@ -782,7 +798,9 @@ export default function EventDetailScreen() {
             {event.description && event.description.length > 150 && (
               <TouchableOpacity
                 onPress={() => setAboutExpanded(!aboutExpanded)}
-                style={{ marginTop: 8 }}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: aboutExpanded }}
+                style={{ marginTop: 8, minHeight: 44, justifyContent: 'center' }}
               >
                 <Text style={[stylesheet.readMoreText, { color: theme.colors.G }]}>
                   {aboutExpanded ? 'Read Less' : 'Read More'}
@@ -838,17 +856,28 @@ export default function EventDetailScreen() {
                 </View>
               </View>
               {!isOwner && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'flex-end',
+                    gap: 8,
+                    width: '100%',
+                    marginTop: 12,
+                  }}
+                >
                   <TouchableOpacity
                     style={[
                       stylesheet.followBtn,
                       {
                         backgroundColor: theme.colors.SURFACE,
-                        width: 36,
+                        width: 44,
                         paddingHorizontal: 0,
                         justifyContent: 'center',
                       },
                     ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Message the organizer"
                     onPress={async (e) => {
                       e.stopPropagation();
                       if (!user || !event.organizer_id) return;
@@ -887,6 +916,11 @@ export default function EventDetailScreen() {
                           : theme.colors.G,
                       },
                     ]}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      isFollowingOrganizer ? 'Unfollow organizer' : 'Follow organizer'
+                    }
+                    accessibilityState={{ selected: isFollowingOrganizer }}
                     onPress={(e) => {
                       e.stopPropagation();
                       handleFollow();
@@ -896,9 +930,7 @@ export default function EventDetailScreen() {
                       style={[
                         stylesheet.followBtnText,
                         {
-                          color: isFollowingOrganizer
-                            ? theme.colors.TEXT_PRIMARY
-                            : theme.colors.DARK,
+                          color: isFollowingOrganizer ? theme.colors.TEXT_PRIMARY : '#102110',
                         },
                       ]}
                     >
@@ -953,12 +985,18 @@ export default function EventDetailScreen() {
 
           {/* TICKETS SECTION */}
           <Text
+            onLayout={(e) => {
+              ticketSectionY.current = e.nativeEvent.layout.y;
+            }}
             style={[
               stylesheet.sectionTitle,
-              { color: theme.colors.TEXT_PRIMARY, marginTop: 12, marginBottom: 12 },
+              { color: theme.colors.TEXT_PRIMARY, marginTop: 12, marginBottom: 8 },
             ]}
           >
-            Tickets
+            Find your ticket
+          </Text>
+          <Text style={[eventUI.subtitle, { marginBottom: 18 }]}>
+            Choose the experience that’s right for you.
           </Text>
           {event.ticket_tiers?.filter((t) => t.is_visible).length ? (
             event.ticket_tiers
@@ -974,6 +1012,9 @@ export default function EventDetailScreen() {
                 return (
                   <TouchableOpacity
                     key={tier.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${tier.name}, ${tier.price === 0 ? 'free entry' : formatPrice(tier.price)}${tier.is_sold_out ? ', sold out' : ''}`}
+                    accessibilityState={{ disabled: !!(tier.is_sold_out || isExpired || isOwner) }}
                     style={[
                       stylesheet.tierCard,
                       {
@@ -1011,7 +1052,7 @@ export default function EventDetailScreen() {
                             marginTop: 3,
                           }}
                         >
-                          ⚡ Limited tickets available
+                          {remaining} tickets left
                         </Text>
                       )}
                       <Text
@@ -1164,7 +1205,11 @@ export default function EventDetailScreen() {
       <View
         style={[
           stylesheet.bottomActionBar,
-          { backgroundColor: theme.colors.SURFACE, borderTopColor: theme.colors.GLASS_BORDER },
+          {
+            backgroundColor: theme.colors.SURFACE,
+            borderTopColor: theme.colors.GLASS_BORDER,
+            paddingBottom: Math.max(insets.bottom, 16),
+          },
         ]}
       >
         <TouchableOpacity
@@ -1173,19 +1218,22 @@ export default function EventDetailScreen() {
             {
               backgroundColor: isOwner
                 ? theme.colors.DARK
-                : isExpired || allTicketsSoldOut
+                : !userHasTickets && (isExpired || allTicketsSoldOut || noTickets)
                   ? theme.colors.GLASS_BORDER
                   : theme.colors.G,
               borderWidth: isOwner ? 1 : 0,
               borderColor: isOwner ? theme.colors.GLASS_BORDER : 'transparent',
             },
           ]}
-          disabled={!isOwner && (isExpired || allTicketsSoldOut)}
+          accessibilityRole="button"
+          accessibilityState={{
+            disabled: !isOwner && !userHasTickets && (isExpired || allTicketsSoldOut || noTickets),
+          }}
+          disabled={!isOwner && !userHasTickets && (isExpired || allTicketsSoldOut || noTickets)}
           onPress={() => {
-            if (isOwner) router.push('/my-events' as any);
+            if (isOwner) router.push(`/events/${event.id}/manage` as any);
             else if (userHasTickets) router.push('/tickets' as any);
-            else if (event?.ticket_tiers && event.ticket_tiers.length > 0)
-              setSelectedTier(event.ticket_tiers[0]);
+            else scrollToTickets();
           }}
         >
           <Text
@@ -1194,37 +1242,63 @@ export default function EventDetailScreen() {
               {
                 color: isOwner
                   ? theme.colors.TEXT_PRIMARY
-                  : isExpired || allTicketsSoldOut
+                  : !userHasTickets && (isExpired || allTicketsSoldOut || noTickets)
                     ? theme.colors.MUTED
-                    : theme.colors.DARK,
+                    : '#102110',
               },
             ]}
           >
             {isOwner
               ? 'Manage Event'
-              : isExpired
-                ? 'Event Ended'
-                : allTicketsSoldOut
-                  ? 'Sold Out'
-                  : userHasTickets
-                    ? 'View My Tickets'
-                    : 'View Tickets'}
+              : userHasTickets
+                ? 'View my tickets'
+                : isExpired
+                  ? 'Event ended'
+                  : noTickets
+                    ? 'Tickets not available'
+                    : allTicketsSoldOut
+                      ? 'Sold out'
+                      : 'Choose tickets'}
           </Text>
         </TouchableOpacity>
       </View>
 
       {/* Ticket Purchase Modal */}
-      <Modal visible={!!selectedTier} transparent animationType="slide">
+      <Modal
+        visible={!!selectedTier}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          if (!purchasing) {
+            setSelectedTier(null);
+            setQuantity(1);
+          }
+        }}
+      >
         <KeyboardAvoidingView
           style={stylesheet.modalOverlay}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View style={[stylesheet.modalContent, { backgroundColor: theme.colors.DARK }]}>
+          <View
+            style={[
+              stylesheet.modalContent,
+              { backgroundColor: theme.colors.DARK, paddingBottom: Math.max(insets.bottom, 20) },
+            ]}
+          >
             <View style={stylesheet.modalHeader}>
               <Text style={[stylesheet.modalTitle, { color: theme.colors.TEXT_PRIMARY }]}>
-                Get Tickets
+                Make it a plan
               </Text>
               <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Close ticket details"
+                disabled={purchasing}
+                style={{
+                  minWidth: 44,
+                  minHeight: 44,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
                 onPress={() => {
                   setSelectedTier(null);
                   setQuantity(1);
@@ -1234,39 +1308,59 @@ export default function EventDetailScreen() {
               </TouchableOpacity>
             </View>
 
-            {selectedTier && (
-              <View
-                style={[stylesheet.modalTierSummary, { backgroundColor: theme.colors.SURFACE }]}
-              >
-                <View>
-                  <Text style={[stylesheet.modalTierName, { color: theme.colors.TEXT_PRIMARY }]}>
-                    {selectedTier.name}
-                  </Text>
-                  <Text style={[stylesheet.modalTierPrice, { color: theme.colors.G }]}>
-                    {selectedTier.price === 0 ? 'FREE' : formatPrice(selectedTier.price * quantity)}
-                  </Text>
+            <ScrollView
+              style={stylesheet.modalForm}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingBottom: 4 }}
+            >
+              {selectedTier && (
+                <View
+                  style={[stylesheet.modalTierSummary, { backgroundColor: theme.colors.SURFACE }]}
+                >
+                  <View>
+                    <Text style={[stylesheet.modalTierName, { color: theme.colors.TEXT_PRIMARY }]}>
+                      {selectedTier.name}
+                    </Text>
+                    <Text style={[stylesheet.modalTierPrice, { color: theme.colors.G }]}>
+                      {selectedTier.price === 0
+                        ? 'FREE'
+                        : formatPrice(selectedTier.price * quantity)}
+                    </Text>
+                  </View>
+                  <View style={stylesheet.quantityContainer}>
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel="Remove one ticket"
+                      accessibilityState={{ disabled: quantity <= 1 || purchasing }}
+                      disabled={quantity <= 1 || purchasing}
+                      onPress={() => setQuantity((q) => Math.max(1, q - 1))}
+                      style={[
+                        stylesheet.quantityBtn,
+                        { backgroundColor: theme.colors.GLASS_BORDER },
+                      ]}
+                    >
+                      <Ionicons name="remove" size={20} color={theme.colors.TEXT_PRIMARY} />
+                    </TouchableOpacity>
+                    <Text style={[stylesheet.quantityText, { color: theme.colors.TEXT_PRIMARY }]}>
+                      {quantity}
+                    </Text>
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel="Add one ticket"
+                      accessibilityState={{ disabled: quantity >= 5 || purchasing }}
+                      disabled={quantity >= 5 || purchasing}
+                      onPress={() => setQuantity((q) => Math.min(5, q + 1))}
+                      style={[
+                        stylesheet.quantityBtn,
+                        { backgroundColor: theme.colors.GLASS_BORDER },
+                      ]}
+                    >
+                      <Ionicons name="add" size={20} color={theme.colors.TEXT_PRIMARY} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                <View style={stylesheet.quantityContainer}>
-                  <TouchableOpacity
-                    onPress={() => setQuantity((q) => Math.max(1, q - 1))}
-                    style={[stylesheet.quantityBtn, { backgroundColor: theme.colors.GLASS_BORDER }]}
-                  >
-                    <Ionicons name="remove" size={20} color={theme.colors.TEXT_PRIMARY} />
-                  </TouchableOpacity>
-                  <Text style={[stylesheet.quantityText, { color: theme.colors.TEXT_PRIMARY }]}>
-                    {quantity}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => setQuantity((q) => Math.min(5, q + 1))}
-                    style={[stylesheet.quantityBtn, { backgroundColor: theme.colors.GLASS_BORDER }]}
-                  >
-                    <Ionicons name="add" size={20} color={theme.colors.TEXT_PRIMARY} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
+              )}
 
-            <ScrollView style={stylesheet.modalForm}>
               <Text style={[stylesheet.inputLabel, { color: theme.colors.TEXT_PRIMARY }]}>
                 Name *
               </Text>
@@ -1277,6 +1371,7 @@ export default function EventDetailScreen() {
                 ]}
                 value={attendeeName}
                 onChangeText={setAttendeeName}
+                accessibilityLabel="Attendee name, required"
                 placeholder="Enter your name"
                 placeholderTextColor={theme.colors.LABEL}
               />
@@ -1290,6 +1385,7 @@ export default function EventDetailScreen() {
                 ]}
                 value={attendeeEmail}
                 onChangeText={setAttendeeEmail}
+                accessibilityLabel="Attendee email, required"
                 placeholder="Enter your email"
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -1305,6 +1401,7 @@ export default function EventDetailScreen() {
                 ]}
                 value={attendeePhone}
                 onChangeText={setAttendeePhone}
+                accessibilityLabel="Attendee phone number, optional"
                 placeholder="Enter your phone number"
                 keyboardType="phone-pad"
                 placeholderTextColor={theme.colors.LABEL}
@@ -1433,11 +1530,17 @@ export default function EventDetailScreen() {
   );
 }
 
-const _stylesheet = StyleSheet.create((theme) => ({
+const _stylesheet = StyleSheet.create((theme, rt) => ({
   container: { flex: 1 },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   errorText: { fontSize: 18, marginBottom: 20 },
-  backBtnWrapper: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: 8 },
+  backBtnWrapper: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
   backBtnText: { fontWeight: 'bold' },
   stickyHeader: { position: 'absolute', top: 0, left: 0, right: 0, height: 100 },
   headerRow: {
@@ -1448,9 +1551,9 @@ const _stylesheet = StyleSheet.create((theme) => ({
     paddingVertical: 12,
   },
   iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1458,16 +1561,16 @@ const _stylesheet = StyleSheet.create((theme) => ({
   headerRightActions: { flexDirection: 'row' },
   scrollContent: { flex: 1 },
 
-  heroContainer: { position: 'relative', width: width, height: width * 0.8 },
+  heroContainer: { position: 'relative', width: rt.screen.width, height: rt.screen.width * 0.9 },
   mainImage: {
-    width: width,
-    height: width * 0.8,
+    width: rt.screen.width,
+    height: rt.screen.width * 0.9,
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
   },
   placeholderImage: {
-    width: width,
-    height: width * 0.8,
+    width: rt.screen.width,
+    height: rt.screen.width * 0.9,
     justifyContent: 'center',
     alignItems: 'center',
     borderBottomLeftRadius: 32,
@@ -1482,7 +1585,7 @@ const _stylesheet = StyleSheet.create((theme) => ({
     paddingVertical: 6,
     borderRadius: 16,
   },
-  galleryBadgeText: { color: theme.colors.TEXT_PRIMARY, fontSize: 12, fontWeight: 'bold' },
+  galleryBadgeText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
   dotsContainer: {
     position: 'absolute',
     bottom: 16,
@@ -1494,30 +1597,29 @@ const _stylesheet = StyleSheet.create((theme) => ({
   },
   dot: { width: 6, height: 6, borderRadius: 3, marginHorizontal: 3 },
 
-  infoSection: { padding: 16 },
+  infoSection: { padding: 20, paddingTop: 24 },
   titleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 12,
     alignItems: 'flex-start',
-    marginBottom: 20,
+    marginBottom: 26,
   },
-  title: { fontSize: 26, fontWeight: '800', flex: 1, marginRight: 16, lineHeight: 32 },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  title: { fontFamily: 'Outfit-Bold', fontSize: 34, lineHeight: 40 },
+  statusBadge: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10 },
   statusBadgeText: { fontSize: 12, fontWeight: 'bold' },
 
-  premiumCard: { padding: 20, borderRadius: 24, borderWidth: 1, marginBottom: 16 },
-  infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  premiumCard: { padding: 18, borderRadius: 22, borderWidth: 1, marginBottom: 20 },
+  infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
+  infoRow: { width: '100%', flexDirection: 'row', alignItems: 'center', gap: 14 },
   iconBox: {
     width: 44,
     height: 44,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
   },
   infoTextContainer: { flex: 1 },
-  infoLabel: { fontSize: 13, marginBottom: 2 },
-  infoValue: { fontSize: 16, fontWeight: '600' },
+  infoLabel: { fontFamily: 'Inter-Regular', fontSize: 12, marginBottom: 4 },
+  infoValue: { fontFamily: 'Inter-SemiBold', fontSize: 15, lineHeight: 22, flexShrink: 1 },
   directionsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1534,12 +1636,12 @@ const _stylesheet = StyleSheet.create((theme) => ({
   },
 
   aboutHeader: { marginBottom: 12 },
-  sectionTitle: { fontSize: 20, fontWeight: 'bold' },
-  description: { fontSize: 16, lineHeight: 26 },
+  sectionTitle: { fontFamily: 'Outfit-Bold', fontSize: 23, lineHeight: 29 },
+  description: { fontFamily: 'Inter-Regular', fontSize: 14, lineHeight: 24 },
   readMoreText: { fontSize: 15, fontWeight: 'bold' },
 
   organizerCard: { padding: 16 },
-  organizerRow: { flexDirection: 'row', alignItems: 'center' },
+  organizerRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
   avatar: {
     width: 56,
     height: 56,
@@ -1551,10 +1653,17 @@ const _stylesheet = StyleSheet.create((theme) => ({
   },
   avatarImage: { width: '100%', height: '100%' },
   avatarText: { color: theme.colors.TEXT_PRIMARY, fontSize: 22, fontWeight: 'bold' },
-  organizerInfo: { flex: 1 },
+  organizerInfo: { flex: 1, minWidth: 120 },
   organizerLabel: { fontSize: 13, marginBottom: 2 },
   sellerName: { fontSize: 17, fontWeight: 'bold' },
-  followBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginLeft: 12 },
+  followBtn: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 14,
+    marginLeft: 12,
+  },
   followBtnText: { fontWeight: 'bold', fontSize: 14 },
 
   mapMarker: {
@@ -1586,11 +1695,11 @@ const _stylesheet = StyleSheet.create((theme) => ({
     alignItems: 'center',
     marginRight: 16,
   },
-  tierInfo: { flex: 1, marginRight: 16 },
-  tierName: { fontSize: 17, fontWeight: 'bold', marginBottom: 4 },
+  tierInfo: { flex: 1, minWidth: 0, marginRight: 10 },
+  tierName: { fontFamily: 'Outfit-Bold', fontSize: 20, lineHeight: 26, marginBottom: 4 },
   tierDesc: { fontSize: 14, marginBottom: 8 },
   tierPrice: { fontSize: 16, fontWeight: 'bold' },
-  tierStatus: { alignItems: 'center', justifyContent: 'center' },
+  tierStatus: { maxWidth: 70, alignItems: 'center', justifyContent: 'center' },
   tierBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
 
   relatedSection: { marginTop: 16, marginBottom: 24 },
@@ -1636,12 +1745,14 @@ const _stylesheet = StyleSheet.create((theme) => ({
   },
   bottomPrimaryBtn: {
     flex: 1,
-    height: 56,
-    borderRadius: 28,
+    minHeight: 54,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  bottomPrimaryText: { fontSize: 16, fontWeight: 'bold' },
+  bottomPrimaryText: { fontFamily: 'Outfit-Bold', fontSize: 17, textAlign: 'center' },
 
   // Modal styles preserved
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
@@ -1657,31 +1768,29 @@ const _stylesheet = StyleSheet.create((theme) => ({
     alignItems: 'center',
     marginBottom: 24,
   },
-  modalTitle: { fontSize: 22, fontWeight: 'bold' },
+  modalTitle: { flex: 1, fontFamily: 'Outfit-Bold', fontSize: 25, lineHeight: 31 },
   modalTierSummary: {
     padding: 16,
     borderRadius: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
+    gap: 16,
+    marginBottom: 20,
   },
   modalTierName: { fontSize: 16, fontWeight: '600' },
   modalTierPrice: { fontSize: 18, fontWeight: 'bold' },
-  quantityContainer: { flexDirection: 'row', alignItems: 'center' },
+  quantityContainer: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start' },
   quantityBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
   },
   quantityText: { fontSize: 18, fontWeight: 'bold', marginHorizontal: 16 },
-  modalForm: { marginBottom: 24 },
+  modalForm: { flexShrink: 1, minHeight: 0, marginBottom: 16 },
   inputLabel: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
   input: { padding: 16, borderRadius: 16, marginBottom: 16, fontSize: 16 },
   purchaseBtn: { padding: 18, borderRadius: 16, alignItems: 'center' },
-  purchaseBtnText: { color: theme.colors.TEXT_PRIMARY, fontSize: 16, fontWeight: 'bold' },
+  purchaseBtnText: { color: '#102110', fontSize: 16, fontWeight: 'bold' },
 
   // Success overlay
   successBackdrop: {
@@ -1728,7 +1837,7 @@ const _stylesheet = StyleSheet.create((theme) => ({
     alignItems: 'center',
     marginBottom: 8,
   },
-  successBtnText: { color: theme.colors.TEXT_PRIMARY, fontSize: 16, fontWeight: '800' },
-  successSecondary: { height: 40, justifyContent: 'center', alignItems: 'center' },
+  successBtnText: { color: '#102110', fontSize: 16, fontWeight: '800' },
+  successSecondary: { minHeight: 44, justifyContent: 'center', alignItems: 'center' },
   successSecondaryText: { fontSize: 14, fontWeight: '600' },
 }));

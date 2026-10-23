@@ -48,6 +48,10 @@ export default function CreateEventScreen() {
 
   const { categories, loading: categoriesLoading } = useCategories('event');
   const [step, setStep] = useState(0);
+  const formScroll = React.useRef<ScrollView>(null);
+  React.useEffect(() => {
+    formScroll.current?.scrollTo({ y: 0, animated: false });
+  }, [step]);
 
   // Form State
   const [eventName, setEventName] = useState('');
@@ -522,11 +526,16 @@ export default function CreateEventScreen() {
     >
       {videoEditor}
       <View style={stylesheet.header}>
-        <TouchableOpacity onPress={handleBack} style={stylesheet.backBtn}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={step > 0 ? 'Previous step' : 'Back'}
+          onPress={handleBack}
+          style={stylesheet.backBtn}
+        >
           <Ionicons name="chevron-back" size={20} color={theme.colors.TEXT_PRIMARY} />
         </TouchableOpacity>
         <View style={stylesheet.headerTextContainer}>
-          <Text style={stylesheet.headerTitle}>Create Event</Text>
+          <Text style={stylesheet.headerTitle}>Create an event</Text>
           <Text style={stylesheet.headerSubtitle}>
             Step {step + 1} of {STEPS.length} · {STEPS[step]}
           </Text>
@@ -549,12 +558,39 @@ export default function CreateEventScreen() {
       )}
 
       <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ flexGrow: 0 }}
+        contentContainerStyle={stylesheet.stepTrack}
+      >
+        {STEPS.map((label, index) => (
+          <TouchableOpacity
+            key={label}
+            accessibilityRole="button"
+            accessibilityState={{ selected: index === step, disabled: index > step || publishing }}
+            disabled={index > step || publishing}
+            onPress={() => setStep(index)}
+            style={[stylesheet.stepPill, index === step && stylesheet.stepPillActive]}
+          >
+            <Text
+              style={[
+                stylesheet.stepPillText,
+                index === step && { color: theme.colors.TEXT_PRIMARY },
+              ]}
+            >
+              {index < step ? '✓' : String(index + 1).padStart(2, '0')} · {label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+      <ScrollView
+        ref={formScroll}
         contentContainerStyle={stylesheet.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
         {step === 0 && (
           <View style={stylesheet.formGroup}>
-            <Text style={stylesheet.stepTitle}>Basic Info</Text>
+            <Text style={stylesheet.stepTitle}>Make it a good plan.</Text>
             <Text style={stylesheet.stepDesc}>Give your event a clear name and category.</Text>
 
             <Text style={stylesheet.label}>Event Title</Text>
@@ -613,7 +649,7 @@ export default function CreateEventScreen() {
 
         {step === 1 && (
           <View style={stylesheet.formGroup}>
-            <Text style={stylesheet.stepTitle}>Date & Time</Text>
+            <Text style={stylesheet.stepTitle}>Set the date.</Text>
             <Text style={stylesheet.stepDesc}>When is your event taking place?</Text>
 
             <Text style={stylesheet.label}>Event Date</Text>
@@ -676,7 +712,7 @@ export default function CreateEventScreen() {
 
         {step === 2 && (
           <View style={stylesheet.formGroup}>
-            <Text style={stylesheet.stepTitle}>Location</Text>
+            <Text style={stylesheet.stepTitle}>Pick the meeting point.</Text>
             <Text style={stylesheet.stepDesc}>Where can attendees find your event?</Text>
 
             <View style={stylesheet.switchRow}>
@@ -766,7 +802,7 @@ export default function CreateEventScreen() {
 
         {step === 3 && (
           <View style={stylesheet.formGroup}>
-            <Text style={stylesheet.stepTitle}>Tickets</Text>
+            <Text style={stylesheet.stepTitle}>Make room for everyone.</Text>
             <Text style={stylesheet.stepDesc}>Add the ticket tiers available for your event.</Text>
 
             {tiers.map((t, idx) => (
@@ -804,7 +840,9 @@ export default function CreateEventScreen() {
                 />
 
                 <View style={stylesheet.switchRow}>
-                  <Text style={{ fontFamily: 'Inter-Medium', color: '#ccc', fontSize: 14 }}>
+                  <Text
+                    style={{ fontFamily: 'Inter-Medium', color: theme.colors.LABEL, fontSize: 14 }}
+                  >
                     Is this a Free Ticket?
                   </Text>
                   <Switch
@@ -855,7 +893,7 @@ export default function CreateEventScreen() {
 
         {step === 4 && (
           <View style={stylesheet.formGroup}>
-            <Text style={stylesheet.stepTitle}>Media</Text>
+            <Text style={stylesheet.stepTitle}>Set the scene.</Text>
             <Text style={stylesheet.stepDesc}>
               Add eye-catching photos/videos for your event. At least one image is required.
             </Text>
@@ -956,7 +994,7 @@ export default function CreateEventScreen() {
 
         {step === 5 && (
           <View style={stylesheet.formGroup}>
-            <Text style={stylesheet.stepTitle}>Review & Publish</Text>
+            <Text style={stylesheet.stepTitle}>Ready to bring people together?</Text>
             <Text style={stylesheet.stepDesc}>
               Verify details before publishing live. Here's a preview of how it will look:
             </Text>
@@ -1339,16 +1377,30 @@ const _stylesheet = StyleSheet.create((theme) => ({
     gap: 12,
   },
   backBtn: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: 18,
     backgroundColor: theme.colors.SURFACE,
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerTextContainer: { flex: 1 },
-  headerTitle: { fontFamily: 'Outfit-Bold', fontSize: 18, color: theme.colors.TEXT_PRIMARY },
+  headerTitle: { fontFamily: 'Outfit-Bold', fontSize: 20, color: theme.colors.TEXT_PRIMARY },
   headerSubtitle: { fontFamily: 'Inter-Regular', fontSize: 12, color: theme.colors.MUTED },
+  stepTrack: { paddingHorizontal: 20, paddingVertical: 16, gap: 8 },
+  stepPill: {
+    paddingHorizontal: 12,
+    minHeight: 44,
+    justifyContent: 'center',
+    borderRadius: 14,
+    backgroundColor: theme.colors.SURFACE,
+  },
+  stepPillActive: {
+    backgroundColor: theme.colors.G + '18',
+    borderWidth: 1,
+    borderColor: theme.colors.G,
+  },
+  stepPillText: { fontFamily: 'Inter-Medium', fontSize: 12, color: theme.colors.MUTED },
   progressBarBg: {
     height: 3,
     backgroundColor: theme.colors.GLASS_BORDER,
@@ -1364,7 +1416,8 @@ const _stylesheet = StyleSheet.create((theme) => ({
   },
   stepTitle: {
     fontFamily: 'Outfit-Bold',
-    fontSize: 22,
+    fontSize: 30,
+    lineHeight: 36,
     color: theme.colors.TEXT_PRIMARY,
     marginBottom: 4,
   },
@@ -1375,14 +1428,15 @@ const _stylesheet = StyleSheet.create((theme) => ({
     marginBottom: 20,
   },
   formGroup: { gap: 12 },
-  label: { fontFamily: 'Inter-Medium', fontSize: 13, color: '#ccc', marginTop: 8 },
+  label: { fontFamily: 'Inter-Medium', fontSize: 13, color: theme.colors.LABEL, marginTop: 8 },
   input: {
     backgroundColor: theme.colors.SURFACE,
     borderWidth: 1,
     borderColor: theme.colors.GLASS_BORDER,
-    borderRadius: 12,
+    borderRadius: 16,
+    minHeight: 52,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     fontFamily: 'Inter-Regular',
     fontSize: 15,
     color: theme.colors.TEXT_PRIMARY,
@@ -1428,7 +1482,7 @@ const _stylesheet = StyleSheet.create((theme) => ({
   tierLabel: {
     fontFamily: 'Inter-Medium',
     fontSize: 13,
-    color: '#ccc',
+    color: theme.colors.LABEL,
     marginTop: 12,
     marginBottom: 8,
   },
@@ -1521,7 +1575,7 @@ const _stylesheet = StyleSheet.create((theme) => ({
   reviewBadgeText: {
     fontFamily: 'Inter-Medium',
     fontSize: 12,
-    color: '#ccc',
+    color: theme.colors.LABEL,
   },
   reviewLocationRow: {
     flexDirection: 'row',

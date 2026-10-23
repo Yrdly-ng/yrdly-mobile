@@ -35,6 +35,8 @@ import { useNotificationBadge } from '../../context/NotificationBadgeContext';
 import * as Location from 'expo-location';
 import { LocationPicker, LocationValue } from '../../components/location/LocationPicker';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
+import { EventCard } from '../../components/events/EventCard';
+import { eventScreenStyles as eventUI } from '../../components/events/event-screen-styles';
 import { DiscoverPeopleSection } from '../../components/people/DiscoverPeopleSection';
 import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/use-notification-route-ack';
 
@@ -830,156 +832,226 @@ function EventsSection({
   search: string;
 }) {
   const { theme } = useUnistyles();
-  const sStylesheet = stylesheet;
   const { activeFilter } = useLocation();
-
   const router = useRouter();
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  useNotificationRouteAcknowledgement(!loading);
-  const EVENT_FILTERS = [
-    'All',
-    'Today',
-    'This Week',
-    'Weekend',
-    'Community',
-    'Music',
-    'Food',
-    'Sports',
-  ];
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(false);
   const [filter, setFilter] = useState('All');
+  const [refreshKey, setRefreshKey] = useState(0);
+  useNotificationRouteAcknowledgement(!loading);
+  const filters = ['All', 'Today', 'This Week', 'Weekend', 'Community', 'Music', 'Food', 'Sports'];
 
   useFocusEffect(
     useCallback(() => {
+      let active = true;
       async function fetchEvents() {
-        // Only fetch events from today onwards
+        setError(false);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         let q = supabase
           .from('events')
-          .select('*')
+          .select('*, ticket_tiers(price, is_visible)')
+          .eq('status', 'PUBLISHED')
+          .eq('is_archived', false)
           .gte('start_time', today.toISOString())
-          .limit(20)
-          .order('start_time', { ascending: true });
-
-        if (filter !== 'All') {
-          // If filter is a category, we can search in category field (assuming there's a category field or we check title/description)
-          // For dates like 'Today', we'd need date logic, but for simplicity, we'll try ILIKE on category or title
-          if (['Community', 'Music', 'Food', 'Sports'].includes(filter)) {
-            q = q.ilike('category', `%${filter}%`);
-          } else if (filter === 'Today') {
-            const endOfToday = new Date(today);
-            endOfToday.setHours(23, 59, 59, 999);
-            q = q.lte('start_time', endOfToday.toISOString());
-          } else if (filter === 'This Week') {
-            const endOfWeek = new Date(today);
-            endOfWeek.setDate(endOfWeek.getDate() + 7);
-            q = q.lte('start_time', endOfWeek.toISOString());
+          .order('start_time', { ascending: true })
+          .limit(30);
+        if (['Community', 'Music', 'Food', 'Sports'].includes(filter)) {
+          q = q.ilike('category', `%${filter}%`);
+        } else if (filter === 'Today') {
+          const end = new Date(today);
+          end.setHours(23, 59, 59, 999);
+          q = q.lte('start_time', end.toISOString());
+        } else if (filter === 'This Week') {
+          const end = new Date(today);
+          end.setDate(end.getDate() + 7);
+          q = q.lt('start_time', end.toISOString());
+        } else if (filter === 'Weekend') {
+          const saturday = new Date(today);
+          saturday.setDate(today.getDate() + ((6 - today.getDay() + 7) % 7));
+          // On Sunday, include the remainder of this weekend rather than skipping a week.
+          if (today.getDay() === 0) saturday.setTime(today.getTime());
+          const monday = new Date(saturday);
+          monday.setDate(saturday.getDate() + (today.getDay() === 0 ? 1 : 2));
+          q = q.gte('start_time', saturday.toISOString()).lt('start_time', monday.toISOString());
+        }
+        if (activeFilter?.ward) q = q.eq('ward', activeFilter.ward);
+        else if (activeFilter?.lga) q = q.eq('lga', activeFilter.lga);
+        else if (activeFilter?.state) q = q.eq('state', activeFilter.state);
+        if (search?.trim()) q = q.ilike('title', `%${search.trim()}%`);
+        try {
+          const { data, error: fetchError } = await q;
+          if (!active) return;
+          if (fetchError) setError(true);
+          else setEvents(data || []);
+        } catch {
+          if (active) setError(true);
+        } finally {
+          if (active) {
+            setLoading(false);
+            setRefreshing(false);
           }
         }
-
-        if (activeFilter) {
-          if (activeFilter.lga) {
-            q = q.eq('lga', activeFilter.lga);
-          } else if (activeFilter.state) {
-            q = q.eq('state', activeFilter.state);
-          }
-        }
-
-        if (search?.trim()) {
-          q = q.ilike('title', `%${search.trim()}%`);
-        }
-        // TODO: implement specific date filters based on selected filter state if needed
-
-        const { data, error } = await q;
-        if (data) {
-          if (data.length > 0) {
-            const eventIds = data.map((e) => e.id);
-            try {
-              const { data: ticketsData } = await supabase
-                .from('tickets')
-                .select(
-                  'event_id, buyer:public_profiles!tickets_buyer_id_fkey(id, name, avatar_url)'
-                )
-                .in('event_id', eventIds);
-
-              if (ticketsData) {
-                const countMap: Record<string, number> = {};
-                const attendeesMap: Record<string, any[]> = {};
-                ticketsData.forEach((t: any) => {
-                  if (t.event_id) {
-                    countMap[t.event_id] = (countMap[t.event_id] || 0) + 1;
-                    if (t.buyer) {
-                      if (!attendeesMap[t.event_id]) attendeesMap[t.event_id] = [];
-                      if (!attendeesMap[t.event_id].some((b: any) => b.id === t.buyer.id)) {
-                        attendeesMap[t.event_id].push(t.buyer);
-                      }
-                    }
-                  }
-                });
-                data.forEach((e: any) => {
-                  e.attendee_count = countMap[e.id] || 0;
-                  e.attendees = attendeesMap[e.id] || [];
-                });
-              }
-            } catch (ticketErr) {
-              console.warn('Error fetching event ticket counts:', ticketErr);
-            }
-          }
-          setEvents(data);
-        } else {
-          console.log('Error fetching events:', error);
-        }
-        setLoading(false);
       }
-      fetchEvents();
-    }, [filter, activeFilter, search])
+      void fetchEvents();
+      return () => {
+        active = false;
+      };
+    }, [filter, activeFilter, search, refreshKey])
   );
 
+  const retry = () => {
+    setRefreshing(true);
+    setRefreshKey((value) => value + 1);
+  };
   return (
-    <View style={sStylesheet.sectionContainer}>
-      <View
-        style={[
-          sStylesheet.eventsToolbar,
-          {
-            paddingHorizontal: 20,
-            paddingVertical: 12,
-            borderBottomWidth: 1,
-            borderBottomColor: theme.colors.GLASS_BORDER,
-            backgroundColor: theme.colors.DARK,
-            alignItems: 'flex-start',
-          },
-        ]}
-      >
-        <CategoryDropdown
-          category={filter}
-          setCategory={setFilter}
-          options={EVENT_FILTERS}
-          theme={theme}
-          label="Filter"
-        />
-      </View>
-
-      {loading ? (
-        <ActivityIndicator color={theme.colors.G} style={{ marginTop: 40 }} />
-      ) : (
-        <FlatList
-          data={events}
-          keyExtractor={(i) => i.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100, gap: 16 }}
-          renderItem={({ item }) => {
-            return (
-              <CatalogEventCard
-                item={item}
-                router={router}
-                theme={theme}
-                sStylesheet={sStylesheet}
-              />
-            );
-          }}
-        />
-      )}
+    <View style={eventUI.page}>
+      <FlatList
+        data={events}
+        keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 110 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={retry} tintColor={theme.colors.G} />
+        }
+        ListHeaderComponent={
+          <>
+            <View style={eventUI.header}>
+              <Text style={eventUI.eyebrow}>OUT THERE, TOGETHER</Text>
+              <Text style={eventUI.title}>Make a plan.</Text>
+              <Text style={eventUI.subtitle}>
+                Good company. New experiences. Find your next reason to go out.
+              </Text>
+              <View style={[eventUI.row, { marginTop: 8, flexWrap: 'wrap', gap: 8 }]}>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  style={eventUI.secondaryButton}
+                  onPress={() => router.push('/tickets' as any)}
+                >
+                  <Ionicons name="ticket-outline" size={17} color={theme.colors.TEXT_PRIMARY} />
+                  <Text style={eventUI.secondaryButtonText}>My tickets</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  style={eventUI.secondaryButton}
+                  onPress={() => router.push('/my-events' as any)}
+                >
+                  <Ionicons name="calendar-outline" size={17} color={theme.colors.TEXT_PRIMARY} />
+                  <Text style={eventUI.secondaryButtonText}>Hosting</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  style={eventUI.secondaryButton}
+                  onPress={() => router.push('/create-event' as any)}
+                >
+                  <Ionicons name="add" size={17} color={theme.colors.TEXT_PRIMARY} />
+                  <Text style={eventUI.secondaryButtonText}>Create</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 20, gap: 8, paddingBottom: 18 }}
+            >
+              {filters.map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: filter === option }}
+                  onPress={() => {
+                    setFilter(option);
+                    setLoading(true);
+                    setEvents([]);
+                  }}
+                  style={[
+                    eventUI.chip,
+                    filter === option && {
+                      backgroundColor: theme.colors.G,
+                      borderColor: theme.colors.G,
+                    },
+                  ]}
+                >
+                  <Text style={[eventUI.chipText, filter === option && { color: '#102110' }]}>
+                    {option}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
+              <Text style={eventUI.sectionTitle}>
+                {search.trim()
+                  ? 'Your search results'
+                  : filter === 'All'
+                    ? 'Coming up near you'
+                    : filter}
+              </Text>
+              <Text style={eventUI.sectionHint}>
+                {activeFilter?.lga || activeFilter?.state || 'Your selected area'} · Soonest first
+              </Text>
+            </View>
+            {error && (
+              <View style={[eventUI.card, { marginHorizontal: 20, marginBottom: 20 }]}>
+                <Text style={eventUI.label}>We couldn’t load events.</Text>
+                <Text style={eventUI.muted}>Check your connection and try again.</Text>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  onPress={retry}
+                  style={eventUI.secondaryButton}
+                >
+                  <Text style={eventUI.secondaryButtonText}>Try again</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </>
+        }
+        ListEmptyComponent={
+          loading ? (
+            <ActivityIndicator
+              accessibilityLabel="Loading events"
+              color={theme.colors.G}
+              style={{ padding: 40 }}
+            />
+          ) : error ? null : (
+            <View style={eventUI.empty}>
+              <Ionicons name="calendar-outline" size={38} color={theme.colors.TEXT_SECONDARY} />
+              <Text style={eventUI.emptyTitle}>Your next plan is still out there.</Text>
+              <Text style={eventUI.emptyText}>
+                {search.trim()
+                  ? 'Try a different event name or clear your search.'
+                  : 'Try another category or change your area to see more events.'}
+              </Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                style={eventUI.primaryButton}
+                onPress={() => router.push('/create-event' as any)}
+              >
+                <Text style={eventUI.primaryButtonText}>Bring people together</Text>
+              </TouchableOpacity>
+            </View>
+          )
+        }
+        renderItem={({ item }) => (
+          <EventCard
+            event={{
+              ...item,
+              user_id: item.organizer_id,
+              image_urls: item.image_urls?.length
+                ? item.image_urls
+                : item.cover_image_url
+                  ? [item.cover_image_url]
+                  : [],
+              event_date: item.start_time,
+              event_location: {
+                address: item.location_online ? 'Online event' : item.location_address,
+              },
+            }}
+            onPress={() => router.push(`/events/${item.id}` as any)}
+          />
+        )}
+      />
     </View>
   );
 }

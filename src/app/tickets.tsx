@@ -10,6 +10,7 @@ import {
   RefreshControl,
   Modal,
   Alert,
+  ScrollView,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -55,6 +56,7 @@ export default function TicketsScreen() {
   const { user } = useAuth();
 
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loadError, setLoadError] = useState(false);
   const [loading, setLoading] = useState(true);
   useNotificationRouteAcknowledgement(!loading);
   const [refreshing, setRefreshing] = useState(false);
@@ -77,11 +79,17 @@ export default function TicketsScreen() {
   }));
 
   const fetchTickets = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+    setLoadError(false);
     try {
       const data = await getMyTickets(user.id);
       setTickets(data);
     } catch (e) {
+      setLoadError(true);
       console.error(e);
     } finally {
       setLoading(false);
@@ -120,11 +128,12 @@ export default function TicketsScreen() {
           onPress: async () => {
             setDeletingId(ticketId);
             try {
-              await supabase
+              const { error } = await supabase
                 .from('tickets')
                 .update({ is_archived: true })
                 .eq('id', ticketId)
                 .eq('buyer_id', user!.id);
+              if (error) throw error;
               setTickets((prev) =>
                 prev.map((t) => (t.id === ticketId ? { ...t, is_archived: true } : t))
               );
@@ -196,13 +205,12 @@ export default function TicketsScreen() {
         <View style={{ flex: 1 }}>
           <Text
             style={{
-              fontFamily: 'Outfit',
-              fontWeight: '800',
-              fontSize: 16,
+              fontFamily: 'Outfit-Bold',
+              fontSize: 18,
               color: theme.colors.TEXT_PRIMARY,
               marginBottom: 4,
             }}
-            numberOfLines={1}
+            numberOfLines={2}
           >
             {event?.title || 'Event'}
           </Text>
@@ -252,7 +260,10 @@ export default function TicketsScreen() {
         {activeTab === 'past' ? (
           <TouchableOpacity
             style={stylesheet.qrSection}
-            onPress={() => handleDeleteTicket(item.id)}
+            onPress={(press) => {
+              press.stopPropagation();
+              handleDeleteTicket(item.id);
+            }}
             disabled={deletingId === item.id}
           >
             {deletingId === item.id ? (
@@ -280,8 +291,22 @@ export default function TicketsScreen() {
           { backgroundColor: theme.colors.DARK, borderBottomColor: theme.colors.GLASS_BORDER },
         ]}
       >
+        <View style={stylesheet.headerTop}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+            onPress={() => router.back()}
+            style={stylesheet.backButton}
+          >
+            <Feather name="arrow-left" size={22} color={theme.colors.TEXT_PRIMARY} />
+          </TouchableOpacity>
+          <Text style={stylesheet.eyebrow}>YOUR PLANS</Text>
+        </View>
         <Text style={[stylesheet.headerTitle, { color: theme.colors.TEXT_PRIMARY }]}>
-          My Tickets
+          Tickets, ready to go.
+        </Text>
+        <Text style={stylesheet.headerHint}>
+          Keep your entry passes close. Tap a ticket to show its QR code.
         </Text>
       </View>
 
@@ -314,6 +339,11 @@ export default function TicketsScreen() {
         </TouchableOpacity>
       </View>
 
+      {loadError && (
+        <TouchableOpacity accessibilityRole="button" onPress={fetchTickets} style={{ padding: 20 }}>
+          <Text style={stylesheet.headerHint}>Could not update your tickets. Tap to retry.</Text>
+        </TouchableOpacity>
+      )}
       {loading ? (
         <View style={stylesheet.centerContainer}>
           <ActivityIndicator size="large" color={theme.colors.G} />
@@ -336,10 +366,12 @@ export default function TicketsScreen() {
             <View style={stylesheet.emptyContainer}>
               <Feather name="tag" size={72} color={theme.colors.GLASS_BORDER} />
               <Text style={[stylesheet.emptyTitle, { color: theme.colors.TEXT_PRIMARY }]}>
-                No Tickets Yet
+                {activeTab === 'past' ? 'No past tickets' : 'Your next plan awaits'}
               </Text>
               <Text style={[stylesheet.emptySubtitle, { color: theme.colors.MUTED }]}>
-                Buy tickets to events to see them here.
+                {activeTab === 'past'
+                  ? 'Used and past tickets will appear here.'
+                  : 'Find an event you love. Your tickets will be waiting here.'}
               </Text>
               <TouchableOpacity
                 style={[stylesheet.browseButton, { backgroundColor: theme.colors.G }]}
@@ -373,77 +405,85 @@ export default function TicketsScreen() {
           </View>
 
           {selectedTicket && (
-            <Animated.View style={[stylesheet.modalContent, animatedTicketStyle]}>
-              {/* Event card */}
-              <View style={[stylesheet.modalEventCard, { backgroundColor: theme.colors.SURFACE }]}>
-                {selectedTicket.event?.cover_image_url && (
-                  <Image
-                    source={{ uri: selectedTicket.event?.cover_image_url }}
-                    style={stylesheet.modalEventImage}
-                    contentFit="cover"
-                  />
-                )}
-                <View style={stylesheet.modalEventInfo}>
-                  <Text style={[stylesheet.modalEventTitle, { color: theme.colors.TEXT_PRIMARY }]}>
-                    {selectedTicket.event?.title || 'Event'}
-                  </Text>
-                  <Text style={[stylesheet.modalEventDate, { color: theme.colors.LABEL }]}>
-                    {selectedTicket.event?.start_time
-                      ? new Date(selectedTicket.event.start_time).toLocaleDateString('en-US', {
-                          weekday: 'long',
-                          month: 'long',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })
-                      : 'Date TBD'}
-                  </Text>
+            <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+              <Animated.View style={[stylesheet.modalContent, animatedTicketStyle]}>
+                {/* Event card */}
+                <View
+                  style={[stylesheet.modalEventCard, { backgroundColor: theme.colors.SURFACE }]}
+                >
+                  {selectedTicket.event?.cover_image_url && (
+                    <Image
+                      source={{ uri: selectedTicket.event?.cover_image_url }}
+                      style={stylesheet.modalEventImage}
+                      contentFit="cover"
+                    />
+                  )}
+                  <View style={stylesheet.modalEventInfo}>
+                    <Text
+                      style={[stylesheet.modalEventTitle, { color: theme.colors.TEXT_PRIMARY }]}
+                    >
+                      {selectedTicket.event?.title || 'Event'}
+                    </Text>
+                    <Text style={[stylesheet.modalEventDate, { color: theme.colors.LABEL }]}>
+                      {selectedTicket.event?.start_time
+                        ? new Date(selectedTicket.event.start_time).toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            month: 'long',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })
+                        : 'Date TBD'}
+                    </Text>
+                  </View>
                 </View>
-              </View>
 
-              {/* QR Code */}
-              <View style={[stylesheet.qrContainer, { backgroundColor: theme.colors.SURFACE }]}>
-                <QRCode
-                  value={selectedTicket.id}
-                  size={220}
-                  color={theme.colors.TEXT_PRIMARY}
-                  backgroundColor={theme.colors.DARK}
-                />
-              </View>
+                {/* QR Code */}
+                <View style={[stylesheet.qrContainer, { backgroundColor: '#FFFFFF' }]}>
+                  <QRCode
+                    value={selectedTicket.id}
+                    size={220}
+                    color="#102110"
+                    backgroundColor="#FFFFFF"
+                  />
+                </View>
 
-              {/* Ticket token */}
-              <Text style={[stylesheet.tokenLabel, { color: theme.colors.MUTED }]}>TICKET ID</Text>
-              <Text style={[stylesheet.tokenValue, { color: theme.colors.TEXT_PRIMARY }]}>
-                {selectedTicket.id.slice(0, 16).toUpperCase()}
-              </Text>
+                {/* Ticket token */}
+                <Text style={[stylesheet.tokenLabel, { color: theme.colors.MUTED }]}>
+                  TICKET ID
+                </Text>
+                <Text style={[stylesheet.tokenValue, { color: theme.colors.TEXT_PRIMARY }]}>
+                  {selectedTicket.id.slice(0, 16).toUpperCase()}
+                </Text>
 
-              <View
-                style={[
-                  stylesheet.modalStatusBadge,
-                  getTicketStatusInfo(selectedTicket).isValid
-                    ? stylesheet.activeBadge
-                    : [stylesheet.usedBadge, { backgroundColor: theme.colors.SURFACE }],
-                ]}
-              >
-                <Text
+                <View
                   style={[
-                    stylesheet.modalStatusText,
-                    {
-                      color: getTicketStatusInfo(selectedTicket).isExpired
-                        ? '#FFA000'
-                        : theme.colors.G,
-                    },
+                    stylesheet.modalStatusBadge,
+                    getTicketStatusInfo(selectedTicket).isValid
+                      ? stylesheet.activeBadge
+                      : [stylesheet.usedBadge, { backgroundColor: theme.colors.SURFACE }],
                   ]}
                 >
-                  {getTicketStatusInfo(selectedTicket).isValid
-                    ? '✓ Valid Ticket'
-                    : getTicketStatusInfo(selectedTicket).text}
-                </Text>
-              </View>
+                  <Text
+                    style={[
+                      stylesheet.modalStatusText,
+                      {
+                        color: getTicketStatusInfo(selectedTicket).isExpired
+                          ? '#FFA000'
+                          : theme.colors.G,
+                      },
+                    ]}
+                  >
+                    {getTicketStatusInfo(selectedTicket).isValid
+                      ? '✓ Valid Ticket'
+                      : getTicketStatusInfo(selectedTicket).text}
+                  </Text>
+                </View>
 
-              <Text style={[stylesheet.scanInstructions, { color: theme.colors.MUTED }]}>
-                Present this QR code to the event organizer for check-in
-              </Text>
-            </Animated.View>
+                <Text style={[stylesheet.scanInstructions, { color: theme.colors.MUTED }]}>
+                  Present this QR code to the event organizer for check-in
+                </Text>
+              </Animated.View>
+            </ScrollView>
           )}
         </SafeAreaView>
       </Modal>
@@ -458,7 +498,24 @@ const _stylesheet = StyleSheet.create((theme) => ({
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
-  headerTitle: { fontSize: 22, fontFamily: 'Outfit-Bold' },
+  headerTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: theme.colors.SURFACE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  eyebrow: { fontFamily: 'Inter-Bold', fontSize: 11, letterSpacing: 1.8, color: theme.colors.G },
+  headerHint: {
+    fontFamily: 'Inter-Regular',
+    fontSize: 14,
+    lineHeight: 21,
+    color: theme.colors.MUTED,
+    marginTop: 8,
+  },
+  headerTitle: { fontSize: 30, lineHeight: 36, fontFamily: 'Outfit-Bold' },
   tabRow: { flexDirection: 'row', borderBottomWidth: 1, paddingHorizontal: 20 },
   tab: {
     marginRight: 24,
@@ -467,7 +524,7 @@ const _stylesheet = StyleSheet.create((theme) => ({
     borderBottomColor: 'transparent',
   },
   tabText: { fontSize: 15, fontFamily: 'Outfit-SemiBold' },
-  listContent: { padding: 16, paddingBottom: 100 },
+  listContent: { padding: 20, paddingBottom: 100 },
 
   ticketCard: {
     flexDirection: 'row',
@@ -505,7 +562,7 @@ const _stylesheet = StyleSheet.create((theme) => ({
   tearCircleBottom: { width: 14, height: 14, borderRadius: 7, marginTop: 4 },
   tearDashes: { flex: 1, borderLeftWidth: 1.5, borderStyle: 'dashed' },
 
-  qrSection: { width: 80, justifyContent: 'center', alignItems: 'center', gap: 4 },
+  qrSection: { width: 58, minHeight: 48, justifyContent: 'center', alignItems: 'center', gap: 4 },
   tapText: { fontSize: 9, fontFamily: 'Outfit-SemiBold' },
 
   emptyContainer: { flex: 1, paddingTop: 80, alignItems: 'center', paddingHorizontal: 40 },
@@ -517,7 +574,7 @@ const _stylesheet = StyleSheet.create((theme) => ({
     paddingHorizontal: 32,
     borderRadius: 24,
   },
-  browseButtonText: { color: theme.colors.TEXT_PRIMARY, fontSize: 16, fontFamily: 'Outfit-Bold' },
+  browseButtonText: { color: '#102110', fontSize: 16, fontFamily: 'Outfit-Bold' },
 
   // Modal
   modalContainer: { flex: 1 },
@@ -528,9 +585,9 @@ const _stylesheet = StyleSheet.create((theme) => ({
     paddingVertical: 14,
     borderBottomWidth: 1,
   },
-  modalClose: { width: 40, justifyContent: 'center', alignItems: 'flex-start' },
+  modalClose: { width: 44, height: 44, justifyContent: 'center', alignItems: 'flex-start' },
   modalTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontFamily: 'Outfit-Bold' },
-  modalContent: { flex: 1, alignItems: 'center', padding: 24 },
+  modalContent: { flexGrow: 1, alignItems: 'center', padding: 24 },
   modalEventCard: {
     width: '100%',
     flexDirection: 'row',

@@ -5,6 +5,7 @@ import {
   FlatList,
   RefreshControl,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -33,9 +34,19 @@ export default function ManageEventScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [query, setQuery] = useState('');
+  const [guestFilter, setGuestFilter] = useState<'all' | 'waiting' | 'checked-in'>('all');
 
   const fetchData = useCallback(async () => {
-    if (!id || !user) return;
+    if (!id || !user) {
+      setLoading(false);
+      setRefreshing(false);
+      setAccessDenied(true);
+      return;
+    }
+    setLoadError(false);
+    setAccessDenied(false);
     try {
       const { data: eventData, error: eventError } = await supabase
         .from('events')
@@ -58,6 +69,7 @@ export default function ManageEventScreen() {
       if (ticketError) throw ticketError;
       setTickets((ticketData || []) as Ticket[]);
     } catch (error) {
+      setLoadError(true);
       console.error('Failed to load organizer event details:', error);
     } finally {
       setLoading(false);
@@ -92,6 +104,29 @@ export default function ManageEventScreen() {
     );
   }
 
+  if (loadError && !event) {
+    return (
+      <SafeAreaView
+        style={[stylesheet.center, { backgroundColor: theme.colors.DARK, padding: 24 }]}
+      >
+        <Text style={stylesheet.errorText}>We could not load this event.</Text>
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={fetchData}
+          style={[stylesheet.backAction, { backgroundColor: theme.colors.G }]}
+        >
+          <Text style={stylesheet.backActionText}>Try again</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={() => router.back()}
+          style={stylesheet.backAction}
+        >
+          <Text style={stylesheet.errorText}>Go back</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
   if (accessDenied || !event) {
     return (
       <SafeAreaView
@@ -119,6 +154,19 @@ export default function ManageEventScreen() {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
+  });
+  const normalizedQuery = query.trim().toLowerCase();
+  const visibleTickets = tickets.filter((ticket) => {
+    const matchesState =
+      guestFilter === 'all' ||
+      (guestFilter === 'checked-in' ? ticket.status === 'USED' : ticket.status === 'PAID');
+    return (
+      matchesState &&
+      (!normalizedQuery ||
+        `${ticket.attendee_name || ''} ${ticket.attendee_email || ''} ${ticket.tier?.name || ''}`
+          .toLowerCase()
+          .includes(normalizedQuery))
+    );
   });
   const renderTicket = ({ item }: { item: Ticket }) => {
     const checkedIn = item.status === 'USED';
@@ -159,7 +207,11 @@ export default function ManageEventScreen() {
                 fontWeight: '700',
               }}
             >
-              {checkedIn ? 'Scanned' : 'Not scanned'}
+              {checkedIn
+                ? 'Checked in'
+                : item.status === 'PAID'
+                  ? 'Ready'
+                  : item.status.toLowerCase()}
             </Text>
           </View>
         </View>
@@ -200,7 +252,7 @@ export default function ManageEventScreen() {
           <Ionicons name="chevron-back" size={28} color={theme.colors.TEXT_PRIMARY} />
         </TouchableOpacity>
         <Text style={[stylesheet.headerTitle, { color: theme.colors.TEXT_PRIMARY }]}>
-          Event Dashboard
+          Manage event
         </Text>
         <TouchableOpacity
           onPress={() => router.push(`/events/${id}/scan` as any)}
@@ -211,7 +263,7 @@ export default function ManageEventScreen() {
       </View>
 
       <FlatList
-        data={tickets}
+        data={visibleTickets}
         keyExtractor={(ticket) => ticket.id}
         renderItem={renderTicket}
         contentContainerStyle={stylesheet.listContent}
@@ -224,6 +276,12 @@ export default function ManageEventScreen() {
         }
         ListHeaderComponent={
           <>
+            <Text style={stylesheet.eyebrow}>YOUR EVENT, AT A GLANCE</Text>
+            {loadError && (
+              <TouchableOpacity accessibilityRole="button" onPress={fetchData}>
+                <Text style={stylesheet.errorText}>Could not refresh. Tap to try again.</Text>
+              </TouchableOpacity>
+            )}
             <View
               style={[
                 stylesheet.eventCard,
@@ -248,26 +306,67 @@ export default function ManageEventScreen() {
             </View>
             <View style={stylesheet.metricsRow}>
               <Metric label="Sold" value={String(metrics.sold)} />
-              <Metric label="Revenue" value={`₦${metrics.revenue.toLocaleString()}`} />
-              <Metric label="Scanned" value={String(metrics.checkedIn)} />
+              <Metric label="Ticket sales" value={`₦${metrics.revenue.toLocaleString()}`} />
+              <Metric label="Checked in" value={String(metrics.checkedIn)} />
             </View>
             <TouchableOpacity
               style={[stylesheet.scanButton, { backgroundColor: theme.colors.G }]}
               onPress={() => router.push(`/events/${id}/scan` as any)}
             >
               <Ionicons name="qr-code" size={22} color={theme.colors.DARK} />
-              <Text style={stylesheet.scanButtonText}>Scan Attendee Tickets</Text>
+              <Text style={stylesheet.scanButtonText}>Check in guests</Text>
             </TouchableOpacity>
             <Text style={[stylesheet.sectionTitle, { color: theme.colors.TEXT_PRIMARY }]}>
-              Ticket buyers ({metrics.sold})
+              Guest list · {tickets.length}
             </Text>
+            <TextInput
+              accessibilityLabel="Search guest list"
+              placeholder="Search name, email or ticket tier"
+              placeholderTextColor={theme.colors.MUTED}
+              value={query}
+              onChangeText={setQuery}
+              autoCapitalize="none"
+              style={stylesheet.searchInput}
+            />
+            <View style={stylesheet.filters}>
+              {(['all', 'waiting', 'checked-in'] as const).map((filter) => (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: guestFilter === filter }}
+                  key={filter}
+                  onPress={() => setGuestFilter(filter)}
+                  style={[
+                    stylesheet.filter,
+                    guestFilter === filter && {
+                      backgroundColor: theme.colors.G + '20',
+                      borderColor: theme.colors.G,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      stylesheet.filterText,
+                      guestFilter === filter && { color: theme.colors.G },
+                    ]}
+                  >
+                    {filter === 'all'
+                      ? 'All'
+                      : filter === 'waiting'
+                        ? 'Not checked in'
+                        : 'Checked in'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </>
         }
         ListEmptyComponent={
           <View style={stylesheet.emptyList}>
             <Feather name="users" size={42} color={theme.colors.MUTED} />
             <Text style={[stylesheet.emptyText, { color: theme.colors.MUTED }]}>
-              No tickets sold yet.
+              {tickets.length
+                ? 'No guests match your search or filter.'
+                : 'Your guest list will appear as tickets are booked.'}
             </Text>
           </View>
         }
@@ -300,6 +399,40 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 const _stylesheet = StyleSheet.create((theme) => ({
   container: { flex: 1 },
+  eyebrow: {
+    fontFamily: 'Inter-Bold',
+    color: theme.colors.G,
+    letterSpacing: 1.8,
+    fontSize: 11,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: theme.colors.TEXT_PRIMARY,
+    fontFamily: 'Inter-Regular',
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  searchInput: {
+    minHeight: 52,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    backgroundColor: theme.colors.SURFACE,
+    color: theme.colors.TEXT_PRIMARY,
+    fontFamily: 'Inter-Regular',
+    fontSize: 14,
+  },
+  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginVertical: 14 },
+  filter: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+  },
+  filterText: { color: theme.colors.MUTED, fontFamily: 'Inter-Medium', fontSize: 12 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
   header: {
     height: 60,
@@ -308,7 +441,7 @@ const _stylesheet = StyleSheet.create((theme) => ({
     borderBottomWidth: 1,
     paddingHorizontal: 12,
   },
-  backBtn: { width: 40 },
+  backBtn: { width: 44, height: 44, justifyContent: 'center' },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '800' },
   scanIcon: {
     width: 40,
@@ -317,11 +450,11 @@ const _stylesheet = StyleSheet.create((theme) => ({
     justifyContent: 'center',
     borderRadius: 20,
   },
-  listContent: { padding: 16, paddingBottom: 40 },
-  eventCard: { borderWidth: 1, borderRadius: 16, overflow: 'hidden' },
-  eventImage: { height: 150, width: '100%' },
-  eventBody: { padding: 14 },
-  eventTitle: { fontSize: 20, fontWeight: '800' },
+  listContent: { padding: 20, paddingBottom: 40 },
+  eventCard: { borderWidth: 1, borderRadius: 22, overflow: 'hidden' },
+  eventImage: { height: 190, width: '100%' },
+  eventBody: { padding: 18 },
+  eventTitle: { fontSize: 28, lineHeight: 34, fontFamily: 'Outfit-Bold' },
   eventDate: { fontSize: 13, marginTop: 4 },
   metricsRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
   metric: { flex: 1, borderWidth: 1, borderRadius: 12, padding: 10, alignItems: 'center' },
@@ -337,8 +470,8 @@ const _stylesheet = StyleSheet.create((theme) => ({
     gap: 8,
   },
   scanButtonText: { color: '#000', fontSize: 16, fontWeight: '800' },
-  sectionTitle: { fontSize: 17, fontWeight: '800', marginTop: 24, marginBottom: 10 },
-  ticketCard: { borderWidth: 1, borderRadius: 14, padding: 14, marginBottom: 10 },
+  sectionTitle: { fontSize: 22, fontFamily: 'Outfit-Bold', marginTop: 24, marginBottom: 10 },
+  ticketCard: { borderWidth: 1, borderRadius: 20, padding: 16, marginBottom: 12 },
   ticketTopRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   attendeeIcon: {
     width: 38,

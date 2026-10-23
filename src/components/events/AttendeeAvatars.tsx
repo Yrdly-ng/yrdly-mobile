@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { useUnistyles, StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles';
+import { useUnistyles } from 'react-native-unistyles';
 import { Avatar } from '../Avatar';
 
 export interface AttendeeUser {
@@ -29,9 +28,8 @@ export function AttendeeAvatars({
   showCountBadge = true,
 }: AttendeeAvatarsProps) {
   const { theme } = useUnistyles();
-  const [failedImages, setFailedImages] = useState<Record<number, boolean>>({});
 
-  const normalizedAttendees: AttendeeUser[] = attendees.map((item, idx) => {
+  const normalizedAttendees: AttendeeUser[] = attendees.map((item) => {
     if (typeof item === 'string') {
       return { id: item };
     }
@@ -52,21 +50,18 @@ export function AttendeeAvatars({
   const overlap = Math.round(size * 0.3);
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} accessible accessibilityLabel={`${count} attending`}>
       {showIcon && (
         <Ionicons
           name="people-outline"
           size={Math.max(14, Math.round(size * 0.75))}
-          color="rgba(255,255,255,0.7)"
+          color={theme.colors.TEXT_SECONDARY}
           style={styles.icon}
         />
       )}
 
       <View style={styles.stack}>
         {visibleAttendees.map((user, index) => {
-          const hasImage = user?.avatar_url && !failedImages[index];
-          const initial = user?.name ? user.name.charAt(0).toUpperCase() : '?';
-
           return (
             <View
               key={user?.id || `att-${index}`}
@@ -86,7 +81,7 @@ export function AttendeeAvatars({
               <Avatar
                 url={user?.avatar_url}
                 name={user?.name}
-                size={80}
+                size={size}
                 style={{ width: '100%', height: '100%', borderRadius: radius }}
                 fallbackStyle={{ backgroundColor: theme.colors.G + '33' }}
                 fallbackTextStyle={{
@@ -108,7 +103,7 @@ export function AttendeeAvatars({
               minWidth: size,
               borderRadius: radius,
               marginLeft: visibleAttendees.length > 0 ? 6 : 0,
-              backgroundColor: 'rgba(255,255,255,0.12)',
+              backgroundColor: theme.colors.SURFACE_ALT,
             },
           ]}
         >
@@ -117,11 +112,12 @@ export function AttendeeAvatars({
               styles.countText,
               {
                 fontSize: Math.max(10, Math.round(size * 0.48)),
-                color: 'rgba(255,255,255,0.85)',
+                color: theme.colors.TEXT_SECONDARY,
               },
             ]}
           >
-            +{remainingCount}
+            {visibleAttendees.length > 0 ? '+' : ''}
+            {remainingCount}
           </Text>
         </View>
       )}

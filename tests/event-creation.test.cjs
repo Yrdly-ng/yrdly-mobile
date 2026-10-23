@@ -278,3 +278,27 @@ test('payout API error code offers direct payout settings action', async () => {
     .onPress();
   assert.equal(form.routes.at(-1), '/settings/payout-settings');
 });
+
+test('progress navigation revisits earlier steps without unlocking unvalidated future steps', async () => {
+  const form = mount();
+  const progress = () =>
+    form
+      .nodes()
+      .filter(
+        (node) => node.type === 'Button' && node.props.accessibilityState?.selected !== undefined
+      );
+  assert.equal(progress().length, 6);
+  assert.equal(progress()[5].props.disabled, true);
+  await form.tickets();
+  assert.equal(progress()[3].props.accessibilityState.selected, true);
+  assert.equal(progress()[4].props.disabled, true);
+  progress()[0].props.onPress();
+  assert.equal(progress()[0].props.accessibilityState.selected, true);
+  form.input('e.g. Block Party & BBQ').onChangeText('');
+  assert.equal(form.button('Continue').disabled, true);
+  assert.equal(progress()[3].props.disabled, true);
+  await form.next();
+  assert.equal(progress()[0].props.accessibilityState.selected, true);
+  assert.equal(form.requests.length, 0);
+  assert.equal(form.uploads.length, 0);
+});

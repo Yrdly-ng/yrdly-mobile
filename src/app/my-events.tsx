@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -25,16 +26,23 @@ export default function MyEventsScreen() {
   const { user } = useAuth();
 
   const [events, setEvents] = useState<Event[]>([]);
+  const [loadError, setLoadError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'active' | 'past'>('active');
 
   const fetchEvents = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+    setLoadError(false);
     try {
       const data = await getOrganizerEvents(user.id);
       setEvents(data);
     } catch (e) {
+      setLoadError(true);
       console.error(e);
     } finally {
       setLoading(false);
@@ -50,17 +58,31 @@ export default function MyEventsScreen() {
     fetchEvents();
   }, [fetchEvents]);
 
-  const handleArchiveEvent = async (eventId: string) => {
+  const archiveEvent = async (eventId: string) => {
+    if (!user) return;
     try {
       const { error } = await supabase
         .from('events')
         .update({ is_archived: true })
-        .eq('id', eventId);
+        .eq('id', eventId)
+        .eq('organizer_id', user.id);
       if (error) throw error;
       setEvents((prev) => prev.map((e) => (e.id === eventId ? { ...e, is_archived: true } : e)));
     } catch (e) {
       console.error('Failed to archive event:', e);
+      Alert.alert('Could not archive event', 'Please try again.');
     }
+  };
+
+  const handleArchiveEvent = (eventId: string) => {
+    Alert.alert(
+      'Archive this event?',
+      'Move it out of your current event list. Existing tickets and bookings are not cancelled.',
+      [
+        { text: 'Keep event', style: 'cancel' },
+        { text: 'Archive', style: 'destructive', onPress: () => archiveEvent(eventId) },
+      ]
+    );
   };
 
   const renderEvent = ({ item }: { item: Event }) => {
@@ -144,47 +166,54 @@ export default function MyEventsScreen() {
             </View>
           </View>
 
-          <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-            <TouchableOpacity
-              style={{
-                flex: 1,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                backgroundColor: theme.colors.G,
-                paddingVertical: 8,
-                borderRadius: 12,
-              }}
-              onPress={() =>
-                router.push({ pathname: '/events/scan', params: { eventId: item.id } })
-              }
-            >
-              <Ionicons name="qr-code" size={16} color={theme.colors.TEXT_PRIMARY} />
-              <Text style={stylesheet.scanBtnText}>Scan Attendee Tickets</Text>
-            </TouchableOpacity>
+          {!item.is_archived && (
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  backgroundColor: theme.colors.G,
+                  paddingVertical: 14,
+                  borderRadius: 12,
+                }}
+                onPress={(press) => {
+                  press.stopPropagation();
+                  router.push({ pathname: '/events/scan', params: { eventId: item.id } });
+                }}
+              >
+                <Ionicons name="qr-code" size={16} color={theme.colors.TEXT_PRIMARY} />
+                <Text style={stylesheet.scanBtnText}>Check in guests</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                backgroundColor: theme.colors.SURFACE,
-                paddingVertical: 8,
-                paddingHorizontal: 16,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: '#EF4444',
-              }}
-              onPress={() => handleArchiveEvent(item.id)}
-            >
-              <Feather name="trash-2" size={16} color="#EF4444" />
-              <Text style={{ color: '#EF4444', fontFamily: 'Outfit-Bold', fontSize: 13 }}>
-                {item.is_archived ? 'Deleted' : 'Delete'}
-              </Text>
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  backgroundColor: theme.colors.SURFACE,
+                  paddingVertical: 14,
+                  paddingHorizontal: 16,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: '#EF4444',
+                }}
+                onPress={(press) => {
+                  press.stopPropagation();
+                  handleArchiveEvent(item.id);
+                }}
+              >
+                <Feather name="archive" size={16} color="#EF4444" />
+                <Text style={{ color: '#EF4444', fontFamily: 'Outfit-Bold', fontSize: 13 }}>
+                  Archive
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          <Text style={stylesheet.manageLink}>Manage event →</Text>
         </View>
       </TouchableOpacity>
     );
@@ -218,15 +247,33 @@ export default function MyEventsScreen() {
             paddingVertical: 6,
             borderRadius: 14,
           }}
-          onPress={() => router.push('/events/scan' as any)}
+          accessibilityRole="button"
+          accessibilityLabel="Create event"
+          onPress={() => router.push('/create-event' as any)}
         >
-          <Ionicons name="qr-code-outline" size={16} color={theme.colors.G} />
+          <Ionicons name="add" size={18} color={theme.colors.G} />
           <Text style={{ color: theme.colors.G, fontFamily: 'Outfit-Bold', fontSize: 12 }}>
-            Scan
+            Create
           </Text>
         </TouchableOpacity>
       </View>
 
+      <View style={stylesheet.intro}>
+        <Text style={stylesheet.eyebrow}>ORGANIZER SPACE</Text>
+        <Text style={stylesheet.introTitle}>Bring people together.</Text>
+        <Text style={stylesheet.introText}>
+          Your events, tickets and guest check-ins in one place.
+        </Text>
+      </View>
+      {loadError && (
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={fetchEvents}
+          style={stylesheet.errorNotice}
+        >
+          <Text style={stylesheet.introText}>Could not update your events. Tap to retry.</Text>
+        </TouchableOpacity>
+      )}
       {/* Tabs */}
       <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginTop: 8, gap: 12 }}>
         <TouchableOpacity
@@ -236,13 +283,8 @@ export default function MyEventsScreen() {
           ]}
           onPress={() => setActiveTab('active')}
         >
-          <Text
-            style={[
-              stylesheet.tabText,
-              activeTab === 'active' && { color: theme.colors.TEXT_PRIMARY },
-            ]}
-          >
-            Active
+          <Text style={[stylesheet.tabText, activeTab === 'active' && { color: '#102110' }]}>
+            Current
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -252,13 +294,8 @@ export default function MyEventsScreen() {
           ]}
           onPress={() => setActiveTab('past')}
         >
-          <Text
-            style={[
-              stylesheet.tabText,
-              activeTab === 'past' && { color: theme.colors.TEXT_PRIMARY },
-            ]}
-          >
-            Past / Archived
+          <Text style={[stylesheet.tabText, activeTab === 'past' && { color: '#102110' }]}>
+            Archived
           </Text>
         </TouchableOpacity>
       </View>
@@ -280,10 +317,12 @@ export default function MyEventsScreen() {
             <View style={stylesheet.emptyState}>
               <Feather name="calendar" size={48} color={theme.colors.GLASS_BORDER} />
               <Text style={[stylesheet.emptyStateTitle, { color: theme.colors.TEXT_PRIMARY }]}>
-                No Events Yet
+                {activeTab === 'past' ? 'No archived events' : 'Your first event starts here'}
               </Text>
               <Text style={[stylesheet.emptyStateDesc, { color: theme.colors.LABEL }]}>
-                You haven't organized any events yet.
+                {activeTab === 'past'
+                  ? 'Events you archive will appear here.'
+                  : 'Create a plan and invite your community.'}
               </Text>
               <TouchableOpacity
                 style={[stylesheet.createButton, { backgroundColor: theme.colors.G }]}
@@ -305,6 +344,27 @@ export default function MyEventsScreen() {
 
 const _stylesheet = StyleSheet.create((theme) => ({
   container: { flex: 1 },
+  intro: { padding: 20, gap: 8 },
+  eyebrow: { fontFamily: 'Inter-Bold', fontSize: 11, letterSpacing: 1.8, color: theme.colors.G },
+  introTitle: {
+    fontFamily: 'Outfit-Bold',
+    fontSize: 30,
+    lineHeight: 36,
+    color: theme.colors.TEXT_PRIMARY,
+  },
+  introText: {
+    fontFamily: 'Inter-Regular',
+    fontSize: 14,
+    lineHeight: 21,
+    color: theme.colors.MUTED,
+  },
+  errorNotice: {
+    padding: 16,
+    marginHorizontal: 20,
+    borderRadius: 16,
+    backgroundColor: theme.colors.SURFACE,
+  },
+  manageLink: { fontFamily: 'Outfit-SemiBold', fontSize: 14, color: theme.colors.G, marginTop: 16 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -313,10 +373,10 @@ const _stylesheet = StyleSheet.create((theme) => ({
     paddingVertical: 12,
     borderBottomWidth: 1,
   },
-  backButton: { width: 40, alignItems: 'flex-start' },
+  backButton: { width: 44, height: 44, justifyContent: 'center', alignItems: 'flex-start' },
   headerTitle: { fontSize: 18, fontFamily: 'Outfit-Bold' },
   tabButton: {
-    paddingVertical: 6,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 20,
     backgroundColor: theme.colors.SURFACE,
@@ -328,11 +388,11 @@ const _stylesheet = StyleSheet.create((theme) => ({
     fontFamily: 'Outfit-Bold',
     fontSize: 14,
   },
-  listContainer: { padding: 16, flexGrow: 1 },
+  listContainer: { padding: 20, flexGrow: 1 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 100 },
   eventCard: {
-    borderRadius: 16,
-    marginBottom: 16,
+    borderRadius: 22,
+    marginBottom: 20,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -341,7 +401,7 @@ const _stylesheet = StyleSheet.create((theme) => ({
     elevation: 0,
   },
   eventImageWrapper: {
-    height: 140,
+    height: 180,
     width: '100%',
     position: 'relative',
   },
@@ -358,11 +418,11 @@ const _stylesheet = StyleSheet.create((theme) => ({
     paddingVertical: 4,
     borderRadius: 12,
   },
-  statusText: { color: theme.colors.TEXT_PRIMARY, fontSize: 10, fontFamily: 'Outfit-Bold' },
+  statusText: { color: '#fff', fontSize: 10, fontFamily: 'Outfit-Bold' },
   eventContent: {
     padding: 16,
   },
-  eventTitle: { fontSize: 18, fontFamily: 'Outfit-Bold', marginBottom: 8 },
+  eventTitle: { fontSize: 22, fontFamily: 'Outfit-Bold', marginBottom: 8 },
   eventInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -403,6 +463,6 @@ const _stylesheet = StyleSheet.create((theme) => ({
     paddingVertical: 12,
     borderRadius: 24,
   },
-  createButtonText: { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Outfit-Bold', fontSize: 16 },
+  createButtonText: { color: '#102110', fontFamily: 'Outfit-Bold', fontSize: 16 },
   scanBtnText: { color: '#000', fontFamily: 'Outfit-ExtraBold', fontSize: 13 },
 }));

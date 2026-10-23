@@ -1,24 +1,21 @@
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Alert,
-  SafeAreaView,
-  Platform,
-  Dimensions,
+  ScrollView,
+  Linking,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { api } from '../../lib/network/api';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import * as Haptics from 'expo-haptics';
-
-const { width } = Dimensions.get('window');
 
 export default function TicketScannerScreen() {
   const { theme } = useUnistyles();
@@ -40,12 +37,6 @@ export default function TicketScannerScreen() {
     ticket?: any;
   } | null>(null);
 
-  useEffect(() => {
-    if (!permission?.granted) {
-      requestPermission();
-    }
-  }, [permission]);
-
   const verifyTicketCode = async (code: string) => {
     const cleanCode = code.trim();
     if (!cleanCode || scanInFlight.current) return;
@@ -57,6 +48,7 @@ export default function TicketScannerScreen() {
       return;
     }
     scanInFlight.current = true;
+    setScanned(true);
     setVerifying(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
@@ -70,7 +62,7 @@ export default function TicketScannerScreen() {
       if (!result.valid) throw new Error(result.message || 'Ticket could not be validated.');
       setLastResult({
         success: true,
-        message: `VALID TICKET!\nAttendee: ${result.attendee_name || 'Attendee'}\nTier: ${result.tier_name || 'General Admission'}`,
+        message: `Attendee: ${result.attendee_name || 'Attendee'}\nTier: ${result.tier_name || 'General Admission'}`,
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error: any) {
@@ -91,6 +83,28 @@ export default function TicketScannerScreen() {
     verifyTicketCode(data);
   };
 
+  if (!eventId || !user) {
+    return (
+      <SafeAreaView style={[stylesheet.container, { backgroundColor: theme.colors.DARK }]}>
+        <View style={stylesheet.noPermBox}>
+          <Ionicons name="calendar-outline" size={42} color={theme.colors.G} />
+          <Text style={[stylesheet.noPermText, { color: theme.colors.TEXT_PRIMARY }]}>
+            Choose an event to check in guests
+          </Text>
+          <Text style={stylesheet.helper}>
+            Open an event you organize so each ticket is checked against the right guest list.
+          </Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            onPress={() => router.replace('/my-events')}
+            style={[stylesheet.permBtn, { backgroundColor: theme.colors.G }]}
+          >
+            <Text style={stylesheet.permBtnText}>Go to my events</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
   return (
     <SafeAreaView style={[stylesheet.container, { backgroundColor: theme.colors.DARK }]}>
       {/* Header */}
@@ -98,13 +112,16 @@ export default function TicketScannerScreen() {
         <TouchableOpacity onPress={() => router.back()} style={stylesheet.backBtn}>
           <Ionicons name="chevron-back" size={28} color={theme.colors.TEXT_PRIMARY} />
         </TouchableOpacity>
-        <Text style={[stylesheet.title, { color: theme.colors.TEXT_PRIMARY }]}>
-          Scan Attendee Tickets
-        </Text>
+        <Text style={[stylesheet.title, { color: theme.colors.TEXT_PRIMARY }]}>Guest check-in</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <View style={stylesheet.content}>
+      <ScrollView contentContainerStyle={stylesheet.content} keyboardShouldPersistTaps="handled">
+        <Text style={stylesheet.eyebrow}>WELCOME THEM IN</Text>
+        <Text style={stylesheet.introTitle}>One ticket. One entry.</Text>
+        <Text style={stylesheet.helper}>
+          Scan a guest’s QR code or enter their full ticket code below.
+        </Text>
         {/* Camera View */}
         {permission?.granted ? (
           <View style={stylesheet.cameraFrame}>
@@ -124,9 +141,13 @@ export default function TicketScannerScreen() {
             </Text>
             <TouchableOpacity
               style={[stylesheet.permBtn, { backgroundColor: theme.colors.G }]}
-              onPress={requestPermission}
+              onPress={() =>
+                permission?.canAskAgain === false ? Linking.openSettings() : requestPermission()
+              }
             >
-              <Text style={stylesheet.permBtnText}>Grant Camera Permission</Text>
+              <Text style={stylesheet.permBtnText}>
+                {permission?.canAskAgain === false ? 'Open settings' : 'Enable camera'}
+              </Text>
             </TouchableOpacity>
           </View>
         )}
@@ -136,7 +157,11 @@ export default function TicketScannerScreen() {
           <View
             style={[
               stylesheet.resultCard,
-              { backgroundColor: lastResult.success ? '#166534' : '#991B1B' },
+              {
+                backgroundColor: lastResult.success ? theme.colors.G + '18' : theme.colors.SURFACE,
+                borderWidth: 1,
+                borderColor: lastResult.success ? theme.colors.G : '#D96666',
+              },
             ]}
           >
             <Ionicons
@@ -146,19 +171,20 @@ export default function TicketScannerScreen() {
             />
             <View style={{ flex: 1 }}>
               <Text style={stylesheet.resultTitle}>
-                {lastResult.success ? 'Entry Approved ✅' : 'Verification Alert ⚠️'}
+                {lastResult.success ? 'Guest checked in' : 'Check-in not completed'}
               </Text>
               <Text style={stylesheet.resultBody}>{lastResult.message}</Text>
             </View>
-            {scanned && (
+            {!verifying && (
               <TouchableOpacity
                 style={stylesheet.rescanBtn}
                 onPress={() => {
                   setScanned(false);
                   setLastResult(null);
+                  setManualCode('');
                 }}
               >
-                <Text style={stylesheet.rescanBtnText}>Next</Text>
+                <Text style={stylesheet.rescanBtnText}>Next guest</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -172,7 +198,7 @@ export default function TicketScannerScreen() {
           ]}
         >
           <Text style={[stylesheet.manualTitle, { color: theme.colors.TEXT_PRIMARY }]}>
-            Enter Ticket Code Manually
+            Enter ticket code
           </Text>
           <View style={stylesheet.inputRow}>
             <TextInput
@@ -188,12 +214,14 @@ export default function TicketScannerScreen() {
               placeholderTextColor={theme.colors.MUTED}
               value={manualCode}
               onChangeText={setManualCode}
+              accessibilityLabel="Full ticket code"
+              autoCorrect={false}
               autoCapitalize="none"
             />
             <TouchableOpacity
               style={[stylesheet.verifyBtn, { backgroundColor: theme.colors.G }]}
               onPress={() => verifyTicketCode(manualCode)}
-              disabled={verifying}
+              disabled={verifying || !manualCode.trim()}
             >
               {verifying ? (
                 <ActivityIndicator color={theme.colors.DARK} size="small" />
@@ -203,7 +231,7 @@ export default function TicketScannerScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -218,11 +246,19 @@ const _stylesheet = StyleSheet.create((theme) => ({
     paddingVertical: 12,
     borderBottomWidth: 1,
   },
-  backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 18, fontWeight: '800' },
-  content: { flex: 1, padding: 16, gap: 16 },
+  backBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+  title: { fontSize: 18, fontFamily: 'Outfit-Bold' },
+  eyebrow: { fontFamily: 'Inter-Bold', color: theme.colors.G, fontSize: 11, letterSpacing: 1.8 },
+  introTitle: {
+    fontFamily: 'Outfit-Bold',
+    fontSize: 30,
+    lineHeight: 36,
+    color: theme.colors.TEXT_PRIMARY,
+  },
+  helper: { fontFamily: 'Inter-Regular', color: theme.colors.MUTED, fontSize: 14, lineHeight: 21 },
+  content: { flexGrow: 1, padding: 20, gap: 16 },
   cameraFrame: {
-    height: 320,
+    height: 280,
     borderRadius: 24,
     overflow: 'hidden',
     justifyContent: 'center',
@@ -234,7 +270,7 @@ const _stylesheet = StyleSheet.create((theme) => ({
   scanNotice: {
     position: 'absolute',
     bottom: 16,
-    color: theme.colors.TEXT_PRIMARY,
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -261,7 +297,7 @@ const _stylesheet = StyleSheet.create((theme) => ({
     borderRadius: 20,
   },
   resultTitle: { color: theme.colors.TEXT_PRIMARY, fontWeight: '800', fontSize: 16 },
-  resultBody: { color: 'rgba(255,255,255,0.9)', fontSize: 13, marginTop: 2 },
+  resultBody: { color: theme.colors.TEXT_PRIMARY, fontSize: 13, marginTop: 2 },
   rescanBtn: {
     backgroundColor: theme.colors.TEXT_PRIMARY,
     paddingHorizontal: 14,
@@ -274,7 +310,7 @@ const _stylesheet = StyleSheet.create((theme) => ({
   inputRow: { flexDirection: 'row', gap: 10 },
   input: {
     flex: 1,
-    height: 46,
+    height: 52,
     borderRadius: 14,
     borderWidth: 1,
     paddingHorizontal: 14,
@@ -282,7 +318,7 @@ const _stylesheet = StyleSheet.create((theme) => ({
   },
   verifyBtn: {
     paddingHorizontal: 20,
-    height: 46,
+    height: 52,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',

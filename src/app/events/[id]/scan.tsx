@@ -1,11 +1,18 @@
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Alert, Vibration, Animated } from 'react-native';
+import React, { useState, useRef } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Vibration,
+  Animated,
+  Linking,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { supabase } from '../../../lib/supabase/supabase';
 import { api } from '../../../lib/network/api';
 
 const RED = '#B71C1C';
@@ -45,7 +52,17 @@ export default function ScanTicketScreen() {
       parsedData = { ticket_code: data };
     }
 
-    const ticketCode = parsedData.ticket_code;
+    const ticketCode =
+      typeof parsedData?.ticket_code === 'string' ? parsedData.ticket_code.trim() : '';
+    if (!ticketCode || !id) {
+      setResult({
+        success: false,
+        message:
+          'This is not a valid event ticket. Open the scanner from your event and try again.',
+      });
+      showFlash(false);
+      return;
+    }
 
     try {
       // Secure server-side check-in via backend API (validates organizer ownership & ticket state)
@@ -70,13 +87,6 @@ export default function ScanTicketScreen() {
       setResult({ success: false, message: errMsg });
       showFlash(false);
     }
-
-    // Allow next scan after 2.5 seconds
-    setTimeout(() => {
-      setResult(null);
-      setScanning(true);
-      cooldownRef.current = false;
-    }, 2500);
   };
 
   if (!permission) {
@@ -96,9 +106,27 @@ export default function ScanTicketScreen() {
         </Text>
         <TouchableOpacity
           style={[stylesheet.permBtn, { backgroundColor: theme.colors.G }]}
-          onPress={requestPermission}
+          onPress={() =>
+            permission.canAskAgain === false ? Linking.openSettings() : requestPermission()
+          }
         >
-          <Text style={[stylesheet.permBtnText, { color: '#000' }]}>Grant Permission</Text>
+          <Text style={[stylesheet.permBtnText, { color: '#000' }]}>
+            {permission.canAskAgain === false ? 'Open settings' : 'Enable camera'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={() => router.replace({ pathname: '/events/scan', params: { eventId: id } })}
+          style={stylesheet.permBtn}
+        >
+          <Text style={{ color: theme.colors.TEXT_PRIMARY }}>Enter a ticket code instead</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={() => router.back()}
+          style={stylesheet.permBtn}
+        >
+          <Text style={{ color: theme.colors.MUTED }}>Go back</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -122,14 +150,12 @@ export default function ScanTicketScreen() {
       />
 
       {/* Header overlay */}
-      <SafeAreaView style={stylesheet.headerOverlay}>
+      <SafeAreaView style={[stylesheet.headerOverlay, { backgroundColor: 'rgba(0,0,0,0.65)' }]}>
         <View style={stylesheet.header}>
           <TouchableOpacity onPress={() => router.back()} style={stylesheet.backBtn}>
-            <Feather name="x" size={28} color={theme.colors.TEXT_PRIMARY} />
+            <Feather name="x" size={28} color="#fff" />
           </TouchableOpacity>
-          <Text style={[stylesheet.headerTitle, { color: theme.colors.TEXT_PRIMARY }]}>
-            Scan Ticket
-          </Text>
+          <Text style={[stylesheet.headerTitle, { color: '#fff' }]}>Guest check-in</Text>
           <View style={{ width: 48 }} />
         </View>
       </SafeAreaView>
@@ -153,7 +179,7 @@ export default function ScanTicketScreen() {
           style={[
             stylesheet.resultBanner,
             {
-              backgroundColor: result.success ? theme.colors.SURFACE : '#FFEBEE',
+              backgroundColor: theme.colors.SURFACE,
               shadowColor: theme.colors.TEXT_PRIMARY,
             },
           ]}
@@ -167,13 +193,40 @@ export default function ScanTicketScreen() {
             <Text
               style={[stylesheet.resultTitle, { color: result.success ? theme.colors.G : RED }]}
             >
-              {result.success ? '✓ Valid Ticket' : '✗ Invalid Ticket'}
+              {result.success ? 'Guest checked in' : 'Check-in not completed'}
             </Text>
             <Text style={[stylesheet.resultSub, { color: theme.colors.LABEL }]}>
               {result.success ? result.attendee : result.message}
             </Text>
           </View>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Scan next guest"
+            onPress={() => {
+              setResult(null);
+              setScanning(true);
+              cooldownRef.current = false;
+            }}
+            style={stylesheet.nextButton}
+          >
+            <Text style={stylesheet.nextText}>Next guest</Text>
+          </TouchableOpacity>
         </View>
+      )}
+      {!scanning && !result && (
+        <View style={stylesheet.manualButton}>
+          <ActivityIndicator color="#fff" />
+          <Text style={stylesheet.manualText}>Checking ticket…</Text>
+        </View>
+      )}
+      {scanning && !result && (
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={() => router.replace({ pathname: '/events/scan', params: { eventId: id } })}
+          style={stylesheet.manualButton}
+        >
+          <Text style={stylesheet.manualText}>Enter ticket code instead</Text>
+        </TouchableOpacity>
       )}
     </SafeAreaView>
   );
@@ -265,6 +318,23 @@ const _stylesheet = StyleSheet.create((theme) => ({
     shadowRadius: 10,
     elevation: 6,
   },
+  nextButton: {
+    minHeight: 44,
+    paddingHorizontal: 12,
+    backgroundColor: theme.colors.G,
+    borderRadius: 14,
+    justifyContent: 'center',
+  },
+  nextText: { color: '#102110', fontFamily: 'Outfit-Bold', fontSize: 13 },
+  manualButton: {
+    position: 'absolute',
+    bottom: 48,
+    alignSelf: 'center',
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+  },
+  manualText: { color: '#fff', fontFamily: 'Inter-Medium', fontSize: 14 },
   resultTitle: { fontSize: 17, fontWeight: 'bold', marginBottom: 2 },
   resultSub: { fontSize: 14 },
 }));
