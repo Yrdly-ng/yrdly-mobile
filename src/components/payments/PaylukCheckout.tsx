@@ -11,6 +11,7 @@ import {
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { Feather } from '@expo/vector-icons';
 import { paylukCheckoutHtml } from '../../lib/payments/payluk-checkout-html';
+import { WEB_APP_URL } from '../../lib/network/api';
 
 interface PaylukCheckoutProps {
   paymentToken: string;
@@ -93,13 +94,29 @@ export function PaylukCheckout({
         {/* WebView */}
         <WebView
           ref={webViewRef}
-          source={{ html }}
+          // Give the inline document a real HTTPS origin. Payluk creates its
+          // session with fetch(), which can fail or stall from about:blank.
+          source={{ html, baseUrl: WEB_APP_URL }}
           onMessage={handleMessage}
           onError={() =>
-            onError('Secure checkout could not load. Check your order before paying again.')
+            onError(
+              'Secure checkout could not load. Check your order status before trying again.'
+            )
           }
           onHttpError={() =>
-            onError('Secure checkout is unavailable. Check your order before paying again.')
+            onError(
+              'Secure checkout is unavailable. Check your order status before trying again.'
+            )
+          }
+          onRenderProcessGone={() =>
+            onError(
+              'Secure checkout stopped unexpectedly. Check your order status before trying again.'
+            )
+          }
+          onContentProcessDidTerminate={() =>
+            onError(
+              'Secure checkout stopped unexpectedly. Check your order status before trying again.'
+            )
           }
           javaScriptEnabled
           domStorageEnabled

@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase/supabase';
 import { useAuth } from '@/hooks/use-supabase-auth';
 import { useLocation } from '@/context/LocationContext';
+import { resolveNearbyLocation } from '@/lib/people/nearby-location';
 
 export type CommunityFilterTab = 'all' | 'neighbors' | 'mutuals' | 'sellers';
 
@@ -114,8 +115,7 @@ export function useCommunityConnections(
       }
 
       try {
-        const targetState = activeFilter?.state || profile?.home_state;
-        const targetLga = activeFilter?.lga || profile?.home_lga;
+        const targetLocation = resolveNearbyLocation(activeFilter, profile);
         const blocked = profile?.blocked_users || [];
         const myFriends = friends.map((f) => f.user.id);
         const searchTrim = debouncedSearch.trim();
@@ -126,6 +126,13 @@ export function useCommunityConnections(
 
         let fetchedUsers: any[] = [];
 
+        if (!targetLocation) {
+          setDiscoverUsers((prev) => (refresh ? [] : prev));
+          setHasMoreDiscover(false);
+          setDiscoverPage(pageNum);
+          return;
+        }
+
         if (activeFilterTab === 'mutuals') {
           const { data, error } = await supabase.rpc('get_mutual_friends', {
             p_user_id: currentUser.id,
@@ -133,7 +140,19 @@ export function useCommunityConnections(
             p_offset: from,
           });
           if (!error && data) {
-            fetchedUsers = data.filter((u: any) => !blocked.includes(u.id));
+            const mutualIds = data.map((u: any) => u.id).filter(Boolean);
+            if (mutualIds.length) {
+              const { data: localMutuals } = await supabase
+                .from('public_profiles')
+                .select('id, name, avatar_url, username, phone_verified, home_state, home_lga, discoverable')
+                .in('id', mutualIds)
+                .eq('home_state', targetLocation.state)
+                .eq('home_lga', targetLocation.lga)
+                .range(from, to);
+              fetchedUsers = (localMutuals || []).filter(
+                (u: any) => u.discoverable !== false && !blocked.includes(u.id),
+              );
+            }
             if (searchTrim) {
               const q = searchTrim.toLowerCase();
               fetchedUsers = fetchedUsers.filter((u: any) =>
@@ -149,18 +168,13 @@ export function useCommunityConnections(
             )
             .neq('id', currentUser.id)
             .neq('discoverable', false)
+            .eq('home_state', targetLocation.state)
+            .eq('home_lga', targetLocation.lga)
             .order('created_at', { ascending: false })
             .range(from, to);
 
           if (searchTrim) {
             query = query.ilike('name', `%${searchTrim}%`);
-          } else {
-            if (targetState) {
-              query = query.eq('home_state', targetState);
-            }
-            if (activeFilterTab === 'neighbors' && targetLga) {
-              query = query.eq('home_lga', targetLga);
-            }
           }
 
           const { data, error } = await query;
@@ -177,8 +191,7 @@ export function useCommunityConnections(
                 .eq('is_sold', false);
 
               if (!searchTrim) {
-                if (targetState) pQuery = pQuery.eq('state', targetState);
-                if (targetLga) pQuery = pQuery.eq('lga', targetLga);
+                pQuery = pQuery.eq('state', targetLocation.state).eq('lga', targetLocation.lga);
               }
 
               const { data: postData } = await pQuery.limit(100);
@@ -209,9 +222,7 @@ export function useCommunityConnections(
     [
       currentUser,
       activeFilter,
-      profile?.blocked_users,
-      profile?.home_state,
-      profile?.home_lga,
+      profile,
       activeFilterTab,
       friends,
       debouncedSearch,
@@ -387,6 +398,7 @@ export function useCommunityConnections(
     friends,
     requests,
     discoverUsers,
+    hasNearbyLocation: !!resolveNearbyLocation(activeFilter, profile),
     loading,
     isFetchingMore,
     hasMoreDiscover,

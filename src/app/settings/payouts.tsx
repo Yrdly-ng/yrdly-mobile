@@ -145,11 +145,14 @@ export default function PayoutsScreen() {
             <BankLogo code={item.bankCode ?? ''} name={item.bankName ?? 'Bank'} size={36} />
           </View>
           <View style={s.payoutMid}>
-            <Text style={s.payoutBank}>
-              {item.bankName || 'Bank withdrawal'}
+            <Text style={s.payoutBank} numberOfLines={1}>
+              {item.bankName || 'Bank details unavailable'}
               {item.accountNumber ? ` · ${item.accountNumber}` : ''}
             </Text>
-            <Text style={s.payoutDate}>
+            {item.accountName ? (
+              <Text style={s.payoutDate} numberOfLines={1}>{item.accountName}</Text>
+            ) : null}
+            <Text style={s.payoutDate} numberOfLines={1}>
               {dateStr} · {item.id.slice(0, 8).toUpperCase()}
             </Text>
           </View>

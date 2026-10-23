@@ -1,13 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   ScrollView,
-  Share,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Asset } from 'expo-asset';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import ViewShot, { type ViewShotRef } from 'react-native-view-shot';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,14 +20,27 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../../hooks/use-supabase-auth';
 import { api } from '../../../lib/network/api';
 import { BankLogo } from '../../../components/payments/BankLogo';
+import { bankLogoAssets } from '../../../lib/payments/bank-logo-assets';
+import { resolveBankLogo } from '../../../lib/payments/bank-logo';
 import {
   formatPayoutMoney,
   normalizePayoutReceipt,
   payoutReceiptRows,
-  payoutReceiptShareText,
+  payoutReceiptHtml,
   payoutStatusText,
   type PayoutReceipt,
 } from '../../../lib/payments/payout-receipt';
+
+async function assetDataUri(moduleId: number): Promise<string> {
+  const asset = Asset.fromModule(moduleId);
+  await asset.downloadAsync();
+  if (!asset.localUri) throw new Error('Receipt image could not be loaded.');
+  const base64 = await FileSystem.readAsStringAsync(asset.localUri, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  const mime = asset.type === 'jpg' ? 'jpeg' : asset.type;
+  return `data:image/${mime};base64,${base64}`;
+}
 
 export default function PayoutReceiptScreen() {
   const { theme } = useUnistyles();
@@ -33,6 +51,8 @@ export default function PayoutReceiptScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
+  const [exporting, setExporting] = useState<'png' | 'pdf' | null>(null);
+  const receiptRef = useRef<ViewShotRef>(null);
   const id = typeof payoutId === 'string' && /^[a-zA-Z0-9_-]+$/.test(payoutId) ? payoutId : null;
   const owner = user?.id;
   const payout = result?.owner === owner && result?.payout.id === id ? result.payout : null;
@@ -89,17 +109,47 @@ export default function PayoutReceiptScreen() {
       : payout?.status === 'cancelled'
         ? 'This withdrawal was cancelled.'
         : 'The bank transfer has not been confirmed yet.';
-  const share = async () => {
+  const exportReceipt = async (format: 'png' | 'pdf') => {
     if (!payout) return;
+    setExporting(format);
     try {
-      await Share.share({
-        title: 'YRDLY withdrawal receipt',
-        message: payoutReceiptShareText(payout),
-      });
+      if (!(await Sharing.isAvailableAsync())) throw new Error('File sharing is unavailable on this device.');
+      if (format === 'png') {
+        const uri = await receiptRef.current?.capture();
+        if (!uri) throw new Error('Could not create the receipt image.');
+        await Sharing.shareAsync(uri, {
+          mimeType: 'image/png',
+          UTI: 'public.png',
+          dialogTitle: 'Share YRDLY receipt as PNG',
+        });
+      } else {
+        const yrdlyLogo = await assetDataUri(require('../../../../assets/images/logo.png'));
+        const bankLogoFile = resolveBankLogo(payout.bankCode, payout.bankName ?? undefined);
+        const bankLogoId = bankLogoFile ? bankLogoAssets[bankLogoFile] : undefined;
+        const bankLogo = bankLogoId ? await assetDataUri(bankLogoId) : null;
+        const { uri } = await Print.printToFileAsync({
+          html: payoutReceiptHtml(payout, yrdlyLogo, bankLogo),
+          margins: { top: 28, right: 28, bottom: 28, left: 28 },
+        });
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          UTI: 'com.adobe.pdf',
+          dialogTitle: 'Share YRDLY receipt as PDF',
+        });
+      }
     } catch {
       Alert.alert('Could not share receipt', 'Please try again.');
+    } finally {
+      setExporting(null);
     }
   };
+
+  const share = () =>
+    Alert.alert('Share withdrawal receipt', 'Choose a file format', [
+      { text: 'Share as PNG', onPress: () => void exportReceipt('png') },
+      { text: 'Share as PDF', onPress: () => void exportReceipt('pdf') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
 
   return (
     <SafeAreaView style={s.root} edges={['top', 'bottom']}>
@@ -149,6 +199,15 @@ export default function PayoutReceiptScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={s.content}>
+          <ViewShot
+            ref={receiptRef}
+            options={{ format: 'png', result: 'tmpfile', quality: 1 }}
+            style={s.capture}
+          >
+          <View style={s.brand}>
+            <Image source={require('../../../../assets/images/logo.png')} style={s.brandLogo} resizeMode="contain" />
+            <Text style={s.brandLabel}>WITHDRAWAL RECEIPT</Text>
+          </View>
           <View style={s.summary}>
             <View style={[s.statusIcon, { backgroundColor: `${color}20` }]}>
               <Ionicons
@@ -192,14 +251,29 @@ export default function PayoutReceiptScreen() {
               </View>
             ))}
           </View>
+          {payout.destinationSource === 'linked_account_unchanged' ? (
+            <Text style={s.destinationNote}>
+              The original receipt did not save the destination. These details match the linked bank account, unchanged since this withdrawal was requested.
+            </Text>
+          ) : payout.destinationSource === 'unavailable' ? (
+            <Text style={s.destinationNote}>
+              The original bank destination could not be verified for this withdrawal.
+            </Text>
+          ) : null}
+          </ViewShot>
           <TouchableOpacity
             style={s.button}
             accessibilityRole="button"
             accessibilityLabel="Share withdrawal receipt"
             onPress={share}
+            disabled={!!exporting}
           >
-            <Ionicons name="share-outline" size={20} color={theme.colors.TEXT_PRIMARY} />
-            <Text style={s.buttonText}>Share receipt</Text>
+            {exporting ? (
+              <ActivityIndicator color={theme.colors.TEXT_PRIMARY} />
+            ) : (
+              <Ionicons name="share-outline" size={20} color={theme.colors.TEXT_PRIMARY} />
+            )}
+            <Text style={s.buttonText}>{exporting ? 'Preparing receipt…' : 'Share receipt'}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={s.button}
@@ -233,6 +307,10 @@ const s = StyleSheet.create((theme) => ({
   },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 16 },
   content: { padding: 20, gap: 16, paddingBottom: 36 },
+  capture: { padding: 18, gap: 16, borderRadius: 22, backgroundColor: theme.colors.DARK },
+  brand: { alignItems: 'center', gap: 8, paddingTop: 8 },
+  brandLogo: { width: 126, height: 40 },
+  brandLabel: { fontFamily: 'Inter-SemiBold', fontSize: 10, letterSpacing: 2, color: theme.colors.LABEL },
   summary: { alignItems: 'center', gap: 12, paddingVertical: 16 },
   statusIcon: { padding: 14, borderRadius: 40 },
   title: {
@@ -273,6 +351,7 @@ const s = StyleSheet.create((theme) => ({
     color: '#ef4444',
     textAlign: 'center',
   },
+  destinationNote: { fontFamily: 'Inter', fontSize: 11, lineHeight: 17, color: theme.colors.MUTED, textAlign: 'center', paddingHorizontal: 8 },
   button: {
     minHeight: 48,
     flexDirection: 'row',

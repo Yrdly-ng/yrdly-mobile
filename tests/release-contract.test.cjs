@@ -402,6 +402,8 @@ test('WebView creates an SDK session with the token, buyer and server reference'
         input.onClose();
       },
     },
+    setTimeout: () => 1,
+    clearTimeout: () => {},
   });
   assert.equal(initialized.publicKey, options.publicKey);
   assert.equal(payment.paymentToken, options.paymentToken);
@@ -437,6 +439,8 @@ test('SDK failures report an error without treating the checkout as paid', async
         throw Error('Provider detail');
       },
     },
+    setTimeout: () => 1,
+    clearTimeout: () => {},
   });
   assert.equal(messages[0].type, 'payluk_error');
   assert.ok(!messages[0].message.includes('Provider detail'));

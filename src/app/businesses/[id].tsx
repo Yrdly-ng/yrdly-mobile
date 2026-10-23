@@ -30,6 +30,8 @@ import {
   getBusinessModeLabel,
   getBusinessLocation,
   getBusinessRating,
+  getBusinessLogo,
+  shouldShowBusinessCatalog,
 } from '../../lib/businesses/presentation';
 import { useServiceOfferings } from '../../hooks/bookings/use-bookings';
 type Tab = 'catalog' | 'services' | 'reviews' | 'analytics';
@@ -377,8 +379,14 @@ export default function BusinessProfileScreen() {
 
   const [activeTab, setActiveTab] = useState<Tab>(tab === 'reviews' ? 'reviews' : 'catalog');
   useEffect(() => {
-    if (tab === 'reviews') setActiveTab('reviews');
-  }, [tab]);
+    if (tab === 'reviews') {
+      setActiveTab('reviews');
+    } else if (business?.mode === 'service' || business?.mode === 'both') {
+      setActiveTab('services');
+    } else if (shouldShowBusinessCatalog(business?.mode, catalogItems.length, catalogError)) {
+      setActiveTab('catalog');
+    }
+  }, [business?.mode, tab, catalogItems.length, catalogError]);
   const [isCustomerView, setIsCustomerView] = useState(false);
   const [catalogSheet, setCatalogSheet] = useState<CatalogItem | null>(null);
 
@@ -388,10 +396,6 @@ export default function BusinessProfileScreen() {
     error: servicesError,
     refresh: refreshServices,
   } = useServiceOfferings(business?.id);
-  useEffect(() => {
-    if (business?.mode === 'service' && tab !== 'reviews') setActiveTab('services');
-  }, [business?.mode, tab]);
-
   const isOwner = user?.id === business?.owner_id;
   const viewAsCustomer = !isOwner || isCustomerView;
 
@@ -440,7 +444,7 @@ export default function BusinessProfileScreen() {
             owner_name: oData?.name || bData.owner_name || 'Unknown Owner',
             owner_avatar: oData?.avatar_url || bData.owner_avatar,
             cover_image: bData.cover_image || bData.image_urls?.[0],
-            logo: bData.logo_url || bData.logo || null,
+            logo: getBusinessLogo(bData),
           });
         }
       } catch (e) {
@@ -698,7 +702,7 @@ export default function BusinessProfileScreen() {
   }
 
   const coverImg = business.cover_image || business.image_urls?.[0] || null;
-  const logoImg = (business as any).logo_url || business.logo || null;
+  const logoImg = getBusinessLogo(business as typeof business & { logo_url?: string | null });
 
   return (
     <View style={sStylesheet.root}>
@@ -1175,7 +1179,9 @@ export default function BusinessProfileScreen() {
           <View style={sStylesheet.tabsWrap}>
             {(
               [
-                ...(business.mode !== 'service' ? ['catalog'] : []),
+                ...(shouldShowBusinessCatalog(business.mode, catalogItems.length, catalogError)
+                  ? ['catalog']
+                  : []),
                 ...(business.mode === 'service' || business.mode === 'both' ? ['services'] : []),
                 'reviews',
                 ...(isOwner && !isCustomerView ? ['analytics'] : []),

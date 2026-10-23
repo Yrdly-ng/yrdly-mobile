@@ -6,6 +6,23 @@ export function getBusinessModeLabel(mode?: string | null): string {
   return 'Local business';
 }
 
+/** Product catalog visibility follows the saved business type, never item presence. */
+export function shouldShowBusinessCatalog(
+  mode: string | null | undefined,
+  _catalogCount: number,
+  _catalogError = false,
+): boolean {
+  return mode === 'product' || mode === 'both';
+}
+
+/** Mobile and web should resolve the dedicated logo before considering a profile fallback. */
+export function getBusinessLogo(business: {
+  logo?: string | null;
+  logo_url?: string | null;
+}): string | null {
+  return business.logo_url?.trim() || business.logo?.trim() || null;
+}
+
 export function getBusinessLocation(
   location: unknown,
   lga?: string | null,

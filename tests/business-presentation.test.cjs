@@ -10,7 +10,13 @@ new Function(
     compilerOptions: { module: ts.ModuleKind.CommonJS },
   }).outputText
 )(moduleObject, moduleObject.exports);
-const { getBusinessModeLabel, getBusinessLocation, getBusinessRating } = moduleObject.exports;
+const {
+  getBusinessModeLabel,
+  getBusinessLocation,
+  getBusinessRating,
+  getBusinessLogo,
+  shouldShowBusinessCatalog,
+} = moduleObject.exports;
 
 test('business mode reflects products, services and both without inventing a category', () => {
   assert.equal(getBusinessModeLabel('product'), 'Products');
@@ -18,6 +24,28 @@ test('business mode reflects products, services and both without inventing a cat
   assert.equal(getBusinessModeLabel('both'), 'Products & services');
   for (const value of [undefined, null, '', 'unknown'])
     assert.equal(getBusinessModeLabel(value), 'Local business');
+});
+test('business type controls whether its product catalog is shown', () => {
+  assert.equal(shouldShowBusinessCatalog('service', 0), false);
+  assert.equal(shouldShowBusinessCatalog('service', 2), false);
+  assert.equal(shouldShowBusinessCatalog('service', 0, true), false);
+  assert.equal(shouldShowBusinessCatalog('both', 0), true);
+  assert.equal(shouldShowBusinessCatalog('product', 0), true);
+});
+test('business logo prefers its explicit logo and never its banner', () => {
+  assert.equal(
+    getBusinessLogo({ logo: 'legacy-logo.png', logo_url: 'business-logo.png' }),
+    'business-logo.png'
+  );
+  assert.equal(
+    getBusinessLogo({ logo: null, logo_url: null, cover_image: 'banner.png' }),
+    null
+  );
+});
+test('business detail never exposes product catalog for a service-only business', () => {
+  const screen = fs.readFileSync('src/app/businesses/[id].tsx', 'utf8');
+  assert.match(screen, /shouldShowBusinessCatalog\(business\.mode, catalogItems\.length, catalogError\)/);
+  assert.doesNotMatch(screen, /catalogItems\.length > 0 \|\| catalogError \? 'catalog' : 'services'/);
 });
 test('business address supports saved text and JSON locations without exposing object placeholders', () => {
   assert.equal(getBusinessLocation('  14 Test Road  '), '14 Test Road');

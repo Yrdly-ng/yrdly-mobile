@@ -47,6 +47,7 @@ export function DiscoverPeopleSection({
     friends,
     requests,
     discoverUsers,
+    hasNearbyLocation,
     loading,
     isFetchingMore,
     hasMoreDiscover,
@@ -160,7 +161,11 @@ export function DiscoverPeopleSection({
               <Ionicons name="search-outline" size={40} color={theme.colors.MUTED} />
               <Text style={sStylesheet.emptyTitle}>No people found</Text>
               <Text style={sStylesheet.emptySub}>
-                {search.trim() ? `No matches for "${search}"` : 'Try changing your location filter'}
+                {!hasNearbyLocation
+                  ? 'Add your state and LGA to your profile to see people nearby.'
+                  : search.trim()
+                    ? `No matches for "${search}"`
+                    : 'No discoverable people in your LGA yet.'}
               </Text>
             </View>
           )}
