@@ -86,6 +86,7 @@ export default function VideoEditModal({ file, maxBytes, onFinish }: Props) {
     PanResponder.create({
       onStartShouldSetPanResponder: () => !drag.current.busy && Boolean(metadataRef.current),
       onMoveShouldSetPanResponder: () => !drag.current.busy && Boolean(metadataRef.current),
+      onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: (event) => {
         drag.current.original = drag.current.crop;
         const touches = event.nativeEvent.touches;
@@ -95,6 +96,7 @@ export default function VideoEditModal({ file, maxBytes, onFinish }: Props) {
             : 0;
       },
       onPanResponderMove: (event, gesture) => {
+        if (drag.current.busy) return;
         const touches = event.nativeEvent.touches;
         if (touches.length > 1) {
           const distance = Math.hypot(
@@ -257,7 +259,9 @@ export default function VideoEditModal({ file, maxBytes, onFinish }: Props) {
                 Edit video
               </Text>
               <Text style={{ color: theme.colors.MUTED }}>
-                Drag the ends to trim. Tap Crop to change the framing.
+                {mode === 'crop'
+                  ? 'Drag a corner or edge to crop. Drag inside to move, or pinch to zoom.'
+                  : 'Drag the ends to trim. Tap Crop to change the framing.'}
               </Text>
             </View>
             <TouchableOpacity

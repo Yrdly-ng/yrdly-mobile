@@ -59,6 +59,7 @@ export function ImageEditModal({
     PanResponder.create({
       onStartShouldSetPanResponder: () => !current.current.busy,
       onMoveShouldSetPanResponder: () => !current.current.busy,
+      onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: (event) => {
         const touches = event.nativeEvent.touches;
         origin.current = {
@@ -73,6 +74,7 @@ export function ImageEditModal({
         const p = current.current,
           initial = origin.current.crop,
           touches = event.nativeEvent.touches;
+        if (p.busy) return;
         if (touches.length > 1 && origin.current.distance === 0) {
           origin.current = {
             crop: p.crop,
@@ -196,6 +198,9 @@ export function ImageEditModal({
           style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '700' }}
         >
           Crop photo
+        </Text>
+        <Text style={{ color: '#C5D0C7' }}>
+          Drag a corner or edge to crop. Drag inside to move, or pinch to zoom.
         </Text>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <View {...pan.panHandlers} style={{ width, height }}>

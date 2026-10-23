@@ -30,12 +30,15 @@ export function CropFrame({
       PanResponder.create({
         onStartShouldSetPanResponder: () => !current.current.disabled,
         onMoveShouldSetPanResponder: () => !current.current.disabled,
+        // Keep an active resize when the editor's ScrollView starts negotiating.
+        onPanResponderTerminationRequest: () => false,
         onPanResponderGrant: () => {
           origin.current = current.current.crop;
         },
         onPanResponderMove: (_event, gesture) => {
           const p = current.current,
             initial = origin.current;
+          if (p.disabled || p.width <= 0 || p.height <= 0) return;
           let left = initial.x,
             top = initial.y,
             right = left + initial.width,
@@ -77,49 +80,69 @@ export function CropFrame({
           </React.Fragment>
         ))}
       </View>
-      {HANDLES.map((handle, index) => (
-        <View
-          key={handle}
-          {...responders[index].panHandlers}
-          accessible
-          accessibilityRole="adjustable"
-          accessibilityLabel={`Crop ${handle} boundary`}
-          accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
-          onAccessibilityAction={(event) => {
-            if (disabled) return;
-            const step = event.nativeEvent.actionName === 'increment' ? 0.01 : -0.01;
-            if (aspect) {
-              const scale = Math.max(
-                0.05 / Math.min(crop.width, crop.height),
-                Math.min(1 / Math.max(crop.width, crop.height), 1 + step)
-              );
-              const w = crop.width * scale,
-                h = crop.height * scale;
-              onChange({
-                ...crop,
-                width: w,
-                height: h,
-                x: Math.min(1 - w, crop.x),
-                y: Math.min(1 - h, crop.y),
-              });
-            } else
-              onChange({
-                ...crop,
-                width: Math.max(0.05, Math.min(1 - crop.x, crop.width + step)),
-                height: Math.max(0.05, Math.min(1 - crop.y, crop.height + step)),
-              });
-          }}
-          style={[
-            s.touch,
-            {
-              left: x + (handle.includes('w') ? 0 : handle.includes('e') ? w : w / 2) - 22,
-              top: y + (handle.includes('n') ? 0 : handle.includes('s') ? h : h / 2) - 22,
-            },
-          ]}
-        >
-          <View style={s.handle} />
-        </View>
-      ))}
+      {HANDLES.map((handle, index) => {
+        const centerX = x + (handle.includes('w') ? 0 : handle.includes('e') ? w : w / 2);
+        const centerY = y + (handle.includes('n') ? 0 : handle.includes('s') ? h : h / 2);
+        // Native hit testing stops at the preview bounds even when overflow is visible.
+        const touchWidth = Math.min(44, width),
+          touchHeight = Math.min(44, height);
+        const left = Math.max(0, Math.min(width - touchWidth, centerX - touchWidth / 2));
+        const top = Math.max(0, Math.min(height - touchHeight, centerY - touchHeight / 2));
+        return (
+          <View
+            key={handle}
+            {...responders[index].panHandlers}
+            accessible
+            accessibilityRole="adjustable"
+            accessibilityLabel={`Crop ${handle} boundary`}
+            accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+            onAccessibilityAction={(event) => {
+              if (disabled) return;
+              const step = event.nativeEvent.actionName === 'increment' ? 0.01 : -0.01;
+              if (aspect) {
+                const scale = Math.max(
+                  0.05 / Math.min(crop.width, crop.height),
+                  Math.min(1 / Math.max(crop.width, crop.height), 1 + step)
+                );
+                const w = crop.width * scale,
+                  h = crop.height * scale;
+                onChange({
+                  ...crop,
+                  width: w,
+                  height: h,
+                  x: Math.min(1 - w, crop.x),
+                  y: Math.min(1 - h, crop.y),
+                });
+              } else
+                onChange({
+                  ...crop,
+                  width: Math.max(0.05, Math.min(1 - crop.x, crop.width + step)),
+                  height: Math.max(0.05, Math.min(1 - crop.y, crop.height + step)),
+                });
+            }}
+            style={[
+              s.touch,
+              {
+                left,
+                top,
+                width: touchWidth,
+                height: touchHeight,
+              },
+            ]}
+          >
+            <View
+              pointerEvents="none"
+              style={[
+                s.handle,
+                {
+                  left: Math.max(0, Math.min(touchWidth - 12, centerX - left - 6)),
+                  top: Math.max(0, Math.min(touchHeight - 12, centerY - top - 6)),
+                },
+              ]}
+            />
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -134,6 +157,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   handle: {
+    position: 'absolute',
     width: 12,
     height: 12,
     borderRadius: 3,
