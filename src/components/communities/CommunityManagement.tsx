@@ -10,7 +10,7 @@ import {
   Alert,
   AppState,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useUnistyles } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
 import ImagePicker from 'react-native-image-crop-picker';
@@ -298,350 +298,355 @@ export function CommunityManagement({
   };
   return (
     <Modal visible animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.DARK }}>
-        <View style={s.managementHeader}>
-          <View style={s.headerCopy}>
-            <Text style={s.managementTitle}>{leader ? 'Manage community' : 'Members'}</Text>
-            <Text style={s.caption} numberOfLines={1}>
-              {community.name}
-            </Text>
+      <SafeAreaProvider style={{ flex: 1, backgroundColor: theme.colors.DARK }}>
+        <SafeAreaView edges={['top', 'right', 'bottom', 'left']} style={{ flex: 1 }}>
+          <View style={s.managementHeader}>
+            <View style={s.headerCopy}>
+              <Text style={s.managementTitle}>{leader ? 'Manage community' : 'Members'}</Text>
+              <Text style={s.caption} numberOfLines={1}>
+                {community.name}
+              </Text>
+            </View>
+            {button('Done', onClose)}
           </View>
-          {button('Done', onClose)}
-        </View>
-        <ScrollView
-          horizontal
-          style={{ flexGrow: 0 }}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 20, gap: 8, paddingBottom: 12 }}
-        >
-          {(leader
-            ? [
-                'members',
-                'requests',
-                'invites',
-                'review',
-                'reports',
-                ...(settingsAllowed ? ['settings'] : []),
-              ]
-            : ['members']
-          ).map((section) => (
-            <TouchableOpacity
-              key={section}
-              onPress={() => {
-                setTab(section);
-                setQuery('');
-              }}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: tab === section }}
-              style={[s.tab, tab === section && s.activeTab]}
-            >
-              <Text style={[s.tabLabel, tab === section && s.activeTabLabel]}>
-                {sectionCopy[section].label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.list}>
-          <Text style={[s.sectionTitle, { marginTop: 8 }]}>{sectionCopy[tab].label}</Text>
-          <Text style={[s.caption, { marginBottom: 16 }]}>{sectionCopy[tab].description}</Text>
-          {!!error && (
-            <View>
-              <Text accessibilityRole="alert" style={{ color: '#ef4444' }}>
-                {error}
-              </Text>
-              {button('Try again', () => void load())}
-            </View>
-          )}
-          {['members', 'invites'].includes(tab) && (
-            <TextInput
-              accessibilityLabel={
-                tab === 'members' ? 'Find community members' : 'Find mutual friends'
-              }
-              style={inputStyle}
-              placeholder={tab === 'members' ? 'Search members by name' : 'Search mutual friends'}
-              placeholderTextColor={theme.colors.LABEL}
-              autoCorrect={false}
-              returnKeyType="search"
-              value={query}
-              onChangeText={setQuery}
-            />
-          )}
-          {busy && <ActivityIndicator color={theme.colors.G} />}
-          {loading ? (
-            <ActivityIndicator color={theme.colors.G} />
-          ) : tab === 'settings' ? (
-            <View>
-              {title('Community details')}
+          <ScrollView
+            horizontal
+            style={{ flexGrow: 0 }}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 20, gap: 8, paddingBottom: 12 }}
+          >
+            {(leader
+              ? [
+                  'members',
+                  'requests',
+                  'invites',
+                  'review',
+                  'reports',
+                  ...(settingsAllowed ? ['settings'] : []),
+                ]
+              : ['members']
+            ).map((section) => (
+              <TouchableOpacity
+                key={section}
+                onPress={() => {
+                  setTab(section);
+                  setQuery('');
+                }}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: tab === section }}
+                style={[s.tab, tab === section && s.activeTab]}
+              >
+                <Text style={[s.tabLabel, tab === section && s.activeTabLabel]}>
+                  {sectionCopy[section].label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.list}>
+            <Text style={[s.sectionTitle, { marginTop: 8 }]}>{sectionCopy[tab].label}</Text>
+            <Text style={[s.caption, { marginBottom: 16 }]}>{sectionCopy[tab].description}</Text>
+            {!!error && (
+              <View>
+                <Text accessibilityRole="alert" style={{ color: '#ef4444' }}>
+                  {error}
+                </Text>
+                {button('Try again', () => void load())}
+              </View>
+            )}
+            {['members', 'invites'].includes(tab) && (
               <TextInput
-                accessibilityLabel="Community name"
-                placeholder="Community name"
+                accessibilityLabel={
+                  tab === 'members' ? 'Find community members' : 'Find mutual friends'
+                }
+                style={inputStyle}
+                placeholder={tab === 'members' ? 'Search members by name' : 'Search mutual friends'}
                 placeholderTextColor={theme.colors.LABEL}
-                style={inputStyle}
-                value={name}
-                onChangeText={setName}
-                maxLength={60}
+                autoCorrect={false}
+                returnKeyType="search"
+                value={query}
+                onChangeText={setQuery}
               />
-              <TextInput
-                accessibilityLabel="Description"
-                placeholder="Tell people what this community is about"
-                placeholderTextColor={theme.colors.LABEL}
-                style={inputStyle}
-                value={description}
-                onChangeText={setDescription}
-                multiline
-                maxLength={500}
-              />
-              {title('Who can join?')}
-              {(['open', 'request', 'invite'] as const).map((value) =>
-                button(
-                  `${privacy === value ? '●' : '○'} ${value === 'open' ? 'Anyone' : value === 'request' ? 'By request' : 'Invite only'}`,
-                  () => setPrivacy(value)
-                )
-              )}
-              {title('Rules (one per line)')}
-              <TextInput
-                accessibilityLabel="Community rules"
-                multiline
-                style={inputStyle}
-                value={rules}
-                onChangeText={setRules}
-              />
-              {button('Change profile image', () => void pickBrand('avatar'))}
-              {button('Change banner', () => void pickBrand('banner'))}
-              {button(
-                'Save changes',
-                () =>
-                  void run('settings', {
-                    name,
-                    description,
-                    privacy,
-                    rules: rules
-                      .split('\n')
-                      .map((rule) => rule.trim())
-                      .filter(Boolean),
-                    avatarUrl: avatar,
-                    bannerUrl: banner,
-                  })
-              )}
-            </View>
-          ) : (
-            <View>
-              {!visibleRows.length && (
-                <View style={s.empty}>
-                  <Text style={s.emptyBody}>{sectionCopy[tab].empty}</Text>
-                </View>
-              )}
-              {visibleRows.map((row) => (
-                <View key={row.id} style={s.managementRow}>
-                  {tab === 'members' && (
-                    <TouchableOpacity
-                      accessibilityRole="button"
-                      accessibilityLabel={`${row.user?.name || 'Member'}, ${row.user_id === community.owner_id ? 'owner' : row.role}, ${row.status}`}
-                      accessibilityHint={
-                        leader ? 'Shows available member actions' : 'Opens their profile'
-                      }
-                      onPress={() => {
-                        if (leader) memberActions(row);
-                        else {
-                          onClose();
-                          router.push(`/profile/${row.user_id}` as any);
+            )}
+            {busy && <ActivityIndicator color={theme.colors.G} />}
+            {loading ? (
+              <ActivityIndicator color={theme.colors.G} />
+            ) : tab === 'settings' ? (
+              <View>
+                {title('Community details')}
+                <TextInput
+                  accessibilityLabel="Community name"
+                  placeholder="Community name"
+                  placeholderTextColor={theme.colors.LABEL}
+                  style={inputStyle}
+                  value={name}
+                  onChangeText={setName}
+                  maxLength={60}
+                />
+                <TextInput
+                  accessibilityLabel="Description"
+                  placeholder="Tell people what this community is about"
+                  placeholderTextColor={theme.colors.LABEL}
+                  style={inputStyle}
+                  value={description}
+                  onChangeText={setDescription}
+                  multiline
+                  maxLength={500}
+                />
+                {title('Who can join?')}
+                {(['open', 'request', 'invite'] as const).map((value) =>
+                  button(
+                    `${privacy === value ? '●' : '○'} ${value === 'open' ? 'Anyone' : value === 'request' ? 'By request' : 'Invite only'}`,
+                    () => setPrivacy(value)
+                  )
+                )}
+                {title('Rules (one per line)')}
+                <TextInput
+                  accessibilityLabel="Community rules"
+                  multiline
+                  style={inputStyle}
+                  value={rules}
+                  onChangeText={setRules}
+                />
+                {button('Change profile image', () => void pickBrand('avatar'))}
+                {button('Change banner', () => void pickBrand('banner'))}
+                {button(
+                  'Save changes',
+                  () =>
+                    void run('settings', {
+                      name,
+                      description,
+                      privacy,
+                      rules: rules
+                        .split('\n')
+                        .map((rule) => rule.trim())
+                        .filter(Boolean),
+                      avatarUrl: avatar,
+                      bannerUrl: banner,
+                    })
+                )}
+              </View>
+            ) : (
+              <View>
+                {!visibleRows.length && (
+                  <View style={s.empty}>
+                    <Text style={s.emptyBody}>{sectionCopy[tab].empty}</Text>
+                  </View>
+                )}
+                {visibleRows.map((row) => (
+                  <View key={row.id} style={s.managementRow}>
+                    {tab === 'members' && (
+                      <TouchableOpacity
+                        accessibilityRole="button"
+                        accessibilityLabel={`${row.user?.name || 'Member'}, ${row.user_id === community.owner_id ? 'owner' : row.role}, ${row.status}`}
+                        accessibilityHint={
+                          leader ? 'Shows available member actions' : 'Opens their profile'
                         }
-                      }}
-                      style={{ minHeight: 52 }}
-                    >
-                      <View style={s.authorRow}>
-                        <Avatar
-                          url={row.user?.avatar_url}
-                          name={row.user?.name || 'Member'}
-                          size={44}
-                          style={{ width: 44, height: 44, borderRadius: 16 }}
-                        />
-                        <View style={s.authorCopy}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                            <Text style={s.authorName}>{row.user?.name || 'Member'}</Text>
-                            {row.user?.phone_verified && <VerifiedBadge size={16} />}
+                        onPress={() => {
+                          if (leader) memberActions(row);
+                          else {
+                            onClose();
+                            router.push(`/profile/${row.user_id}` as any);
+                          }
+                        }}
+                        style={{ minHeight: 52 }}
+                      >
+                        <View style={s.authorRow}>
+                          <Avatar
+                            url={row.user?.avatar_url}
+                            name={row.user?.name || 'Member'}
+                            size={44}
+                            style={{ width: 44, height: 44, borderRadius: 16 }}
+                          />
+                          <View style={s.authorCopy}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                              <Text style={s.authorName}>{row.user?.name || 'Member'}</Text>
+                              {row.user?.phone_verified && <VerifiedBadge size={16} />}
+                            </View>
+                            <Text style={s.role}>
+                              {row.user_id === community.owner_id ? 'Owner' : row.role} ·{' '}
+                              {row.status}
+                            </Text>
                           </View>
-                          <Text style={s.role}>
-                            {row.user_id === community.owner_id ? 'Owner' : row.role} · {row.status}
-                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    )}
+                    {tab === 'requests' && (
+                      <View>
+                        {title(row.user?.name || 'Join request')}
+                        <Text style={{ color: theme.colors.LABEL }}>{row.message}</Text>
+                        <View style={{ flexDirection: 'row' }}>
+                          {button(
+                            'Approve',
+                            () =>
+                              void run('review_request', {
+                                userId: row.user_id,
+                                decision: 'approved',
+                              })
+                          )}
+                          {button(
+                            'Reject',
+                            () =>
+                              void run('review_request', {
+                                userId: row.user_id,
+                                decision: 'rejected',
+                              }),
+                            true
+                          )}
                         </View>
                       </View>
-                    </TouchableOpacity>
-                  )}
-                  {tab === 'requests' && (
-                    <View>
-                      {title(row.user?.name || 'Join request')}
-                      <Text style={{ color: theme.colors.LABEL }}>{row.message}</Text>
-                      <View style={{ flexDirection: 'row' }}>
+                    )}
+                    {tab === 'invites' && (
+                      <View>
+                        {title(row.recipient?.name || 'Invited friend')}
+                        <Text style={{ color: theme.colors.LABEL }}>
+                          Expires {new Date(row.expires_at).toLocaleDateString()}
+                        </Text>
                         {button(
-                          'Approve',
-                          () =>
-                            void run('review_request', {
-                              userId: row.user_id,
-                              decision: 'approved',
-                            })
-                        )}
-                        {button(
-                          'Reject',
-                          () =>
-                            void run('review_request', {
-                              userId: row.user_id,
-                              decision: 'rejected',
-                            }),
+                          'Revoke invitation',
+                          () => void run('revoke_invite', { userId: row.invited_user_id }),
                           true
                         )}
                       </View>
-                    </View>
-                  )}
-                  {tab === 'invites' && (
-                    <View>
-                      {title(row.recipient?.name || 'Invited friend')}
-                      <Text style={{ color: theme.colors.LABEL }}>
-                        Expires {new Date(row.expires_at).toLocaleDateString()}
-                      </Text>
-                      {button(
-                        'Revoke invitation',
-                        () => void run('revoke_invite', { userId: row.invited_user_id }),
-                        true
-                      )}
-                    </View>
-                  )}
-                  {tab === 'review' && (
-                    <View>
-                      {title(
-                        row.is_revision
-                          ? 'Edited content awaiting review'
-                          : 'Content awaiting review'
-                      )}
-                      <Text style={{ color: theme.colors.TEXT_PRIMARY }}>{row.content}</Text>
-                      <CommunityMedia
-                        images={row.resolved_image_urls}
-                        videos={row.resolved_video_urls}
-                      />
-                      <Text style={{ color: theme.colors.LABEL }}>
-                        {row.reason || 'Awaiting moderation'}
-                      </Text>
-                      <View style={{ flexDirection: 'row' }}>
-                        {button(
-                          'Approve',
-                          () =>
-                            void run('review_content', { reviewId: row.id, decision: 'approved' })
+                    )}
+                    {tab === 'review' && (
+                      <View>
+                        {title(
+                          row.is_revision
+                            ? 'Edited content awaiting review'
+                            : 'Content awaiting review'
                         )}
+                        <Text style={{ color: theme.colors.TEXT_PRIMARY }}>{row.content}</Text>
+                        <CommunityMedia
+                          images={row.resolved_image_urls}
+                          videos={row.resolved_video_urls}
+                        />
+                        <Text style={{ color: theme.colors.LABEL }}>
+                          {row.reason || 'Awaiting moderation'}
+                        </Text>
+                        <View style={{ flexDirection: 'row' }}>
+                          {button(
+                            'Approve',
+                            () =>
+                              void run('review_content', { reviewId: row.id, decision: 'approved' })
+                          )}
+                          {button(
+                            'Reject',
+                            () =>
+                              void run('review_content', {
+                                reviewId: row.id,
+                                decision: 'rejected',
+                                reason: 'Does not meet community rules.',
+                              }),
+                            true
+                          )}
+                        </View>
+                      </View>
+                    )}
+                    {tab === 'reports' && (
+                      <View>
+                        {title('Reported ' + row.kind)}
+                        <Text style={{ color: theme.colors.TEXT_PRIMARY }}>{row.reason}</Text>
+                        {button('View reported content', () => {
+                          onClose();
+                          if (row.kind === 'post')
+                            router.push(
+                              `/communities/${community.id}/posts/${row.target_id}` as any
+                            );
+                          else
+                            void supabase
+                              .from('community_comments')
+                              .select('post_id')
+                              .eq('id', row.target_id)
+                              .maybeSingle()
+                              .then((result) => {
+                                if (result.data)
+                                  router.push(
+                                    `/communities/${community.id}/posts/${result.data.post_id}` as any
+                                  );
+                                else Alert.alert('Reply unavailable', 'It may have been removed.');
+                              });
+                        })}
                         {button(
-                          'Reject',
+                          'Remove reported content',
                           () =>
-                            void run('review_content', {
-                              reviewId: row.id,
-                              decision: 'rejected',
-                              reason: 'Does not meet community rules.',
-                            }),
+                            Alert.alert(
+                              'Remove reported content?',
+                              'This permanently removes the content from the community.',
+                              [
+                                { text: 'Cancel', style: 'cancel' },
+                                {
+                                  text: 'Remove',
+                                  style: 'destructive',
+                                  onPress: () =>
+                                    void run(
+                                      row.kind === 'post' ? 'delete_post' : 'delete_comment',
+                                      row.kind === 'post'
+                                        ? { postId: row.target_id }
+                                        : { commentId: row.target_id }
+                                    ),
+                                },
+                              ]
+                            ),
                           true
                         )}
+                        {button(
+                          'Mark resolved',
+                          () => void run('resolve_report', { reportId: row.id })
+                        )}
                       </View>
-                    </View>
-                  )}
-                  {tab === 'reports' && (
-                    <View>
-                      {title('Reported ' + row.kind)}
-                      <Text style={{ color: theme.colors.TEXT_PRIMARY }}>{row.reason}</Text>
-                      {button('View reported content', () => {
-                        onClose();
-                        if (row.kind === 'post')
-                          router.push(`/communities/${community.id}/posts/${row.target_id}` as any);
-                        else
-                          void supabase
-                            .from('community_comments')
-                            .select('post_id')
-                            .eq('id', row.target_id)
-                            .maybeSingle()
-                            .then((result) => {
-                              if (result.data)
-                                router.push(
-                                  `/communities/${community.id}/posts/${result.data.post_id}` as any
-                                );
-                              else Alert.alert('Reply unavailable', 'It may have been removed.');
-                            });
-                      })}
-                      {button(
-                        'Remove reported content',
-                        () =>
-                          Alert.alert(
-                            'Remove reported content?',
-                            'This permanently removes the content from the community.',
-                            [
-                              { text: 'Cancel', style: 'cancel' },
-                              {
-                                text: 'Remove',
-                                style: 'destructive',
-                                onPress: () =>
-                                  void run(
-                                    row.kind === 'post' ? 'delete_post' : 'delete_comment',
-                                    row.kind === 'post'
-                                      ? { postId: row.target_id }
-                                      : { commentId: row.target_id }
-                                  ),
-                              },
-                            ]
-                          ),
-                        true
-                      )}
-                      {button(
-                        'Mark resolved',
-                        () => void run('resolve_report', { reportId: row.id })
-                      )}
-                    </View>
-                  )}
-                </View>
-              ))}
-              {tab === 'members' &&
-                loadedSection === sectionKey &&
-                hasMore &&
-                button('Load more members', () => {
-                  if (loading) return;
-                  setLoading(true);
-                  void CommunityService.members(community.id, query, page + 1)
-                    .then((more) => {
-                      setRows((current) => [...current, ...more]);
-                      setPage(page + 1);
-                      setHasMore(more.length === 50);
-                    })
-                    .catch((e) => setError(e.message))
-                    .finally(() => setLoading(false));
-                })}
-              {tab === 'invites' && (
-                <View>
-                  {title('Invite mutual friends')}
-                  {!candidates.length && (
-                    <Text style={{ color: theme.colors.LABEL }}>
-                      No eligible mutual friends found.
-                    </Text>
-                  )}
-                  {candidates.map((friend) => (
-                    <View
-                      key={friend.id}
-                      style={{
-                        flexDirection: 'row',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      }}
-                    >
-                      {title(friend.name)}
-                      {button('Invite', () => void run('invite', { userId: friend.id }))}
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
+                    )}
+                  </View>
+                ))}
+                {tab === 'members' &&
+                  loadedSection === sectionKey &&
+                  hasMore &&
+                  button('Load more members', () => {
+                    if (loading) return;
+                    setLoading(true);
+                    void CommunityService.members(community.id, query, page + 1)
+                      .then((more) => {
+                        setRows((current) => [...current, ...more]);
+                        setPage(page + 1);
+                        setHasMore(more.length === 50);
+                      })
+                      .catch((e) => setError(e.message))
+                      .finally(() => setLoading(false));
+                  })}
+                {tab === 'invites' && (
+                  <View>
+                    {title('Invite mutual friends')}
+                    {!candidates.length && (
+                      <Text style={{ color: theme.colors.LABEL }}>
+                        No eligible mutual friends found.
+                      </Text>
+                    )}
+                    {candidates.map((friend) => (
+                      <View
+                        key={friend.id}
+                        style={{
+                          flexDirection: 'row',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        {title(friend.name)}
+                        {button('Invite', () => void run('invite', { userId: friend.id }))}
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
+          </ScrollView>
+          {leader && actions?.role === role && (
+            <CommunityActions
+              title={actions.title}
+              options={actions.options}
+              onClose={() => setActions(null)}
+            />
           )}
-        </ScrollView>
-        {leader && actions?.role === role && (
-          <CommunityActions
-            title={actions.title}
-            options={actions.options}
-            onClose={() => setActions(null)}
-          />
-        )}
-      </SafeAreaView>
+        </SafeAreaView>
+      </SafeAreaProvider>
     </Modal>
   );
 }

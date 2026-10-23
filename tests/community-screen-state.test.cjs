@@ -103,7 +103,10 @@ function screenFixture(file, props = {}, realtime) {
   const imports = {
     react,
     'react-native': native,
-    'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
+    'react-native-safe-area-context': {
+      SafeAreaView: 'SafeAreaView',
+      SafeAreaProvider: 'SafeAreaProvider',
+    },
     'react-native-unistyles': {
       useUnistyles: () => ({ theme: { colors: new Proxy({}, { get: () => '#123456' }) } }),
     },
@@ -440,6 +443,18 @@ function clickTab(screen, label) {
   assert.ok(tab, `missing ${label} tab`);
   tab.props.onPress();
 }
+test('community management measures safe area inside its native modal', () => {
+  const { screen } = managementFixture('admin');
+  const modal = screen.render();
+  assert.equal(modal.type, 'Modal');
+  const provider = modal.props.children.flat().find((node) => node?.type === 'SafeAreaProvider');
+  assert.ok(provider, 'Native modal needs its own safe-area coordinate space');
+  const safeArea = elements(provider).find((node) => node.type === 'SafeAreaView');
+  assert.ok(safeArea);
+  assert.ok(safeArea.props.edges.includes('top'));
+  assert.ok(safeArea.props.edges.includes('bottom'));
+  assert.match(content(safeArea), /Manage community/);
+});
 for (const role of ['member', 'moderator', 'admin', 'owner']) {
   test(`member management exposes only ${role} actions`, async () => {
     const { screen } = managementFixture(role);

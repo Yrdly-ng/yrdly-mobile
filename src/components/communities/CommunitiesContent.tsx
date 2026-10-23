@@ -411,11 +411,8 @@ export function CommunitiesContent({
   }, [tab, query, myComms, discovered, profile, privateOwner, user?.id]);
 
   const visibleSubmissions = privateOwner === user?.id ? submissions : [];
-  return (
-    <SafeAreaView
-      style={[s.root, { backgroundColor: theme.colors.DARK }]}
-      edges={embedded ? [] : ['top']}
-    >
+  const directoryHeader = (
+    <View style={{ marginHorizontal: -20 }}>
       {/* Header */}
       <View style={s.header}>
         <View style={{ flex: 1 }}>
@@ -650,39 +647,46 @@ export function CommunitiesContent({
           </TouchableOpacity>
         ))}
       </View>
-
-      {loading ? (
-        <View
-          style={s.loadingWrap}
-          accessibilityRole="progressbar"
-          accessibilityLabel="Loading communities"
-        >
-          <ActivityIndicator color={theme.colors.G} />
-          <Text style={s.emptyText}>Finding your communities…</Text>
-        </View>
-      ) : (
-        <SectionList
-          stickySectionHeadersEnabled={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          sections={sections}
-          keyExtractor={(c) => c.id}
-          onEndReached={() => {
-            if (tab !== 'discover' || !discoverHasMore || loadingMore) return;
-            setLoadingMore(true);
-            void loadDiscover(undefined, true).finally(() => setLoadingMore(false));
-          }}
-          onEndReachedThreshold={0.4}
-          ListFooterComponent={loadingMore ? <ActivityIndicator color={theme.colors.G} /> : null}
-          contentContainerStyle={s.listContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={theme.colors.G}
-            />
-          }
-          ListEmptyComponent={
+    </View>
+  );
+  return (
+    <SafeAreaView
+      style={[s.root, { backgroundColor: theme.colors.DARK }]}
+      edges={embedded ? [] : ['top']}
+    >
+      <SectionList
+        stickySectionHeadersEnabled={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        ListHeaderComponent={directoryHeader}
+        sections={loading ? [] : sections}
+        keyExtractor={(c) => c.id}
+        onEndReached={() => {
+          if (loading || tab !== 'discover' || !discoverHasMore || loadingMore) return;
+          setLoadingMore(true);
+          void loadDiscover(undefined, true).finally(() => setLoadingMore(false));
+        }}
+        onEndReachedThreshold={0.4}
+        ListFooterComponent={loadingMore ? <ActivityIndicator color={theme.colors.G} /> : null}
+        contentContainerStyle={s.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.colors.G}
+          />
+        }
+        ListEmptyComponent={
+          loading ? (
+            <View
+              style={s.loadingWrap}
+              accessibilityRole="progressbar"
+              accessibilityLabel="Loading communities"
+            >
+              <ActivityIndicator color={theme.colors.G} />
+              <Text style={s.emptyText}>Finding your communities…</Text>
+            </View>
+          ) : (
             <View style={s.emptyWrap}>
               <View style={s.emptyIcon}>
                 <Compass size={36} color={theme.colors.G} weight="duotone" />
@@ -737,31 +741,31 @@ export function CommunitiesContent({
                 <ArrowRight size={18} color="#000" />
               </TouchableOpacity>
             </View>
-          }
-          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-          renderSectionHeader={({ section: { title } }) =>
-            title ? (
-              <Text
-                style={[
-                  s.sectionTitle,
-                  { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-Bold' },
-                ]}
-              >
-                {title}
-              </Text>
-            ) : null
-          }
-          renderItem={({ item }) => (
-            <CommunityDirectoryCard
-              community={item}
-              joined={
-                privateOwner === user?.id && myComms.some((community) => community.id === item.id)
-              }
-              onPress={() => router.push(`/communities/${item.id}` as any)}
-            />
-          )}
-        />
-      )}
+          )
+        }
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+        renderSectionHeader={({ section: { title } }) =>
+          title ? (
+            <Text
+              style={[
+                s.sectionTitle,
+                { color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-Bold' },
+              ]}
+            >
+              {title}
+            </Text>
+          ) : null
+        }
+        renderItem={({ item }) => (
+          <CommunityDirectoryCard
+            community={item}
+            joined={
+              privateOwner === user?.id && myComms.some((community) => community.id === item.id)
+            }
+            onPress={() => router.push(`/communities/${item.id}` as any)}
+          />
+        )}
+      />
 
       <Modal
         visible={showCreate}

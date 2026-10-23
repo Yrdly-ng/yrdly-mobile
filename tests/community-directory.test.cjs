@@ -92,7 +92,7 @@ const nodes = (tree) =>
   Array.isArray(tree)
     ? tree.flatMap(nodes)
     : tree && typeof tree === 'object'
-      ? [tree, ...nodes(tree.props?.children)]
+      ? [tree, ...nodes(tree.props?.children), ...nodes(tree.props?.ListHeaderComponent)]
       : [];
 const text = (tree) =>
   Array.isArray(tree)
@@ -110,6 +110,25 @@ const community = {
   approval_status: 'approved',
   avatar_url: 'https://example.invalid/community.jpg',
 };
+
+for (const embedded of [true, false]) {
+  for (const loaded of [true, false]) {
+    test(`community controls share the list scroll surface (embedded=${embedded}, loaded=${loaded})`, () => {
+      const tree = fixture({ loaded }).render({ embedded });
+      const list = find(tree, (n) => n.type === 'SectionList');
+      assert.ok(list, 'Keep one scrollable list mounted, including while loading');
+      const header = list.props.ListHeaderComponent;
+      assert.ok(header, 'Directory controls must scroll inside the list header');
+      assert.match(text(header), /YOUR PEOPLE, YOUR PLACE/);
+      assert.ok(find(header, (n) => n.props?.accessibilityLabel === 'Create a community'));
+      assert.ok(find(header, (n) => n.props?.accessibilityLabel === 'Search communities'));
+      assert.equal(nodes(header).filter((n) => n.props?.accessibilityRole === 'tab').length, 2);
+      assert.equal(list.props.stickySectionHeadersEnabled, false);
+      assert.ok(!list.props.stickyHeaderIndices?.length);
+      assert.equal(nodes(header).filter((n) => n.type === 'ScrollView').length, 0);
+    });
+  }
+}
 
 for (const dark of [true, false])
   test(`directory search/tabs and theme work in ${dark ? 'dark' : 'light'} mode`, () => {
