@@ -98,7 +98,7 @@ export function EventList({ searchQuery = '', sortOption = 'newest' }: EventList
           )
           .eq('status', 'PUBLISHED')
           .eq('is_archived', false)
-          .or(`end_time.gte.${isoNow},start_time.gte.${isoYesterday}`)
+          .or(`end_time.gte.${isoNow},start_time.gte.${isoNow}`)
           .order('created_at', { ascending: false })
           .limit(30);
         if (activeFilter?.ward) eventsQuery = eventsQuery.eq('ward', activeFilter.ward);
@@ -158,14 +158,17 @@ export function EventList({ searchQuery = '', sortOption = 'newest' }: EventList
         // Merge & deduplicate by id, sort newest first
         const nowMs = Date.now();
         const seen = new Set<string>();
+        const currentEventIds = new Set(newEvents.map((event) => event.id));
         const merged = [...legacyEvents, ...newEvents]
           .filter((ev) => {
             if (seen.has(ev.id)) return false;
             seen.add(ev.id);
             if ((ev as any).is_archived || (ev as any).status === 'CANCELLED') return false;
-            // Expiration filter
+            // Modern events already use start/end overlap in the query above.
+            // Keep the legacy posts' date-only expiry fallback separate.
             const startTime = ev.event_date ? new Date(ev.event_date).getTime() : null;
-            if (startTime && startTime < nowMs - 24 * 60 * 60 * 1000) return false;
+            if (!currentEventIds.has(ev.id) && startTime && startTime < nowMs - 24 * 60 * 60 * 1000)
+              return false;
             return true;
           })
           .sort(
@@ -254,6 +257,7 @@ export function EventList({ searchQuery = '', sortOption = 'newest' }: EventList
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
                   onPress={() => {
+                    if (selected) return;
                     setCategory(value);
                     setEvents([]);
                     setLoading(true);

@@ -28,6 +28,7 @@ credentials/
 client_secret_*.json
 
 # Debug / build artifacts
+.qa-artifacts/
 ts-errors.txt
 .e2e/
 
