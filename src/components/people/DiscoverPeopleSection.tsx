@@ -48,6 +48,11 @@ export function DiscoverPeopleSection({
     requests,
     discoverUsers,
     hasNearbyLocation,
+    enableNearby,
+    locationBusy,
+    locationError,
+    radiusMeters,
+    setRadiusMeters,
     loading,
     isFetchingMore,
     hasMoreDiscover,
@@ -55,7 +60,7 @@ export function DiscoverPeopleSection({
     handleRequestAction,
     handleFriendOptions,
     handleInvite,
-  } = useCommunityConnections(activeFilterTab, search);
+  } = useCommunityConnections(activeFilterTab, search, mode === 'nearby');
   useNotificationRouteAcknowledgement(!loading);
 
   // Server handles search filtering on discoverUsers
@@ -147,6 +152,22 @@ export function DiscoverPeopleSection({
               );
             })}
           </View>
+          <View style={sStylesheet.radiusRow}>
+            <Text style={sStylesheet.radiusLabel}>Within</Text>
+            {[5000, 10000, 25000].map((radius) => (
+              <TouchableOpacity
+                key={radius}
+                onPress={() => setRadiusMeters(radius)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: radiusMeters === radius }}
+                style={[sStylesheet.radiusChip, radiusMeters === radius && sStylesheet.radiusChipActive]}
+              >
+                <Text style={[sStylesheet.radiusText, radiusMeters === radius && sStylesheet.radiusTextActive]}>
+                  {radius / 1000} km
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
           {/* Loading Indicator */}
           {loading && (
@@ -156,17 +177,29 @@ export function DiscoverPeopleSection({
           )}
 
           {/* Empty Search Results */}
-          {!loading && filteredNearbyUsers.length === 0 && (
+            {!loading && filteredNearbyUsers.length === 0 && (
             <View style={sStylesheet.emptyContainer}>
               <Ionicons name="search-outline" size={40} color={theme.colors.MUTED} />
               <Text style={sStylesheet.emptyTitle}>No people found</Text>
               <Text style={sStylesheet.emptySub}>
                 {!hasNearbyLocation
-                  ? 'Add your state and LGA to your profile to see people nearby.'
+                  ? locationError || 'Share your current location while using Nearby to find opted-in people around you.'
                   : search.trim()
                     ? `No matches for "${search}"`
-                    : 'No discoverable people in your LGA yet.'}
+                    : 'No opted-in people within this radius yet.'}
               </Text>
+              {!hasNearbyLocation && (
+                <TouchableOpacity
+                  onPress={() => void enableNearby()}
+                  disabled={locationBusy}
+                  style={sStylesheet.enableNearbyButton}
+                  accessibilityRole="button"
+                >
+                  <Text style={sStylesheet.enableNearbyButtonText}>
+                    {locationBusy ? 'Getting location…' : 'Enable Nearby'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
@@ -407,6 +440,51 @@ const _stylesheet = StyleSheet.create((theme) => ({
   },
   chipTextActive: {
     color: theme.colors.G,
+    fontFamily: 'Outfit-Bold',
+  },
+  radiusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    gap: 8,
+  },
+  radiusLabel: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: theme.colors.MUTED,
+  },
+  radiusChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: theme.colors.SURFACE,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+  },
+  radiusChipActive: {
+    borderColor: theme.colors.G,
+    backgroundColor: theme.colors.G + '20',
+  },
+  radiusText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: theme.colors.LABEL,
+  },
+  radiusTextActive: {
+    color: theme.colors.G,
+    fontFamily: 'Outfit-Bold',
+  },
+  enableNearbyButton: {
+    marginTop: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+    backgroundColor: theme.colors.G,
+  },
+  enableNearbyButtonText: {
+    color: '#000',
+    fontSize: 14,
     fontFamily: 'Outfit-Bold',
   },
   loadingContainer: {

@@ -36,6 +36,7 @@ import { Post } from '../../types/index';
 import { StorageService } from '../../lib/media/storage-service';
 import { LiquidGlassView, isLiquidGlassSupported } from '@callstack/liquid-glass';
 import { ModerationService } from '@/lib/moderation/moderation-service';
+import { supportsPostEngagement } from '../../lib/posts/post-engagement';
 
 export interface CommentsBottomSheetProps {
   postId: string | null;
@@ -121,7 +122,7 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
     }, [profile?.avatar_url, user?.user_metadata?.avatar_url]);
 
     const fetchPost = useCallback(async () => {
-      if (!postId) return;
+      if (!postId) return null;
       const { data, error } = await supabase
         .from('posts')
         .select(
@@ -132,11 +133,18 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
 
       if (!error && data) {
         setPost(data);
+        return data as Post;
       }
+      return null;
     }, [postId]);
 
-    const fetchComments = useCallback(async () => {
+    const fetchComments = useCallback(async (allowEngagement: boolean) => {
       if (!postId) return;
+      if (!allowEngagement) {
+        setComments([]);
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       const { data, error } = await supabase
         .from('comments')
@@ -169,11 +177,17 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
         setPost(null);
         return;
       }
-      fetchPost();
-      fetchComments();
+      let active = true;
+      let ch: ReturnType<typeof supabase.channel> | null = null;
+      void (async () => {
+        const loadedPost = await fetchPost();
+        const allowEngagement = supportsPostEngagement(loadedPost?.category);
+        if (!active) return;
+        await fetchComments(allowEngagement);
+        if (!active || !allowEngagement) return;
 
-      // Realtime comments
-      const ch = supabase
+        // Realtime comments
+        ch = supabase
         .channel(`comments-${postId}-${Date.now()}`)
         .on(
           'postgres_changes',
@@ -192,14 +206,16 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
           }
         )
         .subscribe();
+      })();
 
       return () => {
-        supabase.removeChannel(ch);
+        active = false;
+        if (ch) supabase.removeChannel(ch);
       };
     }, [postId, fetchPost, fetchComments]);
 
     const handleSendComment = async (text: string, parentId?: string) => {
-      if (!text.trim() || !user || !postId) return;
+      if (!supportsPostEngagement(post?.category) || !text.trim() || !user || !postId) return;
 
       try {
         const textMod = await ModerationService.checkText(text.trim());
@@ -246,7 +262,7 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
 
     const handleLikeComment = useCallback(
       async (item: CommentType) => {
-        if (!user) return;
+        if (!supportsPostEngagement(post?.category) || !user) return;
         const isLiked = item.is_liked;
         const newCount = Math.max(0, (item.like_count || 0) + (isLiked ? -1 : 1));
 

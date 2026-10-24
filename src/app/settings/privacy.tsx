@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/use-supabase-auth';
+import { supabase } from '../../lib/supabase/supabase';
 
 export default function PrivacySettingsScreen() {
   const { theme } = useUnistyles();
@@ -22,9 +23,13 @@ export default function PrivacySettingsScreen() {
   const { profile, updateProfile } = useAuth();
   const [updating, setUpdating] = useState(false);
 
-  const handleToggle = async (key: 'share_location' | 'discoverable', value: boolean) => {
+  const handleToggle = async (key: 'share_location' | 'discoverable' | 'nearby_enabled', value: boolean) => {
     setUpdating(true);
     try {
+      if (key === 'nearby_enabled' && !value) {
+        const { error } = await supabase.rpc('clear_nearby_presence');
+        if (error) throw error;
+      }
       await updateProfile({ [key]: value });
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to update privacy settings.');
@@ -77,6 +82,29 @@ export default function PrivacySettingsScreen() {
           <View style={s.row}>
             <View style={s.rowLeft}>
               <View style={s.iconBox}>
+                <Feather name="map-pin" size={18} color={theme.colors.TEXT_PRIMARY} />
+              </View>
+              <View style={s.rowText}>
+                <Text style={s.rowLabel}>Show me in Nearby</Text>
+                <Text style={s.rowSub}>
+                  Share a temporary location while using Nearby. Exact coordinates stay private and expire after 30 minutes.
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={profile?.nearby_enabled ?? false}
+              onValueChange={(v) => handleToggle('nearby_enabled', v)}
+              trackColor={{ false: 'rgba(255,255,255,0.1)', true: theme.colors.G }}
+              thumbColor="#fff"
+              disabled={updating}
+            />
+          </View>
+
+          <View style={s.divider} />
+
+          <View style={s.row}>
+            <View style={s.rowLeft}>
+              <View style={s.iconBox}>
                 <Feather name="eye" size={18} color={theme.colors.TEXT_PRIMARY} />
               </View>
               <View style={s.rowText}>
@@ -97,8 +125,7 @@ export default function PrivacySettingsScreen() {
         <View style={s.infoCard}>
           <Feather name="info" size={16} color={theme.colors.LABEL} style={{ marginTop: 2 }} />
           <Text style={s.infoText}>
-            YRDLY uses your approximate location to connect you with nearby posts and listings. We
-            never share your exact GPS coordinates with anyone.
+            Nearby uses your location only while the screen is active. Your exact coordinates stay private, are never returned to other users, and expire after 30 minutes.
           </Text>
         </View>
       </ScrollView>

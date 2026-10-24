@@ -34,6 +34,7 @@ import { VerifiedBadge } from '../VerifiedBadge';
 import { Post } from '../../types/index';
 import { timeAgo, formatPrice } from '../../lib/shared/utils';
 import { useAuth } from '../../hooks/use-supabase-auth';
+import { supportsPostEngagement } from '../../lib/posts/post-engagement';
 
 import { supabase } from '../../lib/supabase/supabase';
 import { StorageService } from '../../lib/media/storage-service';
@@ -250,6 +251,7 @@ export const PostCard = React.memo(
     const { width } = useWindowDimensions();
     const router = useRouter();
     const { user: currentUser, profile, updateProfile } = useAuth();
+    const allowSocial = supportsPostEngagement(post.category);
     const { showToast } = useToast();
 
     const [imageHeights, setImageHeights] = useState<Record<string, number>>({});
@@ -463,7 +465,7 @@ export const PostCard = React.memo(
         if (singleTapTimerRef.current) clearTimeout(singleTapTimerRef.current);
         lastTapRef.current = 0;
 
-        if (!isLiked) {
+        if (allowSocial && !isLiked) {
           handleLike();
         }
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -487,7 +489,7 @@ export const PostCard = React.memo(
     };
 
     const handleLike = async () => {
-      if (!currentUser || likePending.current) return;
+      if (!allowSocial || !currentUser || likePending.current) return;
       likePending.current = true;
 
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1119,7 +1121,7 @@ export const PostCard = React.memo(
           }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 24 }}>
-            <TouchableOpacity
+            {allowSocial && <TouchableOpacity
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -1150,9 +1152,9 @@ export const PostCard = React.memo(
                   {likesCount}
                 </Text>
               )}
-            </TouchableOpacity>
+            </TouchableOpacity>}
 
-            {post.category !== 'For Sale' ? (
+            {allowSocial ? (
               <TouchableOpacity
                 style={{
                   flexDirection: 'row',
@@ -1181,7 +1183,7 @@ export const PostCard = React.memo(
                   </Text>
                 )}
               </TouchableOpacity>
-            ) : (
+            ) : ['For Sale', 'Selling', 'Giveaway'].includes(post.category || '') ? (
               <TouchableOpacity
                 style={{
                   flexDirection: 'row',
@@ -1208,7 +1210,7 @@ export const PostCard = React.memo(
                   Message
                 </Text>
               </TouchableOpacity>
-            )}
+            ) : null}
 
             <TouchableOpacity
               style={{

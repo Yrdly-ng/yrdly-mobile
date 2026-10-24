@@ -77,10 +77,16 @@ export function getMobileNotificationDestination(input: NotificationRouteInput):
       return eventId ? `/events/${eventId}` : '/(tabs)/catalog?tab=Events';
     }
     case 'ticket':
-    case 'ticket_purchase':
     case 'ticket_confirmed':
     case 'event_rsvp':
       return '/tickets';
+    case 'ticket_purchase': {
+      if (data.audience === 'organizer') {
+        const eventId = firstId(data.eventId, data.event_id, relatedId);
+        return eventId ? `/events/${eventId}/manage` : '/events';
+      }
+      return '/tickets';
+    }
     case 'catalog_item_inquiry':
     case 'catalog_item_out_of_stock': {
       if (data.relatedType === 'conversation' || data.conversationId || data.conversation_id) {

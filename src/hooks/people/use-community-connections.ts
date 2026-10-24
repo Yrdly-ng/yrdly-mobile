@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Alert, Platform, Share } from 'react-native';
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase/supabase';
 import { useAuth } from '@/hooks/use-supabase-auth';
-import { useLocation } from '@/context/LocationContext';
-import { resolveNearbyLocation } from '@/lib/people/nearby-location';
 
 export type CommunityFilterTab = 'all' | 'neighbors' | 'mutuals' | 'sellers';
 
@@ -20,11 +19,11 @@ export interface RequestItem {
 
 export function useCommunityConnections(
   activeFilterTab: CommunityFilterTab = 'all',
-  search: string = ''
+  search: string = '',
+  isNearbyActive: boolean = true,
 ) {
   const router = useRouter();
-  const { user: currentUser, profile } = useAuth();
-  const { activeFilter } = useLocation();
+  const { user: currentUser, profile, updateProfile } = useAuth();
 
   // Friends & Requests State
   const [friends, setFriends] = useState<FriendItem[]>([]);
@@ -42,6 +41,11 @@ export function useCommunityConnections(
 
   // Discover State
   const [discoverUsers, setDiscoverUsers] = useState<any[]>([]);
+  const [nearbyCoordinates, setNearbyCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationBusy, setLocationBusy] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [radiusMeters, setRadiusMeters] = useState(10000);
+  const nearbyRequestInProgress = useRef(false);
   const [discoverPage, setDiscoverPage] = useState(0);
   const [hasMoreDiscover, setHasMoreDiscover] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
@@ -50,6 +54,53 @@ export function useCommunityConnections(
   const [loading, setLoading] = useState(true);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [actionInProgress, setActionInProgress] = useState<Record<string, boolean>>({});
+
+  const enableNearby = useCallback(async () => {
+    if (!currentUser || nearbyRequestInProgress.current) return;
+    nearbyRequestInProgress.current = true;
+    setLocationBusy(true);
+    setLocationError(null);
+    try {
+      if (!profile?.nearby_enabled) await updateProfile({ nearby_enabled: true });
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== 'granted') {
+        setLocationError('Allow location access to find people within your chosen radius.');
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const next = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+      const { error } = await supabase.rpc('upsert_nearby_presence', {
+        p_latitude: next.latitude,
+        p_longitude: next.longitude,
+      });
+      if (error) throw error;
+      setNearbyCoordinates(next);
+    } catch {
+      setLocationError('Could not get your location. Please try again.');
+    } finally {
+      nearbyRequestInProgress.current = false;
+      setLocationBusy(false);
+    }
+  }, [currentUser, profile?.nearby_enabled, updateProfile]);
+
+  useEffect(() => {
+    if (isNearbyActive && profile?.nearby_enabled && !nearbyCoordinates) void enableNearby();
+  }, [isNearbyActive, profile?.nearby_enabled, nearbyCoordinates, enableNearby]);
+
+  useEffect(() => {
+    if (!isNearbyActive || !nearbyCoordinates) return;
+    void supabase.rpc('upsert_nearby_presence', {
+      p_latitude: nearbyCoordinates.latitude,
+      p_longitude: nearbyCoordinates.longitude,
+    });
+    const timer = setInterval(() => {
+      void supabase.rpc('upsert_nearby_presence', {
+        p_latitude: nearbyCoordinates.latitude,
+        p_longitude: nearbyCoordinates.longitude,
+      });
+    }, 10 * 60 * 1000);
+    return () => clearInterval(timer);
+  }, [isNearbyActive, nearbyCoordinates]);
 
   const fetchFriendsAndRequests = useCallback(async () => {
     if (!currentUser) return;
@@ -115,96 +166,32 @@ export function useCommunityConnections(
       }
 
       try {
-        const targetLocation = resolveNearbyLocation(activeFilter, profile);
         const blocked = profile?.blocked_users || [];
         const myFriends = friends.map((f) => f.user.id);
         const searchTrim = debouncedSearch.trim();
 
         const PAGE_SIZE = 20;
         const from = pageNum * PAGE_SIZE;
-        const to = from + PAGE_SIZE - 1;
-
         let fetchedUsers: any[] = [];
-
-        if (!targetLocation) {
+        if (!isNearbyActive || !profile?.nearby_enabled || !nearbyCoordinates) {
           setDiscoverUsers((prev) => (refresh ? [] : prev));
           setHasMoreDiscover(false);
           setDiscoverPage(pageNum);
           return;
         }
-
-        if (activeFilterTab === 'mutuals') {
-          const { data, error } = await supabase.rpc('get_mutual_friends', {
-            p_user_id: currentUser.id,
-            p_limit: PAGE_SIZE,
-            p_offset: from,
-          });
-          if (!error && data) {
-            const mutualIds = data.map((u: any) => u.id).filter(Boolean);
-            if (mutualIds.length) {
-              const { data: localMutuals } = await supabase
-                .from('public_profiles')
-                .select('id, name, avatar_url, username, phone_verified, home_state, home_lga, discoverable')
-                .in('id', mutualIds)
-                .eq('home_state', targetLocation.state)
-                .eq('home_lga', targetLocation.lga)
-                .range(from, to);
-              fetchedUsers = (localMutuals || []).filter(
-                (u: any) => u.discoverable !== false && !blocked.includes(u.id),
-              );
-            }
-            if (searchTrim) {
-              const q = searchTrim.toLowerCase();
-              fetchedUsers = fetchedUsers.filter((u: any) =>
-                (u.name || '').toLowerCase().includes(q)
-              );
-            }
-          }
-        } else {
-          let query = supabase
-            .from('public_profiles')
-            .select(
-              'id, name, avatar_url, username, phone_verified, home_state, home_lga, discoverable'
-            )
-            .neq('id', currentUser.id)
-            .neq('discoverable', false)
-            .eq('home_state', targetLocation.state)
-            .eq('home_lga', targetLocation.lga)
-            .order('created_at', { ascending: false })
-            .range(from, to);
-
-          if (searchTrim) {
-            query = query.ilike('name', `%${searchTrim}%`);
-          }
-
-          const { data, error } = await query;
-          if (!error && data) {
-            fetchedUsers = data
-              .filter((u: any) => !blocked.includes(u.id))
-              .filter((u: any) => !myFriends.includes(u.id));
-
-            if (activeFilterTab === 'sellers') {
-              let pQuery = supabase
-                .from('posts')
-                .select('user_id')
-                .eq('category', 'For Sale')
-                .eq('is_sold', false);
-
-              if (!searchTrim) {
-                pQuery = pQuery.eq('state', targetLocation.state).eq('lga', targetLocation.lga);
-              }
-
-              const { data: postData } = await pQuery.limit(100);
-
-              if (postData) {
-                const sellerIds = Array.from(new Set(postData.map((p) => p.user_id)));
-                fetchedUsers = fetchedUsers.filter((u) => sellerIds.includes(u.id));
-              } else {
-                fetchedUsers = [];
-              }
-            }
-          }
-        }
+        const { data, error } = await supabase.rpc('nearby_people', {
+          p_latitude: nearbyCoordinates.latitude,
+          p_longitude: nearbyCoordinates.longitude,
+          p_radius_meters: radiusMeters,
+          p_filter: activeFilterTab,
+          p_search: searchTrim || null,
+          p_limit: PAGE_SIZE,
+          p_offset: from,
+        });
+        if (error) throw error;
+        fetchedUsers = (Array.isArray(data) ? data : [])
+          .filter((u: any) => !blocked.includes(u.id))
+          .filter((u: any) => activeFilterTab === 'mutuals' || !myFriends.includes(u.id));
 
         if (fetchedUsers.length < PAGE_SIZE) {
           setHasMoreDiscover(false);
@@ -221,11 +208,13 @@ export function useCommunityConnections(
     },
     [
       currentUser,
-      activeFilter,
       profile,
       activeFilterTab,
       friends,
       debouncedSearch,
+      nearbyCoordinates,
+      radiusMeters,
+      isNearbyActive,
     ]
   );
 
@@ -242,7 +231,7 @@ export function useCommunityConnections(
       await fetchDiscover(0, true);
     };
     init();
-  }, [activeFilterTab, activeFilter, debouncedSearch]);
+  }, [activeFilterTab, debouncedSearch, isNearbyActive, profile?.nearby_enabled, nearbyCoordinates, radiusMeters]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -398,7 +387,12 @@ export function useCommunityConnections(
     friends,
     requests,
     discoverUsers,
-    hasNearbyLocation: !!resolveNearbyLocation(activeFilter, profile),
+    hasNearbyLocation: !!profile?.nearby_enabled && !!nearbyCoordinates,
+    enableNearby,
+    locationBusy,
+    locationError,
+    radiusMeters,
+    setRadiusMeters,
     loading,
     isFetchingMore,
     hasMoreDiscover,

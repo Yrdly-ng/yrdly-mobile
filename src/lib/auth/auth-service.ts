@@ -33,6 +33,7 @@ export interface AuthUser {
   blocked_users?: string[];
   interests?: string[];
   share_location?: boolean;
+  nearby_enabled?: boolean;
   notification_settings?: {
     friendRequests: boolean;
     messages: boolean;

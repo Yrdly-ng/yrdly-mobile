@@ -23,8 +23,6 @@ import Animated, {
   useAnimatedStyle,
   interpolate,
   Extrapolation,
-  withSpring,
-  withSequence,
 } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import ImageViewing from 'react-native-image-viewing';
@@ -109,10 +107,7 @@ function MarketplaceDetailContent() {
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
   // Favourite state
-  const [isLiked, setIsLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(0);
   const [isBookmarked, setIsBookmarked] = useState(false);
-  const scaleValue = useSharedValue(1);
 
   const fetchPost = useCallback(async () => {
     if (!id) return;
@@ -142,9 +137,6 @@ function MarketplaceDetailContent() {
           .eq('is_sold', true);
 
         if (count !== null) setItemsSold(count);
-
-        setIsLiked(user ? (data.liked_by || []).includes(user.id) : false);
-        setLikeCount(data.liked_by?.length || 0);
 
         if (user) {
           const { data: bookmarkData } = await supabase
@@ -387,47 +379,6 @@ function MarketplaceDetailContent() {
       }
     }
   };
-
-  const handleToggleLike = async () => {
-    if (!post || !user) return;
-
-    // Animate heart
-    scaleValue.value = withSequence(
-      withSpring(1.3, { damping: 5, stiffness: 200 }),
-      withSpring(1, { damping: 5, stiffness: 200 })
-    );
-
-    const previousIsLiked = isLiked;
-    const previousLikeCount = likeCount;
-    const newLikedState = !previousIsLiked;
-
-    setIsLiked(newLikedState);
-    setLikeCount(newLikedState ? previousLikeCount + 1 : Math.max(0, previousLikeCount - 1));
-
-    try {
-      const { data, error } = await supabase.rpc('toggle_post_like', {
-        p_post_id: post.id,
-        p_user_id: user.id,
-      });
-
-      if (error) throw error;
-
-      if (data) {
-        setIsLiked(data.is_liked);
-        setLikeCount(data.likes_count);
-        const newLikedBy = (data.liked_by || []) as string[];
-        setPost((prev) => (prev ? { ...prev, liked_by: newLikedBy } : null));
-      }
-    } catch (error) {
-      setIsLiked(previousIsLiked);
-      setLikeCount(previousLikeCount);
-      console.error('Error toggling like:', error);
-    }
-  };
-
-  const animatedHeartStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scaleValue.value }],
-  }));
 
   const scrollY = useSharedValue(0);
   const scrollHandler = useAnimatedScrollHandler((event) => {

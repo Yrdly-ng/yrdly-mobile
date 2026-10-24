@@ -49,6 +49,7 @@ import { useNotificationBadge } from '../../context/NotificationBadgeContext';
 import { useScrollToTop, useIsFocused } from 'expo-router/react-navigation';
 import { AlertBanner } from '../../components/alerts/AlertBanner';
 import { AlertService, Alert } from '../../lib/alerts/alert-service';
+import { supportsPostEngagement } from '../../lib/posts/post-engagement';
 import * as SecureStore from 'expo-secure-store';
 const AnimatedFlashList = Animated.createAnimatedComponent(FlashList as any) as any;
 
@@ -252,6 +253,7 @@ export default function HomeTab() {
   );
 
   const handleCommentPress = useCallback((item: Post) => {
+    if (!supportsPostEngagement(item.category)) return;
     setActiveCommentPostId(item.id);
     bottomSheetRef.current?.present();
   }, []);

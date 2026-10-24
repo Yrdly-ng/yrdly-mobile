@@ -26,6 +26,7 @@ import { PostCard } from '../../components/posts/PostCard';
 import { Post } from '../../types';
 import { localCache } from '@/lib/offline/local-cache';
 import { timeAgo } from '../../lib/shared/utils';
+import { supportsPostEngagement } from '../../lib/posts/post-engagement';
 
 import { StorageService } from '../../lib/media/storage-service';
 import { CommentItem, CommentType } from '../../components/comments/CommentItem';
@@ -44,6 +45,7 @@ function PostDetailContent() {
   const insets = useSafeAreaInsets();
 
   const [post, setPost] = useState<Post | null>(() => localCache.getPost(id));
+  const allowSocial = supportsPostEngagement(post?.category);
   const [comments, setComments] = useState<CommentType[]>([]);
   const [loading, setLoading] = useState(true);
   const [postLoading, setPostLoading] = useState(true);
@@ -115,7 +117,7 @@ function PostDetailContent() {
   const fetchPost = useCallback(async () => {
     if (!id) {
       setPostLoading(false);
-      return;
+      return null;
     }
     const snapshot = localCache.getPost(id);
     if (snapshot) setPost(snapshot);
@@ -135,23 +137,31 @@ function PostDetailContent() {
       if (data) {
         setPost(data);
         localCache.putPost(data);
+        return data as Post;
       } else {
         setPost(null);
         localCache.removePost(id);
         setPostMissing(true);
+        return null;
       }
     } catch {
       if (!snapshot) {
         setPost(null);
         setPostLoadFailed(true);
       }
+      return snapshot;
     } finally {
       setPostLoading(false);
     }
   }, [id]);
 
-  const fetchComments = useCallback(async () => {
+  const fetchComments = useCallback(async (allowEngagement: boolean) => {
     if (!id) return;
+    if (!allowEngagement) {
+      setComments([]);
+      setLoading(false);
+      return;
+    }
     const { data, error } = await supabase
       .from('comments')
       .select('*, user:public_profiles!comments_user_id_fkey(name, avatar_url, phone_verified)')
@@ -176,6 +186,13 @@ function PostDetailContent() {
   }, [id, user?.id]);
 
   useEffect(() => {
+    if (post && !supportsPostEngagement(post.category)) {
+      setComments([]);
+      setLoading(false);
+    }
+  }, [post?.category]);
+
+  useEffect(() => {
     const subscription = DeviceEventEmitter.addListener('post_updated', ({ postId, updates }) => {
       if (postId === id) {
         localCache.updatePost(id, updates);
@@ -186,11 +203,17 @@ function PostDetailContent() {
   }, [id]);
 
   useEffect(() => {
-    fetchPost();
-    fetchComments();
+    let active = true;
+    let ch: ReturnType<typeof supabase.channel> | null = null;
+    void (async () => {
+      const loadedPost = await fetchPost();
+      const allowEngagement = supportsPostEngagement(loadedPost?.category);
+      if (!active) return;
+      await fetchComments(allowEngagement);
+      if (!active || !allowEngagement) return;
 
-    // Realtime comments
-    const ch = supabase
+      // Realtime comments
+      ch = supabase
       .channel(`comments-${id}-${Date.now()}`)
       .on(
         'postgres_changes',
@@ -210,14 +233,16 @@ function PostDetailContent() {
         }
       )
       .subscribe();
+    })();
 
     return () => {
-      supabase.removeChannel(ch);
+      active = false;
+      if (ch) supabase.removeChannel(ch);
     };
   }, [id, fetchPost, fetchComments]);
 
   useEffect(() => {
-    if (focusComments === 'true' && !loading && post && !hasAutoScrolled) {
+    if (focusComments === 'true' && !loading && post && allowSocial && !hasAutoScrolled) {
       setHasAutoScrolled(true);
       setTimeout(() => {
         if (comments.length > 0) {
@@ -233,10 +258,10 @@ function PostDetailContent() {
         inputRef.current?.focus();
       }, 500);
     }
-  }, [focusComments, loading, post, hasAutoScrolled, comments]);
+  }, [focusComments, loading, post, allowSocial, hasAutoScrolled, comments]);
 
   const handleSendComment = async (text: string, parentId?: string) => {
-    if (!text.trim() || !user || !id) return;
+    if (!allowSocial || !text.trim() || !user || !id) return;
     Keyboard.dismiss();
 
     try {
@@ -284,7 +309,7 @@ function PostDetailContent() {
 
   const handleLikeComment = useCallback(
     async (item: CommentType) => {
-      if (!user) return;
+      if (!allowSocial || !user) return;
       const isLiked = item.is_liked;
       const newCount = Math.max(0, (item.like_count || 0) + (isLiked ? -1 : 1));
       setComments((prev) =>
@@ -304,7 +329,7 @@ function PostDetailContent() {
         console.error('Like comment error:', e);
       }
     },
-    [user]
+    [allowSocial, user]
   );
 
   const commentTree = React.useMemo(() => {
@@ -425,6 +450,13 @@ function PostDetailContent() {
               </TouchableOpacity>
             )}
           </View>
+        ) : post && !allowSocial ? (
+          <View style={{ flex: 1, padding: 20, gap: 20 }}>
+            <PostCard post={post} expanded isVisible={isFocused} />
+            <Text style={{ color: theme.colors.MUTED, textAlign: 'center' }}>
+              Comments are unavailable for events and marketplace listings.
+            </Text>
+          </View>
         ) : (
           <FlatList
             ref={flatListRef}
@@ -471,7 +503,7 @@ function PostDetailContent() {
           />
         )}
         {/* Input */}
-        {post ? (
+        {post && allowSocial ? (
           <CommentInput
             ref={inputRef}
             userAvatarSource={userAvatarSource}

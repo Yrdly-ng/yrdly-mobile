@@ -11,7 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useUnistyles } from 'react-native-unistyles';
 import ImagePicker from 'react-native-image-crop-picker';
 import {
@@ -176,7 +176,11 @@ export function CommunityComposer({
         if (!busy) onClose();
       }}
     >
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.DARK }}>
+      <SafeAreaProvider>
+        <SafeAreaView
+          edges={['top', 'bottom']}
+          style={{ flex: 1, backgroundColor: theme.colors.DARK }}
+        >
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -415,7 +419,8 @@ export function CommunityComposer({
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
-      </SafeAreaView>
+        </SafeAreaView>
+      </SafeAreaProvider>
     </Modal>
   );
 }

@@ -1,40 +1,26 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const ts = require('typescript');
 
-const moduleObject = { exports: {} };
-new Function(
-  'module',
-  'exports',
-  ts.transpileModule(fs.readFileSync('src/lib/people/nearby-location.ts', 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS },
-  }).outputText,
-)(moduleObject, moduleObject.exports);
+const hook = fs.readFileSync('src/hooks/people/use-community-connections.ts', 'utf8');
+const directory = fs.readFileSync('src/components/people/DiscoverPeopleSection.tsx', 'utf8');
+const privacy = fs.readFileSync('src/app/settings/privacy.tsx', 'utf8');
 
-const { resolveNearbyLocation } = moduleObject.exports;
-
-test('Nearby stays in the signed-in user’s LGA when the global filter is all Nigeria', () => {
-  assert.deepEqual(
-    resolveNearbyLocation(null, { home_state: 'Lagos', home_lga: 'Ikeja' }),
-    { state: 'Lagos', lga: 'Ikeja' },
-  );
+test('Nearby obtains foreground coordinates only after opt-in and queries the radius RPC', () => {
+  assert.match(hook, /requestForegroundPermissionsAsync/);
+  assert.match(hook, /getCurrentPositionAsync/);
+  assert.match(hook, /nearby_enabled/);
+  assert.match(hook, /rpc\('nearby_people'/);
+  assert.match(hook, /p_radius_meters: radiusMeters/);
+  assert.doesNotMatch(hook, /resolveNearbyLocation/);
 });
 
-test('Nearby does not widen to a whole state when the selected state has no LGA', () => {
-  assert.equal(
-    resolveNearbyLocation({ state: 'Oyo' }, { home_state: 'Lagos', home_lga: 'Ikeja' }),
-    null,
-  );
+test('Nearby offers user-selected radii and a clear opt-in action', () => {
+  assert.match(directory, /\[5000, 10000, 25000\]/);
+  assert.match(directory, /Enable Nearby/);
 });
 
-test('Nearby does not show a national directory when profile location is missing', () => {
-  assert.equal(resolveNearbyLocation(null, null), null);
-});
-
-test('Nearby discovery requires both home-state and home-LGA filters', () => {
-  const hook = fs.readFileSync('src/hooks/people/use-community-connections.ts', 'utf8');
-  assert.match(hook, /if \(!targetLocation\)/);
-  assert.match(hook, /\.eq\('home_state', targetLocation\.state\)/);
-  assert.match(hook, /\.eq\('home_lga', targetLocation\.lga\)/);
+test('turning off Nearby clears the short-lived presence', () => {
+  assert.match(privacy, /clear_nearby_presence/);
+  assert.match(privacy, /nearby_enabled/);
 });

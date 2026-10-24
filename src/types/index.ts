@@ -199,6 +199,7 @@ export interface User {
     geopoint?: GeoPoint;
   };
   share_location?: boolean;
+  nearby_enabled?: boolean;
   currentLocation?: {
     lat: number;
     lng: number;

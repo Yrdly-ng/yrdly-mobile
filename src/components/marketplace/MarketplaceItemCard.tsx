@@ -1,5 +1,5 @@
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { View, Text, TouchableOpacity, Animated, Dimensions, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -11,7 +11,7 @@ import { useRouter } from 'expo-router';
 import { StorageService } from '../../lib/media/storage-service';
 import { Avatar } from '../Avatar';
 import { VerifiedBadge } from '../VerifiedBadge';
-import { supabase } from '../../lib/supabase/supabase';
+import { MarketplaceFavorite } from './MarketplaceFavorite';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
@@ -50,13 +50,7 @@ export function MarketplaceItemCard({ item, onPress, onMessageSeller, onBuyNow }
   const { isDarkMode } = useAppTheme();
   const router = useRouter();
   const isOwner = user?.id === item.user_id;
-  const [saved, setSaved] = useState(user ? (item.liked_by || []).includes(user.id) : false);
-  const heartScale = useRef(new Animated.Value(1)).current;
   const pressScale = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    setSaved(user ? (item.liked_by || []).includes(user.id) : false);
-  }, [item.liked_by, user]);
 
   const parsedUrls = Array.isArray(item.image_urls)
     ? item.image_urls
@@ -67,32 +61,6 @@ export function MarketplaceItemCard({ item, onPress, onMessageSeller, onBuyNow }
     parsedUrls.length > 0 ? parsedUrls[0] : item.image_url || item.video_thumbnail_url;
   const sellerName = item.user?.name || item.author_name || 'Seller';
   const badge = getBadge(item);
-
-  const toggleSaved = async () => {
-    if (!user) return;
-    const previousSaved = saved;
-    const newSaved = !previousSaved;
-
-    setSaved(newSaved);
-    Animated.sequence([
-      Animated.spring(heartScale, { toValue: 1.4, useNativeDriver: true, speed: 40 }),
-      Animated.spring(heartScale, { toValue: 1.0, useNativeDriver: true, speed: 40 }),
-    ]).start();
-
-    try {
-      const { data, error } = await supabase.rpc('toggle_post_like', {
-        p_post_id: item.id,
-        p_user_id: user.id,
-      });
-      if (error) throw error;
-      if (data) {
-        setSaved(data.is_liked);
-      }
-    } catch (err) {
-      console.error('Failed to toggle like', err);
-      setSaved(previousSaved);
-    }
-  };
 
   const onPressIn = () =>
     Animated.spring(pressScale, { toValue: 0.97, useNativeDriver: true, speed: 50 }).start();
@@ -149,23 +117,7 @@ export function MarketplaceItemCard({ item, onPress, onMessageSeller, onBuyNow }
             </View>
           )}
 
-          {/* Heart */}
-          <TouchableOpacity
-            style={stylesheet.heart}
-            onPress={(e) => {
-              e.stopPropagation();
-              toggleSaved();
-            }}
-            hitSlop={8}
-          >
-            <Animated.View style={{ transform: [{ scale: heartScale }] }}>
-              <Ionicons
-                name={saved ? 'heart' : 'heart-outline'}
-                size={20}
-                color={saved ? '#ff4d6d' : '#fff'}
-              />
-            </Animated.View>
-          </TouchableOpacity>
+          <MarketplaceFavorite item={item} />
         </View>
 
         {/* Info */}
@@ -291,19 +243,6 @@ const sStylesheet = StyleSheet.create((theme) => ({
     borderRadius: 20,
   },
   badgeTxt: { fontSize: 9, fontWeight: '800', letterSpacing: 0.3 },
-  heart: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-    elevation: 10,
-  },
   info: { padding: 10 },
   title: { fontSize: 13, fontWeight: '700', lineHeight: 18, marginBottom: 2 },
   condition: { fontSize: 11, marginBottom: 4 },

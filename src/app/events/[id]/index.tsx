@@ -284,10 +284,11 @@ export default function EventDetailScreen() {
     if (!event) return;
     try {
       const url = `https://app.yrdly.ng/events/${event.id}`;
-      await Share.share({
-        message: `Check out ${event.title} on YRDLY! ${url}`,
-        url: url,
-      });
+      const message = `Check out ${event.title} on YRDLY!`;
+      await Share.share(
+        Platform.OS === 'ios' ? { message, url } : { message: `${message} ${url}` },
+        { dialogTitle: `Share ${event.title}` }
+      );
     } catch (error) {
       console.error(error);
     }
@@ -525,9 +526,6 @@ export default function EventDetailScreen() {
   const statusObj = getEventStatus(event);
   const isExpired = statusObj.label === 'Ended' || statusObj.label === 'Cancelled';
   const visibleTiers = event.ticket_tiers?.filter((tier) => tier.is_visible) || [];
-  const allTicketsSoldOut =
-    visibleTiers.length > 0 && visibleTiers.every((tier) => tier.is_sold_out);
-  const noTickets = visibleTiers.length === 0;
   const dateInfo = getEventDateInfo(event.start_time);
 
   const formattedDate = dateInfo?.full || 'Date to be announced';
@@ -1201,8 +1199,8 @@ export default function EventDetailScreen() {
         </View>
       </Animated.ScrollView>
 
-      {/* FLOATING ACTION BAR */}
-      <View
+      {/* Keep management/ticket access handy without a redundant purchase CTA. */}
+      {(isOwner || userHasTickets) && <View
         style={[
           stylesheet.bottomActionBar,
           {
@@ -1216,20 +1214,12 @@ export default function EventDetailScreen() {
           style={[
             stylesheet.bottomPrimaryBtn,
             {
-              backgroundColor: isOwner
-                ? theme.colors.DARK
-                : !userHasTickets && (isExpired || allTicketsSoldOut || noTickets)
-                  ? theme.colors.GLASS_BORDER
-                  : theme.colors.G,
+              backgroundColor: isOwner ? theme.colors.DARK : theme.colors.G,
               borderWidth: isOwner ? 1 : 0,
               borderColor: isOwner ? theme.colors.GLASS_BORDER : 'transparent',
             },
           ]}
           accessibilityRole="button"
-          accessibilityState={{
-            disabled: !isOwner && !userHasTickets && (isExpired || allTicketsSoldOut || noTickets),
-          }}
-          disabled={!isOwner && !userHasTickets && (isExpired || allTicketsSoldOut || noTickets)}
           onPress={() => {
             if (isOwner) router.push(`/events/${event.id}/manage` as any);
             else if (userHasTickets) router.push('/tickets' as any);
@@ -1240,28 +1230,14 @@ export default function EventDetailScreen() {
             style={[
               stylesheet.bottomPrimaryText,
               {
-                color: isOwner
-                  ? theme.colors.TEXT_PRIMARY
-                  : !userHasTickets && (isExpired || allTicketsSoldOut || noTickets)
-                    ? theme.colors.MUTED
-                    : '#102110',
+                color: isOwner ? theme.colors.TEXT_PRIMARY : '#102110',
               },
             ]}
           >
-            {isOwner
-              ? 'Manage Event'
-              : userHasTickets
-                ? 'View my tickets'
-                : isExpired
-                  ? 'Event ended'
-                  : noTickets
-                    ? 'Tickets not available'
-                    : allTicketsSoldOut
-                      ? 'Sold out'
-                      : 'Choose tickets'}
+            {isOwner ? 'Manage Event' : 'View my tickets'}
           </Text>
         </TouchableOpacity>
-      </View>
+      </View>}
 
       {/* Ticket Purchase Modal */}
       <Modal
