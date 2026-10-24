@@ -10,7 +10,7 @@ export function getBusinessModeLabel(mode?: string | null): string {
 export function shouldShowBusinessCatalog(
   mode: string | null | undefined,
   _catalogCount: number,
-  _catalogError = false,
+  _catalogError = false
 ): boolean {
   return mode === 'product' || mode === 'both';
 }
@@ -55,4 +55,13 @@ export function getBusinessRating(rating?: number | null, count?: number | null)
   )
     return null;
   return `${rating.toFixed(1)} (${count})`;
+}
+
+/** Match checkout's quantity precedence, including legacy inventory-only records. */
+export function isCatalogItemAvailable(item: {
+  in_stock: boolean;
+  quantity?: number | null;
+  inventory_count?: number | null;
+}): boolean {
+  return item.in_stock && (item.quantity ?? item.inventory_count ?? 1) > 0;
 }

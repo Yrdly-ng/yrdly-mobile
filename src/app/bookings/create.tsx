@@ -50,6 +50,7 @@ export default function CreateBookingScreen() {
   const [selectedDate, setSelectedDate] = useState(dates[0].isoDate);
   const [selectedSlotTime, setSelectedSlotTime] = useState<string | null>(null);
   const [staffList, setStaffList] = useState<any[]>([]);
+  const [requiresStaff, setRequiresStaff] = useState(false);
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -60,12 +61,12 @@ export default function CreateBookingScreen() {
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
 
-  const { slots, loading: slotsLoading } = useAvailableSlots(
-    businessId,
-    serviceId,
-    selectedDate,
-    selectedStaffId
-  );
+  const {
+    slots,
+    loading: slotsLoading,
+    error: slotsError,
+    refresh: refreshSlots,
+  } = useAvailableSlots(businessId, serviceId, selectedDate, selectedStaffId);
 
   React.useEffect(() => {
     const fetchDetails = async () => {
@@ -90,6 +91,11 @@ export default function CreateBookingScreen() {
           (st: any) => st.is_active && (assignedSet.size === 0 || assignedSet.has(st.id))
         );
         setStaffList(eligible);
+        setRequiresStaff(assignedSet.size > 0);
+        if (assignedSet.size > 0) {
+          setSelectedStaffId(eligible[0]?.id || null);
+          setSelectedSlotTime(null);
+        }
       } catch (err) {
         console.error('Error fetching booking details:', err);
         setDetailsError('We could not load this service. Please try again.');
@@ -109,6 +115,7 @@ export default function CreateBookingScreen() {
     if (
       !selectedSlotTime ||
       slotsLoading ||
+      slotsError ||
       !slots.some((slot) => slot.time === selectedSlotTime && slot.available)
     ) {
       return Alert.alert('Select Time', 'Please choose an available appointment slot');
@@ -258,26 +265,30 @@ export default function CreateBookingScreen() {
           {/* Staff Selector (Optional) */}
           {staffList.length > 0 && (
             <View style={{ marginBottom: 16 }}>
-              <Text style={s.sectionTitle}>Choose your professional · optional</Text>
+              <Text style={s.sectionTitle}>
+                Choose your professional{requiresStaff ? '' : ' · optional'}
+              </Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={s.datesRow}
               >
-                <TouchableOpacity
-                  style={[s.dateChip, selectedStaffId === null && s.dateChipSelected]}
-                  onPress={() => {
-                    setSelectedStaffId(null);
-                    setSelectedSlotTime(null);
-                  }}
-                >
-                  <Text style={[s.dateDayTxt, selectedStaffId === null && s.dateDayTxtSelected]}>
-                    Any
-                  </Text>
-                  <Text style={[s.dateNumTxt, selectedStaffId === null && s.dateNumTxtSelected]}>
-                    Staff
-                  </Text>
-                </TouchableOpacity>
+                {!requiresStaff && (
+                  <TouchableOpacity
+                    style={[s.dateChip, selectedStaffId === null && s.dateChipSelected]}
+                    onPress={() => {
+                      setSelectedStaffId(null);
+                      setSelectedSlotTime(null);
+                    }}
+                  >
+                    <Text style={[s.dateDayTxt, selectedStaffId === null && s.dateDayTxtSelected]}>
+                      No specific
+                    </Text>
+                    <Text style={[s.dateNumTxt, selectedStaffId === null && s.dateNumTxtSelected]}>
+                      Staff
+                    </Text>
+                  </TouchableOpacity>
+                )}
                 {staffList.map((st) => {
                   const isSel = st.id === selectedStaffId;
                   return (
@@ -338,6 +349,17 @@ export default function CreateBookingScreen() {
           <Text style={s.sectionTitle}>02 · Find a time</Text>
           {slotsLoading ? (
             <ActivityIndicator size="small" color={theme.colors.G} style={{ marginVertical: 20 }} />
+          ) : slotsError ? (
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={() => {
+                setSelectedSlotTime(null);
+                void refreshSlots();
+              }}
+              style={s.noSlotsBox}
+            >
+              <Text style={s.noSlotsTxt}>Could not load appointment times. Tap to try again.</Text>
+            </TouchableOpacity>
           ) : slots.length === 0 ? (
             <View style={s.noSlotsBox}>
               <Text style={s.noSlotsTxt}>No times available. Try another day or professional.</Text>

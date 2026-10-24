@@ -15,7 +15,11 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { BusinessImage } from '../../../components/businesses/BusinessImage';
 import { businessScreenStyles as businessUI } from '../../../components/businesses/business-screen-styles';
-import { getBusinessLocation } from '../../../lib/businesses/presentation';
+import {
+  getBusinessLocation,
+  getBusinessLogo,
+  isCatalogItemAvailable,
+} from '../../../lib/businesses/presentation';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../../lib/supabase/supabase';
@@ -80,7 +84,10 @@ export default function CatalogItemScreen() {
           return;
         }
 
-        setItem(itemData);
+        setItem({
+          ...itemData,
+          quantity: itemData.quantity ?? itemData.inventory_count ?? (itemData.in_stock ? 1 : 0),
+        });
 
         if (itemData.business_id) {
           const { data: bizData } = await supabase
@@ -125,7 +132,8 @@ export default function CatalogItemScreen() {
               owner_name: ownerName,
               owner_avatar: ownerAvatar,
               cover_image: bizData.cover_image || bizData.image_urls?.[0],
-              logo: bizData.logo || ownerAvatar || bizData.image_urls?.[0],
+              logo_url: getBusinessLogo(bizData) || undefined,
+              logo: getBusinessLogo(bizData) || undefined,
               catalog: [],
             });
           }
@@ -174,8 +182,7 @@ export default function CatalogItemScreen() {
 
       if (existing) {
         if (item || !existing.item_id) {
-          const imageUrl =
-            item?.images?.[0] || business.image_urls?.[0] || business.cover_image || '';
+          const imageUrl = item?.images?.[0] || getBusinessLogo(business) || '';
           const targetId = item ? item.id : null;
           const itemTitle = item ? `${item.title} (${business.name})` : business.name;
           await supabase
@@ -191,8 +198,7 @@ export default function CatalogItemScreen() {
         }
         router.push(`/chat/${existing.id}` as any);
       } else {
-        const imageUrl =
-          item?.images?.[0] || business.image_urls?.[0] || business.cover_image || '';
+        const imageUrl = item?.images?.[0] || getBusinessLogo(business) || '';
         const chatType = item ? 'briefcase' : 'business';
         const itemParam = item ? `&item_id=${item.id}` : '';
         router.push(
@@ -206,48 +212,19 @@ export default function CatalogItemScreen() {
 
   const handleBuy = useCallback(() => {
     if (!item) return;
-    if (!item.in_stock || (item.quantity !== undefined && item.quantity <= 0)) {
+    if (!isCatalogItemAvailable(item)) {
       Alert.alert('Sold Out', 'This item is currently out of stock.');
       return;
     }
     router.push(`/checkout/${item.id}?type=catalog_item` as any);
   }, [item, router]);
 
-  const handleRestock = useCallback(async () => {
+  const handleRestock = useCallback(() => {
     if (!item) return;
-    Alert.prompt(
-      'Restock Item',
-      'Enter new stock quantity for this item:',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Update Stock',
-          onPress: async (val?: string) => {
-            const qty = parseInt(val || '0', 10);
-            if (isNaN(qty) || qty < 0) {
-              Alert.alert('Invalid Quantity', 'Please enter a valid positive number.');
-              return;
-            }
-            try {
-              const inStock = qty > 0;
-              const { error } = await supabase
-                .from('catalog_items')
-                .update({ quantity: qty, in_stock: inStock })
-                .eq('id', item.id);
-              if (error) throw error;
-              setItem((prev) => (prev ? { ...prev, quantity: qty, in_stock: inStock } : null));
-              Alert.alert('Success', `Item stock updated to ${qty}.`);
-            } catch (err) {
-              console.error('Error restocking item:', err);
-              Alert.alert('Error', 'Could not update stock.');
-            }
-          },
-        },
-      ],
-      'plain-text',
-      item.quantity !== undefined ? String(item.quantity) : '10'
+    router.push(
+      `/businesses/create-catalog-item?id=${item.id}&business_id=${item.business_id}&focus=quantity` as any
     );
-  }, [item]);
+  }, [item, router]);
 
   /** Returns true when there is at least one pending/processing escrow transaction for this item */
   const checkPendingTransaction = useCallback(async (): Promise<boolean> => {
@@ -271,7 +248,9 @@ export default function CatalogItemScreen() {
       );
       return;
     }
-    router.push(`/businesses/create-catalog-item?itemId=${item?.id}` as any);
+    router.push(
+      `/businesses/create-catalog-item?id=${item?.id}&business_id=${item?.business_id}` as any
+    );
   }, [checkPendingTransaction, item, router]);
 
   const handleDeleteItem = useCallback(async () => {
@@ -529,7 +508,7 @@ export default function CatalogItemScreen() {
               >
                 ₦{item.price.toLocaleString()}
               </Text>
-              {!item.in_stock || (item.quantity !== undefined && item.quantity <= 0) ? (
+              {!isCatalogItemAvailable(item) ? (
                 <View
                   style={[
                     sStylesheet.outOfStockBadge,
@@ -684,7 +663,7 @@ export default function CatalogItemScreen() {
               ]}
             >
               <BusinessImage
-                uri={business.logo_url || business.logo || business.cover_image}
+                uri={getBusinessLogo(business)}
                 style={sStylesheet.bizLogo}
                 contentFit="cover"
               />
@@ -751,23 +730,20 @@ export default function CatalogItemScreen() {
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityState={{
-              disabled: !item.in_stock || (item.quantity !== undefined && item.quantity <= 0),
+              disabled: !isCatalogItemAvailable(item),
             }}
             style={[
               businessUI.primaryButton,
               {
                 flex: 1,
-                opacity:
-                  !item.in_stock || (item.quantity !== undefined && item.quantity <= 0) ? 0.5 : 1,
+                opacity: !isCatalogItemAvailable(item) ? 0.5 : 1,
               },
             ]}
             onPress={handleBuy}
-            disabled={!item.in_stock || (item.quantity !== undefined && item.quantity <= 0)}
+            disabled={!isCatalogItemAvailable(item)}
           >
             <Text style={businessUI.primaryButtonText}>
-              {!item.in_stock || (item.quantity !== undefined && item.quantity <= 0)
-                ? 'Out of stock'
-                : 'Buy now'}
+              {!isCatalogItemAvailable(item) ? 'Out of stock' : 'Buy now'}
             </Text>
             <Ionicons name="bag-handle-outline" size={18} color="#102110" />
           </TouchableOpacity>

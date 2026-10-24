@@ -56,6 +56,7 @@ export interface CatalogItem {
   category: string;
   in_stock: boolean;
   quantity?: number;
+  inventory_count?: number;
   created_at?: string;
   updated_at?: string;
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { BookingService, TimeSlot } from '@/lib/bookings/booking-service';
 import { ServiceOffering, ProviderAvailability, AvailabilityException, Booking } from '@/types';
 
@@ -73,32 +73,46 @@ export function useAvailableSlots(
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const [error, setError] = useState<string | null>(null);
+  const revision = useRef(0);
+
   const fetchSlots = useCallback(async () => {
+    const request = ++revision.current;
+    setError(null);
     if (!businessId || !serviceId || !dateString) {
       setSlots([]);
+      setLoading(false);
       return;
     }
     try {
       setLoading(true);
+      setSlots([]);
       const data = await BookingService.getAvailableSlots(
         businessId,
         serviceId,
         dateString,
-        staffId
+        staffId ?? null
       );
-      setSlots(data);
+      if (request === revision.current) setSlots(data);
     } catch (err) {
+      if (request === revision.current)
+        setError(
+          err instanceof Error ? err.message : 'Could not load this information. Please try again.'
+        );
       console.error('Error fetching slots:', err);
     } finally {
-      setLoading(false);
+      if (request === revision.current) setLoading(false);
     }
   }, [businessId, serviceId, dateString, staffId]);
 
   useEffect(() => {
-    fetchSlots();
+    void fetchSlots();
+    return () => {
+      revision.current++;
+    };
   }, [fetchSlots]);
 
-  return { slots, loading, refresh: fetchSlots };
+  return { slots, loading, error, refresh: fetchSlots };
 }
 
 export function useCustomerBookings(customerId?: string) {

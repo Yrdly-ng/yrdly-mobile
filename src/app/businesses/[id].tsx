@@ -1,6 +1,6 @@
 import { directionsHref } from '../../lib/location/directions';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Modal,
   Pressable,
   Share,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Image } from 'expo-image';
@@ -31,6 +32,7 @@ import {
   getBusinessLocation,
   getBusinessRating,
   getBusinessLogo,
+  isCatalogItemAvailable,
   shouldShowBusinessCatalog,
 } from '../../lib/businesses/presentation';
 import { useServiceOfferings } from '../../hooks/bookings/use-bookings';
@@ -388,6 +390,7 @@ export default function BusinessProfileScreen() {
     }
   }, [business?.mode, tab, catalogItems.length, catalogError]);
   const [isCustomerView, setIsCustomerView] = useState(false);
+  const catalogMutationInFlight = useRef(false);
   const [catalogSheet, setCatalogSheet] = useState<CatalogItem | null>(null);
 
   const {
@@ -406,7 +409,13 @@ export default function BusinessProfileScreen() {
       .select('*')
       .eq('business_id', id)
       .order('created_at', { ascending: false });
-    if (data) setCatalogItems(data);
+    if (data)
+      setCatalogItems(
+        data.map((item) => ({
+          ...item,
+          quantity: item.quantity ?? item.inventory_count ?? (item.in_stock ? 1 : 0),
+        }))
+      );
     setCatalogError(!!error);
     setCatalogLoading(false);
   }, [id]);
@@ -545,12 +554,7 @@ export default function BusinessProfileScreen() {
             (!c.business_id || c.business_id === business.id)
         );
 
-        const bizImg =
-          business.logo ||
-          business.logo_url ||
-          business.image_urls?.[0] ||
-          business.cover_image ||
-          '';
+        const bizImg = getBusinessLogo(business) || '';
 
         if (existing) {
           router.push({
@@ -589,26 +593,108 @@ export default function BusinessProfileScreen() {
 
   const handleShareProfile = async () => {
     if (!business) return;
+    const url = `https://app.yrdly.ng/businesses/${business.id}`;
+    const message = `Check out ${business.name} on YRDLY!`;
     try {
-      await Share.share({
-        message: `Check out ${business.name} on YRDLY! ${business.category ? `They are a ${business.category}. ` : ''}View their profile here: https://app.yrdly.ng/businesses/${business.id}`,
-        title: `Share ${business.name}`,
-        url: `https://app.yrdly.ng/businesses/${business.id}`,
-      });
+      await Share.share(
+        Platform.OS === 'ios'
+          ? { message, url, title: `Share ${business.name}` }
+          : { message: `${message} ${url}`, title: `Share ${business.name}` }
+      );
     } catch (error: any) {
       Alert.alert('Error', error.message);
     }
   };
 
   const handleShareItem = async (item: CatalogItem) => {
+    const url = `https://app.yrdly.ng/businesses/${item.business_id || business?.id}/catalog/${item.id}`;
+    const message = `Check out "${item.title}" for ₦${item.price.toLocaleString()} at ${business?.name || 'this business'} on YRDLY!`;
     try {
-      await Share.share({
-        message: `Check out "${item.title}" for ₦${item.price.toLocaleString()} at ${business?.name || 'this business'} on YRDLY!`,
-        title: `Share ${item.title}`,
-      });
+      await Share.share(
+        Platform.OS === 'ios'
+          ? { message, url, title: `Share ${item.title}` }
+          : { message: `${message} ${url}`, title: `Share ${item.title}` }
+      );
     } catch (error: any) {
       Alert.alert('Error', error.message);
     }
+  };
+
+  const handleToggleCatalogStock = async () => {
+    if (!catalogSheet || !isOwner || catalogMutationInFlight.current) return;
+    const selected = catalogSheet;
+    const inStock = !isCatalogItemAvailable(selected);
+    const quantity = selected.quantity ?? selected.inventory_count ?? 1;
+    if (inStock && quantity <= 0) {
+      setCatalogSheet(null);
+      router.push(
+        `/businesses/create-catalog-item?id=${selected.id}&business_id=${selected.business_id}&focus=quantity` as any
+      );
+      return;
+    }
+    catalogMutationInFlight.current = true;
+    try {
+      const { data, error } = await supabase
+        .from('catalog_items')
+        .update({ in_stock: inStock })
+        .eq('id', selected.id)
+        .eq('business_id', selected.business_id)
+        .select('id')
+        .single();
+      if (error || !data) throw error || new Error('The stock update was not saved.');
+      setCatalogItems((items) =>
+        items.map((item) => (item.id === selected.id ? { ...item, in_stock: inStock } : item))
+      );
+      setCatalogSheet(null);
+    } catch (error: any) {
+      Alert.alert('Could not update stock', error.message || 'Please try again.');
+    } finally {
+      catalogMutationInFlight.current = false;
+    }
+  };
+
+  const handleDeleteCatalogItem = () => {
+    if (!catalogSheet || !isOwner || catalogMutationInFlight.current) return;
+    const selected = catalogSheet;
+    Alert.alert('Delete item', `Permanently delete "${selected.title}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          if (catalogMutationInFlight.current) return;
+          catalogMutationInFlight.current = true;
+          try {
+            const { data: pending, error: pendingError } = await supabase
+              .from('escrow_transactions')
+              .select('id')
+              .eq('item_id', selected.id)
+              .eq('item_type', 'catalog_item')
+              .in('status', ['pending', 'processing', 'funded'])
+              .limit(1);
+            if (pendingError) throw pendingError;
+            if (pending?.length)
+              throw new Error(
+                'This item has an active order. Resolve the order before deleting it.'
+              );
+            const { data, error } = await supabase
+              .from('catalog_items')
+              .delete()
+              .eq('id', selected.id)
+              .eq('business_id', selected.business_id)
+              .select('id')
+              .single();
+            if (error || !data) throw error || new Error('The item was not deleted.');
+            setCatalogItems((items) => items.filter((item) => item.id !== selected.id));
+            setCatalogSheet(null);
+          } catch (error: any) {
+            Alert.alert('Could not delete item', error.message || 'Please try again.');
+          } finally {
+            catalogMutationInFlight.current = false;
+          }
+        },
+      },
+    ]);
   };
 
   const getLocStr = () =>
@@ -756,7 +842,7 @@ export default function BusinessProfileScreen() {
                       View details & photos →
                     </Text>
                   </View>
-                  {!catalogSheet.in_stock && (
+                  {!isCatalogItemAvailable(catalogSheet) && (
                     <View style={sStylesheet.sheetOutOfStock}>
                       <Text style={sStylesheet.sheetOutOfStockTxt}>OUT OF STOCK</Text>
                     </View>
@@ -786,7 +872,7 @@ export default function BusinessProfileScreen() {
 
                 {viewAsCustomer ? (
                   <>
-                    {catalogSheet.in_stock && (
+                    {isCatalogItemAvailable(catalogSheet) && (
                       <TouchableOpacity
                         style={sStylesheet.sheetActionItem}
                         onPress={() => {
@@ -887,17 +973,7 @@ export default function BusinessProfileScreen() {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={sStylesheet.sheetActionItem}
-                      onPress={async () => {
-                        const in_stock = !catalogSheet.in_stock;
-                        setCatalogItems((its) =>
-                          its.map((i) => (i.id === catalogSheet.id ? { ...i, in_stock } : i))
-                        );
-                        setCatalogSheet(null);
-                        await supabase
-                          .from('catalog_items')
-                          .update({ in_stock })
-                          .eq('id', catalogSheet.id);
-                      }}
+                      onPress={handleToggleCatalogStock}
                     >
                       <View
                         style={[
@@ -910,16 +986,14 @@ export default function BusinessProfileScreen() {
                       <Text
                         style={[sStylesheet.sheetActionTxt, { color: theme.colors.TEXT_PRIMARY }]}
                       >
-                        {catalogSheet.in_stock ? 'Mark Out of Stock' : 'Mark In Stock'}
+                        {isCatalogItemAvailable(catalogSheet)
+                          ? 'Mark Out of Stock'
+                          : 'Mark In Stock'}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[sStylesheet.sheetActionItem, { borderBottomWidth: 0 }]}
-                      onPress={async () => {
-                        setCatalogItems((its) => its.filter((i) => i.id !== catalogSheet.id));
-                        setCatalogSheet(null);
-                        await supabase.from('catalog_items').delete().eq('id', catalogSheet.id);
-                      }}
+                      onPress={handleDeleteCatalogItem}
                     >
                       <View
                         style={[
@@ -1341,7 +1415,7 @@ export default function BusinessProfileScreen() {
                           style={sStylesheet.catalogImg}
                           contentFit="cover"
                         />
-                        {!item.in_stock && (
+                        {!isCatalogItemAvailable(item) && (
                           <View style={sStylesheet.outOfStockOverlay}>
                             <Text style={sStylesheet.outOfStockOverlayTxt}>OUT OF STOCK</Text>
                           </View>
@@ -1351,10 +1425,12 @@ export default function BusinessProfileScreen() {
                             <Text
                               style={[
                                 sStylesheet.stockBadgeTxt,
-                                { color: item.in_stock ? theme.colors.G : '#ef4444' },
+                                {
+                                  color: isCatalogItemAvailable(item) ? theme.colors.G : '#ef4444',
+                                },
                               ]}
                             >
-                              {item.in_stock ? 'In Stock' : 'Sold Out'}
+                              {isCatalogItemAvailable(item) ? 'In Stock' : 'Sold Out'}
                             </Text>
                           </View>
                         )}

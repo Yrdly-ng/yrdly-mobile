@@ -1,7 +1,7 @@
 import { businessScreenStyles as businessUI } from '../../components/businesses/business-screen-styles';
 import { isPaidPrice, MINIMUM_PRICE_MESSAGE } from '@/lib/marketplace/price-policy';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -35,15 +35,26 @@ export default function CreateCatalogItemScreen() {
   const sStylesheet = stylesheet;
 
   const router = useRouter();
-  const { business_id: businessId, id: itemId } = useLocalSearchParams<{
+  const {
+    business_id: businessId,
+    id,
+    itemId: legacyItemId,
+    focus,
+  } = useLocalSearchParams<{
     business_id?: string;
     id?: string;
+    itemId?: string;
+    focus?: string;
   }>();
   const { user } = useAuth();
 
+  const itemId = id || legacyItemId;
   const isEditMode = !!itemId;
+  const saveInFlight = useRef(false);
+  const [loadedBusinessId, setLoadedBusinessId] = useState(businessId);
 
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
   const [category, setCategory] = useState(CATS[0].name);
   const [inStock, setInStock] = useState(true);
@@ -70,10 +81,12 @@ export default function CreateCatalogItemScreen() {
         return;
       }
       setTitle(data.title || '');
+      setDescription(data.description || '');
+      setLoadedBusinessId(data.business_id);
       setPrice(String(data.price || ''));
       setCategory(data.category || CATS[0].name);
-      setInStock(data.in_stock ?? true);
-      setQuantity(String(data.inventory_count ?? data.quantity ?? 1));
+      setInStock(focus === 'quantity' ? true : (data.in_stock ?? true));
+      setQuantity(String(data.quantity ?? data.inventory_count ?? (data.in_stock ? 1 : 0)));
       let imgs: string[] = [];
       if (Array.isArray(data.images)) imgs = data.images;
       else if (typeof data.images === 'string') {
@@ -84,7 +97,7 @@ export default function CreateCatalogItemScreen() {
       setExistingImageUrls(imgs);
       setInitLoading(false);
     })();
-  }, [itemId, isEditMode, router]);
+  }, [itemId, isEditMode, router, focus]);
 
   const pickImage = async () => {
     try {
@@ -112,6 +125,7 @@ export default function CreateCatalogItemScreen() {
     setExistingImageUrls((prev) => prev.filter((_, i) => i !== index));
 
   const handleSave = async () => {
+    if (saveInFlight.current) return;
     if (!user?.id) return Alert.alert('Sign in required', 'Sign in to manage your catalog.');
     if (!title.trim() || !price.trim()) {
       return Alert.alert('Error', 'Please enter a title and price.');
@@ -128,54 +142,48 @@ export default function CreateCatalogItemScreen() {
       return Alert.alert('Error', 'Invalid business context.');
     }
 
+    const uploadBusinessId = loadedBusinessId || businessId;
+    if (!uploadBusinessId) return Alert.alert('Error', 'Invalid business context.');
+    saveInFlight.current = true;
     setLoading(true);
     try {
+      // Upload first, then persist the complete item once. A failed photo must not
+      // leave a partially saved product or create duplicates when the user retries.
+      const newUrls: string[] = [];
+      for (let i = 0; i < imageUris.length; i++) {
+        const { url, error } = await StorageService.uploadBusinessImage(uploadBusinessId, {
+          uri: imageUris[i],
+          name: `catalog_${Date.now()}_${i}.jpg`,
+          type: 'image/jpeg',
+        });
+        if (error || !url)
+          throw error || new Error('Could not upload item photo. Please try again.');
+        newUrls.push(url);
+      }
       const fields = {
         title: title.trim(),
-        description: '',
-        price: parseFloat(price) || 0,
+        description: description.trim(),
+        price: Number(price),
         category,
-        in_stock: inStock,
+        in_stock: inStock && inventoryCount > 0,
+        quantity: inventoryCount,
         inventory_count: inventoryCount,
+        images: [...existingImageUrls, ...newUrls],
       };
-
-      let targetItemId = itemId;
-
-      if (isEditMode) {
-        const { error } = await supabase.from('catalog_items').update(fields).eq('id', itemId);
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase
-          .from('catalog_items')
-          .insert({ business_id: businessId, ...fields })
-          .select('id')
-          .single();
-        if (error) throw error;
-        targetItemId = data.id;
-      }
-
-      const newUrls: string[] = [];
-      if (imageUris.length > 0 && targetItemId) {
-        const uploadBizId = businessId || 'catalog';
-        for (let i = 0; i < imageUris.length; i++) {
-          const { url } = await StorageService.uploadBusinessImage(uploadBizId, {
-            uri: imageUris[i],
-            name: `catalog_${targetItemId}_${Date.now()}_${i}.jpg`,
-            type: 'image/jpeg',
-          });
-          if (url) newUrls.push(url);
-        }
-      }
-
-      const finalImages = [...existingImageUrls, ...newUrls];
-      if (finalImages.length > 0 || isEditMode) {
-        await supabase.from('catalog_items').update({ images: finalImages }).eq('id', targetItemId);
-      }
-
+      const query = isEditMode
+        ? supabase
+            .from('catalog_items')
+            .update(fields)
+            .eq('id', itemId)
+            .eq('business_id', uploadBusinessId)
+        : supabase.from('catalog_items').insert({ business_id: uploadBusinessId, ...fields });
+      const { data, error } = await query.select('id').single();
+      if (error || !data) throw error || new Error('The item was not saved. Please try again.');
       setAdded(true);
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Could not save item.');
     } finally {
+      saveInFlight.current = false;
       setLoading(false);
     }
   };
@@ -316,6 +324,18 @@ export default function CreateCatalogItemScreen() {
             />
           </View>
 
+          <View style={sStylesheet.fieldBlock}>
+            <Text style={sStylesheet.fieldLabel}>Description</Text>
+            <TextInput
+              style={[sStylesheet.input, { minHeight: 100, textAlignVertical: 'top' }]}
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              placeholder="Tell customers about this item"
+              placeholderTextColor={theme.colors.MUTED}
+            />
+          </View>
+
           {/* Price */}
           <View style={sStylesheet.fieldBlock}>
             <Text style={sStylesheet.fieldLabel}>Price (₦)</Text>
@@ -404,6 +424,8 @@ export default function CreateCatalogItemScreen() {
               <Text style={sStylesheet.fieldLabel}>Inventory Count (Quantity)</Text>
               <TextInput
                 style={sStylesheet.input}
+                autoFocus={focus === 'quantity'}
+                accessibilityLabel="Stock quantity"
                 value={quantity}
                 onChangeText={setQuantity}
                 placeholder="0"
