@@ -855,14 +855,15 @@ function EventsSection({
       let active = true;
       async function fetchEvents() {
         setError(false);
-        const today = new Date();
+        const now = new Date();
+        const today = new Date(now);
         today.setHours(0, 0, 0, 0);
         let q = supabase
           .from('events')
           .select('*, ticket_tiers(price, is_visible)')
           .eq('status', 'PUBLISHED')
           .eq('is_archived', false)
-          .gte('start_time', today.toISOString())
+          .or(`end_time.gte.${now.toISOString()},start_time.gte.${now.toISOString()}`)
           .order('start_time', { ascending: true })
           .limit(30);
         if (['Community', 'Music', 'Food', 'Sports'].includes(filter)) {
@@ -882,7 +883,9 @@ function EventsSection({
           if (today.getDay() === 0) saturday.setTime(today.getTime());
           const monday = new Date(saturday);
           monday.setDate(saturday.getDate() + (today.getDay() === 0 ? 1 : 2));
-          q = q.gte('start_time', saturday.toISOString()).lt('start_time', monday.toISOString());
+          q = q
+            .or(`end_time.gte.${saturday.toISOString()},start_time.gte.${saturday.toISOString()}`)
+            .lt('start_time', monday.toISOString());
         }
         if (activeFilter?.ward) q = q.eq('ward', activeFilter.ward);
         else if (activeFilter?.lga) q = q.eq('lga', activeFilter.lga);
@@ -977,6 +980,7 @@ function EventsSection({
                   accessibilityRole="button"
                   accessibilityState={{ selected: filter === option }}
                   onPress={() => {
+                    if (filter === option) return;
                     setFilter(option);
                     setLoading(true);
                     setEvents([]);
