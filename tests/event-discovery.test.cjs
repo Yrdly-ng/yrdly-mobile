@@ -36,7 +36,7 @@ function fixture() {
     ];
   };
   const q = {};
-  for (const method of ['select', 'eq', 'gte', 'lte', 'lt', 'ilike', 'order', 'limit'])
+  for (const method of ['select', 'eq', 'or', 'gte', 'lte', 'lt', 'ilike', 'order', 'limit'])
     q[method] = (...args) => {
       filters.push([method, ...args]);
       return q;
