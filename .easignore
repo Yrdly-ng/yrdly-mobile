@@ -53,4 +53,7 @@ yarn-error.*
 # Promo video
 promo-video/
 
+# Store artwork and generated marketing exports are not application inputs.
+/output/
+
 package-lock.json
