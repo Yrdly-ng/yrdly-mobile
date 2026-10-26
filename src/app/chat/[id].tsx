@@ -714,6 +714,9 @@ function ChatContent() {
     );
     try {
       if (currentOwner.current !== owner || requestContext.current !== context) return;
+      const recipientId = meta?.participant_ids?.find((pid) => pid !== owner) || paramParticipantId;
+      if (recipientId && profile?.blocked_users?.includes(recipientId))
+        throw new Error('Unblock this person in Settings before sending a message.');
       if ((await checkActiveSession()) === false)
         throw new Error('Your session has ended. Please sign in again.');
       const currentConvId =
@@ -1599,7 +1602,14 @@ function ChatContent() {
                 { text: 'Cancel', style: 'cancel' },
                 {
                   text: 'Report User',
-                  onPress: () => Alert.alert('Report', 'User reported successfully.'),
+                  onPress: () => {
+                    const otherId = meta?.participant_ids?.find((pid) => pid !== user?.id);
+                    if (!otherId) return;
+                    router.push({
+                      pathname: '/settings/report',
+                      params: { reported_user_id: otherId, conversation_id: meta?.id || '' },
+                    });
+                  },
                 },
                 {
                   text: 'Block User',

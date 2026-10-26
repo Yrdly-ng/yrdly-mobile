@@ -1,3 +1,4 @@
+import { LegalLinks } from '../../components/legal/LegalLinks';
 import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles';
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, ScrollView } from 'react-native';
@@ -163,6 +164,7 @@ export default function SignUpScreen() {
                   <Text style={styles.crossLinkAction}>Sign in</Text>
                 </TouchableOpacity>
               </View>
+              <LegalLinks color="#a4edbd" />
             </GlassCard>
           </ScrollView>
         </KeyboardAvoidingView>

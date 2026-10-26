@@ -1,3 +1,4 @@
+import { LegalLinks } from '../../components/legal/LegalLinks';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState } from 'react';
 import {
@@ -23,7 +24,10 @@ export default function PrivacySettingsScreen() {
   const { profile, updateProfile } = useAuth();
   const [updating, setUpdating] = useState(false);
 
-  const handleToggle = async (key: 'share_location' | 'discoverable' | 'nearby_enabled', value: boolean) => {
+  const handleToggle = async (
+    key: 'share_location' | 'discoverable' | 'nearby_enabled',
+    value: boolean
+  ) => {
     setUpdating(true);
     try {
       if (key === 'nearby_enabled' && !value) {
@@ -53,6 +57,7 @@ export default function PrivacySettingsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={s.content}>
+        <LegalLinks color={theme.colors.G} includeSafety />
         <Text style={s.desc}>
           Manage how your location is shared and how others find you in your local neighbourhood.
         </Text>
@@ -87,7 +92,8 @@ export default function PrivacySettingsScreen() {
               <View style={s.rowText}>
                 <Text style={s.rowLabel}>Show me in Nearby</Text>
                 <Text style={s.rowSub}>
-                  Share a temporary location while using Nearby. Exact coordinates stay private and expire after 30 minutes.
+                  Share a temporary location while using Nearby. Exact coordinates stay private and
+                  expire after 30 minutes.
                 </Text>
               </View>
             </View>
@@ -125,7 +131,8 @@ export default function PrivacySettingsScreen() {
         <View style={s.infoCard}>
           <Feather name="info" size={16} color={theme.colors.LABEL} style={{ marginTop: 2 }} />
           <Text style={s.infoText}>
-            Nearby uses your location only while the screen is active. Your exact coordinates stay private, are never returned to other users, and expire after 30 minutes.
+            Nearby uses your location only while the screen is active. Your exact coordinates stay
+            private, are never returned to other users, and expire after 30 minutes.
           </Text>
         </View>
       </ScrollView>

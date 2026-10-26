@@ -37,13 +37,7 @@ function timeAgo(iso: string) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-function RequestCard({
-  item,
-  onResolve,
-}: {
-  item: DeletionRequest;
-  onResolve: (id: string) => void;
-}) {
+function RequestCard({ item }: { item: DeletionRequest }) {
   const { theme } = useUnistyles();
   const stylesheet = _stylesheet;
 
@@ -59,21 +53,6 @@ function RequestCard({
     } else {
       Alert.alert('No contact info', 'This user has no email or phone on file.');
     }
-  };
-
-  const handleMarkResolved = () => {
-    Alert.alert(
-      'Mark as Resolved',
-      `This will clear the deletion flag for ${item.name}. Only do this after you have fully deleted their data.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Mark Resolved',
-          style: 'destructive',
-          onPress: () => onResolve(item.id),
-        },
-      ]
-    );
   };
 
   return (
@@ -129,15 +108,6 @@ function RequestCard({
           <Feather name="mail" size={15} color={theme.colors.G} />
           <Text style={[stylesheet.actionTxt, { color: theme.colors.G }]}>Contact</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[stylesheet.actionBtn, stylesheet.resolveBtn]}
-          onPress={handleMarkResolved}
-        >
-          <Ionicons name="checkmark-circle-outline" size={15} color={theme.colors.TEXT_PRIMARY} />
-          <Text style={[stylesheet.actionTxt, { color: theme.colors.TEXT_PRIMARY }]}>
-            Mark Resolved
-          </Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -174,20 +144,6 @@ export default function DeletionRequestsScreen() {
   const handleRefresh = () => {
     setRefreshing(true);
     fetchRequests();
-  };
-
-  const handleResolve = async (userId: string) => {
-    const { error } = await supabase
-      .from('users')
-      .update({ delete_requested: false, delete_requested_at: null })
-      .eq('id', userId);
-
-    if (error) {
-      Alert.alert('Error', 'Failed to update. Please try again.');
-    } else {
-      setRequests((prev) => prev.filter((r) => r.id !== userId));
-      Alert.alert('Done', 'Marked as resolved. Remember to fully delete user data from Supabase.');
-    }
   };
 
   const handleEmailAll = () => {
@@ -242,7 +198,7 @@ export default function DeletionRequestsScreen() {
         <FlatList
           data={requests}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <RequestCard item={item} onResolve={handleResolve} />}
+          renderItem={({ item }) => <RequestCard item={item} />}
           contentContainerStyle={stylesheet.list}
           refreshControl={
             <RefreshControl
@@ -256,7 +212,8 @@ export default function DeletionRequestsScreen() {
               <Ionicons name="warning" size={14} color="#F59E0B" />
               <Text style={stylesheet.listHeaderTxt}>
                 {requests.length} user{requests.length !== 1 ? 's' : ''} waiting for data deletion.
-                Contact each user and delete their data from Supabase, then mark as resolved.
+                Requests stay pending until the account is deleted through the verified deletion
+                process. Refresh after completion; contacting a user does not complete deletion.
               </Text>
             </View>
           }

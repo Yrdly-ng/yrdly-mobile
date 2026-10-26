@@ -158,7 +158,7 @@ const PostVideo = React.memo(function PostVideo({
       <VideoView
         player={player}
         style={{ width: '100%', height: '100%' }}
-        contentFit="contain"
+        contentFit={expanded ? 'contain' : 'cover'}
         nativeControls={expanded}
         onFirstFrameRender={() => setIsReady(true)}
       />
@@ -174,7 +174,7 @@ const PostVideo = React.memo(function PostVideo({
         <Image
           source={{ uri: post.video_thumbnail_url }}
           style={{ position: 'absolute', width: '100%', height: '100%', zIndex: 1 }}
-          contentFit="contain"
+          contentFit={expanded ? 'contain' : 'cover'}
         />
       )}
       <TouchableOpacity
@@ -644,20 +644,16 @@ export const PostCard = React.memo(
     };
 
     const handleReport = () => {
-      Alert.alert('Report Post', 'Are you sure you want to report this post?', [
+      Alert.alert('Report Post', 'Choose the type of report you want to submit.', [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Report',
+          text: 'Other issue',
+          onPress: () => router.push({ pathname: '/settings/report', params: { reported_post_id: post.id } } as any),
+        },
+        {
+          text: 'Child safety',
           style: 'destructive',
-          onPress: async () => {
-            if (!currentUser) return;
-            await supabase.from('reports').insert({
-              reporter_id: currentUser.id,
-              reported_post_id: post.id,
-              reason: 'Inappropriate content',
-            });
-            Alert.alert('Success', 'Post reported to admins.');
-          },
+          onPress: () => router.push({ pathname: '/settings/report', params: { reported_post_id: post.id, category: 'Child safety' } } as any),
         },
       ]);
     };

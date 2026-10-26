@@ -171,68 +171,60 @@ export class AuthService {
     }
   }
 
-  // Sign in with Google
-  static async signInWithGoogle() {
+  private static async signInWithProvider(provider: 'google' | 'apple') {
     try {
       const redirectTo = this.getRedirectUrl();
       const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo,
-          skipBrowserRedirect: true, // Prevents default web redirect, required for native
-        },
+        provider,
+        options: { redirectTo, skipBrowserRedirect: true },
       });
-
       if (error) throw error;
+      if (!data?.url) throw new Error('Unable to start sign-in. Please try again.');
 
-      if (data?.url) {
-        // Opens the secure native browser to complete OAuth
-        // Force Chrome on Android to bypass buggy app interceptors (like OPay/EaseMoni)
-        const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo, {
-          browserPackage: 'com.android.chrome',
-        });
-
-        if (result.type === 'success' && result.url) {
-          // If Supabase uses PKCE flow (default in v2), extract code:
-          const urlParams = new URLSearchParams(result.url.split('?')[1] || '');
-          const code = urlParams.get('code');
-          if (code) {
-            await supabase.auth.exchangeCodeForSession(code);
-          } else {
-            // If Implicit flow (hash), extract token:
-            const hashParams = new URLSearchParams(result.url.split('#')[1] || '');
-            const access_token = hashParams.get('access_token');
-            const refresh_token = hashParams.get('refresh_token');
-            if (access_token && refresh_token) {
-              await supabase.auth.setSession({ access_token, refresh_token });
-            }
-          }
-        }
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.url,
+        redirectTo,
+        provider === 'google' ? { browserPackage: 'com.android.chrome' } : {}
+      );
+      if (result.type === 'cancel' || result.type === 'dismiss') {
+        return { data: null, error: null };
       }
-
-      return { data, error: null };
+      if (result.type !== 'success' || !result.url) {
+        throw new Error('Sign-in did not finish. Please try again.');
+      }
+      if (result.url.split(/[?#]/)[0] !== redirectTo.split(/[?#]/)[0]) {
+        throw new Error('Unexpected sign-in callback. Please try again.');
+      }
+      const callback = new URL(result.url);
+      const query = callback.searchParams;
+      const hash = new URLSearchParams(callback.hash.slice(1));
+      if (query.has('error') || hash.has('error')) {
+        throw new Error('Sign-in was not approved. Please try again.');
+      }
+      const code = query.get('code');
+      const access_token = hash.get('access_token');
+      const refresh_token = hash.get('refresh_token');
+      const sessionResult = code
+        ? await supabase.auth.exchangeCodeForSession(code)
+        : access_token && refresh_token
+          ? await supabase.auth.setSession({ access_token, refresh_token })
+          : null;
+      if (!sessionResult) throw new Error('Sign-in callback was incomplete. Please try again.');
+      if (sessionResult.error) throw sessionResult.error;
+      if (!sessionResult.data.session) throw new Error('Unable to create a sign-in session.');
+      return { data: sessionResult.data, error: null };
     } catch (error) {
-      console.error('Google sign in error:', error);
+      // Do not log callback URLs or provider tokens.
       return { data: null, error };
     }
   }
 
-  // Sign in with Apple
-  static async signInWithApple() {
-    try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'apple',
-        options: {
-          redirectTo: this.getRedirectUrl(),
-        },
-      });
+  static signInWithGoogle() {
+    return this.signInWithProvider('google');
+  }
 
-      if (error) throw error;
-      return { data, error: null };
-    } catch (error) {
-      console.error('Apple sign in error:', error);
-      return { data: null, error };
-    }
+  static signInWithApple() {
+    return this.signInWithProvider('apple');
   }
 
   // Sign out

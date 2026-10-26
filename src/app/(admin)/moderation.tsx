@@ -194,6 +194,14 @@ export default function ModerationQueueScreen() {
         </TouchableOpacity>
       </View>
 
+      <TouchableOpacity
+        accessibilityRole="button"
+        onPress={() => router.push('/(admin)/child-safety' as any)}
+        style={{ minHeight: 48, paddingHorizontal: 20, justifyContent: 'center' }}
+      >
+        <Text style={{ color: theme.colors.G, fontFamily: 'Inter-SemiBold' }}>Open child-safety reports</Text>
+      </TouchableOpacity>
+
       {loading ? (
         <View style={stylesheet.centered}>
           <ActivityIndicator color={theme.colors.G} size="large" />

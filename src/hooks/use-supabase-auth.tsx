@@ -179,7 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (result.error || !session) {
+      if (result.error || !result.data || !session) {
         setLoading(false);
       }
       return result;
@@ -196,7 +196,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (result.error || !session) {
+      if (result.error || !result.data || !session) {
         setLoading(false);
       }
       return result;

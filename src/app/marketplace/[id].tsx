@@ -305,12 +305,17 @@ function MarketplaceDetailContent() {
           style: 'destructive',
           onPress: async () => {
             if (!user || !post) return;
-            await supabase.from('reports').insert({
-              reporter_id: user.id,
-              reported_post_id: post.id,
-              reason: 'Inappropriate content',
-            });
-            Alert.alert('Success', 'Item reported to admins.');
+            try {
+              const { error } = await supabase.from('reports').insert({
+                reporter_id: user.id,
+                reported_post_id: post.id,
+                reason: 'Inappropriate content',
+              });
+              if (error) throw error;
+              Alert.alert('Success', 'Item reported to admins.');
+            } catch {
+              Alert.alert('Error', 'Your report could not be submitted. Please try again.');
+            }
           },
         },
       ]);

@@ -1,3 +1,5 @@
+import { TermsAcceptanceGate } from '../components/legal/TermsAcceptanceGate';
+import { isAccountHelpRoute } from '../lib/legal/terms';
 import { UnistylesRuntime } from 'react-native-unistyles';
 import { getStoredThemePreference } from '../lib/theme-preference';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
@@ -136,6 +138,9 @@ function RootNavigationGuard({
         return;
       }
 
+      // Account help and deletion remain accessible without accepting new terms.
+      if (isAccountHelpRoute(segments)) return;
+
       // Signed in — wait for profile to load
       if (!profile) {
         // Deadlock prevention: if we've waited > 4 seconds and profile is still null,
@@ -191,6 +196,7 @@ function RootNavigationGuard({
         />
         <Stack.Screen name="tickets" options={{ headerShown: false }} />
       </Stack>
+      <TermsAcceptanceGate />
     </ErrorBoundary>
   );
 }

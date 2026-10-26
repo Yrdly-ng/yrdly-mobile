@@ -427,22 +427,20 @@ export default function OtherUserProfileScreen() {
                       .insert({ blocker_id: currentProfile.id, blocked_id: profile.id });
                     Alert.alert('User blocked');
                     router.back();
-                  } catch (e) {}
+                  } catch {
+                    Alert.alert('Error', 'Failed to block user. Please try again.');
+                  }
                 },
               },
               {
                 text: 'Report User',
                 style: 'destructive',
-                onPress: async () => {
-                  try {
-                    if (!currentProfile) return;
-                    await supabase.from('reports').insert({
-                      reporter_id: currentProfile.id,
-                      reported_user_id: profile.id,
-                      reason: 'Inappropriate profile',
-                    });
-                    Alert.alert('User reported');
-                  } catch (e) {}
+                onPress: () => {
+                  if (!currentProfile) return;
+                  router.push({
+                    pathname: '/settings/report',
+                    params: { reported_user_id: profile.id },
+                  });
                 },
               },
               { text: 'Cancel', style: 'cancel' },

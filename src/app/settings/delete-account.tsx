@@ -20,7 +20,7 @@ export default function DeleteAccountScreen() {
 
     Alert.alert(
       'Are you absolutely sure?',
-      'This action cannot be undone. All your data, messages, posts, and transactions will be permanently deleted.',
+      'Request deletion of your account and associated personal data within 30 days. Records required for legal, fraud prevention or financial obligations may be retained. Completed deletion cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -30,16 +30,19 @@ export default function DeleteAccountScreen() {
             setLoading(true);
             try {
               // Mark the user profile as delete_requested
-              const { error } = await supabase
+              const { data, error } = await supabase
                 .from('users')
                 .update({ delete_requested: true, delete_requested_at: new Date().toISOString() })
-                .eq('id', user.id);
+                .eq('id', user.id)
+                .select('id')
+                .single();
 
               if (error) throw error;
+              if (!data) throw new Error('Your request could not be saved. Please try again.');
 
               Alert.alert(
                 'Request Submitted',
-                'Your account deletion request has been submitted. You will be signed out now. The process will complete within 30 days.',
+                'Your account deletion request has been submitted. You will be signed out now. Our team will process the request within 30 days and contact you when deletion is complete.',
                 [
                   {
                     text: 'OK',
@@ -76,12 +79,14 @@ export default function DeleteAccountScreen() {
           </View>
           <Text style={s.warningTitle}>Warning</Text>
           <Text style={s.warningText}>
-            Submitting an account deletion request will schedule your account and all associated
-            data (posts, messages, transaction history) to be permanently deleted from our servers.
+            Request deletion of your account and associated personal data, including your posts,
+            messages and uploaded media. Some financial, security and legally required records may
+            be retained as described in our Privacy Policy.
           </Text>
           <Text style={s.warningText}>
-            This action is irreversible. For security reasons, the deletion process may take up to
-            30 days to complete, but you will lose access to your account immediately.
+            Our team processes requests within 30 days and will contact you when deletion is
+            complete. You will be signed out after submitting this request; submitting the request
+            does not immediately delete or disable your account. Completed deletion is irreversible.
           </Text>
         </View>
 

@@ -78,3 +78,6 @@ scratch_*.py
 !/GLOSSARY.md
 !/docs/adr/*.md
 !/docs/mobile-telemetry.md
+!/docs/store-readiness-2026-10-26.md
+!/docs/store-release.md
+!/docs/child-safety-operations.md

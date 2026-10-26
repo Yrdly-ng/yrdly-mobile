@@ -1,5 +1,5 @@
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,9 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
-  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import ImagePicker from 'react-native-image-crop-picker';
 import { Image } from 'expo-image';
@@ -24,16 +23,25 @@ export default function ReportScreen() {
   const s = sStylesheet;
 
   const router = useRouter();
+  const params = useLocalSearchParams<{ reported_user_id?: string; reported_post_id?: string; conversation_id?: string; category?: string }>();
+  const reportedUserId =
+    typeof params.reported_user_id === 'string' ? params.reported_user_id : undefined;
+  const reportedPostId =
+    typeof params.reported_post_id === 'string' ? params.reported_post_id : undefined;
+  const conversationId =
+    typeof params.conversation_id === 'string' ? params.conversation_id : undefined;
+  const submitting = useRef(false);
   const { user } = useAuth();
   const { categories, loading: categoriesLoading } = useCategories('report');
-  const [category, setCategory] = useState('');
-  const [subject, setSubject] = useState('');
+  const [category, setCategory] = useState(params.category === 'Child safety' ? 'Child safety' : '');
+  const [subject, setSubject] = useState(reportedUserId ? 'Report a user' : reportedPostId ? 'Report a post' : '');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [image, setImage] = useState<{ uri: string; mime: string; name: string } | null>(null);
 
   const pickImage = async () => {
+    if (category === 'Child safety') return;
     try {
       const img = await ImagePicker.openPicker({
         mediaType: 'photo',
@@ -59,34 +67,39 @@ export default function ReportScreen() {
   };
 
   const handleSubmit = async () => {
+    if (submitting.current) return;
+    if (!user) {
+      Alert.alert('Error', 'Please sign in before submitting a report.');
+      return;
+    }
     if (!subject.trim() || !description.trim()) {
       Alert.alert('Error', 'Please fill in both the subject and description.');
       return;
     }
 
+    submitting.current = true;
     setLoading(true);
     try {
       let uploadedImageUrl = null;
-      if (image && user) {
+      if (image && user && category !== 'Child safety') {
         const file = {
           uri: image.uri,
           name: image.name,
           type: image.mime,
         };
         const { url, error: uploadError } = await StorageService.uploadReportImage(user.id, file);
-        if (uploadError) {
-          console.warn('Failed to upload image', uploadError);
-        } else {
-          uploadedImageUrl = url;
-        }
+        if (uploadError) throw uploadError;
+        uploadedImageUrl = url;
       }
 
-      // 1. Try to insert into reports table if it exists
+      // Keep the target and conversation attached to the moderator's report.
       const insertData: any = {
-        user_id: user?.id || null,
+        user_id: user.id,
+        ...(reportedUserId ? { reported_user_id: reportedUserId } : {}),
+        ...(reportedPostId ? { reported_post_id: reportedPostId } : {}),
         category,
         subject: subject.trim(),
-        description: description.trim(),
+        description: `${description.trim()}${conversationId ? `\n\nConversation: ${conversationId}` : ''}`,
         status: 'open',
       };
 
@@ -96,46 +109,16 @@ export default function ReportScreen() {
 
       const { error } = await supabase.from('reports').insert(insertData);
 
-      if (error) {
-        // Table probably doesn't exist or RLS issue. Fallback to Email Support.
-        console.warn('DB report insert failed, falling back to email client:', error);
-
-        let bodyText = description;
-        if (uploadedImageUrl) {
-          bodyText += `\n\nAttached Image: ${uploadedImageUrl}`;
-        }
-
-        const safeSubject = encodeURIComponent(`[Report - ${category}] ${subject}`).replace(
-          /%20/g,
-          ' '
-        );
-        const safeBody = encodeURIComponent(bodyText).replace(/%20/g, ' ');
-
-        const mailUrl = `mailto:support@yrdly.ng?subject=${safeSubject}&body=${safeBody}`;
-        const supported = await Linking.canOpenURL(mailUrl);
-        if (supported) {
-          await Linking.openURL(mailUrl);
-          Alert.alert(
-            'Open Mail',
-            'We opened your email app to send the report. Please send the pre-filled email.'
-          );
-          router.back();
-        } else {
-          Alert.alert(
-            'Error',
-            'Unable to open email client. Please send your report directly to support@yrdly.ng'
-          );
-        }
-      } else {
-        Alert.alert(
-          'Thank You',
-          'Your report has been submitted successfully. Our team will review it shortly.'
-        );
-        router.back();
-      }
+      if (error) throw error;
+      Alert.alert(
+        'Thank You',
+        'Your report has been submitted successfully. Our team will review it shortly.'
+      );
+      router.back();
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to submit report.');
     } finally {
+      submitting.current = false;
       setLoading(false);
     }
   };
@@ -157,6 +140,42 @@ export default function ReportScreen() {
           If you run into technical bugs, have marketplace disputes, or wish to report inappropriate
           content or behaviour, let us know below.
         </Text>
+
+        {reportedUserId && (
+          <Text style={s.desc}>
+            The reported account{conversationId ? ' and conversation' : ''} will be included for our
+            safety team.
+          </Text>
+        )}
+        {reportedPostId && (
+          <Text style={s.desc}>
+            Reported post reference: {reportedPostId}. The reference will be included for our safety team.
+          </Text>
+        )}
+
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityState={{ selected: category === 'Child safety' }}
+          disabled={loading}
+          style={s.dropdownBtn}
+          onPress={() => {
+            setCategory('Child safety');
+            setImage(null);
+            setShowDropdown(false);
+          }}
+        >
+          <Feather name="shield" size={18} color={theme.colors.G} />
+          <Text style={s.dropdownBtnText}>Child safety</Text>
+          {category === 'Child safety' && <Ionicons name="checkmark" size={18} color={theme.colors.G} />}
+        </TouchableOpacity>
+        {category === 'Child safety' && (
+          <Text style={s.desc}>
+            Report suspected child sexual abuse, exploitation, grooming, or an underage account.
+            Describe where it happened and include the account name or content link. Do not upload,
+            download or forward suspected illegal images or videos. If a child is in immediate
+            danger, contact local emergency services; this form is not an emergency service.
+          </Text>
+        )}
 
         {/* Category Dropdown */}
         <Text style={s.inputLabel}>ISSUE CATEGORY</Text>
@@ -233,6 +252,8 @@ export default function ReportScreen() {
           />
         </View>
 
+        {category !== 'Child safety' && (
+          <>
         {/* Attachment */}
         <Text style={[s.inputLabel, { marginTop: 16 }]}>ATTACHMENT (OPTIONAL)</Text>
         <TouchableOpacity style={s.imageUploadBtn} onPress={pickImage}>
@@ -250,6 +271,9 @@ export default function ReportScreen() {
             </>
           )}
         </TouchableOpacity>
+
+          </>
+        )}
 
         <TouchableOpacity style={s.submitBtn} onPress={handleSubmit} disabled={loading}>
           {loading ? (

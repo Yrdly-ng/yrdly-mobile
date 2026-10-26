@@ -3,6 +3,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { LegalLinks } from '../../components/legal/LegalLinks';
 import { Ionicons, Feather } from '@expo/vector-icons';
 
 export default function GuidelinesScreen() {
@@ -74,6 +75,28 @@ export default function GuidelinesScreen() {
             Help us protect the neighbourhood. If you notice listings that look like scams, or users
             acting inappropriately, flag them immediately using the "Report" button.
           </Text>
+        </View>
+
+        <View style={s.sectionCard}>
+          <View style={s.cardHeader}>
+            <Feather name="shield" size={20} color={theme.colors.G} />
+            <Text style={s.cardTitle}>Protect Children</Text>
+          </View>
+          <Text style={s.cardBody}>
+            Yrdly accounts are for adults aged 18 and older. Child sexual abuse and exploitation,
+            grooming, and sexual content involving anyone under 18 are prohibited. Report a concern
+            using Child safety in Report an Issue. Describe where it happened; do not upload,
+            download or forward suspected illegal images or videos. If a child is in immediate
+            danger, contact local emergency services.
+          </Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            onPress={() => router.push({ pathname: '/settings/report', params: { category: 'Child safety' } })}
+            style={{ minHeight: 48, justifyContent: 'center' }}
+          >
+            <Text style={{ color: theme.colors.G, fontFamily: 'Inter-SemiBold' }}>Report a child-safety concern</Text>
+          </TouchableOpacity>
+          <LegalLinks includeSafety color={theme.colors.G} />
         </View>
 
         <Text style={s.footerText}>
