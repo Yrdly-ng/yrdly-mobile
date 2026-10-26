@@ -248,7 +248,7 @@ export const PostCard = React.memo(
     onDelete,
     expanded = false,
   }: PostCardProps) {
-    const { width } = useWindowDimensions();
+    const { width, height: windowHeight } = useWindowDimensions();
     const router = useRouter();
     const { user: currentUser, profile, updateProfile } = useAuth();
     const allowSocial = supportsPostEngagement(post.category);
@@ -976,7 +976,13 @@ export const PostCard = React.memo(
                 const aspect = videoAspects[item.url] || effectiveVideoAspect;
                 const containerHeight =
                   item.type === 'video'
-                    ? mediaWidth / (expanded ? aspect : Math.min(3, Math.max(0.5, aspect)))
+                    ? expanded
+                      ? mediaWidth / aspect
+                      : Math.min(
+                          mediaWidth / Math.min(3, Math.max(0.5, aspect)),
+                          mediaWidth * 1.25,
+                          windowHeight * 0.55
+                        )
                     : getImageHeight(item.url);
 
                 if (item.type === 'video') {

@@ -4,6 +4,39 @@ import { Image } from 'expo-image';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import ImageViewing from 'react-native-image-viewing';
 
+function CommunityPhoto({
+  url,
+  width,
+  index,
+  onOpen,
+}: {
+  url: string;
+  width: number | '100%';
+  index: number;
+  onOpen: () => void;
+}) {
+  const [aspectRatio, setAspectRatio] = useState(1);
+  return (
+    <TouchableOpacity
+      onPress={onOpen}
+      accessibilityRole="button"
+      accessibilityLabel={`Open photo ${index + 1}`}
+      style={{ width }}
+    >
+      <Image
+        source={{ uri: url }}
+        style={{ width: '100%', aspectRatio, borderRadius: 12 }}
+        contentFit="contain"
+        onLoad={({ source }) => {
+          if (source.width > 0 && source.height > 0) {
+            setAspectRatio(Math.min(2, Math.max(0.75, source.width / source.height)));
+          }
+        }}
+      />
+    </TouchableOpacity>
+  );
+}
+
 function CommunityVideo({ url }: { url: string }) {
   const player = useVideoPlayer(url);
   return (
@@ -39,26 +72,33 @@ export function CommunityMedia({
   videos?: string[];
 }) {
   const [selected, setSelected] = useState<number | null>(null);
+  const [mediaWidth, setMediaWidth] = useState(0);
   const photos = images.filter(Boolean);
   return (
-    <View style={{ gap: 10 }}>
-      {!!photos.length && (
-        <ScrollView horizontal contentContainerStyle={{ gap: 8, paddingVertical: 10 }}>
+    <View style={{ gap: 10 }} onLayout={(event) => setMediaWidth(event.nativeEvent.layout.width)}>
+      {photos.length === 1 ? (
+        <View style={{ paddingVertical: 10 }}>
+          <CommunityPhoto
+            key={photos[0]}
+            url={photos[0]}
+            width="100%"
+            index={0}
+            onOpen={() => setSelected(0)}
+          />
+        </View>
+      ) : photos.length > 1 && mediaWidth > 0 ? (
+        <ScrollView horizontal pagingEnabled contentContainerStyle={{ paddingVertical: 10 }}>
           {photos.map((url, index) => (
-            <TouchableOpacity
+            <CommunityPhoto
               key={`${url}-${index}`}
-              onPress={() => setSelected(index)}
-              accessibilityLabel={`Open photo ${index + 1}`}
-            >
-              <Image
-                source={{ uri: url }}
-                style={{ width: 180, height: 180, borderRadius: 12 }}
-                contentFit="cover"
-              />
-            </TouchableOpacity>
+              url={url}
+              width={mediaWidth}
+              index={index}
+              onOpen={() => setSelected(index)}
+            />
           ))}
         </ScrollView>
-      )}
+      ) : null}
       {videos.filter(Boolean).map((url) => (
         <CommunityVideo key={url} url={url} />
       ))}
