@@ -9,9 +9,11 @@ const payments = createBookingPayments(api);
 /** The server chooses the amount/type; an SDK callback never proves payment. */
 export function BookingPaymentButton({
   bookingId,
+  recovery = false,
   onConfirmed,
 }: {
   bookingId: string;
+  recovery?: boolean;
   onConfirmed: () => void;
 }) {
   const { theme } = useUnistyles();
@@ -23,7 +25,7 @@ export function BookingPaymentButton({
 
   const initialize = async () => {
     if (busy.current) return;
-    if (!publicKey) {
+    if (!publicKey && !recovery) {
       Alert.alert('Payment unavailable', 'Please try again later.');
       return;
     }
@@ -95,14 +97,28 @@ export function BookingPaymentButton({
         onPress={initialize}
         disabled={loading || !!checkout}
         accessibilityRole="button"
-        accessibilityLabel="Pay for booking with Payluk"
+        accessibilityLabel={
+          recovery ? 'Check or resume booking payment' : 'Pay for booking with Payluk'
+        }
       >
         {loading ? (
           <ActivityIndicator color={theme.colors.DARK} />
         ) : (
-          <Text style={styles.label}>Pay with Payluk</Text>
+          <Text style={styles.label}>
+            {recovery ? 'Check or resume payment' : 'Pay with Payluk'}
+          </Text>
         )}
       </TouchableOpacity>
+      {recovery && (
+        <TouchableOpacity
+          accessibilityRole="button"
+          style={styles.secondary}
+          disabled={loading}
+          onPress={verify}
+        >
+          <Text style={styles.reviewText}>Check payment confirmation</Text>
+        </TouchableOpacity>
+      )}
       {checkout && !open && (
         <View style={styles.review}>
           <Text style={styles.reviewText}>
@@ -121,7 +137,7 @@ export function BookingPaymentButton({
           </Text>
           <TouchableOpacity
             style={styles.button}
-            disabled={loading}
+            disabled={loading || !publicKey}
             onPress={() => setOpen(true)}
             accessibilityRole="button"
           >

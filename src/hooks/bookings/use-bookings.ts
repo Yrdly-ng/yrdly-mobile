@@ -68,7 +68,8 @@ export function useAvailableSlots(
   businessId?: string,
   serviceId?: string,
   dateString?: string,
-  staffId?: string | null
+  staffId?: string | null,
+  excludeBookingId?: string
 ) {
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(false);
@@ -91,7 +92,8 @@ export function useAvailableSlots(
         businessId,
         serviceId,
         dateString,
-        staffId ?? null
+        staffId ?? null,
+        excludeBookingId
       );
       if (request === revision.current) setSlots(data);
     } catch (err) {
@@ -103,7 +105,7 @@ export function useAvailableSlots(
     } finally {
       if (request === revision.current) setLoading(false);
     }
-  }, [businessId, serviceId, dateString, staffId]);
+  }, [businessId, serviceId, dateString, staffId, excludeBookingId]);
 
   useEffect(() => {
     void fetchSlots();
@@ -118,8 +120,10 @@ export function useAvailableSlots(
 export function useCustomerBookings(customerId?: string) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchBookings = useCallback(async () => {
+    setError(null);
     if (!customerId) {
       setBookings([]);
       setLoading(false);
@@ -130,6 +134,7 @@ export function useCustomerBookings(customerId?: string) {
       const data = await BookingService.getCustomerBookings(customerId);
       setBookings(data);
     } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not load bookings. Please try again.');
       console.error('Error fetching customer bookings:', err);
     } finally {
       setLoading(false);
@@ -140,14 +145,16 @@ export function useCustomerBookings(customerId?: string) {
     fetchBookings();
   }, [fetchBookings]);
 
-  return { bookings, loading, refresh: fetchBookings };
+  return { bookings, loading, error, refresh: fetchBookings };
 }
 
 export function useBusinessBookings(businessId?: string) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchBookings = useCallback(async () => {
+    setError(null);
     if (!businessId) {
       setBookings([]);
       setLoading(false);
@@ -158,6 +165,7 @@ export function useBusinessBookings(businessId?: string) {
       const data = await BookingService.getBusinessBookings(businessId);
       setBookings(data);
     } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not load bookings. Please try again.');
       console.error('Error fetching business bookings:', err);
     } finally {
       setLoading(false);
@@ -168,5 +176,5 @@ export function useBusinessBookings(businessId?: string) {
     fetchBookings();
   }, [fetchBookings]);
 
-  return { bookings, loading, refresh: fetchBookings };
+  return { bookings, loading, error, refresh: fetchBookings };
 }

@@ -60,6 +60,24 @@ function loadService(rows, failTable) {
       };
     },
   };
+  supabase.rpc = async (name, args) => {
+    assert.equal(name, 'booking_busy_intervals');
+    if (failTable === 'bookings') return { data: null, error: new Error('Availability offline') };
+    const start = new Date(args.p_date + 'T00:00:00+01:00').toISOString();
+    const end = new Date(Date.parse(start) + 86400000).toISOString();
+    const data = (rows.bookings || [])
+      .filter(
+        (row) =>
+          row.business_id === args.p_business_id &&
+          ['requested', 'confirmed'].includes(row.status) &&
+          (!args.p_staff_id || !row.staff_id || row.staff_id === args.p_staff_id) &&
+          (!args.p_exclude_booking_id || row.id !== args.p_exclude_booking_id) &&
+          row.appointment_time < end &&
+          row.end_time > start
+      )
+      .map(({ appointment_time, end_time }) => ({ appointment_time, end_time }));
+    return { data, error: null };
+  };
   const module = { exports: {} };
   const code = ts.transpileModule(fs.readFileSync('src/lib/bookings/booking-service.ts', 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS },

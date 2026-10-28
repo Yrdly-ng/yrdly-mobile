@@ -36,9 +36,19 @@ export default function ManageServicesScreen() {
   const [price, setPrice] = useState('');
   const [priceIsFrom, setPriceIsFrom] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [depositRequired, setDepositRequired] = useState(false);
+  const [depositAmount, setDepositAmount] = useState('');
+  const [depositPercent, setDepositPercent] = useState('');
+  const [fullPayment, setFullPayment] = useState(false);
+  const [escrowEnabled, setEscrowEnabled] = useState(false);
 
   const openAddModal = () => {
     setEditingId(null);
+    setDepositRequired(false);
+    setDepositAmount('');
+    setDepositPercent('');
+    setFullPayment(false);
+    setEscrowEnabled(false);
     setName('');
     setDescription('');
     setDurationMinutes('60');
@@ -49,6 +59,11 @@ export default function ManageServicesScreen() {
 
   const openEditModal = (offering: any) => {
     setEditingId(offering.id);
+    setDepositRequired(!!offering.deposit_required);
+    setDepositAmount(offering.deposit_amount == null ? '' : String(offering.deposit_amount));
+    setDepositPercent(offering.deposit_percent == null ? '' : String(offering.deposit_percent));
+    setFullPayment(!!offering.requires_full_payment);
+    setEscrowEnabled(!!offering.escrow_enabled);
     setName(offering.name);
     setDescription(offering.description || '');
     setDurationMinutes(String(offering.duration_minutes));
@@ -66,11 +81,34 @@ export default function ManageServicesScreen() {
     if (price.trim() && !isPaidPrice(Number(price), true))
       return Alert.alert('Invalid price', MINIMUM_PRICE_MESSAGE);
 
+    if (depositRequired && !fullPayment && !escrowEnabled) {
+      const amount = Number(depositAmount),
+        percent = Number(depositPercent);
+      if (
+        !!depositAmount.trim() === !!depositPercent.trim() ||
+        (depositAmount.trim() &&
+          (!Number.isFinite(amount) || amount <= 0 || (price.trim() && amount > Number(price)))) ||
+        (depositPercent.trim() && (!Number.isFinite(percent) || percent <= 0 || percent > 100))
+      ) {
+        return Alert.alert(
+          'Invalid deposit',
+          'Enter either a positive deposit amount up to the service price, or a percentage from 1 to 100.'
+        );
+      }
+    }
+    const paymentSettings = {
+      deposit_required: depositRequired,
+      deposit_amount: depositAmount.trim() ? Number(depositAmount) : null,
+      deposit_percent: depositPercent.trim() ? Number(depositPercent) : null,
+      requires_full_payment: fullPayment,
+      escrow_enabled: escrowEnabled,
+    };
     setSaving(true);
     try {
       const parsedPrice = price.trim() ? parseFloat(price) : undefined;
       if (editingId) {
         await BookingService.updateServiceOffering(editingId, {
+          ...paymentSettings,
           name: name.trim(),
           description: description.trim() || undefined,
           duration_minutes: duration,
@@ -80,6 +118,7 @@ export default function ManageServicesScreen() {
       } else {
         await BookingService.createServiceOffering({
           business_id: id!,
+          ...paymentSettings,
           name: name.trim(),
           description: description.trim() || undefined,
           duration_minutes: duration,
@@ -293,6 +332,59 @@ export default function ManageServicesScreen() {
               <Text style={s.checkboxLabel}>Price is a "Starting from" estimate</Text>
             </TouchableOpacity>
 
+            <Text style={s.label}>Booking payment</Text>
+            <Text style={businessUI.muted}>
+              Deposits charge only the deposit. Full payment collects the agreed total. Escrow holds
+              payment until release.
+            </Text>
+            {[
+              { label: 'Require a deposit', value: depositRequired, set: setDepositRequired },
+              { label: 'Require full payment', value: fullPayment, set: setFullPayment },
+              { label: 'Hold payment in escrow', value: escrowEnabled, set: setEscrowEnabled },
+            ].map((option) => (
+              <TouchableOpacity
+                key={option.label}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: option.value }}
+                style={s.checkboxRow}
+                onPress={() => option.set(!option.value)}
+              >
+                <Ionicons
+                  name={option.value ? 'checkbox' : 'square-outline'}
+                  size={20}
+                  color={theme.colors.G}
+                />
+                <Text style={s.checkboxLabel}>{option.label}</Text>
+              </TouchableOpacity>
+            ))}
+            {depositRequired && (
+              <>
+                <TextInput
+                  accessibilityLabel="Deposit amount"
+                  style={s.input}
+                  placeholder="Deposit amount (₦)"
+                  placeholderTextColor={theme.colors.LABEL}
+                  keyboardType="decimal-pad"
+                  value={depositAmount}
+                  onChangeText={(value) => {
+                    setDepositAmount(value);
+                    setDepositPercent('');
+                  }}
+                />
+                <TextInput
+                  accessibilityLabel="Deposit percent"
+                  style={s.input}
+                  placeholder="Or deposit percentage"
+                  placeholderTextColor={theme.colors.LABEL}
+                  keyboardType="decimal-pad"
+                  value={depositPercent}
+                  onChangeText={(value) => {
+                    setDepositPercent(value);
+                    setDepositAmount('');
+                  }}
+                />
+              </>
+            )}
             <View style={s.modalActions}>
               <TouchableOpacity
                 style={s.cancelBtn}

@@ -1219,6 +1219,11 @@ export default function BusinessProfileScreen() {
             (business.mode === 'service' || business.mode === 'both') && (
               <View style={[businessUI.notice, { marginBottom: 22 }]}>
                 <Text style={businessUI.eyebrow}>YOUR BUSINESS TOOLS</Text>
+                <TouchableOpacity accessibilityRole="button" style={businessUI.secondaryButton}
+                  onPress={() => router.push(`/businesses/${business.id}/bookings` as any)}>
+                  <Ionicons name="calendar-outline" size={17} color={theme.colors.TEXT_PRIMARY} />
+                  <Text style={businessUI.secondaryButtonText}>Booking Requests</Text>
+                </TouchableOpacity>
                 <Text style={businessUI.noticeText}>
                   Keep your services, hours and storefront ready for your next customer.
                 </Text>

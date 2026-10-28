@@ -14,8 +14,8 @@ export interface ProfileQuickAccessProps {
 
 /**
  * ProfileQuickAccess (Option A — Circle Icons)
- * Renders a horizontal row of 4 Quick Access circular action buttons:
- * Tickets, My Events, My Business, My Listings.
+ * Renders a horizontal row of 5 Quick Access circular action buttons:
+ * Tickets, My Events, My Business, My Listings, My Bookings.
  */
 export default function ProfileQuickAccess({ onManageStore }: ProfileQuickAccessProps) {
   const { theme } = useUnistyles();
@@ -47,6 +47,13 @@ export default function ProfileQuickAccess({ onManageStore }: ProfileQuickAccess
   };
 
   const items = [
+    {
+      key: 'bookings',
+      label: 'My Bookings',
+      sub: 'Your appointments',
+      icon: (color: string) => <Ionicons name="calendar-outline" size={18} color={color} />,
+      onPress: () => router.push('/bookings' as any),
+    },
     {
       key: 'tickets',
       label: 'Tickets',
@@ -86,6 +93,8 @@ export default function ProfileQuickAccess({ onManageStore }: ProfileQuickAccess
         return (
           <TouchableOpacity
             key={item.key}
+            accessibilityRole="button"
+            accessibilityLabel={item.label}
             style={styles.itemButton}
             activeOpacity={0.7}
             onPress={item.onPress}

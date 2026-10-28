@@ -1161,65 +1161,65 @@ function PlacesSection({
 
   return (
     <View style={sStylesheet.sectionContainer}>
-      <View style={sStylesheet.placesHeader}>
-        <Text style={businessUI.eyebrow}>THE LOCAL DIRECTORY</Text>
-        <Text style={businessUI.title}>Good things. Close to home.</Text>
-        <Text style={businessUI.subtitle}>
-          Find your next favourite shop, service or everyday essential.
-        </Text>
-        <View style={sStylesheet.placesFilterRow}>
-          <CategoryDropdown
-            category={category}
-            setCategory={setCategory}
-            options={PLACE_CATS}
-            theme={theme}
-            label="Category"
-          />
-          <Text style={businessUI.sectionHint}>
-            {category === 'All' ? 'All categories' : category}
-          </Text>
-        </View>
-      </View>
-      {loading ? (
-        <ActivityIndicator
-          accessibilityLabel="Loading businesses"
-          color={theme.colors.G}
-          style={{ marginTop: 40 }}
-        />
-      ) : (
-        <FlatList
-          data={businesses}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100, gap: 18 }}
-          ListHeaderComponent={
-            <View style={{ gap: 10 }}>
-              <View style={businessUI.sectionHeader}>
-                <Text style={businessUI.sectionTitle}>
-                  {search ? 'Search results' : 'Explore businesses'}
-                </Text>
-                <Text style={businessUI.sectionHint}>{businesses.length} shown</Text>
-              </View>
-              {businessesCached && (
+      <FlatList
+        data={loading ? [] : businesses}
+        keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100, gap: 18 }}
+        ListHeaderComponent={
+          <View style={{ gap: 10 }}>
+            <View style={[sStylesheet.placesHeader, { paddingHorizontal: 0 }]}>
+              <Text style={businessUI.eyebrow}>THE LOCAL DIRECTORY</Text>
+              <Text style={businessUI.title}>Good things. Close to home.</Text>
+              <Text style={businessUI.subtitle}>
+                Find your next favourite shop, service or everyday essential.
+              </Text>
+              <View style={sStylesheet.placesFilterRow}>
+                <CategoryDropdown
+                  category={category}
+                  setCategory={setCategory}
+                  options={PLACE_CATS}
+                  theme={theme}
+                  label="Category"
+                />
                 <Text style={businessUI.sectionHint}>
-                  Saved businesses · details refresh when connected
+                  {category === 'All' ? 'All categories' : category}
                 </Text>
-              )}
-              {placesError && (
-                <View style={businessUI.notice}>
-                  <Text style={businessUI.noticeText}>{placesError}</Text>
-                  <TouchableOpacity
-                    accessibilityRole="button"
-                    style={businessUI.secondaryButton}
-                    onPress={() => setReloadKey((key) => key + 1)}
-                  >
-                    <Text style={businessUI.secondaryButtonText}>Try again</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
+              </View>
             </View>
-          }
-          ListEmptyComponent={
+            <View style={businessUI.sectionHeader}>
+              <Text style={businessUI.sectionTitle}>
+                {search ? 'Search results' : 'Explore businesses'}
+              </Text>
+              <Text style={businessUI.sectionHint}>{businesses.length} shown</Text>
+            </View>
+            {businessesCached && (
+              <Text style={businessUI.sectionHint}>
+                Saved businesses · details refresh when connected
+              </Text>
+            )}
+            {placesError && (
+              <View style={businessUI.notice}>
+                <Text style={businessUI.noticeText}>{placesError}</Text>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  style={businessUI.secondaryButton}
+                  onPress={() => setReloadKey((key) => key + 1)}
+                >
+                  <Text style={businessUI.secondaryButtonText}>Try again</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        }
+        ListEmptyComponent={
+          loading ? (
+            <ActivityIndicator
+              accessibilityLabel="Loading businesses"
+              color={theme.colors.G}
+              style={{ marginTop: 40 }}
+            />
+          ) : (
             <View style={businessUI.empty}>
               <Ionicons name="storefront-outline" size={38} color={theme.colors.TEXT_SECONDARY} />
               <Text style={businessUI.emptyTitle}>Your next find is out there</Text>
@@ -1236,83 +1236,83 @@ function PlacesSection({
                 </TouchableOpacity>
               )}
             </View>
-          }
-          renderItem={({ item }) => {
-            const location = getBusinessLocation(item.location, item.lga, item.state);
-            const rating = getBusinessRating(item.rating, item.review_count);
-            const latitude = item.lat ?? item.location?.geopoint?.latitude;
-            const longitude = item.lng ?? item.location?.geopoint?.longitude;
-            const distance =
-              currentLoc && Number.isFinite(latitude) && Number.isFinite(longitude)
-                ? getDistanceStr(
-                    currentLoc.coords.latitude,
-                    currentLoc.coords.longitude,
-                    latitude,
-                    longitude
-                  )
-                : null;
-            return (
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel={`View ${item.name}, ${item.category || getBusinessModeLabel(item.mode)}`}
-                style={sStylesheet.placeRow}
-                onPress={() => router.push(`/businesses/${item.id}` as any)}
-                activeOpacity={0.88}
-              >
-                <View style={sStylesheet.placePhotoWrap}>
-                  <BusinessImage
-                    uri={item.cover_image || item.image_urls?.[0] || item.logo_url || item.logo}
-                    style={sStylesheet.placePhoto}
-                    contentFit="cover"
-                  />
-                  <View style={sStylesheet.placeModeBadge}>
-                    <Text style={sStylesheet.placeModeText}>{getBusinessModeLabel(item.mode)}</Text>
-                  </View>
+          )
+        }
+        renderItem={({ item }) => {
+          const location = getBusinessLocation(item.location, item.lga, item.state);
+          const rating = getBusinessRating(item.rating, item.review_count);
+          const latitude = item.lat ?? item.location?.geopoint?.latitude;
+          const longitude = item.lng ?? item.location?.geopoint?.longitude;
+          const distance =
+            currentLoc && Number.isFinite(latitude) && Number.isFinite(longitude)
+              ? getDistanceStr(
+                  currentLoc.coords.latitude,
+                  currentLoc.coords.longitude,
+                  latitude,
+                  longitude
+                )
+              : null;
+          return (
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={`View ${item.name}, ${item.category || getBusinessModeLabel(item.mode)}`}
+              style={sStylesheet.placeRow}
+              onPress={() => router.push(`/businesses/${item.id}` as any)}
+              activeOpacity={0.88}
+            >
+              <View style={sStylesheet.placePhotoWrap}>
+                <BusinessImage
+                  uri={item.cover_image || item.image_urls?.[0] || item.logo_url || item.logo}
+                  style={sStylesheet.placePhoto}
+                  contentFit="cover"
+                />
+                <View style={sStylesheet.placeModeBadge}>
+                  <Text style={sStylesheet.placeModeText}>{getBusinessModeLabel(item.mode)}</Text>
                 </View>
-                <View style={sStylesheet.placeInfo}>
-                  <Text style={sStylesheet.placeCategory}>
-                    {item.category || 'Independent business'}
+              </View>
+              <View style={sStylesheet.placeInfo}>
+                <Text style={sStylesheet.placeCategory}>
+                  {item.category || 'Independent business'}
+                </Text>
+                <View style={sStylesheet.placeTitleRow}>
+                  <Text style={sStylesheet.placeName} numberOfLines={2}>
+                    {item.name}
                   </Text>
-                  <View style={sStylesheet.placeTitleRow}>
-                    <Text style={sStylesheet.placeName} numberOfLines={2}>
-                      {item.name}
-                    </Text>
-                    {(item as any).phone_verified && <VerifiedBadge size={17} />}
-                    <Ionicons name="arrow-forward" size={20} color={theme.colors.TEXT_PRIMARY} />
-                  </View>
-                  {!!item.description && (
-                    <Text style={sStylesheet.placeDescription} numberOfLines={2}>
-                      {item.description}
-                    </Text>
-                  )}
-                  {(location || distance || rating) && (
-                    <View style={sStylesheet.placeMetaRow}>
-                      {(location || distance) && (
-                        <View style={[sStylesheet.placeMetaItem, { flex: 1 }]}>
-                          <Ionicons
-                            name="location-outline"
-                            size={14}
-                            color={theme.colors.TEXT_SECONDARY}
-                          />
-                          <Text style={[sStylesheet.placeDistText, { flex: 1 }]} numberOfLines={1}>
-                            {distance || location}
-                          </Text>
-                        </View>
-                      )}
-                      {rating && (
-                        <View style={sStylesheet.placeMetaItem}>
-                          <Ionicons name="star" size={13} color={theme.colors.GOLD} />
-                          <Text style={sStylesheet.placeRating}>{rating}</Text>
-                        </View>
-                      )}
-                    </View>
-                  )}
+                  {(item as any).phone_verified && <VerifiedBadge size={17} />}
+                  <Ionicons name="arrow-forward" size={20} color={theme.colors.TEXT_PRIMARY} />
                 </View>
-              </TouchableOpacity>
-            );
-          }}
-        />
-      )}
+                {!!item.description && (
+                  <Text style={sStylesheet.placeDescription} numberOfLines={2}>
+                    {item.description}
+                  </Text>
+                )}
+                {(location || distance || rating) && (
+                  <View style={sStylesheet.placeMetaRow}>
+                    {(location || distance) && (
+                      <View style={[sStylesheet.placeMetaItem, { flex: 1 }]}>
+                        <Ionicons
+                          name="location-outline"
+                          size={14}
+                          color={theme.colors.TEXT_SECONDARY}
+                        />
+                        <Text style={[sStylesheet.placeDistText, { flex: 1 }]} numberOfLines={1}>
+                          {distance || location}
+                        </Text>
+                      </View>
+                    )}
+                    {rating && (
+                      <View style={sStylesheet.placeMetaItem}>
+                        <Ionicons name="star" size={13} color={theme.colors.GOLD} />
+                        <Text style={sStylesheet.placeRating}>{rating}</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+          );
+        }}
+      />
     </View>
   );
 }

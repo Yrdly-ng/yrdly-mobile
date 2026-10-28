@@ -145,19 +145,10 @@ export default function CreateBookingScreen() {
           serviceName: service.name,
           appointmentTime: selectedSlotTime,
           bookingId: newBooking.id,
-        });
+        }).catch((error) => console.error('Booking notification failed:', error));
       }
 
-      Alert.alert(
-        'Booking Requested',
-        'Your booking request has been submitted! The service provider will review and confirm.',
-        [
-          {
-            text: 'View My Bookings',
-            onPress: () => router.replace('/bookings' as any),
-          },
-        ]
-      );
+      router.replace(`/bookings/${newBooking.id}` as any);
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to submit booking request');
     } finally {

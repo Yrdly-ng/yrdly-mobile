@@ -22,13 +22,7 @@ import { supabase } from '../../lib/supabase/supabase';
 import ImagePicker from 'react-native-image-crop-picker';
 import { StorageService } from '../../lib/media/storage-service';
 import { useAuth } from '../../hooks/use-supabase-auth';
-const CATS = [
-  { name: 'Food', icon: 'fast-food-outline' },
-  { name: 'Baked Goods', icon: 'pie-chart-outline' },
-  { name: 'Drinks', icon: 'cafe-outline' },
-  { name: 'Services', icon: 'briefcase-outline' },
-  { name: 'Other', icon: 'apps-outline' },
-];
+import { getCatalogCategories, MAX_CATALOG_IMAGES } from '../../lib/businesses/catalog-categories';
 
 export default function CreateCatalogItemScreen() {
   const { theme } = useUnistyles();
@@ -56,7 +50,11 @@ export default function CreateCatalogItemScreen() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
-  const [category, setCategory] = useState(CATS[0].name);
+  const [category, setCategory] = useState('');
+  const [businessCategory, setBusinessCategory] = useState<string | null>(null);
+  const [categoryLoading, setCategoryLoading] = useState(true);
+  const [categoryError, setCategoryError] = useState(false);
+  const categories = getCatalogCategories(businessCategory, category);
   const [inStock, setInStock] = useState(true);
   const [quantity, setQuantity] = useState('1');
 
@@ -84,7 +82,7 @@ export default function CreateCatalogItemScreen() {
       setDescription(data.description || '');
       setLoadedBusinessId(data.business_id);
       setPrice(String(data.price || ''));
-      setCategory(data.category || CATS[0].name);
+      setCategory(data.category || '');
       setInStock(focus === 'quantity' ? true : (data.in_stock ?? true));
       setQuantity(String(data.quantity ?? data.inventory_count ?? (data.in_stock ? 1 : 0)));
       let imgs: string[] = [];
@@ -99,19 +97,51 @@ export default function CreateCatalogItemScreen() {
     })();
   }, [itemId, isEditMode, router, focus]);
 
+  useEffect(() => {
+    let active = true;
+    if (!loadedBusinessId) return;
+    void (async () => {
+      const { data, error } = await supabase
+        .from('businesses')
+        .select('category')
+        .eq('id', loadedBusinessId)
+        .single();
+      if (!active) return;
+      if (error || !data) {
+        setCategoryError(true);
+      } else {
+        setBusinessCategory(data.category);
+        setCategory((current) => current || getCatalogCategories(data.category)[0]);
+      }
+      setCategoryLoading(false);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [loadedBusinessId]);
+
   const pickImage = async () => {
+    const remaining = MAX_CATALOG_IMAGES - existingImageUrls.length - imageUris.length;
+    if (remaining <= 0)
+      return Alert.alert(
+        'Photo limit reached',
+        `You can add up to ${MAX_CATALOG_IMAGES} photos. Remove one to add another.`
+      );
     try {
-      const image = await ImagePicker.openPicker({
+      const images = await ImagePicker.openPicker({
         mediaType: 'photo',
-        cropping: true,
-        freeStyleCropEnabled: true,
+        multiple: true,
+        maxFiles: remaining,
         compressImageQuality: 0.88,
         compressImageMaxWidth: 2048,
         compressImageMaxHeight: 2048,
       });
-      if (image) {
-        setImageUris((prev) => [...prev, image.path]);
-      }
+      setImageUris((prev) =>
+        [...prev, ...images.map((image) => image.path)].slice(
+          0,
+          MAX_CATALOG_IMAGES - existingImageUrls.length
+        )
+      );
     } catch (e: any) {
       if (e.message !== 'User cancelled image selection') {
         console.error('Pick image error:', e);
@@ -126,6 +156,11 @@ export default function CreateCatalogItemScreen() {
 
   const handleSave = async () => {
     if (saveInFlight.current) return;
+    if (categoryLoading || categoryError || !category)
+      return Alert.alert(
+        'Category unavailable',
+        'Reopen the item editor to load your business categories before saving.'
+      );
     if (!user?.id) return Alert.alert('Sign in required', 'Sign in to manage your catalog.');
     if (!title.trim() || !price.trim()) {
       return Alert.alert('Error', 'Please enter a title and price.');
@@ -211,7 +246,12 @@ export default function CreateCatalogItemScreen() {
     );
   }
 
-  const hasData = title.trim().length > 0 && price.trim().length > 0;
+  const hasData =
+    title.trim().length > 0 &&
+    price.trim().length > 0 &&
+    !!category &&
+    !categoryLoading &&
+    !categoryError;
   const combinedImages = [
     ...existingImageUrls.map((u) => ({ url: u, isNew: false })),
     ...imageUris.map((u) => ({ url: u, isNew: true })),
@@ -260,7 +300,13 @@ export default function CreateCatalogItemScreen() {
               Add clear photos, a helpful title and a price customers can trust.
             </Text>
           </View>
-          <Text style={businessUI.sectionHint}>Photos · Your first photo is the cover</Text>
+          <Text style={businessUI.sectionHint}>
+            Photos ({existingImageUrls.length + imageUris.length}/{MAX_CATALOG_IMAGES}) · Select
+            several at once
+          </Text>
+          <Text style={businessUI.sectionHint}>
+            Your first photo is the cover. Remove a photo to add another.
+          </Text>
           {/* Photo Picker */}
           <ScrollView
             horizontal
@@ -303,12 +349,12 @@ export default function CreateCatalogItemScreen() {
             })}
             <TouchableOpacity
               accessibilityRole="button"
-              accessibilityLabel="Add item photo"
+              accessibilityLabel="Select item photos"
               style={sStylesheet.addPhotoBtn}
               onPress={pickImage}
             >
               <Ionicons name="images-outline" size={26} color={theme.colors.LABEL} />
-              <Text style={businessUI.muted}>Add photo</Text>
+              <Text style={businessUI.muted}>Add photos</Text>
             </TouchableOpacity>
           </ScrollView>
 
@@ -319,7 +365,7 @@ export default function CreateCatalogItemScreen() {
               style={sStylesheet.input}
               value={title}
               onChangeText={setTitle}
-              placeholder="e.g. Jollof Rice (Full Pot)"
+              placeholder="Give your item a clear name"
               placeholderTextColor={theme.colors.MUTED}
             />
           </View>
@@ -355,8 +401,16 @@ export default function CreateCatalogItemScreen() {
 
           <View style={sStylesheet.fieldBlock}>
             <Text style={sStylesheet.fieldLabel}>Category</Text>
+            <Text style={{ color: theme.colors.MUTED, marginBottom: 10 }}>
+              {categoryLoading
+                ? 'Loading business categories…'
+                : categoryError
+                  ? 'Could not load categories. Reopen the editor to try again.'
+                  : `Categories for ${businessCategory || 'your business'}`}
+            </Text>
             <View style={sStylesheet.catWrap}>
-              {CATS.map((c) => {
+              {categories.map((name) => {
+                const c = { name, icon: 'pricetag-outline' };
                 const active = category === c.name;
                 return (
                   <TouchableOpacity

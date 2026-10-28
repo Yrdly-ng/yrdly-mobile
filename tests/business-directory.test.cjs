@@ -194,7 +194,11 @@ test('category changes keep a working recovery action and channels do not collid
   const app = fixture();
   let tree = app.render();
   const first = await app.focus();
-  nodes(tree)
+  const list = findList(tree);
+  assert.match(text(list.props.ListHeaderComponent), /Good things\. Close to home\./);
+  assert.equal(list.props.stickyHeaderIndices, undefined);
+  assert.doesNotMatch(text(tree), /Good things\. Close to home\./);
+  nodes(list.props.ListHeaderComponent)
     .find((node) => node.type === 'CategoryDropdown')
     .props.setCategory('Beauty & Salon');
   app.render();

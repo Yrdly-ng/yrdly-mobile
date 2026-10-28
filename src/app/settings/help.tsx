@@ -2,7 +2,7 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import CrispChat, { isCrispChatEnabled, openCrispChat } from '../../components/CrispChat';
 
@@ -60,9 +60,18 @@ export default function HelpScreen() {
   const s = sStylesheet;
 
   const router = useRouter();
+  const { booking_id, reason } = useLocalSearchParams<{ booking_id?: string; reason?: string }>();
 
   const handleContactSupport = () => {
-    Linking.openURL('mailto:support@yrdly.ng?subject=YRDLY Mobile Support Request');
+    const subject = booking_id
+      ? `Booking assistance: ${booking_id}`
+      : 'YRDLY Mobile Support Request';
+    const body = booking_id
+      ? `Booking reference: ${booking_id}\nReason: ${reason || 'booking-support'}\n\nPlease help me with this booking.`
+      : '';
+    void Linking.openURL(
+      `mailto:support@yrdly.ng?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    );
   };
 
   return (
@@ -93,6 +102,11 @@ export default function HelpScreen() {
         <View style={s.supportCard}>
           <Feather name="mail" size={22} color={theme.colors.G} style={{ marginBottom: 8 }} />
           <Text style={s.supportTitle}>Still need help?</Text>
+          {booking_id ? (
+            <Text selectable style={s.supportDesc}>
+              Booking reference: {booking_id}. Include this reference when contacting support.
+            </Text>
+          ) : null}
           <Text style={s.supportDesc}>
             Our support team is available to assist you with any questions or account issues.
           </Text>

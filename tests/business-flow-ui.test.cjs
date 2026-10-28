@@ -89,6 +89,7 @@ function mount(file, options = {}) {
         (_, method) =>
         async (...args) => {
           calls.push({ method, args });
+          if (method === 'getRescheduleRequest') return options.proposal || null;
           return { id: 'booking' };
         },
     }
@@ -114,6 +115,7 @@ function mount(file, options = {}) {
       Modal: 'Modal',
       Platform: { OS: 'ios' },
       Alert: { alert: (...args) => alerts.push(args) },
+      Linking: { openURL: (url) => routes.push(url) },
     },
     'react-native-keyboard-controller': { KeyboardAvoidingView: 'Keyboard' },
     'react-native-unistyles': {
@@ -130,7 +132,7 @@ function mount(file, options = {}) {
       useLocalSearchParams: () =>
         options.params || { id: 'biz', businessId: 'biz', serviceId: 'service' },
     },
-    '@expo/vector-icons': { Ionicons: 'Icon' },
+    '@expo/vector-icons': { Ionicons: 'Icon', Feather: 'Icon', MaterialCommunityIcons: 'Icon' },
     'expo-image': { Image: 'Image' },
     'react-native-image-crop-picker': {
       default: { openPicker: async () => ({ path: 'file:///photo.jpg' }) },
@@ -144,11 +146,23 @@ function mount(file, options = {}) {
       useServiceOfferings: () => ({ offerings, loading: false, refresh: noop }),
       useProviderAvailability: () => ({
         availability,
-        exceptions: [],
+        exceptions: options.exceptions || [],
         loading: false,
         refresh: noop,
       }),
-      useAvailableSlots: () => ({ slots, loading: false }),
+      useAvailableSlots: () => ({ slots, loading: false, refresh: noop }),
+      useCustomerBookings: () => ({
+        bookings: options.bookings || [],
+        loading: !!options.loading,
+        error: options.error,
+        refresh: () => calls.push({ method: 'refresh' }),
+      }),
+      useBusinessBookings: () => ({
+        bookings: options.bookings || [],
+        loading: !!options.loading,
+        error: options.error,
+        refresh: () => calls.push({ method: 'refresh' }),
+      }),
     },
     '/hooks/notifications/use-notification-route-ack': {
       useNotificationRouteAcknowledgement: noop,
@@ -158,15 +172,30 @@ function mount(file, options = {}) {
       CANCELLATION_WINDOW_HOURS: 24,
     },
     '/lib/moderation/staff-service': {
-      StaffService: { listStaff: async () => [], getServiceStaff: async () => [] },
+      StaffService: { listStaff: async () => options.staff || [], getServiceStaff: async () => [] },
     },
     '/lib/notifications/notification-triggers': {
-      NotificationTriggers: new Proxy({}, { get: () => async () => {} }),
+      NotificationTriggers: new Proxy(
+        {},
+        {
+          get: () => async () => {
+            if (options.notificationError) throw new Error('Offline');
+          },
+        }
+      ),
     },
     '/lib/supabase/supabase': { supabase: { from: query } },
     '/lib/media/storage-service': { StorageService: {} },
     '/lib/location/geocoding-service': { resolveCoords: noop },
     '/components/businesses/OpeningHoursPicker': { OpeningHoursPicker: 'HoursPicker' },
+    '/lib/network/api': { api: {}, WEB_APP_URL: 'https://example.test' },
+    './PaylukCheckout': { PaylukCheckout: 'Checkout' },
+    '/lib/payments/booking-payments': { createBookingPayments: () => ({
+      initialize: async (id) => { calls.push({method:'initialize', args:[id]}); return { transactionId:'transaction', amount:3000, commission:90, totalAmount:3090 }; },
+      verify: async (id) => { calls.push({method:'verify', args:[id]}); },
+      cancelUnpaidCheckout: async (id) => { calls.push({method:'cancelUnpaidCheckout', args:[id]}); },
+    }) },
+    '/components/CrispChat': { default: 'Chat', isCrispChatEnabled: false },
     '/components/payments/BookingPaymentButton': {
       BookingPaymentButton: 'Pay',
       BookingReceiptButton: 'Receipt',
@@ -197,7 +226,7 @@ function mount(file, options = {}) {
     );
     return mod.exports;
   }
-  const screen = load(path.resolve(file)).default;
+  const screen = load(path.resolve(file))[options.exportName || 'default'];
   function walk(node) {
     if (Array.isArray(node)) return node.flatMap(walk);
     if (!node || typeof node !== 'object') return [];
@@ -205,7 +234,7 @@ function mount(file, options = {}) {
   }
   const nodes = () => {
     cursor = 0;
-    return walk(screen());
+    return walk(screen(options.props || {}));
   };
   const text = (node) =>
     typeof node === 'string'
@@ -273,6 +302,11 @@ test('service editor rejects partial and fractional duration before writing', as
         price: 2000,
         price_is_from: false,
         is_active: true,
+        deposit_required: false,
+        deposit_amount: null,
+        deposit_percent: null,
+        requires_full_payment: false,
+        escrow_enabled: false,
       },
     ],
   });
@@ -394,4 +428,274 @@ test('business edit reads and writes with owner scope and preserves product/serv
   assert.ok(read.filters.some(([key, value]) => key === 'owner_id' && value === 'owner'));
   assert.ok(write.filters.some(([key, value]) => key === 'owner_id' && value === 'owner'));
   assert.equal(write.payload.mode, 'both');
+});
+
+const booking = {
+  id: 'booking',
+  business_id: 'biz',
+  service_id: 'service',
+  customer_id: 'customer',
+  status: 'confirmed',
+  appointment_time: '2030-01-01T10:00:00Z',
+  end_time: '2030-01-01T11:00:00Z',
+  business: { owner_id: 'owner', name: 'Studio' },
+  service: { name: 'Haircut', price: 3000, deposit_required: true },
+};
+
+test('pending and failed payments recover while paid states cannot pay again', async () => {
+  for (const payment_status of [
+    'deposit_pending',
+    'failed',
+    'deposit_paid',
+    'fully_paid',
+    'escrow_held',
+    'escrow_released',
+    'refunded',
+  ]) {
+    const app = mount(detail, { user: 'customer', booking: { ...booking, payment_status } });
+    await app.settle();
+    assert.equal(
+      app.nodes().some((n) => n.type === 'Pay'),
+      ['deposit_pending', 'failed'].includes(payment_status),
+      payment_status
+    );
+    if (payment_status === 'deposit_pending') {
+      await app.button('Resolve payment before cancelling').onPress();
+      assert.equal(app.calls.filter((c) => c.method === 'cancelBooking').length, 0);
+      assert.match(app.alerts[0][1], /checkout/);
+    }
+  }
+});
+
+test('new requested bookings wait for provider acceptance before payment', async () => {
+  const app = mount(detail, {
+    user: 'customer',
+    booking: { ...booking, status: 'requested', payment_status: 'unpaid' },
+  });
+  await app.settle();
+  assert.equal(
+    app.nodes().some((n) => n.type === 'Pay'),
+    false
+  );
+});
+
+test('paid cancellation and decline route to support with booking context', async () => {
+  for (const user of ['customer', 'owner']) {
+    const app = mount(detail, {
+      user,
+      booking: { ...booking, status: 'requested', payment_status: 'deposit_paid' },
+    });
+    await app.settle();
+    await app
+      .button(user === 'owner' ? 'Request decline / refund' : 'Request cancellation / refund')
+      .onPress();
+    assert.equal(app.routes[0].pathname, '/settings/help');
+    assert.equal(app.routes[0].params.booking_id, 'booking');
+    assert.equal(
+      app.calls.filter((call) => /cancelBooking|declineBooking/.test(call.method)).length,
+      0
+    );
+  }
+});
+
+test('rescheduling invokes consent endpoint and clears stale selection when date changes', async () => {
+  const app = mount(detail, { user: 'customer', booking });
+  await app.settle();
+  app.button('Reschedule appointment').onPress();
+  app.button('10:00').onPress();
+  const dates = app
+    .nodes()
+    .filter(
+      (n) => n.type === 'Button' && /^\d{4}-\d{2}-\d{2}$/.test(n.props.accessibilityLabel || '')
+    );
+  dates[1].props.onPress();
+  assert.equal(app.button('Propose new time').disabled, true);
+  app.button('10:00').onPress();
+  await app.button('Propose new time').onPress();
+  assert.deepEqual(app.calls.find((c) => c.method === 'requestReschedule').args, [
+    'booking',
+    '2030-01-01T10:00:00Z',
+  ]);
+});
+
+test('rescheduling offers withdraw only to proposer and accept reject to other participant', async () => {
+  for (const user of ['customer', 'owner']) {
+    const app = mount(detail, {
+      user,
+      booking,
+      proposal: {
+        id: 'proposal',
+        requested_by: 'customer',
+        appointment_time: '2030-01-02T10:00:00Z',
+      },
+    });
+    await app.settle();
+    await app.button(user === 'customer' ? 'Withdraw request' : 'Accept new time').onPress();
+    assert.deepEqual(app.calls.find((c) => c.method === 'respondToReschedule').args, [
+      'proposal',
+      user === 'customer' ? 'withdraw' : 'accept',
+    ]);
+  }
+});
+
+test('booking creation goes straight to the created booking', async () => {
+  const app = mount(createBooking);
+  await app.settle();
+  app.button('10:00').onPress();
+  await app.button('Submit Booking Request').onPress();
+  assert.deepEqual(app.routes, ['/bookings/booking']);
+});
+
+test('service payment edit preserves all existing settings and validates deposit', async () => {
+  const settings = {
+    deposit_required: true,
+    deposit_amount: null,
+    deposit_percent: 50,
+    requires_full_payment: false,
+    escrow_enabled: true,
+  };
+  const app = mount(services, {
+    offerings: [{ id: 'haircut', name: 'Haircut', price: 3000, duration_minutes: 60, ...settings }],
+  });
+  app.button('Edit Haircut').onPress();
+  await app.button('Save Service').onPress();
+  for (const key of Object.keys(settings)) assert.equal(app.calls[0].args[1][key], settings[key]);
+  app.button('Edit Haircut').onPress();
+  app.button('Hold payment in escrow').onPress();
+  app.input('Deposit percent').onChangeText('101');
+  await app.button('Save Service').onPress();
+  assert.equal(app.calls.length, 1);
+});
+
+test('customer and owner booking lists surface error retry, owner filter opens detail', async () => {
+  for (const screen of ['src/app/bookings/index.tsx', 'src/app/businesses/[id]/bookings.tsx']) {
+    const app = mount(screen, { error: 'Offline' });
+    app.button('Try again').onPress();
+    assert.equal(app.calls[0].method, 'refresh');
+  }
+  const app = mount('src/app/businesses/[id]/bookings.tsx', { bookings: [booking] });
+  app.button('Confirmed').onPress();
+  app.button('Customer, Haircut').onPress();
+  assert.deepEqual(app.routes, ['/bookings/booking']);
+});
+
+test('staff blackout carries selected professional identity', async () => {
+  const app = mount(availability, { staff: [{ id: 'staff-1', name: 'Ada' }] });
+  await app.settle();
+  app.button('Ada (Staff)').onPress();
+  app.input('Day off date').onChangeText('2030-12-25');
+  await app.button('Block this date').onPress();
+  assert.equal(app.calls[0].args[0].staff_id, 'staff-1');
+});
+
+test('profile My Bookings shortcut opens customer bookings', () => {
+  const app = mount('src/components/profile/ProfileQuickAccess.tsx');
+  app.button('My Bookings').onPress();
+  assert.deepEqual(app.routes, ['/bookings']);
+});
+
+test('completed customer booking submits verified review and duplicate review is hidden', async () => {
+  const completed = { ...booking, status: 'completed' };
+  const database = ({ table, operation }) => ({
+    data:
+      table === 'bookings'
+        ? completed
+        : table === 'businesses'
+          ? completed.business
+          : operation === 'insert'
+            ? { id: 'review' }
+            : null,
+    error: null,
+  });
+  const app = mount(detail, { user: 'customer', booking: completed, database });
+  await app.settle();
+  await app.button('Submit review').onPress();
+  assert.equal(app.queries.filter((q) => q.operation === 'insert').length, 0);
+  app.button('5 stars').onPress();
+  app.input('Review comment').onChangeText('  Great visit  ');
+  await app.button('Submit review').onPress();
+  assert.deepEqual(app.queries.find((q) => q.operation === 'insert').payload, {
+    business_id: 'biz',
+    user_id: 'customer',
+    booking_id: 'booking',
+    verified_purchase: true,
+    rating: 5,
+    comment: 'Great visit',
+  });
+  assert.equal(
+    app
+      .nodes()
+      .some(
+        (n) => n.type === 'Button' && JSON.stringify(n.props.children).includes('Submit review')
+      ),
+    false
+  );
+});
+
+test('failed notification cannot prevent successful booking navigation', async () => {
+  const app = mount(createBooking, { notificationError: true });
+  await app.settle();
+  app.button('10:00').onPress();
+  await app.button('Submit Booking Request').onPress();
+  assert.deepEqual(app.routes, ['/bookings/booking']);
+  assert.equal(app.alerts.length, 0);
+});
+
+test('support email carries booking reference and cancellation reason', () => {
+  const app = mount('src/app/settings/help.tsx', {
+    params: { booking_id: 'booking', reason: 'booking-cancellation-refund' },
+  });
+  app.button('Email Support').onPress();
+  assert.match(decodeURIComponent(app.routes[0]), /Booking reference: booking/);
+  assert.match(decodeURIComponent(app.routes[0]), /booking-cancellation-refund/);
+});
+
+test('provider cannot mark complete before the booked end time', async () => {
+  const app = mount(detail, {
+    booking: {
+      ...booking,
+      appointment_time: new Date(Date.now() - 60000).toISOString(),
+      end_time: new Date(Date.now() + 60000).toISOString(),
+    },
+  });
+  await app.settle();
+  assert.equal(
+    app
+      .nodes()
+      .some(
+        (n) => n.type === 'Button' && JSON.stringify(n.props.children).includes('Mark Complete')
+      ),
+    false
+  );
+});
+
+test('new staged bookings disclose payment setup pending without checkout', async () => {
+  const app = mount(detail, {
+    user: 'customer',
+    booking: {
+      ...booking,
+      payment_flow: 'staged_50_50',
+      payment_status: 'unpaid',
+      agreed_price: 3000,
+    },
+  });
+  await app.settle();
+  assert.equal(
+    app.nodes().some((n) => n.type === 'Pay'),
+    false
+  );
+  assert.ok(JSON.stringify(app.nodes()).includes('Staged payment setup pending'));
+  assert.ok(JSON.stringify(app.nodes()).includes('Agreed final price'));
+});
+
+
+test('actual pending-payment component checks confirmation and cancels existing unpaid checkout', async () => {
+  let refreshes = 0;
+  const app = mount('src/components/payments/BookingPaymentButton.tsx', { exportName: 'BookingPaymentButton', props: { bookingId: 'booking', recovery: true, onConfirmed: () => refreshes++ } });
+  await app.button('Check payment confirmation').onPress();
+  assert.deepEqual(app.calls[0], {method:'verify', args:['booking']});
+  await app.button('Check or resume booking payment').onPress();
+  await app.button('Cancel unpaid checkout').onPress();
+  assert.deepEqual(app.calls[2], {method:'cancelUnpaidCheckout', args:['transaction']});
+  assert.equal(refreshes, 2);
 });

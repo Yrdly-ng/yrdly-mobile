@@ -17,8 +17,8 @@ export default function BookingsDashboardScreen() {
 
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
 
-  const { bookings, loading, refresh } = useCustomerBookings(user?.id);
-  useNotificationRouteAcknowledgement(!loading);
+  const { bookings, loading, error, refresh } = useCustomerBookings(user?.id);
+  useNotificationRouteAcknowledgement(!loading && !error);
 
   const filteredBookings = React.useMemo(() => {
     const now = new Date().getTime();
@@ -108,6 +108,14 @@ export default function BookingsDashboardScreen() {
       {loading ? (
         <View style={s.center}>
           <ActivityIndicator size="large" color={theme.colors.G} />
+        </View>
+      ) : error ? (
+        <View style={businessUI.empty}>
+          <Text style={businessUI.emptyTitle}>Could not load bookings</Text>
+          <Text style={businessUI.emptyText}>{error}</Text>
+          <TouchableOpacity style={businessUI.primaryButton} onPress={refresh}>
+            <Text style={businessUI.primaryButtonText}>Try again</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <ScrollView

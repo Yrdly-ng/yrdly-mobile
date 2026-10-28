@@ -38,6 +38,44 @@ Function(
 )(presentation, presentation.exports);
 const { isCatalogItemAvailable, getBusinessLogo } = presentation.exports;
 
+test('catalog photo selection appends a batch within remaining capacity and preserves existing photos', async () => {
+  let selected = ['file:///old.jpg'];
+  let pickerOptions;
+  const alerts = [];
+  const pick = callback(editor, 'pickImage', {
+    MAX_CATALOG_IMAGES: 4,
+    existingImageUrls: ['saved.jpg'],
+    imageUris: selected,
+    ImagePicker: { openPicker: async options => {
+      pickerOptions = options;
+      return [{ path: 'file:///one.jpg' }, { path: 'file:///two.jpg' }, { path: 'file:///extra.jpg' }];
+    } },
+    setImageUris: update => { selected = update(selected); },
+    Alert: { alert: (...args) => alerts.push(args) },
+  });
+  await pick();
+  assert.equal(pickerOptions.multiple, true);
+  assert.equal(pickerOptions.maxFiles, 2);
+  assert.notEqual(pickerOptions.cropping, true);
+  assert.deepEqual(selected, ['file:///old.jpg', 'file:///one.jpg', 'file:///two.jpg']);
+  assert.equal(alerts.length, 0);
+});
+
+test('a full catalog gallery refuses another picker without losing any photos', async () => {
+  let pickerCalls = 0;
+  const alerts = [];
+  const pick = callback(editor, 'pickImage', {
+    MAX_CATALOG_IMAGES: 4,
+    existingImageUrls: ['one', 'two', 'three'],
+    imageUris: ['new'],
+    ImagePicker: { openPicker: async () => { pickerCalls++; return []; } },
+    Alert: { alert: (...args) => alerts.push(args) },
+  });
+  await pick();
+  assert.equal(pickerCalls, 0);
+  assert.equal(alerts.length, 1);
+});
+
 function saveHarness({ uploadError, saveError, noSavedRow, quantity = '4' } = {}) {
   const writes = [],
     alerts = [];
@@ -69,6 +107,8 @@ function saveHarness({ uploadError, saveError, noSavedRow, quantity = '4' } = {}
     loadedBusinessId: 'biz',
     inStock: true,
     category: 'Other',
+    categoryLoading: false,
+    categoryError: false,
     saveInFlight: { current: false },
     setLoading: () => {},
     imageUris: ['file:///photo.jpg'],

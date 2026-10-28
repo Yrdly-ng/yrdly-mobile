@@ -468,8 +468,10 @@ export const PostCard = React.memo(
         if (allowSocial && !isLiked) {
           handleLike();
         }
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        triggerHeartAnimation();
+        if (allowSocial) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          triggerHeartAnimation();
+        }
       } else {
         lastTapRef.current = now;
         singleTapTimerRef.current = setTimeout(() => {

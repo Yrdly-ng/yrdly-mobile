@@ -119,6 +119,7 @@ export default function ManageAvailabilityScreen() {
       await BookingService.setAvailabilityException({
         business_id: id!,
         date: blackoutDate.trim(),
+        staff_id: selectedStaffId,
         is_blackout: true,
         reason: blackoutReason.trim() || 'Holiday / Unavailable',
       });
@@ -332,17 +333,19 @@ export default function ManageAvailabilityScreen() {
             {exceptions.length === 0 && (
               <Text style={businessUI.muted}>No days off added. Your weekly hours apply.</Text>
             )}
-            {exceptions.map((exc) => (
-              <View key={exc.id} style={s.excCard}>
-                <View>
-                  <Text style={s.excDate}>{exc.date}</Text>
-                  {!!exc.reason && <Text style={s.excReason}>{exc.reason}</Text>}
+            {exceptions
+              .filter((exc) => (exc.staff_id ?? null) === selectedStaffId)
+              .map((exc) => (
+                <View key={exc.id} style={s.excCard}>
+                  <View>
+                    <Text style={s.excDate}>{exc.date}</Text>
+                    {!!exc.reason && <Text style={s.excReason}>{exc.reason}</Text>}
+                  </View>
+                  <View style={s.blackoutBadge}>
+                    <Text style={s.blackoutBadgeText}>Closed</Text>
+                  </View>
                 </View>
-                <View style={s.blackoutBadge}>
-                  <Text style={s.blackoutBadgeText}>Closed</Text>
-                </View>
-              </View>
-            ))}
+              ))}
           </ScrollView>
         )}
       </KeyboardAvoidingView>
