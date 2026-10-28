@@ -37,6 +37,9 @@ function fixture({ result, error, verifyError } = {}) {
     attendeeEmail: 'guest@example.test',
     attendeePhone: '',
     quantity: 2,
+    pendingPaymentKey: 'checkout-test',
+    isPaystackCheckoutUrl: value => typeof value === 'string' && new URL(value).origin === 'https://checkout.paystack.com',
+    SecureStore: { setItemAsync: async () => {}, deleteItemAsync: async () => {} },
     purchaseInFlight,
     verifyInFlight,
     get selectedTier() {
@@ -110,6 +113,7 @@ test('paid mobile purchase carries event/tier/quantity and only verifies the ret
     path: '/api/events/tickets/purchase',
     body: {
       event_id: 'event',
+      payment_client: 'hosted-v1',
       tier_id: 'tier',
       attendee_name: 'A Guest',
       attendee_email: 'guest@example.test',
@@ -162,4 +166,23 @@ test('failed verification directs buyer to tickets without issuing success or ma
   assert.match(app.alerts[0][1], /before paying again/);
   app.alerts[0][2][0].onPress();
   assert.equal(app.routes[0], '/tickets');
+});
+
+test('Paystack hosted checkout does not require a Payluk key or claim success before verification', async () => {
+  const app = fixture({ result: { success: true, provider: 'paystack', authorizationUrl: 'https://checkout.paystack.com/test-session', tx_ref: 'ps-reference', transactionId: 'ps-transaction' } });
+  await app.handlePurchase();
+  assert.equal(app.checkout.provider, 'paystack');
+  assert.equal(app.checkout.authorizationUrl, 'https://checkout.paystack.com/test-session');
+  assert.deepEqual(app.success, []);
+  await app.verifyTicketCheckout();
+  assert.deepEqual(app.calls[1].body, { tx_ref: 'ps-reference' });
+  assert.deepEqual(app.success, ['General']);
+});
+
+test('unexpected hosted checkout domains never open or count as paid', async () => {
+  const app = fixture({ result: { success: true, provider: 'paystack', authorizationUrl: 'https://attacker.test/session', tx_ref: 'ps-reference', transactionId: 'ps-transaction' } });
+  await app.handlePurchase();
+  assert.equal(app.checkout, null);
+  assert.deepEqual(app.success, []);
+  assert.match(app.alerts[0][1], /incomplete/);
 });

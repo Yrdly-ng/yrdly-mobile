@@ -41,6 +41,8 @@ import { Event, TicketTier } from '../../../types/events';
 import { getEventById } from '../../../lib/events/event-service';
 import { api, WEB_APP_URL } from '../../../lib/network/api';
 import { PaylukCheckout } from '../../../components/payments/PaylukCheckout';
+import { PaystackCheckout, isPaystackCheckoutUrl } from '../../../components/payments/PaystackCheckout';
+import * as SecureStore from 'expo-secure-store';
 import { formatPrice } from '../../../lib/shared/utils';
 import { eventScreenStyles as eventUI } from '../../../components/events/event-screen-styles';
 import { getEventDateInfo } from '../../../lib/events/event-presentation';
@@ -118,6 +120,9 @@ export default function EventDetailScreen() {
   const purchaseInFlight = useRef(false);
   const verifyInFlight = useRef(false);
   const [ticketCheckout, setTicketCheckout] = useState<{
+    provider?: 'payluk' | 'paystack';
+    sandbox?: boolean;
+    authorizationUrl?: string;
     paymentToken: string;
     transactionId: string;
     txRef: string;
@@ -125,6 +130,19 @@ export default function EventDetailScreen() {
     tierName: string;
   } | null>(null);
   const [quantity, setQuantity] = useState(1);
+  const pendingPaymentKey = `event-checkout-${user?.id || 'guest'}-${id}`;
+  useEffect(() => {
+    if (!user?.id || !id) return;
+    let current = true;
+    void SecureStore.getItemAsync(pendingPaymentKey).then((value) => {
+      if (!current || !value) return;
+      const saved = JSON.parse(value);
+      if (saved?.provider === 'paystack' && typeof saved.txRef === 'string' && isPaystackCheckoutUrl(saved.authorizationUrl)) {
+        setTicketCheckout(saved);
+      }
+    }).catch(() => { /* A stale local record does not block the event. */ });
+    return () => { current = false; };
+  }, [user?.id, id, pendingPaymentKey]);
   const [userHasTickets, setUserHasTickets] = useState(false);
 
   // Ticket success overlay
@@ -365,10 +383,10 @@ export default function EventDetailScreen() {
     );
   };
 
-  const verifyTicketCheckout = async () => {
-    if (!ticketCheckout || verifyInFlight.current) return;
+  const verifyTicketCheckout = async (savedCheckout = ticketCheckout) => {
+    if (!savedCheckout || verifyInFlight.current) return;
     verifyInFlight.current = true;
-    const checkout = ticketCheckout;
+    const checkout = savedCheckout;
     setTicketCheckout(null);
     setPurchasing(true);
     try {
@@ -376,13 +394,17 @@ export default function EventDetailScreen() {
         tx_ref: checkout.txRef,
       });
       if (!result.success) throw new Error('Payment has not been confirmed.');
+      if (checkout.provider === 'paystack') await SecureStore.deleteItemAsync(pendingPaymentKey).catch(() => {});
       setSelectedTier(null);
       showTicketSuccess(checkout.tierName);
     } catch {
       Alert.alert(
         'Payment awaiting confirmation',
         'Check My Tickets before paying again. Your ticket will appear after payment is verified.',
-        [{ text: 'My Tickets', onPress: () => router.push('/tickets' as any) }]
+        [
+          { text: 'My Tickets', onPress: () => router.push('/tickets' as any) },
+          { text: 'Check again', onPress: () => void verifyTicketCheckout(checkout) },
+        ]
       );
     } finally {
       verifyInFlight.current = false;
@@ -396,18 +418,12 @@ export default function EventDetailScreen() {
       Alert.alert('Error', 'Please enter your name and email.');
       return;
     }
-    if (selectedTier.price > 0 && !process.env.EXPO_PUBLIC_PAYLUK_PUBLIC_KEY) {
-      Alert.alert(
-        'Payments unavailable',
-        'Secure checkout is unavailable. Please try again later.'
-      );
-      return;
-    }
     purchaseInFlight.current = true;
     setPurchasing(true);
     try {
       const result = await api.post('/api/events/tickets/purchase', {
         event_id: event.id,
+        payment_client: 'hosted-v1',
         tier_id: selectedTier.id,
         attendee_name: attendeeName,
         attendee_email: attendeeEmail,
@@ -419,13 +435,29 @@ export default function EventDetailScreen() {
         const tierName = selectedTier.name;
         setSelectedTier(null);
         showTicketSuccess(tierName);
+      } else if (result.provider === 'paystack' && result.tx_ref && result.transactionId && isPaystackCheckoutUrl(result.authorizationUrl)) {
+        const checkout = {
+          provider: 'paystack' as const,
+          sandbox: result.sandbox === true,
+          authorizationUrl: result.authorizationUrl as string,
+          paymentToken: '',
+          customerId: '',
+          transactionId: result.transactionId as string,
+          txRef: result.tx_ref as string,
+          tierName: selectedTier.name,
+        };
+        await SecureStore.setItemAsync(pendingPaymentKey, JSON.stringify(checkout));
+        setSelectedTier(null);
+        setTicketCheckout(checkout);
       } else if (
         result.paylukPaymentToken &&
         result.buyerPaylukId &&
         result.tx_ref &&
         result.transactionId
       ) {
+        if (!process.env.EXPO_PUBLIC_PAYLUK_PUBLIC_KEY) throw new Error('Payment checkout is unavailable. Please contact support.');
         setTicketCheckout({
+          provider: 'payluk',
           paymentToken: result.paylukPaymentToken,
           transactionId: result.transactionId,
           customerId: result.buyerPaylukId,
@@ -1382,6 +1414,11 @@ export default function EventDetailScreen() {
                 keyboardType="phone-pad"
                 placeholderTextColor={theme.colors.LABEL}
               />
+              {(selectedTier?.price || 0) > 0 && (
+                <Text style={{ color: theme.colors.LABEL, fontSize: 12, lineHeight: 18, marginTop: 12 }}>
+                  Refund requests are reviewed by the event organiser with Yrdly support under the event’s cancellation and refund policy. The payment provider does not decide refunds.
+                </Text>
+              )}
             </ScrollView>
 
             <TouchableOpacity
@@ -1406,14 +1443,23 @@ export default function EventDetailScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {ticketCheckout && (
+      {ticketCheckout?.provider === 'paystack' && ticketCheckout.authorizationUrl && (
+        <PaystackCheckout
+          sandbox={ticketCheckout.sandbox}
+          authorizationUrl={ticketCheckout.authorizationUrl}
+          returnUrl={`${WEB_APP_URL}/events/${id}?paystack_return=1`}
+          onComplete={() => void verifyTicketCheckout()}
+          onClose={() => void verifyTicketCheckout()}
+        />
+      )}
+      {ticketCheckout && ticketCheckout.provider !== 'paystack' && (
         <PaylukCheckout
           paymentToken={ticketCheckout.paymentToken}
           publicKey={process.env.EXPO_PUBLIC_PAYLUK_PUBLIC_KEY || ''}
           reference={ticketCheckout.transactionId}
           customerId={ticketCheckout.customerId}
           redirectUrl={`${WEB_APP_URL}/api/events/tickets/verify?tx_ref=${encodeURIComponent(ticketCheckout.txRef)}`}
-          onSuccess={verifyTicketCheckout}
+          onSuccess={() => void verifyTicketCheckout()}
           onCancel={() => {
             setTicketCheckout(null);
             Alert.alert(

@@ -1,7 +1,8 @@
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   RefreshControl,
   Text,
@@ -15,7 +16,11 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '../../../lib/supabase/supabase';
 import { useAuth } from '../../../hooks/use-supabase-auth';
+import { EventPaystackEarnings } from '../../../components/events/EventPaystackEarnings';
 import type { Event, Ticket } from '../../../types/events';
+import { api } from '../../../lib/network/api';
+
+type ManagedTicket = Ticket & { payment_provider?: string | null; refund_status?: string | null };
 
 const formatDateTime = (value: string | null) =>
   value
@@ -30,13 +35,16 @@ export default function ManageEventScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const [event, setEvent] = useState<Event | null>(null);
-  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [tickets, setTickets] = useState<ManagedTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [query, setQuery] = useState('');
   const [guestFilter, setGuestFilter] = useState<'all' | 'waiting' | 'checked-in'>('all');
+  const [refundingId, setRefundingId] = useState<string | null>(null);
+  const refundInFlight = useRef(false);
+  const [earningsRevision, setEarningsRevision] = useState(0);
 
   const fetchData = useCallback(async () => {
     if (!id || !user) {
@@ -67,7 +75,7 @@ export default function ManageEventScreen() {
         .eq('event_id', id)
         .order('created_at', { ascending: false });
       if (ticketError) throw ticketError;
-      setTickets((ticketData || []) as Ticket[]);
+      setTickets((ticketData || []) as ManagedTicket[]);
     } catch (error) {
       setLoadError(true);
       console.error('Failed to load organizer event details:', error);
@@ -84,6 +92,64 @@ export default function ManageEventScreen() {
     setRefreshing(true);
     fetchData();
   }, [fetchData]);
+
+  const refundTicket = async (ticket: ManagedTicket) => {
+    if (
+      refundInFlight.current ||
+      ticket.status !== 'PAID' ||
+      ticket.payment_provider !== 'paystack' ||
+      ticket.refund_status
+    )
+      return;
+    refundInFlight.current = true;
+    setRefundingId(ticket.id);
+    try {
+      const result = await api.post<{ refund?: { status: string } }>('/api/events/tickets/refund', {
+        ticket_id: ticket.id,
+      });
+      const status = result.refund?.status;
+      setTickets((current) =>
+        current.map((row) =>
+          row.id === ticket.id
+            ? {
+                ...row,
+                refund_status: status || 'pending',
+                ...(status === 'processed' ? { status: 'REFUNDED' as const } : {}),
+              }
+            : row
+        )
+      );
+      Alert.alert(
+        status === 'processed' ? 'Refund confirmed' : 'Refund requested',
+        ['failed', 'review', 'needs-attention'].includes(status || '')
+          ? 'This refund needs support review. The ticket remains blocked from entry.'
+          : status === 'processed'
+            ? 'Paystack has confirmed the refund.'
+            : 'The ticket is blocked from entry while Paystack processes the refund. Refresh to check its status.'
+      );
+    } catch (error) {
+      Alert.alert(
+        'Refund not confirmed',
+        error instanceof Error ? error.message : 'Refresh the ticket status before trying again.'
+      );
+    } finally {
+      await fetchData();
+      setEarningsRevision((value) => value + 1);
+      refundInFlight.current = false;
+      setRefundingId(null);
+    }
+  };
+
+  const confirmRefund = (ticket: ManagedTicket) => {
+    Alert.alert(
+      'Refund ticket?',
+      `Request ₦${Number(ticket.amount_paid || 0).toLocaleString('en-NG')} back for ${ticket.attendee_name || 'this attendee'}? Entry will be blocked while the refund is processed.`,
+      [
+        { text: 'Keep ticket', style: 'cancel' },
+        { text: 'Request refund', style: 'destructive', onPress: () => void refundTicket(ticket) },
+      ]
+    );
+  };
 
   const metrics = useMemo(() => {
     const paidTickets = tickets.filter(
@@ -168,7 +234,7 @@ export default function ManageEventScreen() {
           .includes(normalizedQuery))
     );
   });
-  const renderTicket = ({ item }: { item: Ticket }) => {
+  const renderTicket = ({ item }: { item: ManagedTicket }) => {
     const checkedIn = item.status === 'USED';
     return (
       <View
@@ -207,11 +273,17 @@ export default function ManageEventScreen() {
                 fontWeight: '700',
               }}
             >
-              {checkedIn
-                ? 'Checked in'
-                : item.status === 'PAID'
-                  ? 'Ready'
-                  : item.status.toLowerCase()}
+              {item.refund_status
+                ? item.refund_status === 'processed'
+                  ? 'Refunded'
+                  : ['failed', 'review', 'needs-attention'].includes(item.refund_status)
+                    ? 'Refund review'
+                    : 'Refund pending'
+                : checkedIn
+                  ? 'Checked in'
+                  : item.status === 'PAID'
+                    ? 'Ready'
+                    : item.status.toLowerCase()}
             </Text>
           </View>
         </View>
@@ -238,6 +310,28 @@ export default function ManageEventScreen() {
         <Text style={[stylesheet.tierText, { color: theme.colors.LABEL }]}>
           {item.tier?.name || 'Ticket'} · ₦{Number(item.amount_paid || 0).toLocaleString()}
         </Text>
+        {item.payment_provider === 'paystack' && item.status === 'PAID' && !item.refund_status && (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={`Refund ticket for ${item.attendee_name || 'attendee'}`}
+            disabled={refundingId !== null}
+            onPress={() => confirmRefund(item)}
+            style={{
+              marginTop: 12,
+              padding: 12,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: theme.colors.GLASS_BORDER,
+              opacity: refundingId !== null ? 0.5 : 1,
+            }}
+          >
+            <Text
+              style={{ color: theme.colors.TEXT_PRIMARY, textAlign: 'center', fontWeight: '700' }}
+            >
+              {refundingId === item.id ? 'Requesting…' : 'Refund ticket'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   };
@@ -325,6 +419,7 @@ export default function ManageEventScreen() {
               <Ionicons name="qr-code" size={22} color={theme.colors.DARK} />
               <Text style={stylesheet.scanButtonText}>Check in guests</Text>
             </TouchableOpacity>
+            <EventPaystackEarnings key={earningsRevision} eventId={id} />
             <Text style={[stylesheet.sectionTitle, { color: theme.colors.TEXT_PRIMARY }]}>
               Guest list · {tickets.length}
             </Text>

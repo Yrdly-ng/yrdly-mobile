@@ -45,7 +45,7 @@ const getTicketStatusInfo = (ticket: Ticket) => {
     return { isExpired: true, isValid: false, text: 'EXPIRED' };
   }
 
-  return { isExpired: false, isValid: true, text: 'PAID' };
+  return { isExpired: false, isValid: true, text: ticket.is_test_payment ? 'SANDBOX · NO REAL PAYMENT' : 'PAID' };
 };
 
 export default function TicketsScreen() {
