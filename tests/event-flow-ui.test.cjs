@@ -8,6 +8,7 @@ const ts = require('typescript');
 function mount(file, options = {}) {
   const state = [],
     effects = [],
+    cleanups = [],
     alerts = [],
     calls = [],
     routes = [],
@@ -27,7 +28,7 @@ function mount(file, options = {}) {
   const noop = () => {};
   const jsx = (type, props) => ({ type, props: props || {} });
   const theme = { colors: new Proxy({}, { get: () => '#123456' }) };
-  const user = options.user === undefined ? { id: 'organizer' } : options.user;
+  let user = options.user === undefined ? { id: 'organizer' } : options.user;
   const router = {
     push: (route) => routes.push(route),
     replace: (route) => routes.push(route),
@@ -143,10 +144,16 @@ function mount(file, options = {}) {
     if (name.endsWith('/use-supabase-auth')) return { useAuth: () => ({ user }) };
     if (name.endsWith('/supabase/supabase')) return { supabase: { from: query } };
     if (name.endsWith('/network/api')) return { api: { post: request } };
+    if (name.endsWith('/event-ticket-presentation') || name.endsWith('/event-availability')) {
+      const file = path.join(__dirname, '..', 'src/lib/events', name.split('/').at(-1) + '.ts');
+      const helper = { exports: {} };
+      new Function('module', 'exports', ts.transpileModule(readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(helper, helper.exports);
+      return helper.exports;
+    }
     if (name.endsWith('/event-service'))
       return {
         getOrganizerEvents: async () => options.events || [],
-        getMyTickets: async () => options.tickets || [],
+        getMyTickets: async (userId) => options.getMyTickets ? options.getMyTickets(userId) : options.tickets || [],
       };
     if (name.endsWith('/use-notification-route-ack'))
       return { useNotificationRouteAcknowledgement: noop };
@@ -170,13 +177,19 @@ function mount(file, options = {}) {
   };
   const ready = async () => {
     render();
-    effects.splice(0).forEach((effect) => effect());
+    effects.splice(0).forEach((effect) => cleanups.push(effect()));
     await new Promise((resolve) => setImmediate(resolve));
     return render();
   };
   return {
     render,
     ready,
+    async changeUser(nextUser) {
+      cleanups.splice(0).forEach((cleanup) => cleanup?.());
+      user = nextUser; first = true; render();
+      effects.splice(0).forEach((effect) => cleanups.push(effect()));
+      await new Promise(setImmediate); render();
+    },
     alerts,
     calls,
     routes,
@@ -220,6 +233,7 @@ const event = {
   organizer_id: 'organizer',
   title: 'Neighbourhood Dinner',
   start_time: '2030-10-20T18:00:00Z',
+  end_time: '2030-10-21T18:00:00Z',
   status: 'PUBLISHED',
   ticket_tiers: [],
   is_archived: false,
@@ -335,6 +349,47 @@ test('ticket modal preserves the original entry token with scannable contrast an
   assert.equal(app.calls.length, 0);
 });
 
+test('ticket details never offer entry for refunded, cancelled, used or expired tickets', async () => {
+  const cases = [
+    [{ refund_status: 'processing' }, /Refund pending/i],
+    [{ refund_status: 'failed' }, /Refund needs support/i],
+    [{ refund_status: 'review' }, /Refund needs support/i],
+    [{ status: 'REFUNDED', is_test_payment: true }, /Refunded/i],
+    [{ status: 'USED' }, /Used/i],
+    [{ status: 'CANCELLED' }, /Cancelled/i],
+    [{ event: { ...event, status: 'CANCELLED' } }, /Event cancelled/i],
+    [{ expires_at: '2000-01-01T00:00:00Z' }, /Expired/i],
+    [{ event: { ...event, end_time: '2000-01-01T00:00:00Z' } }, /Expired/i],
+  ];
+  for (const [changes, label] of cases) {
+    const ticket = { ...tickets[0], ...changes };
+    const app = mount('src/app/tickets.tsx', { tickets: [ticket] });
+    await app.ready();
+    find(app.tree, 'FlatList').props.renderItem({ item: ticket }).props.onPress();
+    app.render();
+    const modal = find(app.tree, 'Modal');
+    assert.equal(all(modal, (item) => item.type === 'QRCode').length, 0, JSON.stringify(changes));
+    assert.match(text(modal), label);
+    assert.doesNotMatch(text(modal), /Valid Ticket|Present this QR code/);
+  }
+});
+
+test('ticket detail refresh updates the open ticket and offers the event contact path', async () => {
+  const options = { tickets: [tickets[0]] };
+  const app = mount('src/app/tickets.tsx', options);
+  await app.ready();
+  find(app.tree, 'FlatList').props.renderItem({ item: tickets[0] }).props.onPress();
+  app.render();
+  options.tickets = [{ ...tickets[0], refund_status: 'processing' }];
+  await button(app.tree, 'Refresh ticket status').props.onPress();
+  app.render();
+  const modal = find(app.tree, 'Modal');
+  assert.match(text(modal), /Refund pending/);
+  assert.equal(all(modal, (item) => item.type === 'QRCode').length, 0);
+  button(modal, 'View event and contact organiser').props.onPress();
+  assert.equal(app.routes.at(-1), `/events/${event.id}`);
+});
+
 test('event scanner holds its server result until organizer explicitly starts the next guest', async () => {
   const app = mount('src/app/events/[id]/scan.tsx');
   app.render();
@@ -399,4 +454,18 @@ test('scanner opened without an event requires selecting an organizer event firs
   button(app.tree, 'Go to my events').props.onPress();
   assert.equal(app.routes[0], '/my-events');
   assert.equal(app.calls.length, 0);
+});
+
+
+test('an old-account ticket response cannot overwrite the next account', async () => {
+  const options = { tickets: [tickets[0]] };
+  const app = mount('src/app/tickets.tsx', options); await app.ready();
+  find(app.tree, 'FlatList').props.renderItem({ item: tickets[0] }).props.onPress(); app.render();
+  let finishOld;
+  options.getMyTickets = (userId) => userId === 'organizer' ? new Promise((resolve) => { finishOld = resolve; }) : [];
+  const oldRequest = button(app.tree, 'Refresh ticket status').props.onPress();
+  await app.changeUser({ id: 'another-buyer' });
+  finishOld([tickets[0]]); await oldRequest; app.render();
+  assert.equal(find(app.tree, 'FlatList').props.data.length, 0);
+  assert.equal(find(app.tree, 'Modal').props.visible, false);
 });

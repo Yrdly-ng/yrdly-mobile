@@ -1,6 +1,6 @@
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -19,34 +19,15 @@ import Animated, {
   withDelay,
 } from 'react-native-reanimated';
 import { Image } from 'expo-image';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
 import { supabase } from '../lib/supabase/supabase';
 import { useAuth } from '../hooks/use-supabase-auth';
 import { useNotificationRouteAcknowledgement } from '../hooks/notifications/use-notification-route-ack';
 import { getMyTickets } from '../lib/events/event-service';
-import { Post } from '../types';
-import { Ticket, Event } from '../types/events';
-const getTicketStatusInfo = (ticket: Ticket) => {
-  const isActiveOrConfirmed = ticket.status === 'PAID';
-
-  if (!isActiveOrConfirmed) {
-    return { isExpired: false, isValid: false, text: ticket.status.toUpperCase() };
-  }
-
-  const eventDate = ticket.event?.start_time ? new Date(ticket.event.start_time) : null;
-  // Give a 24-hour buffer after the event date before expiring the ticket
-  const isExpired = eventDate
-    ? new Date().getTime() - eventDate.getTime() > 24 * 60 * 60 * 1000
-    : false;
-
-  if (isExpired) {
-    return { isExpired: true, isValid: false, text: 'EXPIRED' };
-  }
-
-  return { isExpired: false, isValid: true, text: ticket.is_test_payment ? 'SANDBOX · NO REAL PAYMENT' : 'PAID' };
-};
+import { Ticket } from '../types/events';
+import { getEventTicketPresentation } from '../lib/events/event-ticket-presentation';
 
 export default function TicketsScreen() {
   const { theme } = useUnistyles();
@@ -54,6 +35,8 @@ export default function TicketsScreen() {
 
   const router = useRouter();
   const { user } = useAuth();
+  const userId = user?.id;
+  const requestEpoch = useRef(0);
 
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loadError, setLoadError] = useState(false);
@@ -72,48 +55,59 @@ export default function TicketsScreen() {
     } else {
       ticketTranslateY.value = 200;
     }
-  }, [selectedTicket]);
+  }, [selectedTicket, ticketTranslateY]);
 
   const animatedTicketStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: ticketTranslateY.value }],
   }));
 
   const fetchTickets = useCallback(async () => {
-    if (!user) {
+    const epoch = ++requestEpoch.current;
+    if (!userId) {
+      setTickets([]);
+      setSelectedTicket(null);
       setLoading(false);
       setRefreshing(false);
       return;
     }
     setLoadError(false);
     try {
-      const data = await getMyTickets(user.id);
+      const data = await getMyTickets(userId);
+      if (epoch !== requestEpoch.current) return;
       setTickets(data);
-    } catch (e) {
-      setLoadError(true);
-      console.error(e);
+      setSelectedTicket((current) =>
+        current ? data.find((ticket) => ticket.id === current.id) || null : null
+      );
+    } catch {
+      if (epoch === requestEpoch.current) setLoadError(true);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (epoch === requestEpoch.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
-    fetchTickets();
+    setTickets([]);
+    setSelectedTicket(null);
+    setLoading(true);
+    void fetchTickets();
+    return () => {
+      requestEpoch.current += 1;
+    };
   }, [fetchTickets]);
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchTickets();
   }, [fetchTickets]);
 
-  const isTicketPast = (t: Ticket) => {
-    const info = getTicketStatusInfo(t);
-    return (
-      info.isExpired || t.status === 'USED' || t.status === 'CANCELLED' || t.status === 'REFUNDED'
-    );
-  };
-
   const displayedTickets = tickets.filter(
-    (t) => !t.is_archived && (activeTab === 'active' ? !isTicketPast(t) : isTicketPast(t))
+    (t) =>
+      !t.is_archived &&
+      (activeTab === 'active'
+        ? !getEventTicketPresentation(t).isPast
+        : getEventTicketPresentation(t).isPast)
   );
 
   const handleDeleteTicket = (ticketId: string) => {
@@ -220,8 +214,13 @@ export default function TicketsScreen() {
               {formattedDate}
             </Text>
           </View>
+          {item.is_test_payment && (
+            <Text style={{ color: theme.colors.MUTED, fontSize: 11, marginBottom: 4 }}>
+              Sandbox · no real payment
+            </Text>
+          )}
           {(() => {
-            const statusInfo = getTicketStatusInfo(item);
+            const statusInfo = getEventTicketPresentation(item);
             return (
               <View
                 style={{
@@ -242,7 +241,7 @@ export default function TicketsScreen() {
                     color: statusInfo.isValid ? theme.colors.G : theme.colors.MUTED,
                   }}
                 >
-                  {statusInfo.text}
+                  {statusInfo.label}
                 </Text>
               </View>
             );
@@ -283,6 +282,8 @@ export default function TicketsScreen() {
     );
   };
 
+  const selectedInfo = selectedTicket ? getEventTicketPresentation(selectedTicket) : null;
+
   return (
     <SafeAreaView style={[stylesheet.container, { backgroundColor: theme.colors.DARK }]}>
       <View
@@ -306,7 +307,7 @@ export default function TicketsScreen() {
           Tickets, ready to go.
         </Text>
         <Text style={stylesheet.headerHint}>
-          Keep your entry passes close. Tap a ticket to show its QR code.
+          Keep your entry passes close. Open a ticket for its entry code or refund status.
         </Text>
       </View>
 
@@ -321,7 +322,7 @@ export default function TicketsScreen() {
               { color: activeTab === 'active' ? theme.colors.G : theme.colors.MUTED },
             ]}
           >
-            Active
+            Current
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -334,7 +335,7 @@ export default function TicketsScreen() {
               { color: activeTab === 'past' ? theme.colors.G : theme.colors.MUTED },
             ]}
           >
-            Past / Used
+            History
           </Text>
         </TouchableOpacity>
       </View>
@@ -401,11 +402,31 @@ export default function TicketsScreen() {
             <Text style={[stylesheet.modalTitle, { color: theme.colors.TEXT_PRIMARY }]}>
               Your Ticket
             </Text>
-            <View style={{ width: 40 }} />
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Refresh ticket status"
+              disabled={refreshing}
+              onPress={async () => {
+                setRefreshing(true);
+                await fetchTickets();
+              }}
+              style={stylesheet.modalClose}
+            >
+              <Feather name="refresh-cw" size={22} color={theme.colors.TEXT_PRIMARY} />
+            </TouchableOpacity>
           </View>
 
           {selectedTicket && (
-            <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+            <ScrollView
+              contentContainerStyle={{ flexGrow: 1 }}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor={theme.colors.G}
+                />
+              }
+            >
               <Animated.View style={[stylesheet.modalContent, animatedTicketStyle]}>
                 {/* Event card */}
                 <View
@@ -438,14 +459,20 @@ export default function TicketsScreen() {
                 </View>
 
                 {/* QR Code */}
-                <View style={[stylesheet.qrContainer, { backgroundColor: '#FFFFFF' }]}>
-                  <QRCode
-                    value={selectedTicket.id}
-                    size={220}
-                    color="#102110"
-                    backgroundColor="#FFFFFF"
-                  />
-                </View>
+                {selectedInfo?.isValid && !loadError ? (
+                  <View style={[stylesheet.qrContainer, { backgroundColor: '#FFFFFF' }]}>
+                    <QRCode
+                      value={selectedTicket.id}
+                      size={220}
+                      color="#102110"
+                      backgroundColor="#FFFFFF"
+                    />
+                  </View>
+                ) : (
+                  <View style={stylesheet.qrContainer}>
+                    <Feather name="info" size={48} color={theme.colors.MUTED} />
+                  </View>
+                )}
 
                 {/* Ticket token */}
                 <Text style={[stylesheet.tokenLabel, { color: theme.colors.MUTED }]}>
@@ -458,7 +485,7 @@ export default function TicketsScreen() {
                 <View
                   style={[
                     stylesheet.modalStatusBadge,
-                    getTicketStatusInfo(selectedTicket).isValid
+                    selectedInfo?.isValid
                       ? stylesheet.activeBadge
                       : [stylesheet.usedBadge, { backgroundColor: theme.colors.SURFACE }],
                   ]}
@@ -467,21 +494,36 @@ export default function TicketsScreen() {
                     style={[
                       stylesheet.modalStatusText,
                       {
-                        color: getTicketStatusInfo(selectedTicket).isExpired
-                          ? '#FFA000'
-                          : theme.colors.G,
+                        color: selectedInfo?.isValid ? theme.colors.G : theme.colors.MUTED,
                       },
                     ]}
                   >
-                    {getTicketStatusInfo(selectedTicket).isValid
-                      ? '✓ Valid Ticket'
-                      : getTicketStatusInfo(selectedTicket).text}
+                    {selectedInfo?.isValid ? 'Active ticket' : selectedInfo?.label}
                   </Text>
                 </View>
 
                 <Text style={[stylesheet.scanInstructions, { color: theme.colors.MUTED }]}>
-                  Present this QR code to the event organizer for check-in
+                  {loadError
+                    ? 'Could not update this ticket. Refresh its status before entry.'
+                    : selectedInfo?.message}
                 </Text>
+                {selectedTicket.is_test_payment && (
+                  <Text style={stylesheet.scanInstructions}>Sandbox · no real payment</Text>
+                )}
+                <Text style={[stylesheet.scanInstructions, { color: theme.colors.MUTED }]}>
+                  For ticket questions or a refund request, contact the organiser from the event
+                  page.
+                </Text>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  onPress={() => {
+                    setSelectedTicket(null);
+                    router.push(`/events/${selectedTicket.event_id}` as any);
+                  }}
+                  style={[stylesheet.browseButton, { backgroundColor: theme.colors.G }]}
+                >
+                  <Text style={stylesheet.browseButtonText}>View event and contact organiser</Text>
+                </TouchableOpacity>
               </Animated.View>
             </ScrollView>
           )}

@@ -195,7 +195,6 @@ export async function getOrganizerEvents(organizerId: string): Promise<Event[]> 
     .from('events')
     .select(`*, ticket_tiers(*)`)
     .eq('organizer_id', organizerId)
-    .eq('is_archived', false)
     .order('created_at', { ascending: false });
 
   if (error) throw error;

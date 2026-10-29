@@ -236,6 +236,22 @@ export function EventList({ searchQuery = '', sortOption = 'newest' }: EventList
               <TouchableOpacity
                 accessibilityRole="button"
                 style={ui.secondaryButton}
+                onPress={() => router.push('/my-events' as any)}
+              >
+                <Ionicons name="calendar-outline" size={17} color={theme.colors.TEXT_PRIMARY} />
+                <Text style={ui.secondaryButtonText}>Hosting</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                accessibilityRole="button"
+                style={ui.secondaryButton}
+                onPress={() => router.push('/events/team' as any)}
+              >
+                <Ionicons name="people-outline" size={17} color={theme.colors.TEXT_PRIMARY} />
+                <Text style={ui.secondaryButtonText}>Assigned events</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                accessibilityRole="button"
+                style={ui.secondaryButton}
                 onPress={() => router.push('/create-event')}
               >
                 <Ionicons name="add" size={17} color={theme.colors.TEXT_PRIMARY} />

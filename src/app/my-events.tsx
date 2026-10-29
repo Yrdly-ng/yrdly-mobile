@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -29,10 +30,14 @@ export default function MyEventsScreen() {
   const [loadError, setLoadError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'active' | 'past'>('active');
+  const [now, setNow] = useState(Date.now);
+  const [activeTab, setActiveTab] = useState<
+    'Upcoming' | 'Drafts' | 'Past' | 'Cancelled' | 'Archived'
+  >('Upcoming');
 
   const fetchEvents = useCallback(async () => {
     if (!user) {
+      setEvents([]);
       setLoading(false);
       setRefreshing(false);
       return;
@@ -41,6 +46,7 @@ export default function MyEventsScreen() {
     try {
       const data = await getOrganizerEvents(user.id);
       setEvents(data);
+      setNow(Date.now());
     } catch (e) {
       setLoadError(true);
       console.error(e);
@@ -87,6 +93,11 @@ export default function MyEventsScreen() {
 
   const renderEvent = ({ item }: { item: Event }) => {
     const imageUrl = item.cover_image_url;
+    const canCheckIn =
+      item.status === 'PUBLISHED' &&
+      !item.is_archived &&
+      Number.isFinite(Date.parse(item.end_time || '')) &&
+      Date.parse(item.end_time || '') > now;
     const formattedDate = item.start_time
       ? new Date(item.start_time).toLocaleDateString('en-US', {
           weekday: 'short',
@@ -168,25 +179,27 @@ export default function MyEventsScreen() {
 
           {!item.is_archived && (
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
-              <TouchableOpacity
-                style={{
-                  flex: 1,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                  backgroundColor: theme.colors.G,
-                  paddingVertical: 14,
-                  borderRadius: 12,
-                }}
-                onPress={(press) => {
-                  press.stopPropagation();
-                  router.push({ pathname: '/events/scan', params: { eventId: item.id } });
-                }}
-              >
-                <Ionicons name="qr-code" size={16} color={theme.colors.TEXT_PRIMARY} />
-                <Text style={stylesheet.scanBtnText}>Check in guests</Text>
-              </TouchableOpacity>
+              {canCheckIn && (
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    backgroundColor: theme.colors.G,
+                    paddingVertical: 14,
+                    borderRadius: 12,
+                  }}
+                  onPress={(press) => {
+                    press.stopPropagation();
+                    router.push({ pathname: '/events/scan', params: { eventId: item.id } });
+                  }}
+                >
+                  <Ionicons name="qr-code" size={16} color={theme.colors.TEXT_PRIMARY} />
+                  <Text style={stylesheet.scanBtnText}>Check in guests</Text>
+                </TouchableOpacity>
+              )}
 
               <TouchableOpacity
                 style={{
@@ -219,9 +232,16 @@ export default function MyEventsScreen() {
     );
   };
 
-  const filteredEvents = events.filter((e) => {
-    if (activeTab === 'active') return !e.is_archived;
-    return e.is_archived;
+  const filteredEvents = events.filter((event) => {
+    if (activeTab === 'Archived') return event.is_archived;
+    if (event.is_archived) return false;
+    if (activeTab === 'Cancelled') return event.status === 'CANCELLED';
+    if (activeTab === 'Drafts')
+      return ['DRAFT', 'PENDING_REVIEW', 'REJECTED'].includes(event.status);
+    if (event.status === 'COMPLETED') return activeTab === 'Past';
+    if (event.status !== 'PUBLISHED') return false;
+    const end = Date.parse(event.end_time || event.start_time);
+    return activeTab === 'Upcoming' ? end >= now : end < now;
   });
 
   return (
@@ -283,31 +303,26 @@ export default function MyEventsScreen() {
           <Text style={stylesheet.introText}>Could not update your events. Tap to retry.</Text>
         </TouchableOpacity>
       )}
-      {/* Tabs */}
-      <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginTop: 8, gap: 12 }}>
-        <TouchableOpacity
-          style={[
-            stylesheet.tabButton,
-            activeTab === 'active' && { backgroundColor: theme.colors.G },
-          ]}
-          onPress={() => setActiveTab('active')}
-        >
-          <Text style={[stylesheet.tabText, activeTab === 'active' && { color: '#102110' }]}>
-            Current
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            stylesheet.tabButton,
-            activeTab === 'past' && { backgroundColor: theme.colors.G },
-          ]}
-          onPress={() => setActiveTab('past')}
-        >
-          <Text style={[stylesheet.tabText, activeTab === 'past' && { color: '#102110' }]}>
-            Archived
-          </Text>
-        </TouchableOpacity>
-      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ flexGrow: 0 }}
+        contentContainerStyle={{ paddingHorizontal: 16, marginTop: 8, gap: 12 }}
+      >
+        {(['Upcoming', 'Drafts', 'Past', 'Cancelled', 'Archived'] as const).map((tab) => (
+          <TouchableOpacity
+            key={tab}
+            accessibilityRole="button"
+            accessibilityState={{ selected: activeTab === tab }}
+            style={[stylesheet.tabButton, activeTab === tab && { backgroundColor: theme.colors.G }]}
+            onPress={() => setActiveTab(tab)}
+          >
+            <Text style={[stylesheet.tabText, activeTab === tab && { color: '#102110' }]}>
+              {tab}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
 
       <FlatList
         data={filteredEvents}
@@ -326,12 +341,12 @@ export default function MyEventsScreen() {
             <View style={stylesheet.emptyState}>
               <Feather name="calendar" size={48} color={theme.colors.GLASS_BORDER} />
               <Text style={[stylesheet.emptyStateTitle, { color: theme.colors.TEXT_PRIMARY }]}>
-                {activeTab === 'past' ? 'No archived events' : 'Your first event starts here'}
+                {`No ${activeTab.toLowerCase()} events`}
               </Text>
               <Text style={[stylesheet.emptyStateDesc, { color: theme.colors.LABEL }]}>
-                {activeTab === 'past'
-                  ? 'Events you archive will appear here.'
-                  : 'Create a plan and invite your community.'}
+                {activeTab === 'Archived'
+                  ? 'Events you archive will appear here. Archiving does not cancel tickets.'
+                  : 'Your events will appear here as their status changes.'}
               </Text>
               <TouchableOpacity
                 style={[stylesheet.createButton, { backgroundColor: theme.colors.G }]}

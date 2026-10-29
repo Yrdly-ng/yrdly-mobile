@@ -41,11 +41,15 @@ import { Event, TicketTier } from '../../../types/events';
 import { getEventById } from '../../../lib/events/event-service';
 import { api, WEB_APP_URL } from '../../../lib/network/api';
 import { PaylukCheckout } from '../../../components/payments/PaylukCheckout';
-import { PaystackCheckout, isPaystackCheckoutUrl } from '../../../components/payments/PaystackCheckout';
+import {
+  PaystackCheckout,
+  isPaystackCheckoutUrl,
+} from '../../../components/payments/PaystackCheckout';
 import * as SecureStore from 'expo-secure-store';
 import { formatPrice } from '../../../lib/shared/utils';
 import { eventScreenStyles as eventUI } from '../../../components/events/event-screen-styles';
 import { getEventDateInfo } from '../../../lib/events/event-presentation';
+import { getTicketSaleAvailability } from '../../../lib/events/event-availability';
 import { AttendeeAvatars } from '../../../components/events/AttendeeAvatars';
 import { VerifiedBadge } from '../../../components/VerifiedBadge';
 import { directionsHref } from '../../../lib/location/directions';
@@ -134,14 +138,24 @@ export default function EventDetailScreen() {
   useEffect(() => {
     if (!user?.id || !id) return;
     let current = true;
-    void SecureStore.getItemAsync(pendingPaymentKey).then((value) => {
-      if (!current || !value) return;
-      const saved = JSON.parse(value);
-      if (saved?.provider === 'paystack' && typeof saved.txRef === 'string' && isPaystackCheckoutUrl(saved.authorizationUrl)) {
-        setTicketCheckout(saved);
-      }
-    }).catch(() => { /* A stale local record does not block the event. */ });
-    return () => { current = false; };
+    void SecureStore.getItemAsync(pendingPaymentKey)
+      .then((value) => {
+        if (!current || !value) return;
+        const saved = JSON.parse(value);
+        if (
+          saved?.provider === 'paystack' &&
+          typeof saved.txRef === 'string' &&
+          isPaystackCheckoutUrl(saved.authorizationUrl)
+        ) {
+          setTicketCheckout(saved);
+        }
+      })
+      .catch(() => {
+        /* A stale local record does not block the event. */
+      });
+    return () => {
+      current = false;
+    };
   }, [user?.id, id, pendingPaymentKey]);
   const [userHasTickets, setUserHasTickets] = useState(false);
 
@@ -356,18 +370,18 @@ export default function EventDetailScreen() {
 
   const handleDeleteEvent = () => {
     Alert.alert(
-      'Delete Event',
-      'Are you sure you want to delete this event? This action cannot be undone.',
+      'Archive event?',
+      'Move this event out of your current list. This does not cancel tickets, issue refunds or change its financial history.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'Archive',
           style: 'destructive',
           onPress: async () => {
             try {
               const { error } = await supabase
                 .from('events')
-                .update({ is_archived: true, status: 'CANCELLED' })
+                .update({ is_archived: true })
                 .eq('id', event!.id)
                 .eq('organizer_id', user!.id);
               if (error) throw error;
@@ -375,7 +389,7 @@ export default function EventDetailScreen() {
               router.back();
             } catch (e: any) {
               console.error('Delete event error:', e);
-              Alert.alert('Error', e.message || 'Could not delete event.');
+              Alert.alert('Error', e.message || 'Could not archive event.');
             }
           },
         },
@@ -394,7 +408,8 @@ export default function EventDetailScreen() {
         tx_ref: checkout.txRef,
       });
       if (!result.success) throw new Error('Payment has not been confirmed.');
-      if (checkout.provider === 'paystack') await SecureStore.deleteItemAsync(pendingPaymentKey).catch(() => {});
+      if (checkout.provider === 'paystack')
+        await SecureStore.deleteItemAsync(pendingPaymentKey).catch(() => {});
       setSelectedTier(null);
       showTicketSuccess(checkout.tierName);
     } catch {
@@ -414,6 +429,10 @@ export default function EventDetailScreen() {
 
   const handlePurchase = async () => {
     if (!event || !selectedTier || purchaseInFlight.current) return;
+    if (!getTicketSaleAvailability(event, selectedTier).available) {
+      Alert.alert('Tickets unavailable', 'Refresh the event to check current ticket availability.');
+      return;
+    }
     if (!attendeeName.trim() || !attendeeEmail.trim()) {
       Alert.alert('Error', 'Please enter your name and email.');
       return;
@@ -435,7 +454,12 @@ export default function EventDetailScreen() {
         const tierName = selectedTier.name;
         setSelectedTier(null);
         showTicketSuccess(tierName);
-      } else if (result.provider === 'paystack' && result.tx_ref && result.transactionId && isPaystackCheckoutUrl(result.authorizationUrl)) {
+      } else if (
+        result.provider === 'paystack' &&
+        result.tx_ref &&
+        result.transactionId &&
+        isPaystackCheckoutUrl(result.authorizationUrl)
+      ) {
         const checkout = {
           provider: 'paystack' as const,
           sandbox: result.sandbox === true,
@@ -455,7 +479,8 @@ export default function EventDetailScreen() {
         result.tx_ref &&
         result.transactionId
       ) {
-        if (!process.env.EXPO_PUBLIC_PAYLUK_PUBLIC_KEY) throw new Error('Payment checkout is unavailable. Please contact support.');
+        if (!process.env.EXPO_PUBLIC_PAYLUK_PUBLIC_KEY)
+          throw new Error('Payment checkout is unavailable. Please contact support.');
         setTicketCheckout({
           provider: 'payluk',
           paymentToken: result.paylukPaymentToken,
@@ -484,6 +509,8 @@ export default function EventDetailScreen() {
 
   const getEventStatus = (ev: Event) => {
     if (ev.status === 'CANCELLED') return { label: 'Cancelled', color: '#EF4444' };
+    if (ev.status === 'COMPLETED') return { label: 'Ended', color: '#6B7280' };
+    if (ev.status !== 'PUBLISHED') return { label: 'Not published', color: '#6B7280' };
     const now = new Date().getTime();
     const start = ev.start_time ? new Date(ev.start_time).getTime() : 0;
     const end = ev.end_time ? new Date(ev.end_time).getTime() : 0;
@@ -910,13 +937,18 @@ export default function EventDetailScreen() {
                     accessibilityLabel="Message the organizer"
                     onPress={async (e) => {
                       e.stopPropagation();
-                      if (!user || !event.organizer_id) return;
+                      if (!user) {
+                        router.push('/login' as any);
+                        return;
+                      }
+                      if (!event.organizer_id) return;
                       try {
-                        const { data: convs } = await supabase
+                        const { data: convs, error: chatError } = await supabase
                           .from('conversations')
                           .select('id, type, participant_ids, item_id')
                           .eq('item_id', event.id)
                           .order('created_at', { ascending: true });
+                        if (chatError) throw chatError;
                         const existing = convs?.find(
                           (c) =>
                             c.type === 'event' &&
@@ -932,6 +964,7 @@ export default function EventDetailScreen() {
                         }
                       } catch (err) {
                         console.error('Error starting chat', err);
+                        Alert.alert('Could not contact organiser', 'Please try again.');
                       }
                     }}
                   >
@@ -1032,6 +1065,7 @@ export default function EventDetailScreen() {
             event.ticket_tiers
               .filter((t) => t.is_visible)
               .map((tier) => {
+                const availability = getTicketSaleAvailability(event, tier);
                 const remaining =
                   tier.capacity !== null ? Math.max(0, tier.capacity - tier.sold) : null;
                 const isLimited =
@@ -1043,8 +1077,8 @@ export default function EventDetailScreen() {
                   <TouchableOpacity
                     key={tier.id}
                     accessibilityRole="button"
-                    accessibilityLabel={`${tier.name}, ${tier.price === 0 ? 'free entry' : formatPrice(tier.price)}${tier.is_sold_out ? ', sold out' : ''}`}
-                    accessibilityState={{ disabled: !!(tier.is_sold_out || isExpired || isOwner) }}
+                    accessibilityLabel={`${tier.name}, ${tier.price === 0 ? 'free entry' : formatPrice(tier.price)}${!availability.available ? `, ${availability.label}` : ''}`}
+                    accessibilityState={{ disabled: !availability.available || isOwner }}
                     style={[
                       stylesheet.tierCard,
                       {
@@ -1052,8 +1086,11 @@ export default function EventDetailScreen() {
                         borderColor: tier.price === 0 ? theme.colors.G : theme.colors.GLASS_BORDER,
                       },
                     ]}
-                    disabled={tier.is_sold_out || isExpired || isOwner}
-                    onPress={() => setSelectedTier(tier)}
+                    disabled={!availability.available || isOwner}
+                    onPress={() => {
+                      setQuantity(1);
+                      setSelectedTier(tier);
+                    }}
                     activeOpacity={0.8}
                   >
                     <View
@@ -1095,16 +1132,12 @@ export default function EventDetailScreen() {
                       </Text>
                     </View>
                     <View style={stylesheet.tierStatus}>
-                      {isExpired ? (
+                      {!availability.available ? (
                         <View style={[stylesheet.tierBadge, { backgroundColor: '#6B728020' }]}>
-                          <Text style={{ color: '#6B7280', fontSize: 12, fontWeight: 'bold' }}>
-                            Ended
-                          </Text>
-                        </View>
-                      ) : tier.is_sold_out ? (
-                        <View style={[stylesheet.tierBadge, { backgroundColor: '#EF444420' }]}>
-                          <Text style={{ color: '#EF4444', fontSize: 12, fontWeight: 'bold' }}>
-                            Sold Out
+                          <Text
+                            style={{ color: theme.colors.LABEL, fontSize: 12, fontWeight: 'bold' }}
+                          >
+                            {availability.label}
                           </Text>
                         </View>
                       ) : (
@@ -1232,44 +1265,46 @@ export default function EventDetailScreen() {
       </Animated.ScrollView>
 
       {/* Keep management/ticket access handy without a redundant purchase CTA. */}
-      {(isOwner || userHasTickets) && <View
-        style={[
-          stylesheet.bottomActionBar,
-          {
-            backgroundColor: theme.colors.SURFACE,
-            borderTopColor: theme.colors.GLASS_BORDER,
-            paddingBottom: Math.max(insets.bottom, 16),
-          },
-        ]}
-      >
-        <TouchableOpacity
+      {(isOwner || userHasTickets) && (
+        <View
           style={[
-            stylesheet.bottomPrimaryBtn,
+            stylesheet.bottomActionBar,
             {
-              backgroundColor: isOwner ? theme.colors.DARK : theme.colors.G,
-              borderWidth: isOwner ? 1 : 0,
-              borderColor: isOwner ? theme.colors.GLASS_BORDER : 'transparent',
+              backgroundColor: theme.colors.SURFACE,
+              borderTopColor: theme.colors.GLASS_BORDER,
+              paddingBottom: Math.max(insets.bottom, 16),
             },
           ]}
-          accessibilityRole="button"
-          onPress={() => {
-            if (isOwner) router.push(`/events/${event.id}/manage` as any);
-            else if (userHasTickets) router.push('/tickets' as any);
-            else scrollToTickets();
-          }}
         >
-          <Text
+          <TouchableOpacity
             style={[
-              stylesheet.bottomPrimaryText,
+              stylesheet.bottomPrimaryBtn,
               {
-                color: isOwner ? theme.colors.TEXT_PRIMARY : '#102110',
+                backgroundColor: isOwner ? theme.colors.DARK : theme.colors.G,
+                borderWidth: isOwner ? 1 : 0,
+                borderColor: isOwner ? theme.colors.GLASS_BORDER : 'transparent',
               },
             ]}
+            accessibilityRole="button"
+            onPress={() => {
+              if (isOwner) router.push(`/events/${event.id}/manage` as any);
+              else if (userHasTickets) router.push('/tickets' as any);
+              else scrollToTickets();
+            }}
           >
-            {isOwner ? 'Manage Event' : 'View my tickets'}
-          </Text>
-        </TouchableOpacity>
-      </View>}
+            <Text
+              style={[
+                stylesheet.bottomPrimaryText,
+                {
+                  color: isOwner ? theme.colors.TEXT_PRIMARY : '#102110',
+                },
+              ]}
+            >
+              {isOwner ? 'Manage Event' : 'View my tickets'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Ticket Purchase Modal */}
       <Modal
@@ -1357,7 +1392,19 @@ export default function EventDetailScreen() {
                       accessibilityLabel="Add one ticket"
                       accessibilityState={{ disabled: quantity >= 5 || purchasing }}
                       disabled={quantity >= 5 || purchasing}
-                      onPress={() => setQuantity((q) => Math.min(5, q + 1))}
+                      onPress={() =>
+                        setQuantity((q) =>
+                          Math.max(
+                            1,
+                            Math.min(
+                              selectedTier
+                                ? getTicketSaleAvailability(event, selectedTier).maxQuantity
+                                : 1,
+                              q + 1
+                            )
+                          )
+                        )
+                      }
                       style={[
                         stylesheet.quantityBtn,
                         { backgroundColor: theme.colors.GLASS_BORDER },
@@ -1415,18 +1462,35 @@ export default function EventDetailScreen() {
                 placeholderTextColor={theme.colors.LABEL}
               />
               {(selectedTier?.price || 0) > 0 && (
-                <Text style={{ color: theme.colors.LABEL, fontSize: 12, lineHeight: 18, marginTop: 12 }}>
-                  Refund requests are reviewed by the event organiser with Yrdly support under the event’s cancellation and refund policy. The payment provider does not decide refunds.
+                <Text
+                  style={{ color: theme.colors.LABEL, fontSize: 12, lineHeight: 18, marginTop: 12 }}
+                >
+                  Refund requests are reviewed by the event organiser with Yrdly support under the
+                  event’s cancellation and refund policy. The payment provider does not decide
+                  refunds.
                 </Text>
               )}
             </ScrollView>
 
+            {selectedTier && !getTicketSaleAvailability(event, selectedTier).available && (
+              <Text
+                accessibilityRole="alert"
+                style={{ color: theme.colors.LABEL, marginBottom: 12 }}
+              >
+                {getTicketSaleAvailability(event, selectedTier).label}. Close this form and refresh
+                the event for current availability.
+              </Text>
+            )}
             <TouchableOpacity
               style={[
                 stylesheet.purchaseBtn,
                 { backgroundColor: purchasing ? theme.colors.GLASS_BORDER : theme.colors.G },
               ]}
-              disabled={purchasing}
+              disabled={
+                purchasing ||
+                !selectedTier ||
+                !getTicketSaleAvailability(event, selectedTier).available
+              }
               onPress={handlePurchase}
             >
               {purchasing ? (

@@ -38,6 +38,7 @@ export default function ManageEventScreen() {
   const [tickets, setTickets] = useState<ManagedTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [now, setNow] = useState(Date.now);
   const [accessDenied, setAccessDenied] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [query, setQuery] = useState('');
@@ -45,6 +46,8 @@ export default function ManageEventScreen() {
   const [refundingId, setRefundingId] = useState<string | null>(null);
   const refundInFlight = useRef(false);
   const [earningsRevision, setEarningsRevision] = useState(0);
+  const [cancelling, setCancelling] = useState(false);
+  const cancellationInFlight = useRef(false);
 
   const fetchData = useCallback(async () => {
     if (!id || !user) {
@@ -76,6 +79,7 @@ export default function ManageEventScreen() {
         .order('created_at', { ascending: false });
       if (ticketError) throw ticketError;
       setTickets((ticketData || []) as ManagedTicket[]);
+      setNow(Date.now());
     } catch (error) {
       setLoadError(true);
       console.error('Failed to load organizer event details:', error);
@@ -92,6 +96,37 @@ export default function ManageEventScreen() {
     setRefreshing(true);
     fetchData();
   }, [fetchData]);
+
+  const cancelEvent = async () => {
+    if (!id || cancellationInFlight.current) return;
+    cancellationInFlight.current = true;
+    setCancelling(true);
+    try {
+      await api.post(`/api/events/${id}/cancel`, {});
+      setEvent((current) => (current ? { ...current, status: 'CANCELLED' } : current));
+      await fetchData();
+      Alert.alert('Event cancelled', 'Ticket sales have stopped. Attendees will be notified.');
+    } catch (error) {
+      Alert.alert(
+        'Could not cancel event',
+        error instanceof Error ? error.message : 'Refresh and try again.'
+      );
+    } finally {
+      cancellationInFlight.current = false;
+      setCancelling(false);
+    }
+  };
+
+  const confirmCancellation = () => {
+    Alert.alert(
+      'Cancel this event?',
+      'All paid tickets must have confirmed refunds first. Refund them from the guest list and refresh their status before cancelling. Checked-in tickets require support review. Cancellation stops sales, invalidates free tickets and notifies attendees.',
+      [
+        { text: 'Keep event', style: 'cancel' },
+        { text: 'Cancel event', style: 'destructive', onPress: () => void cancelEvent() },
+      ]
+    );
+  };
 
   const refundTicket = async (ticket: ManagedTicket) => {
     if (
@@ -215,6 +250,12 @@ export default function ManageEventScreen() {
     );
   }
 
+  const canCheckIn =
+    event.status === 'PUBLISHED' &&
+    !loadError &&
+    Number.isFinite(Date.parse(event.end_time || '')) &&
+    Date.parse(event.end_time || '') > now;
+
   const eventDate = new Date(event.start_time).toLocaleDateString('en-NG', {
     weekday: 'long',
     day: 'numeric',
@@ -225,7 +266,9 @@ export default function ManageEventScreen() {
   const visibleTickets = tickets.filter((ticket) => {
     const matchesState =
       guestFilter === 'all' ||
-      (guestFilter === 'checked-in' ? ticket.status === 'USED' : ticket.status === 'PAID');
+      (guestFilter === 'checked-in'
+        ? ticket.status === 'USED'
+        : ticket.status === 'PAID' && !ticket.refund_status);
     return (
       matchesState &&
       (!normalizedQuery ||
@@ -348,12 +391,16 @@ export default function ManageEventScreen() {
         <Text style={[stylesheet.headerTitle, { color: theme.colors.TEXT_PRIMARY }]}>
           Manage event
         </Text>
-        <TouchableOpacity
-          onPress={() => router.push(`/events/${id}/scan` as any)}
-          style={[stylesheet.scanIcon, { backgroundColor: theme.colors.G + '20' }]}
-        >
-          <Ionicons name="qr-code-outline" size={20} color={theme.colors.G} />
-        </TouchableOpacity>
+        {canCheckIn && (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Check in guests"
+            onPress={() => router.push(`/events/${id}/scan` as any)}
+            style={[stylesheet.scanIcon, { backgroundColor: theme.colors.G + '20' }]}
+          >
+            <Ionicons name="qr-code-outline" size={20} color={theme.colors.G} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <FlatList
@@ -412,14 +459,36 @@ export default function ManageEventScreen() {
               <Metric label="Ticket sales" value={`₦${metrics.revenue.toLocaleString()}`} />
               <Metric label="Checked in" value={String(metrics.checkedIn)} />
             </View>
-            <TouchableOpacity
-              style={[stylesheet.scanButton, { backgroundColor: theme.colors.G }]}
-              onPress={() => router.push(`/events/${id}/scan` as any)}
-            >
-              <Ionicons name="qr-code" size={22} color={theme.colors.DARK} />
-              <Text style={stylesheet.scanButtonText}>Check in guests</Text>
-            </TouchableOpacity>
+            {canCheckIn && (
+              <TouchableOpacity
+                accessibilityRole="button"
+                style={[stylesheet.scanButton, { backgroundColor: theme.colors.G }]}
+                onPress={() => router.push(`/events/${id}/scan` as any)}
+              >
+                <Ionicons name="qr-code" size={22} color={theme.colors.DARK} />
+                <Text style={stylesheet.scanButtonText}>Check in guests</Text>
+              </TouchableOpacity>
+            )}
             <EventPaystackEarnings key={earningsRevision} eventId={id} />
+            {event.status !== 'CANCELLED' && event.status !== 'COMPLETED' && (
+              <TouchableOpacity
+                accessibilityRole="button"
+                disabled={cancelling}
+                onPress={confirmCancellation}
+                style={[
+                  stylesheet.scanButton,
+                  { borderWidth: 1, borderColor: '#EF4444', opacity: cancelling ? 0.5 : 1 },
+                ]}
+              >
+                <Feather name="x-circle" size={20} color="#EF4444" />
+                <Text style={[stylesheet.scanButtonText, { color: '#EF4444' }]}>
+                  {cancelling ? 'Cancelling…' : 'Cancel event'}
+                </Text>
+              </TouchableOpacity>
+            )}
+            {event.status === 'CANCELLED' && (
+              <Text style={stylesheet.errorText}>Event cancelled · ticket sales are closed.</Text>
+            )}
             <Text style={[stylesheet.sectionTitle, { color: theme.colors.TEXT_PRIMARY }]}>
               Guest list · {tickets.length}
             </Text>

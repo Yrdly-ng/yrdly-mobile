@@ -21,18 +21,21 @@ function walk(node) {
   ts.forEachChild(node, walk);
 }
 walk(ast);
-function fixture({ result, error, verifyError } = {}) {
+const availability = { exports: {} };
+new Function('module','exports', ts.transpileModule(fs.readFileSync('src/lib/events/event-availability.ts','utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(availability, availability.exports);
+function fixture({ result, error, verifyError, event: eventOverride, tier: tierOverride } = {}) {
   const calls = [],
     alerts = [],
     success = [],
     routes = [];
   let checkout = null,
-    selected = { id: 'tier', name: 'General', price: 2000 },
+    selected = { id: 'tier', name: 'General', price: 2000, ...tierOverride },
     purchasing = false;
   const purchaseInFlight = { current: false },
     verifyInFlight = { current: false };
   const context = {
-    event: { id: 'event' },
+    event: { id: 'event', status: 'PUBLISHED', end_time: '2099-01-01T00:00:00Z', ...eventOverride },
+    getTicketSaleAvailability: availability.exports.getTicketSaleAvailability,
     attendeeName: 'A Guest',
     attendeeEmail: 'guest@example.test',
     attendeePhone: '',
@@ -185,4 +188,13 @@ test('unexpected hosted checkout domains never open or count as paid', async () 
   assert.equal(app.checkout, null);
   assert.deepEqual(app.success, []);
   assert.match(app.alerts[0][1], /incomplete/);
+});
+
+test('mobile submit rechecks cancelled events and expired tier sales without a payment request', async () => {
+  for(const options of [{event:{status:'CANCELLED'}},{event:{status:'COMPLETED'}},{tier:{sale_ends_at:'2000-01-01T00:00:00Z'}},{tier:{capacity:0}}]) {
+    const app = fixture(options);
+    await app.handlePurchase();
+    assert.equal(app.calls.length,0);
+    assert.equal(app.alerts[0][0],'Tickets unavailable');
+  }
 });
