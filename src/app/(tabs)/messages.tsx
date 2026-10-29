@@ -664,7 +664,11 @@ export default function MessagesTab() {
           <View
             style={[
               stylesheet.newMessageSheet,
-              { backgroundColor: theme.colors.DARK, borderColor: theme.colors.GLASS_BORDER },
+              {
+                backgroundColor: theme.colors.DARK,
+                borderColor: theme.colors.GLASS_BORDER,
+                paddingBottom: Math.max(insets.bottom, 18),
+              },
             ]}
           >
             <View style={stylesheet.newMessageHeader}>
@@ -681,6 +685,7 @@ export default function MessagesTab() {
               </Text>
             ) : (
               <FlatList
+                style={stylesheet.messageableList}
                 data={messageableUsers}
                 keyExtractor={(item) => item.id}
                 keyboardShouldPersistTaps="handled"
@@ -696,7 +701,7 @@ export default function MessagesTab() {
                         contentFit="cover"
                       />
                     ) : (
-                      <View style={stylesheet.avatarPlaceholder}>
+                      <View style={stylesheet.messageableAvatarPlaceholder}>
                         <Text style={stylesheet.avatarInitial}>
                           {item.name?.charAt(0).toUpperCase() || '?'}
                         </Text>
@@ -805,10 +810,11 @@ const _stylesheet = StyleSheet.create((theme) => ({
     position: 'relative',
   },
   avatarImg: { width: '100%', height: '100%', borderRadius: 24 },
-  messageableAvatar: { width: 48, height: 48, borderRadius: 24 },
+  messageableAvatar: { width: 48, height: 48, borderRadius: 24, flexShrink: 0 },
   messageableAvatarPlaceholder: {
     width: 48,
     height: 48,
+    flexShrink: 0,
     borderRadius: 24,
     backgroundColor: 'rgba(130,219,126,0.08)',
     justifyContent: 'center',
@@ -937,6 +943,7 @@ const _stylesheet = StyleSheet.create((theme) => ({
     marginBottom: 14,
   },
   newMessageTitle: { fontFamily: 'Outfit-Bold', fontSize: 19, color: theme.colors.TEXT_PRIMARY },
+  messageableList: { flexShrink: 1, minHeight: 0 },
   messageableUser: {
     flexDirection: 'row',
     alignItems: 'center',
