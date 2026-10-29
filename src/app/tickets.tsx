@@ -11,6 +11,7 @@ import {
   Modal,
   Alert,
   ScrollView,
+  AppState,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -20,7 +21,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
 import { supabase } from '../lib/supabase/supabase';
 import { useAuth } from '../hooks/use-supabase-auth';
@@ -97,6 +98,24 @@ export default function TicketsScreen() {
       requestEpoch.current += 1;
     };
   }, [fetchTickets]);
+  useFocusEffect(
+    useCallback(() => {
+      const refresh = () => {
+        if (AppState.currentState === 'active') void fetchTickets();
+      };
+      refresh();
+      const subscription = AppState.addEventListener('change', (state) => {
+        if (state === 'active') refresh();
+      });
+      const timer = setInterval(refresh, 30000);
+      return () => {
+        subscription.remove();
+        clearInterval(timer);
+        requestEpoch.current += 1;
+      };
+    }, [fetchTickets])
+  );
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchTickets();

@@ -12,6 +12,7 @@ import {
   Platform,
   Share,
   DeviceEventEmitter,
+  AppState,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,7 +33,7 @@ import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import ImageViewing from 'react-native-image-viewing';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import { supabase } from '../../../lib/supabase/supabase';
 import { useAuth } from '../../../hooks/use-supabase-auth';
@@ -158,6 +159,8 @@ export default function EventDetailScreen() {
     };
   }, [user?.id, id, pendingPaymentKey]);
   const [userHasTickets, setUserHasTickets] = useState(false);
+  const [ownedTicketCounts, setOwnedTicketCounts] = useState<Record<string, number>>({});
+  const ownershipEpoch = useRef(0);
 
   // Ticket success overlay
   const [ticketSuccess, setTicketSuccess] = useState(false);
@@ -230,17 +233,6 @@ export default function EventDetailScreen() {
               .maybeSingle();
             setIsFollowingOrganizer(!!fData);
           }
-
-          // Check if user has tickets
-          const { data: tData } = await supabase
-            .from('tickets')
-            .select('id')
-            .eq('buyer_id', profile.id)
-            .eq('event_id', data.id)
-            .limit(1);
-          if (tData && tData.length > 0) {
-            setUserHasTickets(true);
-          }
         }
 
         // Fetch related events (filtered by same LGA/state location)
@@ -277,6 +269,40 @@ export default function EventDetailScreen() {
       setLoading(false);
     }
   }, [id, user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let current = true;
+      setUserHasTickets(false);
+      setOwnedTicketCounts({});
+      const refresh = async () => {
+        if (!user?.id || !id || AppState.currentState !== 'active') return;
+        const epoch = ++ownershipEpoch.current;
+        const { data, error } = await supabase
+          .from('tickets')
+          .select('tier_id')
+          .eq('buyer_id', user.id)
+          .eq('event_id', id)
+          .in('status', ['PAID', 'USED']);
+        if (!current || epoch !== ownershipEpoch.current || error) return;
+        const counts: Record<string, number> = {};
+        for (const ticket of data || []) counts[ticket.tier_id] = (counts[ticket.tier_id] || 0) + 1;
+        setOwnedTicketCounts(counts);
+        setUserHasTickets((data || []).length > 0);
+      };
+      void refresh();
+      const subscription = AppState.addEventListener('change', (state) => {
+        if (state === 'active') void refresh();
+      });
+      const timer = setInterval(() => void refresh(), 30000);
+      return () => {
+        current = false;
+        ownershipEpoch.current += 1;
+        subscription.remove();
+        clearInterval(timer);
+      };
+    }, [user?.id, id])
+  );
 
   useEffect(() => {
     fetchEvent();
@@ -1066,6 +1092,7 @@ export default function EventDetailScreen() {
               .filter((t) => t.is_visible)
               .map((tier) => {
                 const availability = getTicketSaleAvailability(event, tier);
+                const ownedCount = ownedTicketCounts[tier.id] || 0;
                 const remaining =
                   tier.capacity !== null ? Math.max(0, tier.capacity - tier.sold) : null;
                 const isLimited =
@@ -1078,7 +1105,9 @@ export default function EventDetailScreen() {
                     key={tier.id}
                     accessibilityRole="button"
                     accessibilityLabel={`${tier.name}, ${tier.price === 0 ? 'free entry' : formatPrice(tier.price)}${!availability.available ? `, ${availability.label}` : ''}`}
-                    accessibilityState={{ disabled: !availability.available || isOwner }}
+                    accessibilityState={{
+                      disabled: !availability.available || isOwner || ownedCount >= 5,
+                    }}
                     style={[
                       stylesheet.tierCard,
                       {
@@ -1086,7 +1115,7 @@ export default function EventDetailScreen() {
                         borderColor: tier.price === 0 ? theme.colors.G : theme.colors.GLASS_BORDER,
                       },
                     ]}
-                    disabled={!availability.available || isOwner}
+                    disabled={!availability.available || isOwner || ownedCount >= 5}
                     onPress={() => {
                       setQuantity(1);
                       setSelectedTier(tier);
@@ -1102,6 +1131,11 @@ export default function EventDetailScreen() {
                       <Text style={[stylesheet.tierName, { color: theme.colors.TEXT_PRIMARY }]}>
                         {tier.name}
                       </Text>
+                      {ownedCount > 0 && (
+                        <Text style={{ color: theme.colors.G, marginTop: 4 }}>
+                          {ownedCount} ticket{ownedCount === 1 ? '' : 's'} owned
+                        </Text>
+                      )}
                       {tier.description && (
                         <Text
                           style={[stylesheet.tierDesc, { color: theme.colors.LABEL }]}

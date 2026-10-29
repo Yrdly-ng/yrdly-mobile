@@ -6,6 +6,7 @@ const ts = require('typescript');
 
 // Execute route components and their actual handlers. Only native rendering and I/O are replaced.
 function mount(file, options = {}) {
+  const foregroundListeners = [];
   const state = [],
     effects = [],
     cleanups = [],
@@ -88,6 +89,13 @@ function mount(file, options = {}) {
     },
     'react-native': {
       ...native,
+      AppState: {
+        currentState: 'active',
+        addEventListener: (_, fn) => {
+          foregroundListeners.push(fn);
+          return { remove() {} };
+        },
+      },
       Alert: { alert: (...args) => alerts.push(args) },
       Linking: { openSettings: () => calls.push('settings') },
       Vibration: { vibrate: noop },
@@ -107,6 +115,9 @@ function mount(file, options = {}) {
     'expo-image': { Image: 'Image' },
     'expo-router': {
       useRouter: () => router,
+      useFocusEffect: (fn) => {
+        if (first) effects.push(fn);
+      },
       useLocalSearchParams: () => options.params || { id: 'event-1', eventId: 'event-1' },
     },
     'expo-camera': {
@@ -139,21 +150,27 @@ function mount(file, options = {}) {
   };
   const mockRequire = (name) => {
     if (name in mocks) return mocks[name];
-    if (name.endsWith('/EventPaystackEarnings'))
-      return { EventPaystackEarnings: () => null };
+    if (name.endsWith('/EventPaystackEarnings')) return { EventPaystackEarnings: () => null };
     if (name.endsWith('/use-supabase-auth')) return { useAuth: () => ({ user }) };
     if (name.endsWith('/supabase/supabase')) return { supabase: { from: query } };
     if (name.endsWith('/network/api')) return { api: { post: request } };
     if (name.endsWith('/event-ticket-presentation') || name.endsWith('/event-availability')) {
       const file = path.join(__dirname, '..', 'src/lib/events', name.split('/').at(-1) + '.ts');
       const helper = { exports: {} };
-      new Function('module', 'exports', ts.transpileModule(readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(helper, helper.exports);
+      new Function(
+        'module',
+        'exports',
+        ts.transpileModule(readFileSync(file, 'utf8'), {
+          compilerOptions: { module: ts.ModuleKind.CommonJS },
+        }).outputText
+      )(helper, helper.exports);
       return helper.exports;
     }
     if (name.endsWith('/event-service'))
       return {
         getOrganizerEvents: async () => options.events || [],
-        getMyTickets: async (userId) => options.getMyTickets ? options.getMyTickets(userId) : options.tickets || [],
+        getMyTickets: async (userId) =>
+          options.getMyTickets ? options.getMyTickets(userId) : options.tickets || [],
       };
     if (name.endsWith('/use-notification-route-ack'))
       return { useNotificationRouteAcknowledgement: noop };
@@ -167,7 +184,13 @@ function mount(file, options = {}) {
     },
   }).outputText;
   const module = { exports: {} };
-  new Function('require', 'module', 'exports', source)(mockRequire, module, module.exports);
+  new Function('require', 'module', 'exports', 'setInterval', 'clearInterval', source)(
+    mockRequire,
+    module,
+    module.exports,
+    () => 1,
+    () => {}
+  );
   let tree;
   const render = () => {
     cursor = 0;
@@ -186,14 +209,22 @@ function mount(file, options = {}) {
     ready,
     async changeUser(nextUser) {
       cleanups.splice(0).forEach((cleanup) => cleanup?.());
-      user = nextUser; first = true; render();
+      user = nextUser;
+      first = true;
+      render();
       effects.splice(0).forEach((effect) => cleanups.push(effect()));
-      await new Promise(setImmediate); render();
+      await new Promise(setImmediate);
+      render();
     },
     alerts,
     calls,
     routes,
     queries,
+    async foreground() {
+      foregroundListeners.forEach((fn) => fn('active'));
+      await new Promise(setImmediate);
+      render();
+    },
     get tree() {
       return tree;
     },
@@ -456,16 +487,36 @@ test('scanner opened without an event requires selecting an organizer event firs
   assert.equal(app.calls.length, 0);
 });
 
-
 test('an old-account ticket response cannot overwrite the next account', async () => {
   const options = { tickets: [tickets[0]] };
-  const app = mount('src/app/tickets.tsx', options); await app.ready();
-  find(app.tree, 'FlatList').props.renderItem({ item: tickets[0] }).props.onPress(); app.render();
+  const app = mount('src/app/tickets.tsx', options);
+  await app.ready();
+  find(app.tree, 'FlatList').props.renderItem({ item: tickets[0] }).props.onPress();
+  app.render();
   let finishOld;
-  options.getMyTickets = (userId) => userId === 'organizer' ? new Promise((resolve) => { finishOld = resolve; }) : [];
+  options.getMyTickets = (userId) =>
+    userId === 'organizer'
+      ? new Promise((resolve) => {
+          finishOld = resolve;
+        })
+      : [];
   const oldRequest = button(app.tree, 'Refresh ticket status').props.onPress();
   await app.changeUser({ id: 'another-buyer' });
-  finishOld([tickets[0]]); await oldRequest; app.render();
+  finishOld([tickets[0]]);
+  await oldRequest;
+  app.render();
   assert.equal(find(app.tree, 'FlatList').props.data.length, 0);
   assert.equal(find(app.tree, 'Modal').props.visible, false);
+});
+
+test('foreground refresh displays a refund performed on another device and removes the old QR', async () => {
+  const options = { tickets: [tickets[0]] };
+  const app = mount('src/app/tickets.tsx', options);
+  await app.ready();
+  find(app.tree, 'FlatList').props.renderItem({ item: tickets[0] }).props.onPress();
+  app.render();
+  options.tickets = [{ ...tickets[0], refund_status: 'processing' }];
+  await app.foreground();
+  assert.match(text(app.tree), /Refund pending/);
+  assert.equal(all(app.tree, (node) => node.type === 'QRCode').length, 0);
 });
