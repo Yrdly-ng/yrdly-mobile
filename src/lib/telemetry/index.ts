@@ -4,6 +4,7 @@ import {
   appEvents,
   errorContexts,
   isErrorCode,
+  isEmail,
   isUserId,
   sanitizePostHogEvent,
   sanitizeSentryEvent,
@@ -16,6 +17,7 @@ let initialized = false;
 let sentryEnabled = false;
 let analytics: PostHog | undefined;
 let currentUser: string | null = null;
+let currentEmail: string | null = null;
 let lastScreen: string | null = null;
 
 // Analytics/reporting must never make a successful app action fail.
@@ -123,13 +125,27 @@ export function initializeTelemetry(): void {
   }
 }
 
-export function setTelemetryUser(id: string | null): void {
+export function setTelemetryUser(id: string | null, email: string | null = null): void {
   const nextUser = isUserId(id) ? id : null;
-  if (currentUser === nextUser) return;
+  const nextEmail = nextUser && isEmail(email) ? email : null;
+  if (currentUser === nextUser && currentEmail === nextEmail) return;
+  if (currentUser === nextUser) {
+    currentEmail = nextEmail;
+    if (sentryEnabled)
+      safely(() =>
+        Sentry.setUser(nextUser ? { id: nextUser, ...(nextEmail ? { email: nextEmail } : {}) } : null)
+      );
+    if (nextUser) safely(() => analytics?.identify(nextUser, nextEmail ? { email: nextEmail } : {}));
+    return;
+  }
   const previousUser = currentUser;
   currentUser = nextUser;
+  currentEmail = nextEmail;
   lastScreen = null;
-  if (sentryEnabled) safely(() => Sentry.setUser(nextUser ? { id: nextUser } : null));
+  if (sentryEnabled)
+    safely(() =>
+      Sentry.setUser(nextUser ? { id: nextUser, ...(nextEmail ? { email: nextEmail } : {}) } : null)
+    );
   // reset() before identify() prevents joining two authenticated accounts.
   if (previousUser) {
     try {
@@ -139,7 +155,7 @@ export function setTelemetryUser(id: string | null): void {
       analytics = undefined;
     }
   }
-  if (nextUser) safely(() => analytics?.identify(nextUser));
+  if (nextUser) safely(() => analytics?.identify(nextUser, nextEmail ? { email: nextEmail } : {}));
 }
 
 export function trackScreen(template: string): void {

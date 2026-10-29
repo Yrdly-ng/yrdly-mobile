@@ -11,9 +11,9 @@ export function TelemetryHandler() {
 
   useEffect(() => {
     if (loading) return;
-    setTelemetryUser(user?.id ?? null);
+    setTelemetryUser(user?.id ?? null, user?.email ?? null);
     trackScreen(route);
-  }, [loading, route, user?.id]);
+  }, [loading, route, user?.email, user?.id]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {

@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Swipeable } from 'react-native-gesture-handler';
 import { getUserActivityStatus, isUserOnline } from '../../lib/activity/online-status';
 import { createMessagesChannel } from '../../lib/messages/realtime';
+import { ReplayLabel } from '../../components/telemetry/ReplayLabel';
 type ConvType = 'friend' | 'marketplace' | 'briefcase';
 type FilterTab = 'all' | 'friends' | 'marketplace' | 'business';
 
@@ -467,7 +468,7 @@ export default function MessagesTab() {
         ) : (
           <>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <Text style={stylesheet.headerTitle}>Messages</Text>
+              <ReplayLabel style={stylesheet.headerTitle}>Messages</ReplayLabel>
               {totalUnread > 0 && (
                 <View style={stylesheet.totalBadge}>
                   <Text style={stylesheet.totalBadgeText}>{totalUnread}</Text>
@@ -667,7 +668,7 @@ export default function MessagesTab() {
             ]}
           >
             <View style={stylesheet.newMessageHeader}>
-              <Text style={stylesheet.newMessageTitle}>New message</Text>
+              <ReplayLabel style={stylesheet.newMessageTitle}>New message</ReplayLabel>
               <TouchableOpacity onPress={() => setShowNewMessage(false)} accessibilityLabel="Close">
                 <Ionicons name="close" size={24} color={theme.colors.TEXT_PRIMARY} />
               </TouchableOpacity>

@@ -36,6 +36,14 @@ export function isUserId(value: unknown): value is string {
   );
 }
 
+export function isEmail(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length <= 254 &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+  );
+}
+
 const errorTypes = new Set([
   'Error',
   'TypeError',
@@ -96,7 +104,12 @@ export function sanitizeSentryEvent(event: ErrorEvent): ErrorEvent {
           ),
         }
       : undefined,
-    user: isUserId(event.user?.id) ? { id: event.user.id } : undefined,
+    user: isUserId(event.user?.id)
+      ? {
+          id: event.user.id,
+          ...(isEmail(event.user.email) ? { email: event.user.email } : {}),
+        }
+      : undefined,
     // Preserve an existing replay link without retaining arbitrary replay metadata.
     contexts:
       typeof replayId === 'string' && /^[0-9a-f]{32}$/i.test(replayId)
@@ -141,6 +154,16 @@ export const sanitizePostHogEvent: BeforeSend = (event) => {
   const source = event.properties || {};
   if (event.event === '$screen' && !isScreenName(source.$screen_name)) return null;
   const properties: NonNullable<typeof event.properties> = {};
+  // Email is a person-level lookup field, accepted only on identity events.
+  // Never allow it (or arbitrary profile data) onto screens/product events.
+  if (event.event === '$identify') {
+    const set =
+      source.$set && typeof source.$set === 'object' && !Array.isArray(source.$set)
+        ? (source.$set as Record<string, unknown>)
+        : {};
+    const email = isEmail(set.email) ? set.email : isEmail(source.email) ? source.email : undefined;
+    if (email) properties.$set = { email };
+  }
   // Keep only ingestion/identity metadata and deliberate product properties.
   for (const key of [
     'token',
