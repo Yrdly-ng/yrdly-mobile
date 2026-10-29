@@ -165,16 +165,19 @@ export default function CatalogItemScreen() {
     }
 
     try {
-      const { data: convs } = await supabase
+      const { data: convs, error: lookupError } = await supabase
         .from('conversations')
-        .select('id, type, participant_ids, item_id')
+        .select('id, type, participant_ids, item_id, business_id, context')
+        .contains('participant_ids', [user.id])
         .order('created_at', { ascending: true });
+      if (lookupError) throw lookupError;
 
       const existing = convs?.find((c) => {
         if (
           (c.type === 'briefcase' || c.type === 'business') &&
           c.participant_ids?.includes(user.id) &&
-          c.participant_ids?.includes(business.owner_id)
+          c.participant_ids?.includes(business.owner_id) &&
+          c.business_id === business.id
         )
           return true;
         return false;
@@ -183,30 +186,34 @@ export default function CatalogItemScreen() {
       if (existing) {
         if (item || !existing.item_id) {
           const imageUrl = item?.images?.[0] || getBusinessLogo(business) || '';
-          const targetId = item ? item.id : null;
           const itemTitle = item ? `${item.title} (${business.name})` : business.name;
-          await supabase
+          const { error: updateError } = await supabase
             .from('conversations')
             .update({
-              type: item ? 'briefcase' : 'business',
-              item_id: targetId,
+              type: 'business',
+              item_id: null,
+              business_id: business.id,
+              business_name: business.name,
+              business_logo: getBusinessLogo(business) || null,
+              context: { ...existing.context, ...(item ? { catalog_item_id: item.id, catalog_item_business_id: business.id } : {}) },
               item_title: itemTitle,
               item_image: imageUrl,
               item_price: item?.price || null,
             })
             .eq('id', existing.id);
+          if (updateError) throw updateError;
         }
         router.push(`/chat/${existing.id}` as any);
       } else {
         const imageUrl = item?.images?.[0] || getBusinessLogo(business) || '';
-        const chatType = item ? 'briefcase' : 'business';
         const itemParam = item ? `&item_id=${item.id}` : '';
         router.push(
-          `/chat/new?type=${chatType}&participant_id=${business.owner_id}&item_title=${encodeURIComponent(item ? `${item.title} (${business.name})` : business.name)}&item_image=${encodeURIComponent(imageUrl)}${itemParam}` as any
+          `/chat/new?type=business&business_id=${business.id}&business_name=${encodeURIComponent(business.name)}&business_image=${encodeURIComponent(getBusinessLogo(business) || '')}&participant_id=${business.owner_id}&item_title=${encodeURIComponent(item ? `${item.title} (${business.name})` : business.name)}&item_image=${encodeURIComponent(imageUrl)}${itemParam}` as any
         );
       }
     } catch (e) {
       console.error(e);
+      Alert.alert('Could not open chat', 'Please try again.');
     }
   }, [business, user, item, router]);
 

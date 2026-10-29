@@ -65,6 +65,7 @@ interface ConversationMeta {
   type: 'friend' | 'marketplace' | 'briefcase' | 'event' | 'business';
   participant_ids: string[];
   item_id?: string;
+  context?: { catalog_item_id?: string; catalog_item_business_id?: string; event_id?: string };
   item_title?: string;
   item_image?: string;
   item_price?: number;
@@ -614,15 +615,20 @@ function ChatContent() {
     const creationContext = requestContext.current;
     let currentConvId = id === 'new' ? newConversationId.current || id : id;
     if (id === 'new' && !newConversationId.current) {
-      let validItemId = paramItemId || null;
-      if (validItemId) {
-        const [{ data: pData }, { data: cData }] = await Promise.all([
-          supabase.from('posts').select('id').eq('id', validItemId).maybeSingle(),
-          supabase.from('catalog_items').select('id').eq('id', validItemId).maybeSingle(),
-        ]);
-        if (!pData && !cData) {
-          validItemId = null;
-        }
+      let validItemId: string | null = null;
+      let context: ConversationMeta['context'] = undefined;
+      if (paramType === 'event' && paramItemId) {
+        const { data: event, error } = await supabase.from('events').select('id').eq('id', paramItemId).maybeSingle();
+        if (error || !event) throw new Error('This event is no longer available.');
+        context = { event_id: event.id };
+      } else if ((paramType === 'business' || paramType === 'briefcase') && paramItemId) {
+        const { data: item, error } = await supabase.from('catalog_items').select('id,business_id').eq('id', paramItemId).maybeSingle();
+        if (error || !item || (paramBusinessId && item.business_id !== paramBusinessId)) throw new Error('This catalog item is no longer available.');
+        context = { catalog_item_id: item.id, catalog_item_business_id: item.business_id };
+      } else if (paramItemId) {
+        const { data: post, error } = await supabase.from('posts').select('id').eq('id', paramItemId).maybeSingle();
+        if (error || !post) throw new Error('This listing is no longer available.');
+        validItemId = post.id;
       }
 
       const { data: newConv, error: newError } = await supabase
@@ -631,10 +637,11 @@ function ChatContent() {
           type: paramType || 'friend',
           participant_ids: [user.id, paramParticipantId],
           item_id: validItemId,
+          ...(context ? { context } : {}),
           item_title: paramItemTitle || null,
           item_image: paramItemImage || null,
           item_price: paramItemPrice ? Number(paramItemPrice) : null,
-          business_id: paramBusinessId || null,
+          business_id: paramBusinessId || context?.catalog_item_business_id || null,
           business_name: paramBusinessName || null,
           business_logo: paramBusinessImage || null,
           last_message_text: summary,
@@ -777,7 +784,14 @@ function ChatContent() {
         .upsert(payload, { onConflict: 'id', ignoreDuplicates: true })
         .select()
         .maybeSingle();
-      if (result.error) throw result.error;
+      if (result.error) {
+        if (result.error.code === '23503' && id === 'new') {
+          newConversationId.current = null;
+          pendingMessages.current.set(message.id, { ...pending, conversation_id: 'new' });
+          persistOutbox();
+        }
+        throw result.error;
+      }
       // A retry after an uncertain response returns the existing authoritative row.
       const confirmed =
         result.data ||
@@ -1339,7 +1353,11 @@ function ChatContent() {
     if (!meta) return;
 
     try {
-      const itemId = meta.item_id;
+      if (meta.type === 'event' && (meta.context?.event_id || meta.item_id)) {
+        router.push(`/events/${meta.context?.event_id || meta.item_id}` as any);
+        return;
+      }
+      const itemId = meta.context?.catalog_item_id || meta.item_id;
 
       if (itemId) {
         // 1. Check if itemId matches a catalog item

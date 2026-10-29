@@ -1,3 +1,4 @@
+import { diagnosticMessage } from './diagnostics';
 import type { ErrorEvent, StackFrame } from '@sentry/react-native';
 import type { PostHogOptions } from 'posthog-react-native';
 import { isScreenName } from './routes';
@@ -17,6 +18,19 @@ export const appEvents = new Set([
   'message_sent',
   'business_save_failed',
   'message_send_failed',
+  'ticket_checkout_started',
+  'ticket_checkout_opened',
+  'ticket_checkout_failed',
+  'ticket_verification_failed',
+  'ticket_issued',
+  'ticket_refund_requested',
+  'ticket_refund_failed',
+  'event_withdrawal_requested',
+  'event_withdrawal_failed',
+  'booking_checkout_started',
+  'booking_payment_confirmed',
+  'booking_checkout_failed',
+
 ] as const);
 export type AppEvent = typeof appEvents extends Set<infer T> ? T : never;
 
@@ -124,7 +138,7 @@ export function sanitizeSentryEvent(event: ErrorEvent): ErrorEvent {
       ? {
           values: event.exception.values?.map((exception) => ({
             type: errorTypes.has(exception.type || '') ? exception.type : 'Error',
-            value: 'Error details omitted for privacy',
+            value: diagnosticMessage({ message: exception.value }) === 'Application operation failed' ? 'Error details omitted for privacy' : diagnosticMessage({ message: exception.value }),
             stacktrace: exception.stacktrace
               ? { frames: exception.stacktrace.frames?.map(cleanFrame) }
               : undefined,
@@ -146,6 +160,7 @@ type BeforeSend = Exclude<NonNullable<PostHogOptions['before_send']>, unknown[]>
 
 export const sanitizePostHogEvent: BeforeSend = (event) => {
   if (
+    event.event !== '$exception' &&
     event.event !== '$identify' &&
     event.event !== '$screen' &&
     !appEvents.has(event.event as AppEvent)
@@ -183,6 +198,13 @@ export const sanitizePostHogEvent: BeforeSend = (event) => {
     const value = source[key];
     if (typeof value === 'string' || typeof value === 'boolean' || typeof value === 'number')
       properties[key] = value;
+  }
+  if (event.event === '$exception') {
+    const list = Array.isArray(source.$exception_list) ? source.$exception_list as Record<string, unknown>[] : [];
+    if (!list.length) return null;
+    properties.$exception_list = list.map(exception => ({
+      type: 'Error', value: diagnosticMessage({message:exception.value}),
+    }));
   }
   properties.$geoip_disable = true;
   properties.app_environment = telemetryEnvironment();

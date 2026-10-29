@@ -18,6 +18,9 @@ if (inlineGoogleServices?.trim().startsWith("{")) {
   googleServicesFile = path.relative(__dirname, path.resolve(__dirname, inlineGoogleServices));
 }
 
+const nativeBuildNumber = process.env.YRDLY_BUILD_NUMBER || '1';
+if (!/^[1-9][0-9]*$/.test(nativeBuildNumber) || !Number.isSafeInteger(Number(nativeBuildNumber)) || Number(nativeBuildNumber) > 2100000000) throw new Error('Invalid native build number');
+
 module.exports = {
   expo: {
     name: "YRDLY",
@@ -37,6 +40,7 @@ module.exports = {
     scheme: "yrdlymobile",
     userInterfaceStyle: "automatic",
     ios: {
+      buildNumber: nativeBuildNumber,
       supportsTablet: true,
       bundleIdentifier: "com.yrdly",
       infoPlist: {
@@ -47,6 +51,7 @@ module.exports = {
       ]
     },
     android: {
+      versionCode: Number(nativeBuildNumber),
       adaptiveIcon: {
         foregroundImage: "./assets/images/logo.png",
         backgroundColor: "#E6F4FE"
@@ -100,12 +105,19 @@ module.exports = {
         {
           organization: process.env.SENTRY_ORG || "yrdly-ltd",
           project: process.env.SENTRY_PROJECT || "yrdly-mobile",
-          url: process.env.SENTRY_URL || "https://sentry.io/"
+          url: process.env.SENTRY_URL || "https://sentry.io/",
+          experimental_android: {
+            enableAndroidGradlePlugin: true,
+            uploadNativeSymbols: true,
+            autoUploadNativeSymbols: true,
+            includeNativeSources: false
+          }
         }
       ],
       [
         "react-native-maps",
         {
+          androidGoogleMapsApiKey: process.env.GOOGLE_MAPS_ANDROID_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
           iosGoogleMapsApiKey: process.env.GOOGLE_MAPS_IOS_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
         }
       ],

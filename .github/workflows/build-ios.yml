@@ -22,6 +22,7 @@ jobs:
     timeout-minutes: 90
     env:
       EXPO_PUBLIC_APP_ENV: production
+      YRDLY_BUILD_NUMBER: ${{ github.run_number }}
       CI: '1'
       EXPO_NO_DOTENV: '1'
       EXPO_NO_TELEMETRY: '1'
@@ -60,6 +61,7 @@ jobs:
       - name: Validate build configuration
         run: |
           node -e 'for (const key of ["EXPO_PUBLIC_SUPABASE_URL", "EXPO_PUBLIC_SUPABASE_ANON_KEY", "EXPO_PUBLIC_PAYLUK_PUBLIC_KEY", "EXPO_PUBLIC_WEB_APP_URL"]) { if (!process.env[key]) throw new Error("Missing GitHub Actions secret: " + key); }'
+          node -e 'if (!(process.env.GOOGLE_MAPS_IOS_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY)) throw new Error("Missing iOS Google Maps key");'
           xcodebuild -version
 
       - name: Install dependencies

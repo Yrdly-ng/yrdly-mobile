@@ -971,14 +971,14 @@ export default function EventDetailScreen() {
                       try {
                         const { data: convs, error: chatError } = await supabase
                           .from('conversations')
-                          .select('id, type, participant_ids, item_id')
-                          .eq('item_id', event.id)
+                          .select('id, type, participant_ids, item_id, context')
+                          .eq('context->>event_id', event.id)
                           .order('created_at', { ascending: true });
                         if (chatError) throw chatError;
                         const existing = convs?.find(
                           (c) =>
                             c.type === 'event' &&
-                            c.item_id === event.id &&
+                            c.context?.event_id === event.id &&
                             c.participant_ids?.includes(user.id) &&
                             c.participant_ids?.includes(event.organizer_id)
                         );

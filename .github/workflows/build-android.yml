@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       EXPO_PUBLIC_APP_ENV: production
+      YRDLY_BUILD_NUMBER: ${{ github.run_number }}
+      GOOGLE_MAPS_ANDROID_API_KEY: ${{ secrets.GOOGLE_MAPS_ANDROID_API_KEY }}
       EXPO_PUBLIC_POSTHOG_API_KEY: ${{ secrets.EXPO_PUBLIC_POSTHOG_API_KEY }}
       EXPO_PUBLIC_SENTRY_DSN: ${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -63,6 +65,9 @@ jobs:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
           node -e 'const fs = require("fs"); const value = process.env.GOOGLE_SERVICES_JSON; if (!value) throw new Error("Missing GOOGLE_SERVICES_JSON"); JSON.parse(value); fs.writeFileSync("google-services.json", value, { mode: 0o600 });'
+
+      - name: Validate native Google Maps configuration
+        run: node -e 'if (!(process.env.GOOGLE_MAPS_ANDROID_API_KEY || require("fs").readFileSync(".env", "utf8").match(/^EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=(.+)$/m)?.[1]?.trim())) throw new Error("Missing Android Google Maps key");'
 
       - name: Run Expo prebuild
         run: npx expo prebuild --platform android --clean

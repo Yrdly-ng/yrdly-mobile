@@ -1,3 +1,4 @@
+import { diagnosticMessage } from './diagnostics';
 import * as Sentry from '@sentry/react-native';
 import PostHog from 'posthog-react-native';
 import {
@@ -35,6 +36,7 @@ export function initializeTelemetry(): void {
   if (process.env.EXPO_PUBLIC_TELEMETRY_DISABLED === 'true') return;
   if (__DEV__ && process.env.EXPO_PUBLIC_TELEMETRY_DEBUG !== 'true') return;
 
+  const posthogReplayEnabled = !!(process.env.EXPO_PUBLIC_POSTHOG_API_KEY?.trim() || process.env.EXPO_PUBLIC_POSTHOG_KEY?.trim());
   const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN?.trim();
   if (dsn) {
     safely(() => {
@@ -48,19 +50,19 @@ export function initializeTelemetry(): void {
         enableUserInteractionTracing: false,
         attachScreenshot: false,
         attachViewHierarchy: false,
-        replaysSessionSampleRate: 0.1,
-        replaysOnErrorSampleRate: 1.0,
+        replaysSessionSampleRate: posthogReplayEnabled ? 0 : 0.1,
+        replaysOnErrorSampleRate: posthogReplayEnabled ? 0 : 1.0,
         maxBreadcrumbs: 0,
         beforeBreadcrumb: () => null,
         beforeSend: sanitizeSentryEvent,
         // Keep default error/unhandled rejection handlers and native crash support.
-        // Replace the default recorder with explicit masking. PostHog replay stays off.
+        // Use one masked recorder: PostHog where configured, otherwise Sentry.
         integrations: (defaults) => [
           ...defaults.filter(
             (integration) =>
               !['Breadcrumbs', 'HttpContext', 'MobileReplay'].includes(integration.name)
           ),
-          Sentry.mobileReplayIntegration({
+          ...(!posthogReplayEnabled ? [Sentry.mobileReplayIntegration({
             maskAllText: true,
             maskAllImages: true,
             maskAllVectors: true,
@@ -85,7 +87,7 @@ export function initializeTelemetry(): void {
               'android.view.SurfaceView',
               'android.view.TextureView',
             ],
-          }),
+          })] : []),
         ],
       });
       sentryEnabled = true;
@@ -105,6 +107,10 @@ export function initializeTelemetry(): void {
         capturePushNotificationSubscriptions: false,
         capturePushNotificationOpened: false,
         enableSessionReplay: false,
+        sessionReplayConfig: {
+          maskAllTextInputs: true, maskAllImages: true, maskAllSandboxedViews: true,
+          captureLog: false, captureNetworkTelemetry: false, throttleDelayMs: 2000,
+        },
         enablePersistSessionIdAcrossRestart: false,
         errorTracking: { autocapture: false },
         disableGeoip: true,
@@ -138,6 +144,7 @@ export function setTelemetryUser(id: string | null, email: string | null = null)
     if (nextUser) safely(() => analytics?.identify(nextUser, nextEmail ? { email: nextEmail } : {}));
     return;
   }
+  safely(() => analytics?.stopSessionRecording());
   const previousUser = currentUser;
   currentUser = nextUser;
   currentEmail = nextEmail;
@@ -160,6 +167,8 @@ export function setTelemetryUser(id: string | null, email: string | null = null)
 
 export function trackScreen(template: string): void {
   const name = screenName(template);
+  const replayAllowed = !!name && ['(tabs)/catalog', 'events/team', 'my-events'].includes(template);
+  safely(() => replayAllowed ? analytics?.startSessionRecording() : analytics?.stopSessionRecording());
   if (!name || name === lastScreen) return;
   lastScreen = name;
   if (sentryEnabled) safely(() => Sentry.setTag('screen', name));
@@ -172,6 +181,7 @@ export function trackEvent(event: AppEvent): void {
 }
 
 export function captureAppError(error: unknown, context?: string): void {
+  safely(() => analytics?.captureException(new Error(diagnosticMessage(error))));
   if (!sentryEnabled) return;
   safely(() => {
     const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined;

@@ -14,6 +14,7 @@ const configured = {
 // Run the actual modules, replacing only SDK boundaries and build-time env.
 function loadTelemetry({ env = configured, dev = false, failures = {} } = {}) {
   const calls = [];
+  const replayCalls = [];
   let sentryOptions;
   let posthogOptions;
   const call = (name, ...args) => {
@@ -26,6 +27,9 @@ function loadTelemetry({ env = configured, dev = false, failures = {} } = {}) {
       call('posthog.init', key);
       posthogOptions = options;
     }
+    startSessionRecording() { replayCalls.push('start'); }
+    stopSessionRecording() { replayCalls.push('stop'); }
+    captureException(error) { return call('posthog.exception', error.message); }
     identify(id, properties) {
       return call('identify', id, properties);
     }
@@ -92,6 +96,7 @@ function loadTelemetry({ env = configured, dev = false, failures = {} } = {}) {
   return {
     api: load(path.resolve('src/lib/telemetry/index.ts')),
     calls,
+    replayCalls,
     get sentryOptions() {
       return sentryOptions;
     },
@@ -153,7 +158,7 @@ test('debug requires an explicit opt-in and retains the same privacy protections
 });
 
 test('Sentry records masked sessions and error replays without duplicate recorders or content breadcrumbs', () => {
-  const runtime = loadTelemetry();
+  const runtime = loadTelemetry({ env: { EXPO_PUBLIC_SENTRY_DSN: configured.EXPO_PUBLIC_SENTRY_DSN } });
   runtime.api.initializeTelemetry();
   const options = runtime.sentryOptions;
   const integrations = options.integrations(
@@ -191,7 +196,7 @@ test('Sentry records masked sessions and error replays without duplicate recorde
   assert.equal(options.beforeBreadcrumb({ message: 'private' }), null);
   assert.equal(options.attachScreenshot, false);
   assert.equal(options.attachViewHierarchy, false);
-  assert.equal(runtime.posthogOptions.enableSessionReplay, false);
+
 });
 
 test('Sentry preserves only validated replay linkage alongside the existing privacy filter', () => {
@@ -227,7 +232,7 @@ test('Sentry preserves only validated replay linkage alongside the existing priv
 });
 
 test('installed Sentry replay hooks link and flush a sanitized native unhandled rejection', async () => {
-  const runtime = loadTelemetry();
+  const runtime = loadTelemetry({ env: { EXPO_PUBLIC_SENTRY_DSN: configured.EXPO_PUBLIC_SENTRY_DSN } });
   runtime.api.initializeTelemetry();
   const replayId = '1db45415c0f04ce88e42c61b4ca3bb5b';
   let flushes = 0;
@@ -524,4 +529,17 @@ test('preview analytics and errors are labeled separately from production', () =
   assert.equal(runtime.sentryOptions.environment, 'preview');
   const event = runtime.posthogOptions.before_send({ event: 'business_saved', properties: {} });
   assert.equal(event.properties.app_environment, 'preview');
+});
+
+test('PostHog recorder starts only on masked discovery screens and stops before private routes',()=>{
+ const runtime=loadTelemetry();runtime.api.initializeTelemetry();
+ assert.equal(runtime.sentryOptions.replaysSessionSampleRate,0);assert.equal(runtime.sentryOptions.replaysOnErrorSampleRate,0);
+ assert.equal(runtime.sentryOptions.integrations([{name:'MobileReplay'}]).length,0);
+ const replay=runtime.posthogOptions.sessionReplayConfig;assert.equal(replay.maskAllTextInputs,true);assert.equal(replay.maskAllImages,true);assert.equal(replay.captureLog,false);assert.equal(replay.captureNetworkTelemetry,false);
+ runtime.api.trackScreen('(tabs)/catalog');assert.ok(runtime.replayCalls.includes('start'));
+ runtime.api.trackScreen('chat/[id]');assert.equal(runtime.replayCalls.at(-1),'stop');
+ runtime.api.trackScreen('(tabs)/catalog');assert.equal(runtime.replayCalls.at(-1),'start');
+ runtime.api.trackScreen('unknown-private');assert.equal(runtime.replayCalls.at(-1),'stop');
+ runtime.api.captureAppError(new Error('private@example.test bank details'),'chat.send');
+ assert.deepEqual(runtime.calls.filter(([name])=>name==='posthog.exception'),[['posthog.exception','Application operation failed']]);
 });

@@ -5,6 +5,8 @@ import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase/supabase';
 import { useAuth } from '@/hooks/use-supabase-auth';
 
+let connectionSubscriptionSequence = 0;
+
 export type CommunityFilterTab = 'all' | 'neighbors' | 'mutuals' | 'sellers';
 
 export interface FriendItem {
@@ -235,8 +237,9 @@ export function useCommunityConnections(
 
   useEffect(() => {
     if (!currentUser) return;
+    let active = true;
     const reqSub = supabase
-      .channel('community_followers')
+      .channel(`community_followers:${currentUser.id}:${++connectionSubscriptionSequence}`)
       .on(
         'postgres_changes',
         {
@@ -246,7 +249,7 @@ export function useCommunityConnections(
           filter: `following_id=eq.${currentUser.id}`,
         },
         () => {
-          fetchFriendsAndRequests();
+          if (active) void fetchFriendsAndRequests();
         }
       )
       .on(
@@ -258,13 +261,14 @@ export function useCommunityConnections(
           filter: `follower_id=eq.${currentUser.id}`,
         },
         () => {
-          fetchFriendsAndRequests();
+          if (active) void fetchFriendsAndRequests();
         }
       )
       .subscribe();
 
     return () => {
-      reqSub.unsubscribe();
+      active = false;
+      void supabase.removeChannel(reqSub);
     };
   }, [currentUser, fetchFriendsAndRequests]);
 

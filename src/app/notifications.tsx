@@ -63,6 +63,8 @@ function timeAgo(dateString: string) {
   }
 }
 
+let notificationSubscriptionSequence = 0;
+
 export default function NotificationsScreen() {
   const { theme } = useUnistyles();
   const stylesheet = _stylesheet;
@@ -158,17 +160,19 @@ export default function NotificationsScreen() {
     fetchNotifications();
 
     if (!user) return;
+    let active = true;
     const channel = supabase
-      .channel('notifications_realtime')
+      .channel(`notifications_realtime:${user.id}:${++notificationSubscriptionSequence}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
-        () => fetchNotifications()
+        () => { if (active) void fetchNotifications(); }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      active = false;
+      void supabase.removeChannel(channel);
     };
   }, [user]);
 
