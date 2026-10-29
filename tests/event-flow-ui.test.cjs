@@ -138,6 +138,8 @@ function mount(file, options = {}) {
   };
   const mockRequire = (name) => {
     if (name in mocks) return mocks[name];
+    if (name.endsWith('/EventPaystackEarnings'))
+      return { EventPaystackEarnings: () => null };
     if (name.endsWith('/use-supabase-auth')) return { useAuth: () => ({ user }) };
     if (name.endsWith('/supabase/supabase')) return { supabase: { from: query } };
     if (name.endsWith('/network/api')) return { api: { post: request } };
