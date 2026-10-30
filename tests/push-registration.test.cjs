@@ -3,12 +3,14 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const ts = require('typescript');
 
-function registrationRuntime({ failFirstSave = false, deferFirstExchange = false } = {}) {
-  const effects = [], saved = [], tokenOptions = [];
+function registrationRuntime({ failFirstSave = false, deferFirstExchange = false, deferFirstSave = false } = {}) {
+  const effects = [], saved = [], tokenOptions = [], stateUpdates = [];
   let listener, appStateListener, nativeCalls = 0, saveAttempts = 0;
   const currentToken = { type: 'android', data: 'current-fcm-token' };
   let releaseExchange;
   const exchangeGate = deferFirstExchange ? new Promise(resolve => { releaseExchange = resolve; }) : null;
+  let releaseSave;
+  const saveGate = deferFirstSave ? new Promise(resolve => { releaseSave = resolve; }) : null;
   const nativeToken = async () => {
     nativeCalls++;
     if (nativeCalls > 8) throw new Error('Recursive Android token registration');
@@ -34,7 +36,7 @@ function registrationRuntime({ failFirstSave = false, deferFirstExchange = false
     getLastNotificationResponseAsync: async () => null,
   };
   const mocks = {
-    react: { useState: value => [value, () => {}], useRef: current => ({ current }), useCallback: callback => callback, useEffect: effect => effects.push(effect) },
+    react: { useState: value => [value, next => stateUpdates.push(next)], useRef: current => ({ current }), useCallback: callback => callback, useEffect: effect => effects.push(effect) },
     'expo-device': { isDevice: true, osName: 'Android' },
     'expo-notifications': notifications,
     'expo-constants': { appOwnership: null, expoConfig: { version: '1.0.0', extra: { eas: { projectId: 'fixture-project' } } } },
@@ -42,6 +44,7 @@ function registrationRuntime({ failFirstSave = false, deferFirstExchange = false
     '@/hooks/use-supabase-auth': { useAuth: () => ({ user: { id: 'account' } }) },
     '@/lib/supabase/supabase': { supabase: { from: () => ({ upsert: async row => {
       saveAttempts++;
+      if (saveAttempts === 1 && saveGate) await saveGate;
       if (failFirstSave && saveAttempts === 1) return { error: new Error('Offline') };
       saved.push(row); return { error: null };
     } }) } },
@@ -61,10 +64,11 @@ function registrationRuntime({ failFirstSave = false, deferFirstExchange = false
   }, module, module.exports, { error() {}, warn() {} });
   module.exports.usePushNotifications();
   const cleanups = effects.map(effect => effect());
-  return { saved, tokenOptions, get nativeCalls() { return nativeCalls; },
+  return { saved, tokenOptions, stateUpdates, get nativeCalls() { return nativeCalls; },
     emitToken: token => listener?.({ type: 'android', data: token }),
     foreground: () => appStateListener?.('active'),
     releaseExchange: () => releaseExchange?.(),
+    releaseSave: () => releaseSave?.(),
     cleanup: () => cleanups.forEach(cleanup => cleanup?.()),
   };
 }
@@ -101,4 +105,15 @@ test('a token rotation during registration is saved after the in-flight exchange
   runtime.releaseExchange(); await settle(); runtime.cleanup();
   assert.equal(runtime.nativeCalls, 1);
   assert.equal(runtime.saved.at(-1).push_token, 'ExpoPushToken[rotated-during-registration]');
+});
+
+test('an in-flight save cannot update token state after registration cleanup', async () => {
+  const runtime = registrationRuntime({ deferFirstSave: true });
+  await settle();
+  assert.equal(runtime.saved.length, 0);
+  runtime.cleanup();
+  runtime.releaseSave();
+  await settle();
+  assert.equal(runtime.saved.length, 1, 'The already-issued database write may finish');
+  assert.deepEqual(runtime.stateUpdates, [], 'A stale registration must not update the current account state');
 });

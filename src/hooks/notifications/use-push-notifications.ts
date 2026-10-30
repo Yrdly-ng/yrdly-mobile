@@ -320,6 +320,7 @@ export function usePushNotifications() {
           console.error('Failed to register user_push_token:', error);
           return;
         }
+        if (!active || userIdRef.current !== userId) return;
         savedDeviceToken = result.deviceToken.data;
         setExpoPushToken(result.token);
       } finally {
