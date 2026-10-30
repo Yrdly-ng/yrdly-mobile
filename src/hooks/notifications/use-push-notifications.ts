@@ -31,8 +31,9 @@ function isCrispNotificationData(data: unknown): boolean {
 }
 
 async function registerForPushNotificationsAsync(
-  requestPermission: boolean
-): Promise<string | null> {
+  requestPermission: boolean,
+  suppliedDeviceToken?: Notifications.DevicePushToken
+): Promise<{ token: string; deviceToken: Notifications.DevicePushToken } | null> {
   if (isExpoGo || Platform.OS === 'web' || !Device.isDevice) return null;
 
   try {
@@ -53,8 +54,8 @@ async function registerForPushNotificationsAsync(
     }
     if (finalStatus !== 'granted') return null;
 
+    const deviceToken = suppliedDeviceToken ?? (await Notifications.getDevicePushTokenAsync());
     try {
-      const deviceToken = await Notifications.getDevicePushTokenAsync();
       registerPushToken(deviceToken.data);
     } catch (error) {
       console.warn('Failed to register device push token with Crisp:', error);
@@ -66,8 +67,11 @@ async function registerForPushNotificationsAsync(
       console.error('Missing EAS projectId in app.config.js extra.eas.projectId');
       return null;
     }
-    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
-    return tokenData.data;
+    const tokenData = await Notifications.getExpoPushTokenAsync({
+      projectId,
+      devicePushToken: deviceToken,
+    });
+    return { token: tokenData.data, deviceToken };
   } catch (error) {
     console.error('Push notification setup failed:', error);
     return null;
@@ -277,38 +281,64 @@ export function usePushNotifications() {
 
     if (!userId || isExpoGo || Platform.OS === 'web') return;
     let active = true;
+    let registrationInFlight = false;
+    let pendingDeviceToken: Notifications.DevicePushToken | undefined;
+    let savedDeviceToken: Notifications.DevicePushToken['data'] | undefined;
 
-    const registerAndSave = async (requestPermission: boolean) => {
-      const token = await registerForPushNotificationsAsync(requestPermission);
-      if (!active || !token) return;
-
-      const deviceId = await getOrCreateDeviceId();
-      if (!active || userIdRef.current !== userId) return;
-      const now = new Date().toISOString();
-      const { error } = await supabase.from('user_push_tokens').upsert(
-        {
-          user_id: userId,
-          device_id: deviceId,
-          push_token: token,
-          device_name: Device.deviceName ?? null,
-          os_name: Device.osName ?? Platform.OS,
-          os_version: Device.osVersion ?? null,
-          app_version: Constants?.expoConfig?.version ?? '1.0.0',
-          last_used_at: now,
-          updated_at: now,
-        },
-        { onConflict: 'user_id,device_id' }
-      );
-      if (error) {
-        console.error('Failed to register user_push_token:', error);
+    const registerAndSave = async (
+      requestPermission: boolean,
+      deviceToken?: Notifications.DevicePushToken
+    ) => {
+      if (!active || (deviceToken && deviceToken.data === savedDeviceToken)) return;
+      if (registrationInFlight) {
+        if (deviceToken) pendingDeviceToken = deviceToken;
         return;
       }
-      setExpoPushToken(token);
+      registrationInFlight = true;
+      try {
+        const result = await registerForPushNotificationsAsync(requestPermission, deviceToken);
+        if (!active || !result) return;
+
+        const deviceId = await getOrCreateDeviceId();
+        if (!active || userIdRef.current !== userId) return;
+        const now = new Date().toISOString();
+        const { error } = await supabase.from('user_push_tokens').upsert(
+          {
+            user_id: userId,
+            device_id: deviceId,
+            push_token: result.token,
+            device_name: Device.deviceName ?? null,
+            os_name: Device.osName ?? Platform.OS,
+            os_version: Device.osVersion ?? null,
+            app_version: Constants?.expoConfig?.version ?? '1.0.0',
+            last_used_at: now,
+            updated_at: now,
+          },
+          { onConflict: 'user_id,device_id' }
+        );
+        if (error) {
+          console.error('Failed to register user_push_token:', error);
+          return;
+        }
+        savedDeviceToken = result.deviceToken.data;
+        setExpoPushToken(result.token);
+      } finally {
+        registrationInFlight = false;
+        const nextToken = pendingDeviceToken;
+        pendingDeviceToken = undefined;
+        if (active && nextToken && nextToken.data !== savedDeviceToken) {
+          registerAndSave(false, nextToken).catch((error) =>
+            console.error('Push token refresh failed:', error)
+          );
+        }
+      }
     };
 
     registerAndSave(true).catch((error) => console.error('Push token registration failed:', error));
-    const tokenSubscription = Notifications.addPushTokenListener(() => {
-      registerAndSave(false).catch((error) => console.error('Push token refresh failed:', error));
+    const tokenSubscription = Notifications.addPushTokenListener((deviceToken) => {
+      registerAndSave(false, deviceToken).catch((error) =>
+        console.error('Push token refresh failed:', error)
+      );
     });
     const appStateSubscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {

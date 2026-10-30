@@ -64,7 +64,7 @@ jobs:
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
-          node -e 'const fs = require("fs"); const value = process.env.GOOGLE_SERVICES_JSON; if (!value) throw new Error("Missing GOOGLE_SERVICES_JSON"); JSON.parse(value); fs.writeFileSync("google-services.json", value, { mode: 0o600 });'
+          node -e 'const fs = require("fs"); const value = process.env.GOOGLE_SERVICES_JSON; if (!value) throw new Error("Missing GOOGLE_SERVICES_JSON"); require("./scripts/validate-android-firebase.cjs").validateAndroidFirebase(JSON.parse(value)); fs.writeFileSync("google-services.json", value, { mode: 0o600 });'
 
       - name: Validate native Google Maps configuration
         run: node -e 'if (!(process.env.GOOGLE_MAPS_ANDROID_API_KEY || require("fs").readFileSync(".env", "utf8").match(/^EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=(.+)$/m)?.[1]?.trim())) throw new Error("Missing Android Google Maps key");'
