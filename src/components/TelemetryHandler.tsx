@@ -6,14 +6,17 @@ import { flushTelemetry, setTelemetryUser, trackScreen } from '../lib/telemetry'
 
 /** Track route templates only, after the account has been resolved. */
 export function TelemetryHandler() {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const route = useSegments().join('/');
+  const selectedHomeState = profile?.id === user?.id
+    ? profile?.home_state || profile?.location?.state : null;
 
   useEffect(() => {
+    setTelemetryUser(loading ? null : user?.id ?? null, loading ? null : user?.email ?? null,
+      loading ? null : selectedHomeState);
     if (loading) return;
-    setTelemetryUser(user?.id ?? null, user?.email ?? null);
     trackScreen(route);
-  }, [loading, route, user?.email, user?.id]);
+  }, [loading, route, selectedHomeState, user?.email, user?.id]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {

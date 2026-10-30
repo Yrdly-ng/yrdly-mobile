@@ -15,6 +15,7 @@ const configured = {
 function loadTelemetry({ env = configured, dev = false, failures = {} } = {}) {
   const calls = [];
   const replayCalls = [];
+  const eventProperties = [];
   let sentryOptions;
   let posthogOptions;
   const call = (name, ...args) => {
@@ -36,10 +37,12 @@ function loadTelemetry({ env = configured, dev = false, failures = {} } = {}) {
     reset() {
       return call('reset');
     }
-    screen(name) {
+    screen(name, properties) {
+      eventProperties.push(properties);
       return call('screen', name);
     }
-    capture(event) {
+    capture(event, properties) {
+      eventProperties.push(properties);
       return call('capture', event);
     }
     flush() {
@@ -72,6 +75,7 @@ function loadTelemetry({ env = configured, dev = false, failures = {} } = {}) {
     if (cache.has(file)) return cache.get(file).exports;
     const module = { exports: {} };
     cache.set(file, module);
+    if (file.endsWith('.json')) return require(file);
     const compiled = ts.transpileModule(readFileSync(file, 'utf8'), {
       compilerOptions: {
         module: ts.ModuleKind.CommonJS,
@@ -83,8 +87,10 @@ function loadTelemetry({ env = configured, dev = false, failures = {} } = {}) {
       (id) => {
         if (id === '@sentry/react-native') return sdk;
         if (id === 'posthog-react-native') return PostHog;
-        assert.ok(id.startsWith('./'), `Unexpected import: ${id}`);
-        return load(path.resolve(path.dirname(file), `${id}.ts`));
+        if (id === 'react-native') return { Platform: { OS: 'android' } };
+        if (id === 'expo-device') return { modelName: 'Pixel 8', manufacturer: 'Google', deviceType: 1, DeviceType: { PHONE: 1, TABLET: 2, TV: 3, DESKTOP: 4 } };
+        assert.ok(id.startsWith('.'), `Unexpected import: ${id}`);
+        return load(path.resolve(path.dirname(file), id.endsWith('.json') ? id : `${id}.ts`));
       },
       module,
       module.exports,
@@ -97,6 +103,7 @@ function loadTelemetry({ env = configured, dev = false, failures = {} } = {}) {
     api: load(path.resolve('src/lib/telemetry/index.ts')),
     calls,
     replayCalls,
+    eventProperties,
     get sentryOptions() {
       return sentryOptions;
     },
@@ -542,4 +549,34 @@ test('PostHog recorder starts only on masked discovery screens and stops before 
  runtime.api.trackScreen('unknown-private');assert.equal(runtime.replayCalls.at(-1),'stop');
  runtime.api.captureAppError(new Error('private@example.test bank details'),'chat.send');
  assert.deepEqual(runtime.calls.filter(([name])=>name==='posthog.exception'),[['posthog.exception','Application operation failed']]);
+});
+
+
+test('device metadata is bounded and selected home state clears across identities', () => {
+  const r = loadTelemetry();
+  r.api.initializeTelemetry();
+  const props = r.posthogOptions.customAppProperties({ $app_build: '57', $os_name: 'Android' });
+  r.api.setTelemetryUser(USER_A, null, 'Lagos');
+  r.api.trackEvent('business_saved');
+  assert.equal(r.eventProperties.at(-1).home_state, 'Lagos');
+  const scrub = (extra = {}) => r.posthogOptions.before_send({ event: '$screen', properties: {
+    ...props, ...r.eventProperties.at(-1), $screen_name: '/(tabs)', $is_identified: true, ...extra,
+  } });
+  assert.equal(scrub().properties.app_platform, 'android');
+  assert.equal(scrub().properties.device_model, 'Pixel 8');
+  assert.equal(scrub().properties.device_type, 'phone');
+  assert.equal(scrub().properties.home_state, 'Lagos');
+  assert.equal(scrub({ home_state: 'Nassarawa' }).properties.home_state, 'Nasarawa');
+  assert.equal(scrub({ home_state: 'private address', device_model: 'private@example.com' }).properties.home_state, undefined);
+  assert.equal(scrub({ device_model: 'private@example.com' }).properties.device_model, undefined);
+  assert.equal(scrub({ $is_identified: false }).properties.home_state, undefined);
+  r.api.setTelemetryUser(USER_B);
+  r.api.trackEvent('business_saved');
+  assert.equal(r.eventProperties.at(-1).home_state, null);
+  r.api.setTelemetryUser(USER_B, null, 'Ogun');
+  r.api.trackScreen('(tabs)');
+  assert.equal(r.eventProperties.at(-1).home_state, 'Ogun');
+  r.api.setTelemetryUser(null, null, 'Ogun');
+  r.api.trackEvent('business_saved');
+  assert.equal(r.eventProperties.at(-1).home_state, null);
 });

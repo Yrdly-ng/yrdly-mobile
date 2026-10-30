@@ -1,6 +1,9 @@
 import { diagnosticMessage } from './diagnostics';
 import * as Sentry from '@sentry/react-native';
 import PostHog from 'posthog-react-native';
+import * as Device from 'expo-device';
+import { Platform } from 'react-native';
+import { homeState } from './metadata';
 import {
   appEvents,
   errorContexts,
@@ -19,6 +22,7 @@ let sentryEnabled = false;
 let analytics: PostHog | undefined;
 let currentUser: string | null = null;
 let currentEmail: string | null = null;
+let currentHomeState: string | null = null;
 let lastScreen: string | null = null;
 
 // Analytics/reporting must never make a successful app action fail.
@@ -125,15 +129,24 @@ export function initializeTelemetry(): void {
           $app_build: properties.$app_build,
           $os_name: properties.$os_name,
           $os_version: properties.$os_version,
+          app_platform: Platform.OS,
+          device_model: Device.modelName,
+          device_manufacturer: Device.manufacturer,
+          device_type: Device.deviceType === Device.DeviceType.PHONE ? 'phone'
+            : Device.deviceType === Device.DeviceType.TABLET ? 'tablet'
+            : Device.deviceType === Device.DeviceType.TV ? 'tv'
+            : Device.deviceType === Device.DeviceType.DESKTOP ? 'desktop' : 'unknown',
         }),
       });
     });
   }
 }
 
-export function setTelemetryUser(id: string | null, email: string | null = null): void {
+export function setTelemetryUser(id: string | null, email: string | null = null, selectedHomeState: unknown = null): void {
   const nextUser = isUserId(id) ? id : null;
   const nextEmail = nextUser && isEmail(email) ? email : null;
+  const nextState = nextUser ? homeState(selectedHomeState) : null;
+  currentHomeState = nextState;
   if (currentUser === nextUser && currentEmail === nextEmail) return;
   if (currentUser === nextUser) {
     currentEmail = nextEmail;
@@ -172,12 +185,12 @@ export function trackScreen(template: string): void {
   if (!name || name === lastScreen) return;
   lastScreen = name;
   if (sentryEnabled) safely(() => Sentry.setTag('screen', name));
-  safely(() => analytics?.screen(name));
+  safely(() => analytics?.screen(name, { home_state: currentHomeState }));
 }
 
 export function trackEvent(event: AppEvent): void {
   if (!appEvents.has(event)) return;
-  safely(() => analytics?.capture(event));
+  safely(() => analytics?.capture(event, { home_state: currentHomeState }));
 }
 
 export function captureAppError(error: unknown, context?: string): void {

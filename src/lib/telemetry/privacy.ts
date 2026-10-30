@@ -2,6 +2,7 @@ import { diagnosticMessage } from './diagnostics';
 import type { ErrorEvent, StackFrame } from '@sentry/react-native';
 import type { PostHogOptions } from 'posthog-react-native';
 import { isScreenName } from './routes';
+import { deviceLabel, homeState } from './metadata';
 
 export function telemetryEnvironment(): 'development' | 'preview' | 'production' {
   const value = process.env.EXPO_PUBLIC_APP_ENV;
@@ -207,6 +208,16 @@ export const sanitizePostHogEvent: BeforeSend = (event) => {
     }));
   }
   properties.$geoip_disable = true;
+  if (['android', 'ios', 'web'].includes(source.app_platform as string))
+    properties.app_platform = source.app_platform;
+  for (const key of ['device_model', 'device_manufacturer']) {
+    const value = deviceLabel(source[key]);
+    if (value) properties[key] = value;
+  }
+  if (['phone', 'tablet', 'tv', 'desktop', 'unknown'].includes(source.device_type as string))
+    properties.device_type = source.device_type;
+  const state = homeState(source.home_state);
+  if (state && source.$is_identified === true) properties.home_state = state;
   properties.app_environment = telemetryEnvironment();
   if (isScreenName(source.$screen_name)) properties.$screen_name = source.$screen_name;
   return { event: event.event, uuid: event.uuid, timestamp: event.timestamp, properties };
