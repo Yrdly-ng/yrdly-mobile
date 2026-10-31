@@ -1,3 +1,4 @@
+import { CampaignBanner } from '../../components/campaigns/CampaignBanner';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import {
@@ -1505,7 +1506,10 @@ export default function CatalogTab() {
       )}
       {activeTab === 'Events' && <EventsSection currentLoc={currentLoc} search={debouncedSearch} />}
       {activeTab === 'Businesses' && (
-        <PlacesSection currentLoc={currentLoc} search={debouncedSearch} />
+        <>
+          <CampaignBanner />
+          <PlacesSection currentLoc={currentLoc} search={debouncedSearch} />
+        </>
       )}
       <Modal visible={showLocationPicker} animationType="slide" transparent>
         <View style={sStylesheet.modalContainer}>

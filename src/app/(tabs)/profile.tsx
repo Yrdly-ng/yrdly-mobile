@@ -1,3 +1,4 @@
+import { CampaignBanner } from '../../components/campaigns/CampaignBanner';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
@@ -611,6 +612,7 @@ export default function ProfileTab() {
           QUICK ACCESS
         </Text>
         <ProfileQuickAccess onManageStore={handleManageStore} />
+        <CampaignBanner />
       </View>
 
       {/* ── Subtly underlined Posts / Saved Tabs (Figma 1:1) ── */}
