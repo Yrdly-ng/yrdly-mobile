@@ -12,9 +12,8 @@ const snapshot = {
     participantCount: 51,
     entries: [{ rank: 1, businessId: 'leader', name: 'Leader', logoUrl: null, completedSales: 10 }],
   },
-  participation: null,
   businesses: [{ id: 'owned-business', name: 'My shop' }],
-  ownEntry: { rank: 51, businessId: 'owned-business', name: 'My shop', completedSales: 2 },
+  ownEntries: [{ rank: 51, businessId: 'owned-business', name: 'My shop', logoUrl: null, profilePath: '/businesses/owned-business', completedSales: 2 }],
 };
 function mount(result = snapshot) {
   const states = [],
@@ -149,27 +148,22 @@ test('unavailable first response never displays fake zero standings', async () =
   assert.match(value, /Network unavailable/);
   assert.doesNotMatch(value, /0 participants|No qualifying completed sales yet/);
 });
-test('enrollment submits explicit owned business and accepted rules only', async () => {
+test('campaign participation is automatic and never posts an enrollment request', async () => {
   const app = mount();
   await app.start();
-  flatten(app.render())
-    .find((n) => n?.props?.accessibilityRole === 'radio')
-    .props.onPress();
-  button(app.render(), 'I accept').props.onPress();
-  await button(app.render(), 'Apply to participate').props.onPress();
-  const post = app.calls.find((c) => c.body);
-  assert.deepEqual(post.body, { businessId: 'owned-business', acceptRules: true });
-  assert.ok(!('score' in post.body));
+  assert.match(text(app.render()), /included automatically/i);
+  assert.doesNotMatch(text(app.render()), /Apply to participate|application under review/i);
+  assert.equal(app.calls.some((c) => c.body), false);
 });
-test('closed campaign disables enrollment', async () => {
+test('closed campaign still shows results without enrollment controls', async () => {
   const app = mount({ ...snapshot, campaign: { status: 'review' } });
   await app.start();
-  assert.equal(button(app.render(), 'Enrollment closed').props.disabled, true);
+  assert.equal(button(app.render(), 'Enrollment closed'), undefined);
   assert.match(text(app.render()), /RESULTS UNDER REVIEW/);
 });
 test('create business follows existing verification route', async () => {
-  const app = mount({ ...snapshot, businesses: [] });
+  const app = mount({ ...snapshot, businesses: [], ownEntries: [] });
   await app.start();
   button(app.render(), 'Create your business').props.onPress();
-  assert.deepEqual(app.routes, ['/verify-phone']);
+  assert.deepEqual(app.routes, ['/businesses/create']);
 });

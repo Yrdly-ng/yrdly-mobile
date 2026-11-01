@@ -30,15 +30,8 @@ export interface CampaignData {
   };
 }
 export interface ParticipantData extends CampaignData {
-  participation: null | {
-    id: string;
-    businessId: string;
-    status: 'pending' | 'approved' | 'rejected' | 'suspended' | 'disqualified';
-    approvedAt: string | null;
-    reason: string | null;
-  };
   businesses: { id: string; name: string; logoUrl: string | null }[];
-  ownEntry: CampaignEntry | null;
+  ownEntries: CampaignEntry[];
   snapshotId: string;
   updatedAt: string;
 }

@@ -7,7 +7,6 @@ import {
   RefreshControl,
   ActivityIndicator,
   AppState,
-  Linking,
   Share,
   StyleSheet,
 } from 'react-native';
@@ -20,14 +19,14 @@ import type { CampaignData, CampaignEntry, ParticipantData } from '@/lib/campaig
 
 const campaignPath = '/api/campaigns/small-businesses';
 const rules = [
-  'One approved business per owner. Existing and new businesses may enroll. Your interest form does not replace campaign enrollment.',
-  'Only Businessplace product orders qualify. Person-to-person marketplace sales, services, bookings, tickets, giveaways and test payments do not count.',
-  'Orders must be created after campaign approval. Both creation and completion must occur 1–30 November 2026, Africa/Lagos (WAT). The period ends at 1 December 00:00 WAT, exclusive.',
-  'Completion requires buyer-confirmed delivery and provider-confirmed release. One unique order counts once, regardless of quantity or naira value.',
-  'Any refund or reversal removes the order. Pending refunds and disputes hold it out of the count until resolved.',
-  'Self-purchases are excluded. Related-account and suspicious purchases are reviewed using evidence; genuine repeat customers are allowed. Any adjustment must have a recorded reason.',
-  'Equal counts share rank. Verified businesses tied for first split the ₦500,000 first prize equally. Prize shares are reconciled in kobo so the total remains exactly ₦500,000. Revenue never breaks a tie.',
-  'Results remain provisional for a seven-day review after closing. Winner verification and finalization happen before announcement.',
+  'Every active Businessplace product business joins automatically, including existing businesses.',
+  'Only product orders placed through Businessplace count. Services, bookings, event tickets and personal marketplace sales are not part of the competition.',
+  'Orders must be placed and completed between 1 and 30 November 2026, Nigeria time.',
+  'One completed order adds one sale, no matter how many items are in it or how much it costs.',
+  'Orders with a pending refund or dispute do not count until it is resolved. Refunded or reversed orders do not count.',
+  'You cannot count an order you placed with your own business. Unusual sales may be checked; genuine repeat customers are welcome.',
+  'The business with the most completed sales wins ₦500,000. Businesses tied for first share the prize equally. Sales value never breaks a tie.',
+  'After November ends, sales are checked before the winner is announced.',
 ];
 const statusLabels = {
   upcoming: 'UPCOMING · 1 NOVEMBER',
@@ -39,7 +38,7 @@ const statusLabels = {
 export default function SmallBusinessesCampaign() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const userId = user?.id;
   const [storedData, setData] = useState<CampaignData | null>(null);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
@@ -48,12 +47,9 @@ export default function SmallBusinessesCampaign() {
   const data = loadedFor === identity ? storedData : null;
   const [storedMine, setMine] = useState<ParticipantData | null>(null);
   const mine = loadedFor === identity ? storedMine : null;
-  const [selected, setSelected] = useState('');
-  const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const generation = useRef(0);
   const refresh = useCallback(async () => {
     const id = ++generation.current;
@@ -69,7 +65,7 @@ export default function SmallBusinessesCampaign() {
       if (id !== generation.current || currentUser.current !== userId) return;
       setData(result);
       setLoadedFor(userId ?? 'public');
-      setMine('participation' in result ? result : null);
+      setMine('ownEntries' in result ? result : null);
       setError('');
     } catch (e) {
       if (id === generation.current)
@@ -83,11 +79,8 @@ export default function SmallBusinessesCampaign() {
       currentUser.current = userId;
       setMine(null);
       setData(null);
-      setSelected('');
-      setAccepted(false);
       setNotice('');
       setError('');
-      setSaving(false);
       void refresh();
       const activeRefresh = () => {
         if (AppState.currentState === 'active') void refresh();
@@ -103,22 +96,6 @@ export default function SmallBusinessesCampaign() {
       };
     }, [refresh, userId])
   );
-  const enroll = async () => {
-    if (!selected || !accepted || saving || !userId || currentUser.current !== userId) return;
-    setSaving(true);
-    setNotice('');
-    try {
-      await api.post(`${campaignPath}/participation`, { businessId: selected, acceptRules: true });
-      if (currentUser.current !== userId) return;
-      setNotice('Application received. Your sales start qualifying only after approval.');
-      await refresh();
-    } catch (e) {
-      if (currentUser.current === userId)
-        setNotice(e instanceof Error ? e.message : 'Enrollment failed. Please try again.');
-    } finally {
-      if (currentUser.current === userId) setSaving(false);
-    }
-  };
   const entry = (row: CampaignEntry, own = false) => (
     <Pressable
       key={`${own ? 'own' : 'leader'}-${row.businessId}`}
@@ -138,7 +115,7 @@ export default function SmallBusinessesCampaign() {
       <View style={s.flex}>
         {own && <Text style={s.kicker}>YOUR BUSINESS</Text>}
         <Text style={s.business}>{row.name}</Text>
-        <Text style={s.muted}>Approved participant · View profile ↗</Text>
+        <Text style={s.muted}>Businessplace · View profile ↗</Text>
       </View>
       <View>
         <Text style={s.score}>{row.completedSales}</Text>
@@ -178,121 +155,45 @@ export default function SmallBusinessesCampaign() {
             determines your rank.
           </Text>
           <View style={s.panel}>
-            <Text style={s.kicker}>PARTICIPATION</Text>
+            <Text style={s.kicker}>YOU’RE IN</Text>
             {!user ? (
               <>
-                <Text style={s.paragraph}>Sign in to choose your business and apply.</Text>
+                <Text style={s.paragraph}>
+                  Create a Businessplace product business and it joins automatically. Sign in to see
+                  your business in the standings.
+                </Text>
                 <Pressable
                   accessibilityRole="button"
                   style={s.button}
                   onPress={() => router.push('/(auth)/login' as never)}
                 >
-                  <Text style={s.buttonText}>Sign in to participate ↗</Text>
+                  <Text style={s.buttonText}>Sign in ↗</Text>
                 </Pressable>
               </>
+            ) : mine?.ownEntries.length ? (
+              <>
+                <Text style={s.paragraph}>
+                  Your Businessplace businesses are included automatically. Every completed product
+                  sale adds one.
+                </Text>
+                {mine.ownEntries.map((row) => entry(row, true))}
+              </>
             ) : mine ? (
-              mine.participation ? (
-                <>
-                  <Text style={s.sectionTitle}>
-                    {mine.participation.status === 'pending'
-                      ? 'Application under review'
-                      : mine.participation.status === 'approved'
-                        ? 'You’re in. Make it count.'
-                        : mine.participation.status === 'suspended'
-                          ? 'Participation suspended'
-                          : mine.participation.status === 'disqualified'
-                            ? 'Participation disqualified'
-                            : 'Application not approved'}
-                  </Text>
-                  {mine.participation.reason && (
-                    <Text style={s.paragraph}>{mine.participation.reason}</Text>
-                  )}
-                  <Text style={s.muted}>
-                    {mine.participation.approvedAt
-                      ? `Approved ${new Date(mine.participation.approvedAt).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' })} WAT`
-                      : 'Qualifying orders can begin only after approval.'}
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <Text style={s.paragraph}>
-                    Choose one business. Enrollment requires review and approval.
-                  </Text>
-                  {mine.businesses.map((b) => (
-                    <Pressable
-                      accessibilityRole="radio"
-                      accessibilityState={{ checked: selected === b.id }}
-                      key={b.id}
-                      onPress={() => setSelected(b.id)}
-                      style={[s.choice, selected === b.id && s.chosen]}
-                    >
-                      <Text style={s.business}>
-                        {selected === b.id ? '●' : '○'} {b.name}
-                      </Text>
-                    </Pressable>
-                  ))}
-                  {!mine.businesses.length && (
-                    <Pressable
-                      accessibilityRole="button"
-                      style={s.outline}
-                      onPress={() =>
-                        router.push(
-                          (profile?.phone_verified
-                            ? '/businesses/create'
-                            : '/verify-phone') as never
-                        )
-                      }
-                    >
-                      <Text style={s.outlineText}>Create your business ↗</Text>
-                    </Pressable>
-                  )}
-                  <Pressable
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: accepted }}
-                    style={s.checkbox}
-                    onPress={() => setAccepted((v) => !v)}
-                  >
-                    <Text style={s.paragraph}>
-                      {accepted ? '☑' : '☐'} I accept the campaign rules below, including sale
-                      eligibility, winner verification and public display of my business name, logo,
-                      profile, rank and sale count.
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{
-                      disabled:
-                        !accepted ||
-                        !selected ||
-                        saving ||
-                        data?.campaign.status === 'review' ||
-                        data?.campaign.status === 'finalized',
-                    }}
-                    disabled={
-                      !accepted ||
-                      !selected ||
-                      saving ||
-                      data?.campaign.status === 'review' ||
-                      data?.campaign.status === 'finalized'
-                    }
-                    style={[s.button, (!accepted || !selected || saving) && s.disabled]}
-                    onPress={enroll}
-                  >
-                    <Text style={s.buttonText}>
-                      {saving
-                        ? 'Submitting…'
-                        : data?.campaign.status === 'review' ||
-                            data?.campaign.status === 'finalized'
-                          ? 'Enrollment closed'
-                          : 'Apply to participate'}
-                    </Text>
-                  </Pressable>
-                </>
-              )
+              <>
+                <Text style={s.paragraph}>
+                  You’re signed in, but we couldn’t find an eligible Businessplace product business
+                  for your account yet.
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  style={s.outline}
+                  onPress={() => router.push('/businesses/create' as never)}
+                >
+                  <Text style={s.outlineText}>Create your business ↗</Text>
+                </Pressable>
+              </>
             ) : (
-              <Text style={s.muted}>
-                Participation status unavailable until the campaign loads.
-              </Text>
+              <Text style={s.muted}>Loading your businesses…</Text>
             )}
             {!!notice && (
               <Text accessibilityLiveRegion="polite" style={s.paragraph}>
@@ -339,8 +240,17 @@ export default function SmallBusinessesCampaign() {
                 })}{' '}
                 WAT · {data.snapshot.participantCount} participants
               </Text>
-              {mine?.ownEntry && entry(mine.ownEntry, true)}
-              {data.snapshot.entries.map((row) => entry(row))}
+              {mine?.ownEntries
+                .filter(
+                  (own) => !data.snapshot.entries.some((row) => row.businessId === own.businessId)
+                )
+                .map((own) => entry(own, true))}
+              {data.snapshot.entries.map((row) =>
+                entry(
+                  row,
+                  mine?.ownEntries.some((own) => own.businessId === row.businessId)
+                )
+              )}
               {!data.snapshot.entries.length && (
                 <View style={s.empty}>
                   <Text style={s.business}>
@@ -351,7 +261,7 @@ export default function SmallBusinessesCampaign() {
                   <Text style={s.paragraph}>
                     {data.snapshot.participantCount
                       ? 'No qualifying completed sales yet.'
-                      : 'Approved participants will appear here.'}
+                      : 'Businessplace product businesses will appear here automatically.'}
                   </Text>
                 </View>
               )}
@@ -367,16 +277,6 @@ export default function SmallBusinessesCampaign() {
               </View>
             ))}
           </View>
-          <Pressable
-            accessibilityRole="link"
-            style={s.outline}
-            onPress={() => Linking.openURL('https://forms.gle/UnREfHXZK4CGLn3KA')}
-          >
-            <Text style={s.outlineText}>Open interest form ↗</Text>
-          </Pressable>
-          <Text style={s.muted}>
-            Interest form registration is separate from campaign approval.
-          </Text>
           <Pressable
             accessibilityRole="button"
             style={s.button}
@@ -453,10 +353,6 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   outlineText: { fontSize: 14, color: '#075C35', fontWeight: '700' },
-  choice: { padding: 16, borderWidth: 1, borderColor: '#B4C6A9', borderRadius: 14 },
-  chosen: { backgroundColor: '#D9EABF', borderColor: '#075C35' },
-  checkbox: { minHeight: 48, paddingVertical: 8 },
-  disabled: { opacity: 0.45 },
   headingRow: {
     flexDirection: 'row',
     alignItems: 'center',
