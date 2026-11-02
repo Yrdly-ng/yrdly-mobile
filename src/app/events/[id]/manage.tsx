@@ -572,7 +572,8 @@ export default function ManageEventScreen() {
           </Text>
           <Text style={{ color: theme.colors.TEXT_PRIMARY }}>
             Support will review this request with Payluk. Entry and the affected proceeds will be
-            held until the refund is resolved.
+            held until the refund is resolved. Refunds cannot be started once payout processing
+            begins, and Payluk cannot refund released funds.
           </Text>
           <TextInput
             accessibilityLabel="Refund reason"
