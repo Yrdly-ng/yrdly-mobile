@@ -195,6 +195,7 @@ function mount(file, options = {}) {
       verify: async (id) => { calls.push({method:'verify', args:[id]}); },
       cancelUnpaidCheckout: async (id) => { calls.push({method:'cancelUnpaidCheckout', args:[id]}); },
     }) },
+    '/components/bookings/BookingMilestones': { BookingMilestones: 'Milestones' },
     '/components/CrispChat': { default: 'Chat', isCrispChatEnabled: false },
     '/components/payments/BookingPaymentButton': {
       BookingPaymentButton: 'Pay',
@@ -669,7 +670,7 @@ test('provider cannot mark complete before the booked end time', async () => {
   );
 });
 
-test('new staged bookings disclose payment setup pending without checkout', async () => {
+test('staged bookings mount milestone progress instead of legacy checkout', async () => {
   const app = mount(detail, {
     user: 'customer',
     booking: {
@@ -684,7 +685,9 @@ test('new staged bookings disclose payment setup pending without checkout', asyn
     app.nodes().some((n) => n.type === 'Pay'),
     false
   );
-  assert.ok(JSON.stringify(app.nodes()).includes('Staged payment setup pending'));
+  const milestones=app.nodes().find(n=>n.type==='Milestones');
+  assert.ok(milestones);assert.equal(milestones.props.bookingId,booking.id);
+  assert.equal(JSON.stringify(app.nodes()).includes('Staged payment setup pending'),false);
   assert.ok(JSON.stringify(app.nodes()).includes('Agreed final price'));
 });
 

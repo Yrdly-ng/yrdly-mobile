@@ -1,3 +1,4 @@
+import { BookingMilestones } from '../../components/bookings/BookingMilestones';
 import { businessScreenStyles as businessUI } from '../../components/businesses/business-screen-styles';
 import React, { useState, useEffect } from 'react';
 import {
@@ -517,19 +518,14 @@ export default function BookingDetailScreen() {
             )}
         </View>
 
-        {isCustomer &&
-          booking.status === 'confirmed' &&
-          booking.payment_flow === 'staged_50_50' &&
-          ['unpaid', 'failed'].includes(paymentStatus) && (
-            <View style={s.card}>
-              <Text style={s.sectionHeader}>Staged payment setup pending</Text>
-              <Text style={s.serviceDesc}>
-                Your provider has accepted the booking. Payment is not available yet while we finish
-                setting up full funding with 50% released upfront and 50% after you confirm
-                completion. No payment is expected now.
-              </Text>
-            </View>
-          )}
+        {booking.payment_flow === 'staged_50_50' && (
+          <BookingMilestones
+            bookingId={booking.id}
+            onChanged={() => {
+              void fetchBooking();
+            }}
+          />
+        )}
         {isCustomer && booking.status === 'requested' && paymentStatus === 'unpaid' && (
           <View style={s.card}>
             <Text style={s.serviceDesc}>

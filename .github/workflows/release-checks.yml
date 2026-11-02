@@ -28,6 +28,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test:release
+      - run: pnpm test:payments
       - run: pnpm test:maps
       - run: pnpm test:telemetry
       - run: pnpm test:directions

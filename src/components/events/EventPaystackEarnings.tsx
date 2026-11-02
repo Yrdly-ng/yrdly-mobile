@@ -7,6 +7,10 @@ import { api } from '../../lib/network/api';
 type Bank = { code: string; name: string };
 type Earnings = {
   enabled?: boolean;
+  provider?: 'payluk' | 'paystack';
+  withdrawalsEnabled?: boolean;
+  disabledReason?: string;
+  payoutAccount?: { accountName: string; bankName: string; lastFour: string } | null;
   domain: 'test' | 'live';
   totals: {
     grossKobo: number;
@@ -23,6 +27,42 @@ const money = (kobo: number) =>
 
 export function EventPaystackEarnings({ eventId }: { eventId: string }) {
   const { theme } = useUnistyles();
+  const [provider, setProvider] = useState<'payluk' | 'paystack'>('payluk');
+  return (
+    <View style={{ gap: 12 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+        {(['payluk', 'paystack'] as const).map((item) => (
+          <TouchableOpacity
+            key={item}
+            accessibilityRole="button"
+            accessibilityState={{ selected: provider === item }}
+            onPress={() => setProvider(item)}
+            style={{
+              padding: 12,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: provider === item ? theme.colors.G : theme.colors.GLASS_BORDER,
+            }}
+          >
+            <Text style={{ color: theme.colors.TEXT_PRIMARY }}>
+              {item === 'payluk' ? 'Payluk earnings' : 'Previous Paystack orders'}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <EventEarningsPanel key={`${eventId}:${provider}`} eventId={eventId} provider={provider} />
+    </View>
+  );
+}
+
+function EventEarningsPanel({
+  eventId,
+  provider,
+}: {
+  eventId: string;
+  provider: 'payluk' | 'paystack';
+}) {
+  const { theme } = useUnistyles();
   const [earnings, setEarnings] = useState<Earnings | null>(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -38,19 +78,43 @@ export function EventPaystackEarnings({ eventId }: { eventId: string }) {
     accountNumber: string;
   } | null>(null);
   const submitting = useRef(false);
+  const mounted = useRef(false);
+  const loadSequence = useRef(0);
+  const currentQuote = useRef<Earnings | null>(null);
+  const canWithdraw =
+    !!earnings &&
+    !error &&
+    (earnings.provider === 'payluk'
+      ? ['test', 'live'].includes(earnings.domain) &&
+        earnings.withdrawalsEnabled === true &&
+        !!earnings.payoutAccount
+      : earnings.domain === 'test' && earnings.withdrawalsEnabled !== false);
   const text = { color: theme.colors.TEXT_PRIMARY };
   const muted = { color: theme.colors.LABEL, fontSize: 13, lineHeight: 19 };
   const button = { padding: 14, borderRadius: 12, backgroundColor: theme.colors.G };
   const load = useCallback(async () => {
+    const sequence = ++loadSequence.current;
+    currentQuote.current = null;
     try {
-      setEarnings(await api.get<Earnings>(`/api/events/${eventId}/earnings?refresh=true`));
+      const data = await api.get<Earnings>(
+        `/api/events/${eventId}/earnings?refresh=true&provider=${provider}`
+      );
+      if (!mounted.current || sequence !== loadSequence.current) return;
+      if (data.provider !== provider) throw new Error('Unexpected ticket payment provider.');
+      currentQuote.current = data;
+      setEarnings(data);
       setError('');
     } catch {
-      setError('Ticket earnings could not be loaded. Refresh before withdrawing.');
+      if (mounted.current && sequence === loadSequence.current)
+        setError('Ticket earnings could not be loaded. Refresh before withdrawing.');
     }
-  }, [eventId]);
+  }, [eventId, provider]);
   useEffect(() => {
+    mounted.current = true;
     void load();
+    return () => {
+      mounted.current = false;
+    };
   }, [load]);
   const loadBanks = async () => {
     setBusy(true);
@@ -84,18 +148,35 @@ export function EventPaystackEarnings({ eventId }: { eventId: string }) {
     }
   };
   const withdraw = async () => {
-    if (!earnings || !resolved || submitting.current || earnings.domain !== 'test') return;
+    if (
+      !mounted.current ||
+      !earnings ||
+      currentQuote.current !== earnings ||
+      !canWithdraw ||
+      submitting.current ||
+      (earnings.provider !== 'payluk' && !resolved)
+    )
+      return;
     submitting.current = true;
     setBusy(true);
     setError('');
     try {
       await api.post(`/api/events/${eventId}/earnings/withdraw`, {
-        bankCode: resolved.bank.code,
-        accountNumber: resolved.accountNumber,
+        ...(earnings.provider === 'payluk'
+          ? { provider: 'payluk' }
+          : {
+              provider: 'paystack',
+              bankCode: resolved!.bank.code,
+              accountNumber: resolved!.accountNumber,
+            }),
         expectedAmountKobo: earnings.totals.availableKobo,
         confirm: true,
       });
-      setMessage('Sandbox transfer requested. No real money is sent. Check its status below.');
+      setMessage(
+        earnings.domain === 'test'
+          ? 'Sandbox transfer requested. No real money is sent. Check its status below.'
+          : 'Withdrawal requested. Check its status below.'
+      );
       setResolved(null);
       await load();
     } catch (failure) {
@@ -110,7 +191,12 @@ export function EventPaystackEarnings({ eventId }: { eventId: string }) {
       setBusy(false);
     }
   };
-  if (earnings?.enabled === false) return null;
+  if (earnings?.enabled === false)
+    return (
+      <Text accessibilityLiveRegion="polite" style={muted}>
+        No {provider === 'payluk' ? 'Payluk' : 'previous Paystack'} ticket earnings are available.
+      </Text>
+    );
   if (!earnings)
     return error ? (
       <View style={{ padding: 16, gap: 12 }}>
@@ -119,7 +205,11 @@ export function EventPaystackEarnings({ eventId }: { eventId: string }) {
           <Text style={{ color: theme.colors.G }}>Refresh earnings</Text>
         </TouchableOpacity>
       </View>
-    ) : null;
+    ) : (
+      <Text accessibilityLiveRegion="polite" style={muted}>
+        Loading ticket earnings…
+      </Text>
+    );
   const { totals } = earnings;
   if (earnings.domain !== 'test' && totals.grossKobo === 0) return null;
   return (
@@ -138,9 +228,7 @@ export function EventPaystackEarnings({ eventId }: { eventId: string }) {
         <View style={{ flex: 1, gap: 4 }}>
           <Text style={[text, { fontSize: 21, fontWeight: '700' }]}>Ticket earnings</Text>
           <Text style={muted}>
-            {earnings.domain === 'test'
-              ? 'Paystack sandbox · no real money'
-              : 'Paystack ticket collections'}
+            {`${earnings.provider === 'payluk' ? 'Payluk' : 'Paystack'}${earnings.domain === 'test' ? ' sandbox · no real money' : ' ticket collections'}`}
           </Text>
         </View>
         <TouchableOpacity
@@ -173,7 +261,45 @@ export function EventPaystackEarnings({ eventId }: { eventId: string }) {
         Proceeds become available no earlier than 24 hours after your event ends, after payment
         settlement and refund or dispute checks. Withdrawals require your request.
       </Text>
-      {earnings.domain === 'test' && totals.availableKobo > 0 && (
+      {earnings.disabledReason ? (
+        <Text accessibilityLiveRegion="polite" style={muted}>
+          {earnings.disabledReason}
+        </Text>
+      ) : null}
+      {earnings.provider === 'payluk' &&
+        canWithdraw &&
+        totals.availableKobo > 0 &&
+        earnings.payoutAccount && (
+          <View style={{ gap: 12 }}>
+            <Text style={[text, { fontWeight: '700' }]}>Verified payout account</Text>
+            <Text style={text}>{earnings.payoutAccount.accountName}</Text>
+            <Text style={muted}>
+              {earnings.payoutAccount.bankName} · ending {earnings.payoutAccount.lastFour}
+            </Text>
+            <TouchableOpacity
+              accessibilityRole="button"
+              disabled={busy}
+              style={button}
+              onPress={() =>
+                Alert.alert(
+                  earnings.domain === 'test' ? 'Confirm sandbox withdrawal' : 'Confirm withdrawal',
+                  `${money(totals.availableKobo)} to ${earnings.payoutAccount!.accountName}\n${earnings.payoutAccount!.bankName} · ending ${earnings.payoutAccount!.lastFour}\n\n${earnings.domain === 'test' ? 'No real money will be sent. ' : ''}Transfer fees may reduce the amount credited.`,
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Confirm', onPress: () => void withdraw() },
+                  ]
+                )
+              }
+            >
+              <Text style={{ color: '#102110', textAlign: 'center', fontWeight: '700' }}>
+                {busy
+                  ? 'Requesting…'
+                  : `Withdraw ${money(totals.availableKobo)}${earnings.domain === 'test' ? ' in sandbox' : ''}`}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      {earnings.provider !== 'payluk' && canWithdraw && totals.availableKobo > 0 && (
         <View style={{ gap: 12 }}>
           <TouchableOpacity
             accessibilityRole="button"
