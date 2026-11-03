@@ -24,7 +24,7 @@ export default function AdminLayout() {
   }
 
   // Redirect non-admins to the home tab
-  if (!profile || profile.role !== 'admin') {
+  if (!profile || (profile.role !== 'admin' && !profile.is_admin)) {
     return <Redirect href="/(tabs)" />;
   }
 

@@ -23,7 +23,12 @@ export default function ReportScreen() {
   const s = sStylesheet;
 
   const router = useRouter();
-  const params = useLocalSearchParams<{ reported_user_id?: string; reported_post_id?: string; conversation_id?: string; category?: string }>();
+  const params = useLocalSearchParams<{
+    reported_user_id?: string;
+    reported_post_id?: string;
+    conversation_id?: string;
+    category?: string;
+  }>();
   const reportedUserId =
     typeof params.reported_user_id === 'string' ? params.reported_user_id : undefined;
   const reportedPostId =
@@ -33,8 +38,12 @@ export default function ReportScreen() {
   const submitting = useRef(false);
   const { user } = useAuth();
   const { categories, loading: categoriesLoading } = useCategories('report');
-  const [category, setCategory] = useState(params.category === 'Child safety' ? 'Child safety' : '');
-  const [subject, setSubject] = useState(reportedUserId ? 'Report a user' : reportedPostId ? 'Report a post' : '');
+  const [category, setCategory] = useState(
+    params.category === 'Child safety' ? 'Child safety' : ''
+  );
+  const [subject, setSubject] = useState(
+    reportedUserId ? 'Report a user' : reportedPostId ? 'Report a post' : ''
+  );
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -137,9 +146,17 @@ export default function ReportScreen() {
 
       <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
         <Text style={s.desc}>
-          If you run into technical bugs, have marketplace disputes, or wish to report inappropriate
-          content or behaviour, let us know below.
+          Report inappropriate content, unsafe behaviour or a technical problem below. For a payment
+          or order problem, open an order dispute so our team can review the transaction.
         </Text>
+
+        <TouchableOpacity
+          accessibilityRole="button"
+          style={s.dropdownBtn}
+          onPress={() => router.push('/disputes' as any)}
+        >
+          <Text style={s.dropdownBtnText}>Get help with an order →</Text>
+        </TouchableOpacity>
 
         {reportedUserId && (
           <Text style={s.desc}>
@@ -149,7 +166,8 @@ export default function ReportScreen() {
         )}
         {reportedPostId && (
           <Text style={s.desc}>
-            Reported post reference: {reportedPostId}. The reference will be included for our safety team.
+            Reported post reference: {reportedPostId}. The reference will be included for our safety
+            team.
           </Text>
         )}
 
@@ -166,7 +184,9 @@ export default function ReportScreen() {
         >
           <Feather name="shield" size={18} color={theme.colors.G} />
           <Text style={s.dropdownBtnText}>Child safety</Text>
-          {category === 'Child safety' && <Ionicons name="checkmark" size={18} color={theme.colors.G} />}
+          {category === 'Child safety' && (
+            <Ionicons name="checkmark" size={18} color={theme.colors.G} />
+          )}
         </TouchableOpacity>
         {category === 'Child safety' && (
           <Text style={s.desc}>
@@ -254,24 +274,23 @@ export default function ReportScreen() {
 
         {category !== 'Child safety' && (
           <>
-        {/* Attachment */}
-        <Text style={[s.inputLabel, { marginTop: 16 }]}>ATTACHMENT (OPTIONAL)</Text>
-        <TouchableOpacity style={s.imageUploadBtn} onPress={pickImage}>
-          {image ? (
-            <>
-              <Image source={{ uri: image.uri }} style={s.previewImage} contentFit="cover" />
-              <TouchableOpacity style={s.removeImageBtn} onPress={() => setImage(null)}>
-                <Ionicons name="close" size={16} color={theme.colors.TEXT_PRIMARY} />
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              <Feather name="image" size={24} color={theme.colors.MUTED} />
-              <Text style={s.uploadText}>Tap to select an image</Text>
-            </>
-          )}
-        </TouchableOpacity>
-
+            {/* Attachment */}
+            <Text style={[s.inputLabel, { marginTop: 16 }]}>ATTACHMENT (OPTIONAL)</Text>
+            <TouchableOpacity style={s.imageUploadBtn} onPress={pickImage}>
+              {image ? (
+                <>
+                  <Image source={{ uri: image.uri }} style={s.previewImage} contentFit="cover" />
+                  <TouchableOpacity style={s.removeImageBtn} onPress={() => setImage(null)}>
+                    <Ionicons name="close" size={16} color={theme.colors.TEXT_PRIMARY} />
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <Feather name="image" size={24} color={theme.colors.MUTED} />
+                  <Text style={s.uploadText}>Tap to select an image</Text>
+                </>
+              )}
+            </TouchableOpacity>
           </>
         )}
 

@@ -171,8 +171,8 @@ export default function DisputeScreen() {
         <View style={[stylesheet.infoBanner, { backgroundColor: theme.colors.SURFACE }]}>
           <Feather name="shield" size={20} color="#1565C0" />
           <Text style={[stylesheet.infoText, { color: theme.colors.LABEL }]}>
-            Disputes are reviewed by our team within 24 hours. The transaction will be paused until
-            resolved.
+            Our team will review your case and evidence. Check your dispute details for updates. Any
+            refund depends on the funds still held and the payment provider’s confirmed outcome.
           </Text>
         </View>
 

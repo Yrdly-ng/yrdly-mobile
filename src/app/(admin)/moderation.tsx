@@ -176,7 +176,7 @@ export default function ModerationQueueScreen() {
           <Ionicons name="chevron-back" size={22} color={theme.colors.TEXT_PRIMARY} />
         </TouchableOpacity>
         <View style={stylesheet.headerCenter}>
-          <Text style={stylesheet.headerTitle}>Moderation Queue</Text>
+          <Text style={stylesheet.headerTitle}>Content review</Text>
           {items.length > 0 && (
             <View style={stylesheet.countBadge}>
               <Text style={stylesheet.countTxt}>{items.length}</Text>
@@ -199,7 +199,9 @@ export default function ModerationQueueScreen() {
         onPress={() => router.push('/(admin)/child-safety' as any)}
         style={{ minHeight: 48, paddingHorizontal: 20, justifyContent: 'center' }}
       >
-        <Text style={{ color: theme.colors.G, fontFamily: 'Inter-SemiBold' }}>Open child-safety reports</Text>
+        <Text style={{ color: theme.colors.G, fontFamily: 'Inter-SemiBold' }}>
+          Reports & safety
+        </Text>
       </TouchableOpacity>
 
       {loading ? (
