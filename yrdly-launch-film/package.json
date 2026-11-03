@@ -1,0 +1,38 @@
+{
+  "name": "yrdly-launch-film",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "assets": "node scripts/extract-assets.cjs",
+    "components": "node scripts/render-components.cjs",
+    "styleframes": "node scripts/styleframes.mjs",
+    "review": "node scripts/serve.mjs",
+    "capture:review": "node scripts/capture-review.mjs",
+    "verify": "node scripts/verify.mjs",
+    "studio": "remotion studio src/index.ts --no-open",
+    "typecheck": "tsc --noEmit",
+    "preview:stills": "node scripts/render-previews.mjs stills",
+    "preview:render": "node scripts/render-previews.mjs video"
+  },
+  "dependencies": {
+    "@playwright/test": "1.64.0",
+    "@react-three/fiber": "^9.8.2",
+    "@remotion/bundler": "4.0.535",
+    "@remotion/cli": "4.0.535",
+    "@remotion/fonts": "4.0.535",
+    "@remotion/renderer": "4.0.535",
+    "@remotion/three": "4.0.535",
+    "@remotion/transitions": "4.0.535",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.3.0",
+    "@types/three": "0.180.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native-web": "0.21.2",
+    "remotion": "4.0.535",
+    "sharp": "0.35.5",
+    "three": "0.180.0",
+    "typescript": "6.0.3"
+  }
+}

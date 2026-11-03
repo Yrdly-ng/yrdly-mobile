@@ -1,0 +1,7 @@
+.capture-venv/
+.private/
+node_modules/
+.cache/
+.DS_Store
+!*.md
+
