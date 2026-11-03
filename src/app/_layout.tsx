@@ -8,8 +8,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ToastProvider } from '@/components/toast';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Stack, useRouter, useSegments } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { AppState } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { AppState, View } from 'react-native';
 import * as Sentry from '@sentry/react-native';
 import { TelemetryHandler } from '../components/TelemetryHandler';
 import { usePushNotifications } from '../hooks/notifications/use-push-notifications';
@@ -215,6 +215,7 @@ function Layout() {
 
   const [authLoading, setAuthLoading] = useState(true);
   const [appFullyTransitioned, setAppFullyTransitioned] = useState(false);
+  const finishSplash = useCallback(() => setAppFullyTransitioned(true), []);
 
   const [fontsLoaded, fontError] = useFonts({
     Outfit: Outfit_400Regular,
@@ -241,10 +242,14 @@ function Layout() {
       {!appFullyTransitioned && (
         <AnimatedSplashScreen
           ready={(fontsLoaded || Boolean(fontError)) && !authLoading}
-          onFinished={() => setAppFullyTransitioned(true)}
+          fontsReady={fontsLoaded}
+          onFinished={finishSplash}
         />
       )}
-      <SafeAreaProvider>
+      <SafeAreaProvider
+        importantForAccessibility={appFullyTransitioned ? 'auto' : 'no-hide-descendants'}
+        accessibilityElementsHidden={!appFullyTransitioned}
+      >
         <ToastProvider position="bottom">
           <KeyboardProvider>
             <ThemeProvider>
@@ -270,15 +275,17 @@ function Layout() {
 }
 
 function RootLayout() {
-  useEffect(() => {
-    // This also runs if a startup provider fails and the boundary shows its fallback.
+  const revealLaunchSurface = useCallback(() => {
+    // Wait for a committed React surface, including the startup error fallback.
     SplashScreen.hideAsync().catch(() => {});
   }, []);
 
   return (
-    <ErrorBoundary screenName="startup">
-      <Layout />
-    </ErrorBoundary>
+    <View style={{ flex: 1 }} onLayout={revealLaunchSurface}>
+      <ErrorBoundary screenName="startup">
+        <Layout />
+      </ErrorBoundary>
+    </View>
   );
 }
 
