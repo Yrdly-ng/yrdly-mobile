@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../../lib/network/api';
+import { filterBanks } from '../../lib/payments/bank-search';
 import { BankLogo } from '../../components/payments/BankLogo';
 import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/use-notification-route-ack';
 
@@ -35,6 +36,8 @@ export default function PayoutSettingsScreen() {
 
   const [banks, setBanks] = useState<any[]>([]);
   const [bankSearch, setBankSearch] = useState('');
+  const [banksLoading, setBanksLoading] = useState(true);
+  const [banksError, setBanksError] = useState(false);
   const [selectedBank, setSelectedBank] = useState<any>(null);
 
   const [accountNumber, setAccountNumber] = useState('');
@@ -60,13 +63,17 @@ export default function PayoutSettingsScreen() {
   }, []);
 
   const fetchBanks = useCallback(async () => {
+    setBanksLoading(true);
+    setBanksError(false);
     try {
       const data = await api.get('/api/seller/banks');
-      if (data.success) {
-        setBanks(data.banks);
-      }
+      if (!data.success || !Array.isArray(data.banks)) throw new Error('Bank list unavailable');
+      setBanks(data.banks);
     } catch (e) {
       console.error(e);
+      setBanksError(true);
+    } finally {
+      setBanksLoading(false);
     }
   }, []);
 
@@ -201,9 +208,7 @@ export default function PayoutSettingsScreen() {
     );
   }
 
-  const filteredBanks = banks.filter((b) =>
-    b.name.toLowerCase().includes(bankSearch.toLowerCase())
-  );
+  const filteredBanks = filterBanks(banks, bankSearch);
 
   return (
     <SafeAreaView style={s.root} edges={['top', 'bottom']}>
@@ -241,12 +246,57 @@ export default function PayoutSettingsScreen() {
               value={bankSearch}
               onChangeText={setBankSearch}
               placeholder="Search banks…"
+              accessibilityLabel="Search banks"
+              autoCapitalize="none"
+              autoCorrect={false}
               placeholderTextColor={theme.colors.LABEL}
             />
           </View>
 
           <FlatList
-            data={filteredBanks}
+            data={banksLoading || banksError ? [] : filteredBanks}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            ListEmptyComponent={
+              <View style={{ padding: 20 }}>
+                {banksLoading ? (
+                  <ActivityIndicator
+                    accessibilityLabel="Loading banks"
+                    color={theme.colors.TEXT_PRIMARY}
+                  />
+                ) : banksError ? (
+                  <View>
+                    <Text accessibilityRole="alert" style={{ color: theme.colors.TEXT_PRIMARY }}>
+                      Could not load banks. Please try again.
+                    </Text>
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      onPress={() => void fetchBanks()}
+                      style={{ paddingVertical: 16 }}
+                    >
+                      <Text
+                        style={{
+                          color: theme.colors.TEXT_PRIMARY,
+                          fontWeight: '700',
+                          textDecorationLine: 'underline',
+                        }}
+                      >
+                        Try again
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <Text
+                    accessibilityLiveRegion="polite"
+                    style={{ color: theme.colors.TEXT_PRIMARY }}
+                  >
+                    {banks.length
+                      ? 'No banks found. Try another name or clear your search.'
+                      : 'No banks are available right now. Please try again later.'}
+                  </Text>
+                )}
+              </View>
+            }
             keyExtractor={(item) => item.code}
             style={s.bankListWrap}
             contentContainerStyle={s.bankListContainer}

@@ -1499,9 +1499,11 @@ export default function EventDetailScreen() {
                 <Text
                   style={{ color: theme.colors.LABEL, fontSize: 12, lineHeight: 18, marginTop: 12 }}
                 >
-                  Refund requests are reviewed by the event organiser with Yrdly support under the
-                  event’s cancellation and refund policy. The payment provider does not decide
-                  refunds.
+                  Refund requests are reviewed by the organiser with Yrdly support. Retained payment
+                  fees are deducted, even if the event is cancelled, so a refund may be less than
+                  your ticket price. Yrdly does not cover these fees. Request any refund before the
+                  organiser payout starts. Payluk cannot refund funds after they are released to the
+                  organiser.
                 </Text>
               )}
             </ScrollView>

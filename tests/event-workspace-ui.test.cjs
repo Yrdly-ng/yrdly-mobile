@@ -131,3 +131,37 @@ test('refund-pending guests are not listed as ready for admission', async () => 
   app.render();
   assert.equal(find(app.tree, 'FlatList').props.data.length, 0);
 });
+
+test('Payluk refund requests carry a reason and do not report money refunded', async () => {
+  const ticket = {
+    id: 'payluk-ticket',
+    attendee_name: 'Ada',
+    status: 'PAID',
+    payment_provider: 'payluk',
+    amount_paid: 3000,
+  };
+  const app = mount('src/app/events/[id]/manage.tsx', {
+    event,
+    tickets: [ticket],
+    post: async () => ({
+      refund: { status: 'review' },
+      message: 'Support will review the Payluk refund request.',
+    }),
+  });
+  await app.ready();
+  const list = find(app.tree, 'FlatList');
+  const row = list.props.renderItem({ item: ticket });
+  button(row, 'Refund ticket for Ada').props.onPress();
+  app.render();
+  const reason = all(app.tree, (n) => n.props?.accessibilityLabel === 'Refund reason')[0];
+  reason.props.onChangeText('The event has been cancelled');
+  app.render();
+  button(app.tree, 'Request refund review').props.onPress();
+  await app.ready();
+  assert.deepEqual(app.calls[0], [
+    '/api/events/tickets/refund',
+    { ticket_id: 'payluk-ticket', reason: 'The event has been cancelled' },
+  ]);
+  assert.equal(app.alerts[0][0], 'Refund requested');
+  assert.match(app.alerts[0][1], /Support will review/);
+});

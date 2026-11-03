@@ -101,7 +101,7 @@
   "scripts": {
     "eas-build-post-install": "node scripts/configure-telemetry-build.cjs",
     "test:telemetry": "node --test tests/telemetry.test.cjs tests/telemetry-build.test.cjs",
-    "test:release": "node --test tests/release-contract.test.cjs tests/video-editing.test.cjs tests/onboarding-contrast.test.cjs tests/offline-cache.test.cjs tests/alert-creation.test.cjs tests/community-permissions.test.cjs tests/community-jobs.test.cjs tests/community-routing.test.cjs tests/community-screen-state.test.cjs tests/community-directory.test.cjs tests/event-creation.test.cjs tests/event-presentation.test.cjs tests/event-discovery.test.cjs tests/event-discovery-regression.test.cjs tests/event-attendees.test.cjs tests/event-flow-ui.test.cjs tests/business-presentation.test.cjs tests/business-directory.test.cjs tests/business-edit-save.test.cjs tests/business-catalog-actions.test.cjs tests/booking-schedule.test.cjs tests/booking-slots-hook.test.cjs tests/business-messaging.test.cjs tests/business-flow-ui.test.cjs tests/event-team-ui.test.cjs tests/notification-routing.test.cjs tests/freeform-crop.test.cjs tests/ticket-checkout-flow.test.cjs tests/payout-receipt.test.cjs tests/nearby-location.test.cjs tests/store-auth.test.cjs tests/store-legal.test.cjs tests/store-safety.test.cjs tests/catalog-category-policy.test.cjs",
+    "test:release": "node --test tests/release-contract.test.cjs tests/video-editing.test.cjs tests/onboarding-contrast.test.cjs tests/offline-cache.test.cjs tests/alert-creation.test.cjs tests/community-permissions.test.cjs tests/community-jobs.test.cjs tests/community-routing.test.cjs tests/community-screen-state.test.cjs tests/community-directory.test.cjs tests/event-creation.test.cjs tests/event-presentation.test.cjs tests/event-discovery.test.cjs tests/event-discovery-regression.test.cjs tests/event-attendees.test.cjs tests/event-flow-ui.test.cjs tests/business-presentation.test.cjs tests/business-directory.test.cjs tests/business-edit-save.test.cjs tests/business-catalog-actions.test.cjs tests/booking-schedule.test.cjs tests/booking-slots-hook.test.cjs tests/business-messaging.test.cjs tests/business-flow-ui.test.cjs tests/event-team-ui.test.cjs tests/notification-routing.test.cjs tests/freeform-crop.test.cjs tests/ticket-checkout-flow.test.cjs tests/payout-receipt.test.cjs tests/nearby-location.test.cjs tests/store-auth.test.cjs tests/store-legal.test.cjs tests/store-safety.test.cjs tests/catalog-category-policy.test.cjs tests/launch-animation.test.cjs",
     "typecheck": "tsc --noEmit",
     "start": "expo start",
     "android": "expo run:android",
@@ -115,7 +115,8 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,md}\"",
     "postinstall": "node -e \"const fs=require('fs'),path=require('path');try{const corePath=path.dirname(require.resolve('expo-modules-core/package.json'));['android/src/main/kotlin','android/src/release/java'].forEach(d=>{const p=path.join(corePath,d);if(!fs.existsSync(p))fs.mkdirSync(p,{recursive:true});});}catch(e){}\"",
     "test:maps": "node --test tests/map-model.test.cjs tests/map-location.test.cjs tests/map-query.test.cjs",
-    "test:directions": "node --test tests/directions.test.cjs"
+    "test:directions": "node --test tests/directions.test.cjs",
+    "test:payments": "node --test tests/bank-search.test.cjs tests/booking-milestone-quote.test.cjs tests/event-earnings.test.cjs tests/event-workspace-ui.test.cjs"
   },
   "private": true
 }

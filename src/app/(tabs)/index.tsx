@@ -1,3 +1,4 @@
+import { CampaignBanner } from '../../components/campaigns/CampaignBanner';
 import { localCache } from '@/lib/offline/local-cache';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
@@ -609,6 +610,7 @@ export default function HomeTab() {
         }
         ListHeaderComponent={
           <View>
+            <CampaignBanner />
             <View style={{ paddingHorizontal: 20, paddingVertical: 8, minHeight: 44 }}>
               <Text
                 style={{ color: theme.colors.MUTED, fontSize: 12 }}

@@ -12,7 +12,7 @@ function compile(source) {
 
 // Exercise the screen's real load and save closures, with only network/native UI
 // boundaries replaced. This catches loading a JSON location into a text field.
-async function editBusiness(location) {
+async function editBusiness(location, images = {}) {
   const source = readFileSync('src/app/businesses/create.tsx', 'utf8');
   const ast = ts.createSourceFile(
     'create.tsx',
@@ -60,6 +60,7 @@ async function editBusiness(location) {
     lng: null,
     cover_image: null,
     logo_url: null,
+    ...images,
   };
   const supabase = createClient('https://example.supabase.co', 'test-key', {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
@@ -155,3 +156,11 @@ for (const [label, storedLocation, expected] of [
     assert.equal(Object.hasOwn(writes[0], 'is_active'), false);
   });
 }
+
+test('editing text preserves remote cover and logo URLs without treating them as new uploads', async () => {
+ const cover='https://example.test/cover.jpg',logo='https://example.test/logo.jpg';
+ const {context,writes,errors}=await editBusiness('12 Test Street, Lagos',{cover_image:cover,logo_url:logo});
+ assert.deepEqual(errors,[]);assert.equal(context.saved,true);
+ assert.equal(context.coverUri,cover);assert.equal(context.logoUri,logo);
+ assert.equal(writes.length,1,'Existing remote images must not be uploaded again');
+});

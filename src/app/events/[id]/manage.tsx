@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Modal,
   RefreshControl,
   Text,
   TextInput,
@@ -45,6 +46,8 @@ export default function ManageEventScreen() {
   const [guestFilter, setGuestFilter] = useState<'all' | 'waiting' | 'checked-in'>('all');
   const [refundingId, setRefundingId] = useState<string | null>(null);
   const refundInFlight = useRef(false);
+  const [refundTicketSelection, setRefundTicketSelection] = useState<ManagedTicket | null>(null);
+  const [refundReason, setRefundReason] = useState('');
   const [earningsRevision, setEarningsRevision] = useState(0);
   const [cancelling, setCancelling] = useState(false);
   const cancellationInFlight = useRef(false);
@@ -128,20 +131,24 @@ export default function ManageEventScreen() {
     );
   };
 
-  const refundTicket = async (ticket: ManagedTicket) => {
+  const refundTicket = async (ticket: ManagedTicket, reason?: string) => {
     if (
       refundInFlight.current ||
       ticket.status !== 'PAID' ||
-      ticket.payment_provider !== 'paystack' ||
+      !['paystack', 'payluk'].includes(ticket.payment_provider || '') ||
       ticket.refund_status
     )
       return;
     refundInFlight.current = true;
     setRefundingId(ticket.id);
     try {
-      const result = await api.post<{ refund?: { status: string } }>('/api/events/tickets/refund', {
-        ticket_id: ticket.id,
-      });
+      const result = await api.post<{ refund?: { status: string }; message?: string }>(
+        '/api/events/tickets/refund',
+        {
+          ticket_id: ticket.id,
+          ...(reason ? { reason } : {}),
+        }
+      );
       const status = result.refund?.status;
       setTickets((current) =>
         current.map((row) =>
@@ -156,11 +163,12 @@ export default function ManageEventScreen() {
       );
       Alert.alert(
         status === 'processed' ? 'Refund confirmed' : 'Refund requested',
-        ['failed', 'review', 'needs-attention'].includes(status || '')
-          ? 'This refund needs support review. The ticket remains blocked from entry.'
-          : status === 'processed'
-            ? 'Paystack has confirmed the refund.'
-            : 'The ticket is blocked from entry while Paystack processes the refund. Refresh to check its status.'
+        result.message ||
+          (['failed', 'review', 'needs-attention'].includes(status || '')
+            ? 'This refund needs support review. The ticket remains blocked from entry.'
+            : status === 'processed'
+              ? 'Paystack has confirmed the refund.'
+              : 'The ticket is blocked from entry while Paystack processes the refund. Refresh to check its status.')
       );
     } catch (error) {
       Alert.alert(
@@ -176,6 +184,11 @@ export default function ManageEventScreen() {
   };
 
   const confirmRefund = (ticket: ManagedTicket) => {
+    if (ticket.payment_provider === 'payluk') {
+      setRefundReason('');
+      setRefundTicketSelection(ticket);
+      return;
+    }
     Alert.alert(
       'Refund ticket?',
       `Request ₦${Number(ticket.amount_paid || 0).toLocaleString('en-NG')} back for ${ticket.attendee_name || 'this attendee'}? Entry will be blocked while the refund is processed.`,
@@ -353,28 +366,30 @@ export default function ManageEventScreen() {
         <Text style={[stylesheet.tierText, { color: theme.colors.LABEL }]}>
           {item.tier?.name || 'Ticket'} · ₦{Number(item.amount_paid || 0).toLocaleString()}
         </Text>
-        {item.payment_provider === 'paystack' && item.status === 'PAID' && !item.refund_status && (
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={`Refund ticket for ${item.attendee_name || 'attendee'}`}
-            disabled={refundingId !== null}
-            onPress={() => confirmRefund(item)}
-            style={{
-              marginTop: 12,
-              padding: 12,
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: theme.colors.GLASS_BORDER,
-              opacity: refundingId !== null ? 0.5 : 1,
-            }}
-          >
-            <Text
-              style={{ color: theme.colors.TEXT_PRIMARY, textAlign: 'center', fontWeight: '700' }}
+        {['paystack', 'payluk'].includes(item.payment_provider || '') &&
+          item.status === 'PAID' &&
+          !item.refund_status && (
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={`Refund ticket for ${item.attendee_name || 'attendee'}`}
+              disabled={refundingId !== null}
+              onPress={() => confirmRefund(item)}
+              style={{
+                marginTop: 12,
+                padding: 12,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: theme.colors.GLASS_BORDER,
+                opacity: refundingId !== null ? 0.5 : 1,
+              }}
             >
-              {refundingId === item.id ? 'Requesting…' : 'Refund ticket'}
-            </Text>
-          </TouchableOpacity>
-        )}
+              <Text
+                style={{ color: theme.colors.TEXT_PRIMARY, textAlign: 'center', fontWeight: '700' }}
+              >
+                {refundingId === item.id ? 'Requesting…' : 'Refund ticket'}
+              </Text>
+            </TouchableOpacity>
+          )}
       </View>
     );
   };
@@ -544,6 +559,63 @@ export default function ManageEventScreen() {
           </View>
         }
       />
+      <Modal
+        visible={!!refundTicketSelection}
+        animationType="slide"
+        onRequestClose={() => setRefundTicketSelection(null)}
+      >
+        <SafeAreaView
+          style={{ flex: 1, padding: 24, gap: 20, backgroundColor: theme.colors.SURFACE }}
+        >
+          <Text style={{ color: theme.colors.TEXT_PRIMARY, fontSize: 24 }}>
+            Request ticket refund
+          </Text>
+          <Text style={{ color: theme.colors.TEXT_PRIMARY }}>
+            Support will review this request with Payluk. Entry and the affected proceeds will be
+            held until the refund is resolved. Refunds cannot be started once payout processing
+            begins, and Payluk cannot refund released funds.
+          </Text>
+          <TextInput
+            accessibilityLabel="Refund reason"
+            placeholder="Explain the reason for this refund"
+            placeholderTextColor={theme.colors.LABEL}
+            multiline
+            maxLength={2000}
+            value={refundReason}
+            onChangeText={setRefundReason}
+            style={{
+              color: theme.colors.TEXT_PRIMARY,
+              borderWidth: 1,
+              borderColor: theme.colors.GLASS_BORDER,
+              padding: 16,
+              minHeight: 120,
+            }}
+          />
+          <Text style={{ color: theme.colors.TEXT_PRIMARY, paddingVertical: 12 }}>
+            Retained payment fees will be deducted, even for a cancelled event. The attendee may
+            receive less than the ticket price. Yrdly does not cover these fees.
+          </Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            disabled={refundReason.trim().length < 5 || !!refundingId}
+            onPress={() => {
+              const ticket = refundTicketSelection;
+              setRefundTicketSelection(null);
+              if (ticket) void refundTicket(ticket, refundReason.trim());
+            }}
+            style={{ padding: 16, backgroundColor: theme.colors.G }}
+          >
+            <Text>Request refund review</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            accessibilityRole="button"
+            onPress={() => setRefundTicketSelection(null)}
+            style={{ padding: 16 }}
+          >
+            <Text style={{ color: theme.colors.TEXT_PRIMARY }}>Keep ticket</Text>
+          </TouchableOpacity>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }

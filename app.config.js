@@ -31,7 +31,7 @@ module.exports = {
     splash: {
       image: "./assets/images/logo.png",
       resizeMode: "contain",
-      backgroundColor: "#E6F4FE",
+      backgroundColor: "#FAF9F3",
       dark: {
         image: "./assets/images/logo.png",
         backgroundColor: "#0B0D0B"
@@ -148,7 +148,7 @@ module.exports = {
           image: "./assets/images/logo.png",
           imageWidth: 200,
           resizeMode: "contain",
-          backgroundColor: "#E6F4FE",
+          backgroundColor: "#FAF9F3",
           dark: {
             image: "./assets/images/logo.png",
             backgroundColor: "#0B0D0B"

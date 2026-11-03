@@ -10,6 +10,8 @@ export interface BookingCheckout {
   buyerPaylukId: string;
   amount: number;
   commission: number;
+  paymentFee?: number;
+  staged?: boolean;
   totalAmount: number;
   alreadyPaid?: boolean;
 }
@@ -41,8 +43,9 @@ export function createBookingPayments(api: Transport) {
           ![result.amount, result.commission, result.totalAmount].every(
             (value) => Number.isFinite(value) && value >= 0
           ) ||
-          Math.round((result.amount + result.commission) * 100) !==
-            Math.round(result.totalAmount * 100))
+          Math.round(
+            (result.amount + (result.staged ? (result.paymentFee ?? NaN) : result.commission)) * 100
+          ) !== Math.round(result.totalAmount * 100))
       ) {
         throw new Error('A valid payment quote is required before checkout.');
       }
