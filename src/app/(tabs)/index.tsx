@@ -1,4 +1,5 @@
 import { CampaignBanner } from '../../components/campaigns/CampaignBanner';
+import DailyPromptCard from '../../components/daily-prompts/DailyPromptCard';
 import { localCache } from '@/lib/offline/local-cache';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
@@ -670,6 +671,7 @@ export default function HomeTab() {
               </ScrollView>
             )}
             <QuickPostBox />
+            <DailyPromptCard />
           </View>
         }
         contentContainerStyle={[
