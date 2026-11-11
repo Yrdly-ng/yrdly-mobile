@@ -61,6 +61,7 @@ export default function NotificationSettingsScreen() {
     paymentReceived: true,
     disputeUpdates: true,
     safetyAlerts: true,
+    dailyPrompts: false,
     ...profile?.notification_settings,
   };
 
@@ -94,6 +95,25 @@ export default function NotificationSettingsScreen() {
         <Text style={s.desc}>Choose which activity can send alerts to your devices.</Text>
 
         <View style={s.card}>
+          <View style={s.row}>
+            <View style={s.rowLeft}>
+              <View style={s.iconBox}>
+                <Feather name="message-circle" size={18} color={theme.colors.TEXT_PRIMARY}/>
+              </View>
+              <View style={s.rowText}>
+                <Text style={s.rowLabel}>Daily Neighbourhood Questions</Text>
+                <Text style={s.rowSub}>Optional daily reminder at 6 PM Nigeria time</Text>
+              </View>
+            </View>
+            <Switch
+              value={currentSettings.dailyPrompts === true}
+              onValueChange={value=>handleToggle('dailyPrompts',value)}
+              trackColor={{false:'rgba(255,255,255,0.1)',true:theme.colors.G}}
+              thumbColor="#fff"
+              disabled={updating}
+            />
+          </View>
+          <View style={s.divider}/>
           {/* Direct Messages */}
           <View style={s.row}>
             <View style={s.rowLeft}>

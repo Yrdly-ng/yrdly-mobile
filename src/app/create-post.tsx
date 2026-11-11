@@ -13,13 +13,14 @@ import {
   Alert,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import ImagePicker from 'react-native-image-crop-picker';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../hooks/use-supabase-auth';
+import { api } from '../lib/network/api';
 import { usePosts } from '../hooks/posts/use-posts';
 import { MobileFile } from '../lib/media/storage-service';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -38,6 +39,24 @@ export default function CreatePostScreen() {
   const stylesheet = _stylesheet;
 
   const router = useRouter();
+  const params = useLocalSearchParams<{ dailyPrompt?: string }>();
+  // A prompt answer must never overwrite an unrelated ordinary post draft.
+  const draftCacheKey = params.dailyPrompt ? `post_daily_prompt_${params.dailyPrompt}` : 'post';
+  const [activePrompt,setActivePrompt] = useState<{id:string;question:string}|null>(null);
+  const [promptLoaded,setPromptLoaded] = useState(false);
+  useEffect(()=>{
+    const id = params.dailyPrompt;
+    if (!id) {setActivePrompt(null);setPromptLoaded(true);return;}
+    let active=true;setActivePrompt(null);setPromptLoaded(false);
+    void api.get<{prompt:{id:string;question:string}|null}>('/api/daily-prompts')
+      .then(data=>{
+        if(!active)return;
+        setActivePrompt(data.prompt?.id === id ? data.prompt : null);
+      })
+      .catch(()=>{if(active)setActivePrompt(null)})
+      .finally(()=>{if(active)setPromptLoaded(true)});
+    return ()=>{active=false};
+  },[params.dailyPrompt]);
   const insets = useSafeAreaInsets();
   const { user, profile } = useAuth();
   const { createPost } = usePosts(undefined, false);
@@ -71,6 +90,7 @@ export default function CreatePostScreen() {
     draftOwner.current = user?.id ?? null;
     clientPostId.current = null;
     setText('');
+    setCategory('General');
     setAttachedFiles([]);
     setVisibility('public');
     setImageDimsMap({});
@@ -83,7 +103,7 @@ export default function CreatePostScreen() {
         visibility: 'public' | 'private';
         files: MobileFile[];
         clientPostId?: string;
-      }>(user.id, 'drafts', 'post', 7 * 86400000)
+      }>(user.id, 'drafts', draftCacheKey, 7 * 86400000)
       .then(async (entry) => {
         if (!active || draftOwner.current !== user.id) return;
         if (entry) {
@@ -103,11 +123,11 @@ export default function CreatePostScreen() {
     return () => {
       active = false;
     };
-  }, [user?.id]);
+  }, [user?.id,draftCacheKey]);
   useEffect(() => {
     if (!user?.id || draftOwner.current !== user.id || !draftReady.current || posted) return;
     const timeout = setTimeout(() => {
-      void localCache.write(user.id, 'drafts', 'post', {
+      void localCache.write(user.id, 'drafts', draftCacheKey, {
         text,
         category,
         visibility,
@@ -116,7 +136,7 @@ export default function CreatePostScreen() {
       });
     }, 500);
     return () => clearTimeout(timeout);
-  }, [user?.id, text, category, visibility, attachedFiles, posted]);
+  }, [user?.id, draftCacheKey, text, category, visibility, attachedFiles, posted]);
 
   const categories = ['General'];
 
@@ -245,6 +265,14 @@ export default function CreatePostScreen() {
 
   const doPost = async () => {
     if (postLock.current || pickingMedia.current || isEditingVideo || isEditingImage) return;
+    if (params.dailyPrompt && (!promptLoaded || !activePrompt)) {
+      Alert.alert('Question unavailable', 'This question has expired. Return Home to see the current question.');
+      return;
+    }
+    if (activePrompt && visibility !== 'public') {
+      Alert.alert('Public answer required', 'Daily neighbourhood question answers must be public posts.');
+      return;
+    }
     if (!text.trim() && attachedFiles.length === 0) return;
     if (!user || !profile) {
       Alert.alert('Authentication required', 'Please sign in to post.');
@@ -284,6 +312,7 @@ export default function CreatePostScreen() {
           text: text.trim(),
           category: category as any,
           visibility: visibility,
+          ...(activePrompt ? { daily_prompt_id:activePrompt.id } : {}),
           image_width: firstImageDims?.w ?? undefined,
           image_height: firstImageDims?.h ?? undefined,
         },
@@ -304,7 +333,7 @@ export default function CreatePostScreen() {
       setPosting(false);
       setUploadProgress(0);
       setPosted(true);
-      void localCache.remove(user.id, 'drafts', 'post');
+      void localCache.remove(user.id, 'drafts', draftCacheKey);
       for (const video of videos) void discardEditedVideo(video);
       for (const image of images) void discardEditedImage(image);
       setModerationStatus((result?.moderationStatus as any) || 'approved');
@@ -474,6 +503,25 @@ export default function CreatePostScreen() {
           </View>
         </View>
 
+        {params.dailyPrompt && !activePrompt && (
+          <Text style={{color:'#eab308',paddingVertical:10,fontSize:12}}>
+            {promptLoaded ? 'This question is no longer active. Return Home for today’s question.' : 'Checking today’s question…'}
+          </Text>
+        )}
+        {activePrompt && (
+          <View style={{borderRadius:16,borderWidth:1,borderColor:'rgba(130,219,126,0.35)',
+            backgroundColor:'rgba(130,219,126,0.06)',padding:14,marginBottom:12}}>
+            <Text style={{fontFamily:'Inter-SemiBold',fontSize:11,color:theme.colors.G}}>
+              ANSWERING TODAY'S QUESTION
+            </Text>
+            <Text style={{fontFamily:'Outfit-Bold',fontSize:15,color:theme.colors.TEXT_PRIMARY,marginTop:5}}>
+              {activePrompt.question}
+            </Text>
+            <Text style={{fontSize:12,color:theme.colors.MUTED,marginTop:5}}>
+              Your answer is posted publicly to your neighbourhood.
+            </Text>
+          </View>
+        )}
         <TextInput
           style={stylesheet.input}
           placeholder="What's happening in your neighbourhood?"
