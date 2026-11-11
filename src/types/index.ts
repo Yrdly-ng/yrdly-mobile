@@ -103,6 +103,7 @@ export type PostCategory =
 
 export interface Post {
   id: string;
+  daily_prompt_id?: string | null;
   user_id: string;
   author_name: string;
   author_image?: string;
