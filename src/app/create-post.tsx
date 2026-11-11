@@ -40,12 +40,14 @@ export default function CreatePostScreen() {
 
   const router = useRouter();
   const params = useLocalSearchParams<{ dailyPrompt?: string }>();
+  // A prompt answer must never overwrite an unrelated ordinary post draft.
+  const draftCacheKey = params.dailyPrompt ? `post_daily_prompt_${params.dailyPrompt}` : 'post';
   const [activePrompt,setActivePrompt] = useState<{id:string;question:string}|null>(null);
   const [promptLoaded,setPromptLoaded] = useState(false);
   useEffect(()=>{
     const id = params.dailyPrompt;
     if (!id) {setActivePrompt(null);setPromptLoaded(true);return;}
-    let active=true;setPromptLoaded(false);
+    let active=true;setActivePrompt(null);setPromptLoaded(false);
     void api.get<{prompt:{id:string;question:string}|null}>('/api/daily-prompts')
       .then(data=>{
         if(!active)return;
@@ -88,6 +90,7 @@ export default function CreatePostScreen() {
     draftOwner.current = user?.id ?? null;
     clientPostId.current = null;
     setText('');
+    setCategory('General');
     setAttachedFiles([]);
     setVisibility('public');
     setImageDimsMap({});
@@ -100,7 +103,7 @@ export default function CreatePostScreen() {
         visibility: 'public' | 'private';
         files: MobileFile[];
         clientPostId?: string;
-      }>(user.id, 'drafts', 'post', 7 * 86400000)
+      }>(user.id, 'drafts', draftCacheKey, 7 * 86400000)
       .then(async (entry) => {
         if (!active || draftOwner.current !== user.id) return;
         if (entry) {
@@ -120,11 +123,11 @@ export default function CreatePostScreen() {
     return () => {
       active = false;
     };
-  }, [user?.id]);
+  }, [user?.id,draftCacheKey]);
   useEffect(() => {
     if (!user?.id || draftOwner.current !== user.id || !draftReady.current || posted) return;
     const timeout = setTimeout(() => {
-      void localCache.write(user.id, 'drafts', 'post', {
+      void localCache.write(user.id, 'drafts', draftCacheKey, {
         text,
         category,
         visibility,
@@ -133,7 +136,7 @@ export default function CreatePostScreen() {
       });
     }, 500);
     return () => clearTimeout(timeout);
-  }, [user?.id, text, category, visibility, attachedFiles, posted]);
+  }, [user?.id, draftCacheKey, text, category, visibility, attachedFiles, posted]);
 
   const categories = ['General'];
 
@@ -330,7 +333,7 @@ export default function CreatePostScreen() {
       setPosting(false);
       setUploadProgress(0);
       setPosted(true);
-      void localCache.remove(user.id, 'drafts', 'post');
+      void localCache.remove(user.id, 'drafts', draftCacheKey);
       for (const video of videos) void discardEditedVideo(video);
       for (const image of images) void discardEditedImage(image);
       setModerationStatus((result?.moderationStatus as any) || 'approved');
