@@ -18,6 +18,33 @@ if (inlineGoogleServices?.trim().startsWith("{")) {
   googleServicesFile = path.relative(__dirname, path.resolve(__dirname, inlineGoogleServices));
 }
 
+// A production build with missing/stale google-services.json can register
+// Expo push tokens that belong to a different Firebase sender. Reject bad
+// native configuration before creating an APK/AAB for distribution.
+if (process.env.EAS_BUILD_PROFILE === "production") {
+  const configPath = path.resolve(__dirname, googleServicesFile);
+  if (!fs.existsSync(configPath)) {
+    throw new Error(
+      "YRDLY Firebase configuration missing: supply GOOGLE_SERVICES_JSON or GOOGLE_SERVICES_JSON_BASE64 for production builds."
+    );
+  }
+  let firebase;
+  try {
+    firebase = JSON.parse(fs.readFileSync(configPath, "utf8"));
+  } catch {
+    throw new Error("YRDLY Firebase configuration is not valid JSON.");
+  }
+  const projectNumber = firebase?.project_info?.project_number;
+  const matchingClient = firebase?.client?.some(
+    (client) => client?.client_info?.android_client_info?.package_name === "com.yrdly"
+  );
+  if (!projectNumber || !matchingClient) {
+    throw new Error(
+      "YRDLY Firebase configuration must contain a Firebase project number and the Android client com.yrdly."
+    );
+  }
+}
+
 const nativeBuildNumber = process.env.YRDLY_BUILD_NUMBER || '1';
 if (!/^[1-9][0-9]*$/.test(nativeBuildNumber) || !Number.isSafeInteger(Number(nativeBuildNumber)) || Number(nativeBuildNumber) > 2100000000) throw new Error('Invalid native build number');
 
