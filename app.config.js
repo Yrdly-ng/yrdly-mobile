@@ -18,6 +18,35 @@ if (inlineGoogleServices?.trim().startsWith("{")) {
   googleServicesFile = path.relative(__dirname, path.resolve(__dirname, inlineGoogleServices));
 }
 
+// Android EAS workers must reject a missing, stale or foreign Firebase
+// config BEFORE creating an APK/AAB. Checking just "a project number exists"
+// is not enough to prevent FCM SENDER_ID_MISMATCH.
+//
+// EAS_BUILD_PLATFORM is populated on EAS workers, not during local CLI
+// evaluation. Keep iOS release builds independent of Android Firebase files.
+// The apk profile is Android-only and extends production; validate it too.
+const requiresAndroidFirebase =
+  process.env.EAS_BUILD_PLATFORM === "android" ||
+  process.env.EAS_BUILD_PROFILE === "apk";
+if (requiresAndroidFirebase) {
+  const configPath = path.resolve(__dirname, googleServicesFile);
+  if (!fs.existsSync(configPath)) {
+    throw new Error(
+      "YRDLY Android Firebase configuration missing: provide GOOGLE_SERVICES_JSON or GOOGLE_SERVICES_JSON_BASE64 in the EAS build environment."
+    );
+  }
+  let firebase;
+  try {
+    firebase = JSON.parse(fs.readFileSync(configPath, "utf8"));
+  } catch {
+    throw new Error("YRDLY Android Firebase configuration is not valid JSON.");
+  }
+  // This canonical validator checks project_id, sender/project_number,
+  // com.yrdly package, and the Android mobilesdk_app_id sender prefix.
+  const { validateAndroidFirebase } = require("./scripts/validate-android-firebase.cjs");
+  validateAndroidFirebase(firebase);
+}
+
 const nativeBuildNumber = process.env.YRDLY_BUILD_NUMBER || '1';
 if (!/^[1-9][0-9]*$/.test(nativeBuildNumber) || !Number.isSafeInteger(Number(nativeBuildNumber)) || Number(nativeBuildNumber) > 2100000000) throw new Error('Invalid native build number');
 
