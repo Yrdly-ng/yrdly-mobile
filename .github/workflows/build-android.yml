@@ -1,6 +1,12 @@
 name: Build Android APK
 
 on:
+  # One-time QA build when this workflow is updated on main. Ordinary
+  # application commits will NOT trigger this potentially expensive APK job.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build-android.yml'
   workflow_dispatch:
     inputs:
       note:
