@@ -16,15 +16,19 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
+import Constants from 'expo-constants';
+import { supabase } from '../../lib/supabase/supabase';
+import { getOrCreateDeviceId } from '../../lib/offline/device-id';
 
 export default function NotificationSettingsScreen() {
   const { theme } = useUnistyles();
   const s = sStylesheet;
 
   const router = useRouter();
-  const { profile, updateProfile } = useAuth();
+  const { user, profile, updateProfile } = useAuth();
   const [updating, setUpdating] = useState(false);
   const [devicePermission, setDevicePermission] = useState<string>('unknown');
+  const [sendingNativeTest, setSendingNativeTest] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -73,6 +77,66 @@ export default function NotificationSettingsScreen() {
       Alert.alert('Error', e.message || 'Failed to update notification settings.');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  // Server validates this session, checks the device belongs to this account,
+  // rate-limits the test, and queues a push for THIS installation only.
+  const handleNativePushTest = async () => {
+    if (sendingNativeTest) return;
+    setSendingNativeTest(true);
+    try {
+      const permission = await Notifications.getPermissionsAsync();
+      if (permission.status !== 'granted') {
+        const updated = permission.canAskAgain
+          ? await Notifications.requestPermissionsAsync() : permission;
+        setDevicePermission(updated.status);
+        if (updated.status !== 'granted') {
+          Alert.alert(
+            'Notifications are not enabled',
+            'Enable YRDLY notifications in your device settings, then reopen the app and try again.'
+          );
+          return;
+        }
+      }
+      if (!user) {
+        Alert.alert('Sign in required', 'Sign in to your YRDLY account to test notifications.');
+        return;
+      }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token || session.user.id !== user.id) {
+        Alert.alert('Session expired', 'Sign in again before testing notifications.');
+        return;
+      }
+      const deviceId = await getOrCreateDeviceId();
+      const apiBase = String(
+        Constants.expoConfig?.extra?.apiBaseUrl || 'https://app.yrdly.ng'
+      ).replace(/\\/+$/, '');
+      const response = await fetch(`${apiBase}/api/notifications/native-test`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ deviceId }),
+      });
+      const result: { success?: boolean; queued?: number; error?: string } =
+        await response.json();
+      if (!response.ok || !result.success || result.queued !== 1) {
+        Alert.alert(
+          'Native notification test unavailable',
+          result.error || 'Could not queue a notification for this installation. Please try again.'
+        );
+        return;
+      }
+      Alert.alert(
+        'Test notification queued',
+        'The notification has been queued for your device. Check its system notification banner. Queueing does not guarantee delivery.'
+      );
+    } catch {
+      Alert.alert('Could not run push test', 'Check your connection and try again.');
+    } finally {
+      setSendingNativeTest(false);
     }
   };
 
@@ -284,6 +348,25 @@ export default function NotificationSettingsScreen() {
               </View>
             </React.Fragment>
           ))}
+        </View>
+
+        <View style={[s.card, { padding: 16, marginTop: 18 }]}>
+          <Text style={s.rowLabel}>Test native push notifications</Text>
+          <Text style={[s.rowSub, { marginTop: 5, marginBottom: 12 }]}>
+            Send a test to this installed YRDLY app only. A queued message still needs to appear on your device.
+          </Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Send native test notification"
+            disabled={sendingNativeTest}
+            onPress={handleNativePushTest}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+          >
+            {sendingNativeTest && <ActivityIndicator size="small" color={theme.colors.G} />}
+            <Text style={{ color: theme.colors.G, fontFamily: 'Outfit-Bold' }}>
+              {sendingNativeTest ? 'Requesting test...' : 'Send Test Notification'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {devicePermission !== 'granted' && devicePermission !== 'unknown' && (
