@@ -18,31 +18,33 @@ if (inlineGoogleServices?.trim().startsWith("{")) {
   googleServicesFile = path.relative(__dirname, path.resolve(__dirname, inlineGoogleServices));
 }
 
-// A production build with missing/stale google-services.json can register
-// Expo push tokens that belong to a different Firebase sender. Reject bad
-// native configuration before creating an APK/AAB for distribution.
-if (process.env.EAS_BUILD_PROFILE === "production") {
+// Android EAS workers must reject a missing, stale or foreign Firebase
+// config BEFORE creating an APK/AAB. Checking just "a project number exists"
+// is not enough to prevent FCM SENDER_ID_MISMATCH.
+//
+// EAS_BUILD_PLATFORM is populated on EAS workers, not during local CLI
+// evaluation. Keep iOS release builds independent of Android Firebase files.
+// The apk profile is Android-only and extends production; validate it too.
+const requiresAndroidFirebase =
+  process.env.EAS_BUILD_PLATFORM === "android" ||
+  process.env.EAS_BUILD_PROFILE === "apk";
+if (requiresAndroidFirebase) {
   const configPath = path.resolve(__dirname, googleServicesFile);
   if (!fs.existsSync(configPath)) {
     throw new Error(
-      "YRDLY Firebase configuration missing: supply GOOGLE_SERVICES_JSON or GOOGLE_SERVICES_JSON_BASE64 for production builds."
+      "YRDLY Android Firebase configuration missing: provide GOOGLE_SERVICES_JSON or GOOGLE_SERVICES_JSON_BASE64 in the EAS build environment."
     );
   }
   let firebase;
   try {
     firebase = JSON.parse(fs.readFileSync(configPath, "utf8"));
   } catch {
-    throw new Error("YRDLY Firebase configuration is not valid JSON.");
+    throw new Error("YRDLY Android Firebase configuration is not valid JSON.");
   }
-  const projectNumber = firebase?.project_info?.project_number;
-  const matchingClient = firebase?.client?.some(
-    (client) => client?.client_info?.android_client_info?.package_name === "com.yrdly"
-  );
-  if (!projectNumber || !matchingClient) {
-    throw new Error(
-      "YRDLY Firebase configuration must contain a Firebase project number and the Android client com.yrdly."
-    );
-  }
+  // This canonical validator checks project_id, sender/project_number,
+  // com.yrdly package, and the Android mobilesdk_app_id sender prefix.
+  const { validateAndroidFirebase } = require("./scripts/validate-android-firebase.cjs");
+  validateAndroidFirebase(firebase);
 }
 
 const nativeBuildNumber = process.env.YRDLY_BUILD_NUMBER || '1';
