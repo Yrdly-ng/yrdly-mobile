@@ -111,7 +111,7 @@ export default function NotificationSettingsScreen() {
       const deviceId = await getOrCreateDeviceId();
       const apiBase = String(
         Constants.expoConfig?.extra?.apiBaseUrl || 'https://app.yrdly.ng'
-      ).replace(/\\/+$/, '');
+      ).replace(new RegExp('/+$'), '');
       const response = await fetch(`${apiBase}/api/notifications/native-test`, {
         method: 'POST',
         headers: {
