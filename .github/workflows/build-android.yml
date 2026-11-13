@@ -14,9 +14,18 @@ on:
         required: false
         default: 'Manual build'
 
+permissions:
+  contents: read
+
+# Avoid duplicate QA builds for the same branch when workflow is edited.
+concurrency:
+  group: android-test-apk-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-android:
     name: Build Android APK
+    timeout-minutes: 110
     runs-on: ubuntu-latest
     env:
       EXPO_PUBLIC_APP_ENV: production
