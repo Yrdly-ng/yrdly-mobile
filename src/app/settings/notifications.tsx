@@ -18,7 +18,7 @@ import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 import Constants from 'expo-constants';
 import { supabase } from '../../lib/supabase/supabase';
-import { getOrCreateDeviceId } from '../../lib/offline/device-id';
+import { ensureNativePushRegistration } from '../../hooks/notifications/use-push-notifications';
 
 export default function NotificationSettingsScreen() {
   const { theme } = useUnistyles();
@@ -108,7 +108,18 @@ export default function NotificationSettingsScreen() {
         Alert.alert('Session expired', 'Sign in again before testing notifications.');
         return;
       }
-      const deviceId = await getOrCreateDeviceId();
+      // Re-register on demand, rather than assuming the root hook already
+      // succeeded. This also reveals whether the failure is Firebase, Expo,
+      // permissions, or saving the row to Supabase.
+      const registration = await ensureNativePushRegistration(user.id);
+      if (!registration.ok) {
+        Alert.alert(
+          'Native notification setup failed',
+          registration.message + '\\n\\nStep: ' + registration.stage
+        );
+        return;
+      }
+      const deviceId = registration.deviceId;
       const apiBase = String(
         Constants.expoConfig?.extra?.apiBaseUrl || 'https://app.yrdly.ng'
       ).replace(new RegExp('/+$'), '');
