@@ -16,7 +16,9 @@ test('native settings screen is a valid TSX component', () => {
 });
 
 test('mobile self-test targets only its own stable installation ID and authenticated session', () => {
-  assert.match(screen, /getOrCreateDeviceId\(\)/);
+  assert.match(screen, /ensureNativePushRegistration/);
+  assert.match(screen, /registration.deviceId/);
+  assert.match(screen, /registration.stage/);
   assert.match(screen, /session\.user\.id !== user\.id/);
   assert.match(screen, /Bearer \$\{session\.access_token\}/);
   assert.match(screen, /\/api\/notifications\/native-test/);
