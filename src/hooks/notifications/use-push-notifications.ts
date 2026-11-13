@@ -89,7 +89,9 @@ async function registerForPushNotificationsAsync(
       projectId,
       devicePushToken: deviceToken,
     });
-    if (!/^(?:ExponentPushToken|ExpoPushToken)\\[[^\\]]+\\]$/.test(tokenData.data)) {
+    if (typeof tokenData.data !== 'string' ||
+        !(tokenData.data.startsWith('ExponentPushToken[') || tokenData.data.startsWith('ExpoPushToken[')) ||
+        !tokenData.data.endsWith(']')) {
       if (diagnostics) diagnostics.detail = 'Expo returned an invalid native push token.';
       return null;
     }
@@ -99,8 +101,10 @@ async function registerForPushNotificationsAsync(
     if (diagnostics) {
       // Do not display a token, URL or server credential from SDK errors.
       const message = error instanceof Error ? error.message : 'Unknown SDK error';
-      diagnostics.detail = message.replace(/(?:ExpoPushToken|ExponentPushToken)\\[[^\\]]+\\]/g, '[redacted]')
-        .replace(/https?:\\/\\/\\S+/g, '[URL]').slice(0, 180);
+      // SDK details may include token/URL strings: redact them before display.
+      diagnostics.detail = message.split('ExpoPushToken[')[0]
+        .split('ExponentPushToken[')[0].split('http://')[0].split('https://')[0]
+        .slice(0, 180) || 'Native push registration failed. Check app credentials and connection.';
     }
     return null;
   }
