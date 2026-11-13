@@ -30,14 +30,24 @@ function isCrispNotificationData(data: unknown): boolean {
   }
 }
 
+type PushRegistrationDiagnostics = { stage?: string; detail?: string };
+
 async function registerForPushNotificationsAsync(
   requestPermission: boolean,
-  suppliedDeviceToken?: Notifications.DevicePushToken
+  suppliedDeviceToken?: Notifications.DevicePushToken,
+  diagnostics?: PushRegistrationDiagnostics
 ): Promise<{ token: string; deviceToken: Notifications.DevicePushToken } | null> {
-  if (isExpoGo || Platform.OS === 'web' || !Device.isDevice) return null;
+  if (isExpoGo || Platform.OS === 'web' || !Device.isDevice) {
+    if (diagnostics) {
+      diagnostics.stage = 'unsupported';
+      diagnostics.detail = 'Native push requires an installed Android or iOS build on a physical device.';
+    }
+    return null;
+  }
 
   try {
     if (Platform.OS === 'android') {
+      if (diagnostics) diagnostics.stage = 'android_channel';
       await Notifications.setNotificationChannelAsync('default', {
         name: 'default',
         importance: Notifications.AndroidImportance.MAX,
@@ -46,14 +56,19 @@ async function registerForPushNotificationsAsync(
       });
     }
 
+    if (diagnostics) diagnostics.stage = 'permission';
     const { status: existingStatus, canAskAgain } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
     if (existingStatus === 'undetermined' && canAskAgain && requestPermission) {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
     }
-    if (finalStatus !== 'granted') return null;
+    if (finalStatus !== 'granted') {
+      if (diagnostics) diagnostics.detail = 'YRDLY does not have notification permission on this device.';
+      return null;
+    }
 
+    if (diagnostics) diagnostics.stage = 'native_token';
     const deviceToken = suppliedDeviceToken ?? (await Notifications.getDevicePushTokenAsync());
     try {
       registerPushToken(deviceToken.data);
@@ -61,20 +76,103 @@ async function registerForPushNotificationsAsync(
       console.warn('Failed to register device push token with Crisp:', error);
     }
 
+    if (diagnostics) diagnostics.stage = 'expo_project';
     const projectId =
       Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
     if (!projectId) {
+      if (diagnostics) diagnostics.detail = 'The installed build is missing its Expo project identifier.';
       console.error('Missing EAS projectId in app.config.js extra.eas.projectId');
       return null;
     }
+    if (diagnostics) diagnostics.stage = 'expo_exchange';
     const tokenData = await Notifications.getExpoPushTokenAsync({
       projectId,
       devicePushToken: deviceToken,
     });
+    if (!/^(?:ExponentPushToken|ExpoPushToken)\\[[^\\]]+\\]$/.test(tokenData.data)) {
+      if (diagnostics) diagnostics.detail = 'Expo returned an invalid native push token.';
+      return null;
+    }
     return { token: tokenData.data, deviceToken };
   } catch (error) {
     console.error('Push notification setup failed:', error);
+    if (diagnostics) {
+      // Do not display a token, URL or server credential from SDK errors.
+      const message = error instanceof Error ? error.message : 'Unknown SDK error';
+      diagnostics.detail = message.replace(/(?:ExpoPushToken|ExponentPushToken)\\[[^\\]]+\\]/g, '[redacted]')
+        .replace(/https?:\\/\\/\\S+/g, '[URL]').slice(0, 180);
+    }
     return null;
+  }
+}
+
+/** Register the current, authenticated installation before requesting a push test. */
+export async function ensureNativePushRegistration(userId: string):
+  Promise<{ ok: true; deviceId: string } | { ok: false; stage: string; message: string }> {
+  const diagnostic: PushRegistrationDiagnostics = {};
+  const result = await registerForPushNotificationsAsync(true, undefined, diagnostic);
+  if (!result) {
+    return {
+      ok: false,
+      stage: diagnostic.stage ?? 'unknown',
+      message: diagnostic.detail || (
+        diagnostic.stage === 'native_token'
+          ? 'Android Firebase/APNs could not create a device token. Verify the installed build credentials.'
+          : diagnostic.stage === 'expo_exchange'
+          ? 'Expo could not exchange the device token. Check your connection and Expo project credentials.'
+          : 'Native push registration did not complete.'
+      ),
+    };
+  }
+
+  // A signed-in user may switch accounts during an asynchronous token exchange.
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !session?.access_token || session.user.id !== userId) {
+    return { ok: false, stage: 'session', message: 'Your session changed. Sign in again and retry.' };
+  }
+
+  const host = String(supabase.supabaseUrl ?? '');
+  if (host !== 'https://api.yrdly.ng' &&
+      host !== 'https://yoiyqxtpmxnrrbqqidcs.supabase.co') {
+    return {
+      ok: false,
+      stage: 'environment',
+      message: 'This build is connected to a non-production Supabase backend. Install the production QA build.',
+    };
+  }
+
+  try {
+    const deviceId = await getOrCreateDeviceId();
+    const now = new Date().toISOString();
+    const { data: registered, error } = await supabase.from('user_push_tokens')
+      .upsert({
+        user_id: userId,
+        device_id: deviceId,
+        push_token: result.token,
+        device_name: Device.deviceName ?? null,
+        os_name: Device.osName ?? Platform.OS,
+        os_version: Device.osVersion ?? null,
+        app_version: Constants.expoConfig?.version ?? '1.0.0',
+        last_used_at: now,
+        updated_at: now,
+      }, { onConflict: 'user_id,device_id' })
+      .select('id')
+      .single();
+    if (error || !registered?.id) {
+      console.error('Native push registration persistence failed:', {
+        code: error?.code, message: error?.message,
+      });
+      return {
+        ok: false,
+        stage: 'database',
+        message: 'The native token was created, but YRDLY could not save it to your account' +
+          (error?.code ? ' (database code ' + error.code + ').' : '.'),
+      };
+    }
+    return { ok: true, deviceId };
+  } catch (error) {
+    console.error('Native push registration persistence threw:', error);
+    return { ok: false, stage: 'database', message: 'Could not save or verify this device registration.' };
   }
 }
 
