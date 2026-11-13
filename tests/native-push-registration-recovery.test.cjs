@@ -44,8 +44,8 @@ function nativeRegistrationRuntime({
     },
     '@/hooks/use-supabase-auth': {},
     '@/lib/supabase/supabase': {
+      supabaseUrl: backend,
       supabase: {
-        supabaseUrl: backend,
         auth: { getSession: async () => ({
           data: { session: { access_token: 'test-session', user: { id: sessionUser } } },
           error: null,
