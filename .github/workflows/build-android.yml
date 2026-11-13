@@ -100,6 +100,32 @@ jobs:
           echo "APK_PATH=$APK_PATH" >> $GITHUB_ENV
           echo "Found APK at $APK_PATH"
 
+      - name: Audit signed APK certificate for Firebase Installations
+        shell: bash
+        run: |
+          set -euo pipefail
+          # SHA-1/SHA-256 of the PUBLIC signing certificate are safe to
+          # display. Never print Firebase API keys, private keystores, or
+          # google-services.json contents.
+          BUILD_TOOLS=$(find "${ANDROID_HOME}/build-tools" -maxdepth 1 -mindepth 1 -type d | sort -V | tail -n 1)
+          APKSIGNER="${BUILD_TOOLS}/apksigner"
+          if [[ ! -x "$APKSIGNER" ]]; then
+            echo "::error::Android apksigner is unavailable; signing identity cannot be verified."
+            exit 1
+          fi
+          "$APKSIGNER" verify --verbose --print-certs "$APK_PATH" > "$RUNNER_TEMP/apk-signing-info.txt"
+          grep -E 'Signer #1 certificate (DN|SHA-1 digest|SHA-256 digest):' "$RUNNER_TEMP/apk-signing-info.txt"
+          {
+            echo "### YRDLY QA APK signing certificate"
+            echo "For Firebase Installations, configure **com.yrdly** in Firebase Project Settings using the SHA-1 of the actual installed APK:"
+            echo '~~~'
+            grep -E 'Signer #1 certificate (DN|SHA-1 digest|SHA-256 digest):' "$RUNNER_TEMP/apk-signing-info.txt"
+            echo '~~~'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if grep -q 'Signer #1 certificate DN:.*CN=Android Debug' "$RUNNER_TEMP/apk-signing-info.txt"; then
+            echo "::warning title=Debug-signed QA APK::This is a debug-signed release APK. Add the exact SHA-1 above under Firebase Android app com.yrdly and permit Firebase Installations API for that package + signing SHA-1, or use a correctly signed EAS internal build."
+          fi
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
