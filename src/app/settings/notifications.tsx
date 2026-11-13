@@ -115,7 +115,7 @@ export default function NotificationSettingsScreen() {
       if (!registration.ok) {
         Alert.alert(
           'Native notification setup failed',
-          registration.message + '\\n\\nStep: ' + registration.stage
+          registration.message + ' (step: ' + registration.stage + ')'
         );
         return;
       }
