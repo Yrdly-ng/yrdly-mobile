@@ -104,10 +104,19 @@ jobs:
         run: |
           set -euo pipefail
           BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
-          "$BUILD_TOOLS/apksigner" verify --print-certs "$APK_PATH" | grep -E 'Signer #1 certificate SHA-(1|256) digest:'
-          echo "Compare this SHA-1 with the allowed fingerprint on the YRDLY Firebase Android Push key."
+          APK_SIGNER="$BUILD_TOOLS/apksigner"
+          if [ ! -x "$APK_SIGNER" ]; then
+            echo "::error::Android apksigner was not found at $APK_SIGNER"
+            exit 1
+          fi
+          echo "Inspecting Android APK signature: $APK_PATH"
+          # Print the actual verifier output, including errors if the APK is unsigned.
+          # Never pipe to grep: it hides apksigner errors and may fail on output variations.
+          "$APK_SIGNER" verify --verbose --print-certs "$APK_PATH"
+          echo "Compare the certificate SHA-1 with YRDLY Firebase Android Push API-key restrictions."
 
       - name: Upload APK artifact
+        if: ${{ always() && env.APK_PATH != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: yrdly-android-apk-${{ github.run_number }}
