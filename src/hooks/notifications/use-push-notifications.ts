@@ -4,7 +4,7 @@ import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { AppState, Alert, Platform } from 'react-native';
 import { useAuth } from '@/hooks/use-supabase-auth';
-import { supabase } from '@/lib/supabase/supabase';
+import { supabase, supabaseUrl } from '@/lib/supabase/supabase';
 import { lookupPayoutReceipt } from '@/lib/notifications/payout-access';
 import { getOrCreateDeviceId } from '@/lib/offline/device-id';
 import { router, usePathname } from 'expo-router';
@@ -135,7 +135,7 @@ export async function ensureNativePushRegistration(userId: string):
     return { ok: false, stage: 'session', message: 'Your session changed. Sign in again and retry.' };
   }
 
-  const host = String(supabase.supabaseUrl ?? '');
+  const host = String(supabaseUrl ?? '');
   if (host !== 'https://api.yrdly.ng' &&
       host !== 'https://yoiyqxtpmxnrrbqqidcs.supabase.co') {
     return {
