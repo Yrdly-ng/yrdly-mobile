@@ -100,6 +100,13 @@ jobs:
           echo "APK_PATH=$APK_PATH" >> $GITHUB_ENV
           echo "Found APK at $APK_PATH"
 
+      - name: Show APK signing certificate
+        run: |
+          set -euo pipefail
+          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          "$BUILD_TOOLS/apksigner" verify --print-certs "$APK_PATH" | grep -E 'Signer #1 certificate SHA-(1|256) digest:'
+          echo "Compare this SHA-1 with the allowed fingerprint on the YRDLY Firebase Android Push key."
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
