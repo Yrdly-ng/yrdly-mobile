@@ -6,7 +6,13 @@ const { validateAndroidFirebase } = require('../scripts/validate-android-firebas
 
 const fixture = () => ({
   project_info: { project_id: 'yrdly-470221', project_number: '399225255875' },
-  client: [{ client_info: { mobilesdk_app_id: '1:399225255875:android:fixture', android_client_info: { package_name: 'com.yrdly' } } }],
+  client: [{
+    client_info: {
+      mobilesdk_app_id: '1:399225255875:android:fixture',
+      android_client_info: { package_name: 'com.yrdly' },
+    },
+    api_key: [{ current_key: 'AIza' + 'A'.repeat(35) }],
+  }],
 });
 
 test('Android builds accept only the Firebase sender assigned to Expo FCM', () => {
@@ -17,6 +23,29 @@ test('Android builds accept only the Firebase sender assigned to Expo FCM', () =
   }
   const invalid = fixture(); invalid.client[0].client_info.android_client_info.package_name = 'another.app';
   assert.throws(() => validateAndroidFirebase(invalid), /Firebase application/);
+});
+
+test('a matching project without a usable Firebase Installations client key is rejected', () => {
+  const missing = fixture();
+  delete missing.client[0].api_key;
+  assert.throws(() => validateAndroidFirebase(missing), /Firebase client API key missing or malformed/);
+  const empty = fixture();
+  empty.client[0].api_key = [];
+  assert.throws(() => validateAndroidFirebase(empty), /Firebase client API key missing or malformed/);
+  const bad = fixture();
+  bad.client[0].api_key = [{ current_key: 'invalid-key' }];
+  assert.throws(() => validateAndroidFirebase(bad), /Firebase client API key missing or malformed/);
+  // The key must be for the same Firebase Android client, not another package.
+  const wrongClient = fixture();
+  wrongClient.client.push({
+    client_info: {
+      android_client_info: { package_name: 'com.other' },
+      mobilesdk_app_id: '1:399225255875:android:foreign',
+    },
+    api_key: [{ current_key: 'AIza' + 'B'.repeat(35) }],
+  });
+  wrongClient.client[0].api_key = [];
+  assert.throws(() => validateAndroidFirebase(wrongClient), /Firebase client API key missing or malformed/);
 });
 
 test('the GitHub build rejects a foreign Firebase secret before writing it into the APK', () => {
