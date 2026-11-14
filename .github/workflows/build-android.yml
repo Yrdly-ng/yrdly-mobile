@@ -93,6 +93,48 @@ jobs:
           chmod +x gradlew
           ./gradlew clean assembleRelease --info --stacktrace
 
+      - name: Verify compiled Firebase client identity
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const crypto = require('node:crypto');
+          const config = JSON.parse(fs.readFileSync('google-services.json', 'utf8'));
+          const client = config.client.find(
+            c => c.client_info?.android_client_info?.package_name === 'com.yrdly'
+          );
+          const key = client?.api_key?.[0]?.current_key;
+          if (!key) throw new Error('Firebase client API key missing for com.yrdly');
+          // SHA-256 of the new Android QA Firebase API key configured 13 Nov 2026.
+          // Do not print the API key itself into Actions logs.
+          const expectedKeyHash = 'f46314d52071bbf12734aa86e54d31b74468851e7a618359af1da63dd4df2d90';
+          const actualKeyHash = crypto.createHash('sha256').update(key).digest('hex');
+          if (actualKeyHash !== expectedKeyHash) {
+            throw new Error('GOOGLE_SERVICES_JSON secret has a different Firebase API key than the new Android QA key. Update the secret; do not install this APK.');
+          }
+          const root = 'android/app/build/generated/res/google-services';
+          const xmlFiles = [];
+          const walk = dir => {
+            if (!fs.existsSync(dir)) return;
+            for (const entry of fs.readdirSync(dir, {withFileTypes:true})) {
+              const p = path.join(dir, entry.name);
+              if (entry.isDirectory()) walk(p);
+              else if (entry.isFile() && p.endsWith('.xml')) xmlFiles.push(p);
+            }
+          };
+          walk(root);
+          if (!xmlFiles.length) throw new Error('Compiled Google Services XML resources missing');
+          const embeddedKeys = xmlFiles.map(p => {
+            const xml = fs.readFileSync(p, 'utf8');
+            const match = xml.match(/<string\b(?=[^>]*\bname=["']google_api_key["'])[^>]*>([^<]*)<\/string>/);
+            return match ? {path:p, key:match[1]} : null;
+          }).filter(Boolean);
+          if (!embeddedKeys.length) throw new Error('Compiled Firebase google_api_key resource missing');
+          if (embeddedKeys.some(k => k.key !== key)) throw new Error('Compiled Firebase google_api_key differs from GOOGLE_SERVICES_JSON secret');
+          console.log('Verified: new Firebase API key matches the GitHub secret and compiled Android resources (SHA-256 ' + actualKeyHash.slice(0,12) + '...).');
+          console.log('Firebase project: ' + config.project_info.project_id + '; Android package: ' + client.client_info.android_client_info.package_name);
+          NODE
+
       - name: Locate APK
         id: locate_apk
         run: |
