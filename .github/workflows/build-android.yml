@@ -87,53 +87,40 @@ jobs:
       - name: Run Expo prebuild
         run: npx expo prebuild --platform android --clean
 
+      - name: Verify generated Android Firebase setup
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const root = JSON.parse(fs.readFileSync('google-services.json', 'utf8'));
+          const generatedPath = 'android/app/google-services.json';
+          if (!fs.existsSync(generatedPath)) {
+            throw new Error('Expo prebuild did not copy google-services.json to android/app. Firebase cannot initialize from this APK.');
+          }
+          const generated = JSON.parse(fs.readFileSync(generatedPath, 'utf8'));
+          const select = config => config.client.find(x => x.client_info?.android_client_info?.package_name === 'com.yrdly');
+          const source = select(root), copy = select(generated);
+          if (!source || !copy) throw new Error('Firebase config missing com.yrdly Android client');
+          if (source.api_key?.[0]?.current_key !== copy.api_key?.[0]?.current_key ||
+              source.client_info?.mobilesdk_app_id !== copy.client_info?.mobilesdk_app_id) {
+            throw new Error('Expo prebuild copied a different Firebase client configuration');
+          }
+          const expectedKeyHash = 'f46314d52071bbf12734aa86e54d31b74468851e7a618359af1da63dd4df2d90';
+          const actualKeyHash = crypto.createHash('sha256').update(copy.api_key[0].current_key).digest('hex');
+          if (actualKeyHash !== expectedKeyHash) throw new Error('Firebase API key is not the expected restricted Android QA key');
+          const appGradle = fs.readFileSync('android/app/build.gradle', 'utf8');
+          if (!appGradle.includes('com.google.gms.google-services')) {
+            throw new Error('Expo generated android/app/build.gradle WITHOUT the Google Services plugin; google-services.json will not be compiled into Firebase resources');
+          }
+          console.log('PASS: prebuild copied the expected Firebase Android config and applied the Google Services Gradle plugin.');
+          console.log('Firebase project: ' + root.project_info.project_id + '; package: ' + copy.client_info.android_client_info.package_name);
+          NODE
+
       - name: Build Android APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew clean assembleRelease --info --stacktrace
-
-      - name: Verify compiled Firebase client identity
-        run: |
-          node <<'NODE'
-          const fs = require('node:fs');
-          const path = require('node:path');
-          const crypto = require('node:crypto');
-          const config = JSON.parse(fs.readFileSync('google-services.json', 'utf8'));
-          const client = config.client.find(
-            c => c.client_info?.android_client_info?.package_name === 'com.yrdly'
-          );
-          const key = client?.api_key?.[0]?.current_key;
-          if (!key) throw new Error('Firebase client API key missing for com.yrdly');
-          // SHA-256 of the new Android QA Firebase API key configured 13 Nov 2026.
-          // Do not print the API key itself into Actions logs.
-          const expectedKeyHash = 'f46314d52071bbf12734aa86e54d31b74468851e7a618359af1da63dd4df2d90';
-          const actualKeyHash = crypto.createHash('sha256').update(key).digest('hex');
-          if (actualKeyHash !== expectedKeyHash) {
-            throw new Error('GOOGLE_SERVICES_JSON secret has a different Firebase API key than the new Android QA key. Update the secret; do not install this APK.');
-          }
-          const root = 'android/app/build/generated/res/google-services';
-          const xmlFiles = [];
-          const walk = dir => {
-            if (!fs.existsSync(dir)) return;
-            for (const entry of fs.readdirSync(dir, {withFileTypes:true})) {
-              const p = path.join(dir, entry.name);
-              if (entry.isDirectory()) walk(p);
-              else if (entry.isFile() && p.endsWith('.xml')) xmlFiles.push(p);
-            }
-          };
-          walk(root);
-          if (!xmlFiles.length) throw new Error('Compiled Google Services XML resources missing');
-          const embeddedKeys = xmlFiles.map(p => {
-            const xml = fs.readFileSync(p, 'utf8');
-            const match = xml.match(/<string\b(?=[^>]*\bname=["']google_api_key["'])[^>]*>([^<]*)<\/string>/);
-            return match ? {path:p, key:match[1]} : null;
-          }).filter(Boolean);
-          if (!embeddedKeys.length) throw new Error('Compiled Firebase google_api_key resource missing');
-          if (embeddedKeys.some(k => k.key !== key)) throw new Error('Compiled Firebase google_api_key differs from GOOGLE_SERVICES_JSON secret');
-          console.log('Verified: new Firebase API key matches the GitHub secret and compiled Android resources (SHA-256 ' + actualKeyHash.slice(0,12) + '...).');
-          console.log('Firebase project: ' + config.project_info.project_id + '; Android package: ' + client.client_info.android_client_info.package_name);
-          NODE
 
       - name: Locate APK
         id: locate_apk
@@ -141,6 +128,55 @@ jobs:
           APK_PATH=$(find android/app/build/outputs/apk -name "*.apk" | head -n 1)
           echo "APK_PATH=$APK_PATH" >> $GITHUB_ENV
           echo "Found APK at $APK_PATH"
+
+      - name: Verify Firebase resources inside built APK
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const cp = require('node:child_process');
+          const crypto = require('node:crypto');
+          const config = JSON.parse(fs.readFileSync('google-services.json','utf8'));
+          const client = config.client.find(c => c.client_info?.android_client_info?.package_name === 'com.yrdly');
+          const expected = {
+            google_api_key: client?.api_key?.[0]?.current_key,
+            google_app_id: client?.client_info?.mobilesdk_app_id,
+            gcm_defaultSenderId: String(config.project_info.project_number)
+          };
+          const buildTools = fs.readdirSync(path.join(process.env.ANDROID_HOME,'build-tools'))
+            .sort((a,b) => a.localeCompare(b, undefined, {numeric:true})).at(-1);
+          const aapt2 = path.join(process.env.ANDROID_HOME,'build-tools',buildTools,'aapt2');
+          if (!fs.existsSync(aapt2)) throw new Error('Android aapt2 not found');
+          const apkPath = process.env.APK_PATH;
+          if (!apkPath || !fs.existsSync(apkPath)) throw new Error('APK not found for Firebase resource inspection');
+          const output = cp.execFileSync(aapt2, ['dump','resources','--values',apkPath],
+            {encoding:'utf8',maxBuffer:64*1024*1024});
+          const lines = output.split(/\r?\n/);
+          const readValue = name => {
+            for (let i=0; i<lines.length; i++) {
+              if (!lines[i].includes('string/'+name)) continue;
+              for (let j=i; j<Math.min(lines.length,i+8); j++) {
+                if (j>i && /\bresource\s+0x/i.test(lines[j])) break;
+                const found=lines[j].match(/"([^"]+)"/);
+                if (found) return found[1];
+              }
+              return null;
+            }
+            return null;
+          };
+          for (const [name,value] of Object.entries(expected)) {
+            const found = readValue(name);
+            if (found === null) {
+              throw new Error('Built APK is missing or cannot decode Firebase string resource '+name+
+                '. Inspect Google Services Gradle plugin outputs before testing push.');
+            }
+            if (found !== value) {
+              throw new Error('Built APK Firebase resource '+name+' does NOT match GOOGLE_SERVICES_JSON.');
+            }
+            console.log('PASS: compiled '+name+' matches the expected Firebase configuration.');
+          }
+          console.log('PASS: signed APK contains the expected Firebase API key, app ID and sender ID (key SHA-256 '+crypto.createHash('sha256').update(expected.google_api_key).digest('hex').slice(0,12)+'...).');
+          NODE
 
       - name: Show APK signing certificate
         run: |
