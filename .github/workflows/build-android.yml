@@ -149,7 +149,7 @@ jobs:
           if (!fs.existsSync(aapt2)) throw new Error('Android aapt2 not found');
           const apkPath = process.env.APK_PATH;
           if (!apkPath || !fs.existsSync(apkPath)) throw new Error('APK not found for Firebase resource inspection');
-          const output = cp.execFileSync(aapt2, ['dump','resources','--values',apkPath],
+          const output = cp.execFileSync(aapt2, ['dump','resources',apkPath],
             {encoding:'utf8',maxBuffer:64*1024*1024});
           const lines = output.split(/\r?\n/);
           const readValue = name => {
@@ -179,6 +179,7 @@ jobs:
           NODE
 
       - name: Show APK signing certificate
+        if: ${{ always() && env.APK_PATH != '' }}
         run: |
           set -euo pipefail
           BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
