@@ -19,7 +19,8 @@ import { useAuth } from '../../hooks/use-supabase-auth';
 import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/use-notification-route-ack';
 import { formatPrice } from '../../lib/shared/utils';
 type EscrowStatus =
-  'pending' | 'paid' | 'shipped' | 'delivered' | 'completed' | 'disputed' | 'cancelled' | 'failed';
+  'pending' | 'creating_escrow' | 'processing' | 'reconciling' | 'reconciliation_required' |
+  'paid' | 'funds_held' | 'shipped' | 'delivered' | 'completed' | 'disputed' | 'cancelled' | 'failed' | 'refunded';
 type Tab = 'purchases' | 'sales';
 type Filter = 'all' | 'active' | 'completed' | 'disputed' | 'cancelled';
 
@@ -38,13 +39,19 @@ interface Transaction {
 
 const STATUS_ICONS: Record<EscrowStatus, string> = {
   pending: '🔒',
+  creating_escrow: '⏳',
+  processing: '⏳',
+  reconciling: '⏳',
+  reconciliation_required: '⚠️',
   paid: '🔒',
+  funds_held: '🔒',
   shipped: '📦',
   delivered: '✅',
   completed: '✅',
   disputed: '⚠️',
   cancelled: '✖️',
   failed: '✖️',
+  refunded: '↩️',
 };
 
 export default function TransactionsScreen() {
@@ -52,14 +59,20 @@ export default function TransactionsScreen() {
   const s = sStylesheet;
 
   const STATUS_MAP: Record<EscrowStatus, { label: string; color: string }> = {
-    pending: { label: 'In Escrow', color: '#FFB648' },
+    pending: { label: 'Awaiting Payment', color: '#FFB648' },
+    creating_escrow: { label: 'Preparing Payment', color: '#FFB648' },
+    processing: { label: 'Processing Payment', color: '#FFB648' },
+    reconciling: { label: 'Confirming Payment', color: '#FFB648' },
+    reconciliation_required: { label: 'Payment Under Review', color: '#f59e0b' },
     paid: { label: 'In Escrow', color: '#FFB648' },
+    funds_held: { label: 'In Escrow', color: '#FFB648' },
     shipped: { label: 'Shipped', color: '#64B5F6' },
     delivered: { label: 'Delivered', color: theme.colors.G },
     completed: { label: 'Completed', color: theme.colors.G },
     disputed: { label: 'Disputed', color: '#f59e0b' },
     cancelled: { label: 'Cancelled', color: '#ef4444' },
     failed: { label: 'Failed', color: '#ef4444' },
+    refunded: { label: 'Refunded', color: '#64B5F6' },
   };
 
   const router = useRouter();
@@ -243,16 +256,19 @@ export default function TransactionsScreen() {
   const filteredData = transactions.filter((tx) => {
     if (filter === 'all') return true;
     if (filter === 'active')
-      return tx.status === 'pending' || tx.status === 'paid' || tx.status === 'shipped';
+      return ['pending', 'creating_escrow', 'processing', 'reconciling', 'reconciliation_required', 'paid', 'funds_held', 'shipped'].includes(tx.status);
     if (filter === 'completed') return tx.status === 'completed' || tx.status === 'delivered';
     if (filter === 'disputed') return tx.status === 'disputed';
-    if (filter === 'cancelled') return tx.status === 'cancelled' || tx.status === 'failed';
+    if (filter === 'cancelled') return tx.status === 'cancelled' || tx.status === 'failed' || tx.status === 'refunded';
     return true;
   });
 
   const renderItem = ({ item: tx }: { item: Transaction }) => {
-    const meta = STATUS_MAP[tx.status];
-    const icon = STATUS_ICONS[tx.status];
+    // A backend can introduce statuses before this installed app is updated.
+    // Never interpret an unknown status as paid, pending or completed.
+    const knownStatus = Object.prototype.hasOwnProperty.call(STATUS_MAP, tx.status);
+    const meta = knownStatus ? STATUS_MAP[tx.status] : { label: 'Status Unavailable', color: '#757575' };
+    const icon = knownStatus ? STATUS_ICONS[tx.status] : '❔';
     const counterparty = tab === 'purchases' ? tx.seller : tx.buyer;
     const imagesArr = Array.isArray(tx.item?.images)
       ? tx.item?.images
