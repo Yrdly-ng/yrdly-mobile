@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useEffect, useId, useState } from 'react';
+import { AppState, DeviceEventEmitter, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import ImageViewing from 'react-native-image-viewing';
+import { useIsFocused } from 'expo-router/react-navigation';
+import { mediaUrls } from '../../lib/media/media-urls';
+import { ErrorBoundary } from '../ErrorBoundary';
 
 function CommunityPhoto({
   url,
@@ -37,8 +40,8 @@ function CommunityPhoto({
   );
 }
 
-function CommunityVideo({ url }: { url: string }) {
-  const player = useVideoPlayer(url);
+function ActiveCommunityVideo({ url }: { url: string }) {
+  const player = useVideoPlayer(url, player => { player.play(); });
   return (
     <VideoView
       player={player}
@@ -46,6 +49,34 @@ function CommunityVideo({ url }: { url: string }) {
       style={{ width: '100%', height: 230, borderRadius: 12 }}
       contentFit="contain"
     />
+  );
+}
+
+function CommunityVideo({ url }: { url: string }) {
+  const playbackId = useId();
+  const focused = useIsFocused();
+  const [opened, setOpened] = useState(false);
+  const [active, setActive] = useState(AppState.currentState === 'active');
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', state => {
+      setActive(state === 'active');
+      if (state !== 'active') setOpened(false);
+    });
+    const audio = DeviceEventEmitter.addListener('yrdly_audio_playing', source => {
+      if (source !== playbackId) setOpened(false);
+    });
+    return () => { subscription.remove(); audio.remove(); };
+  }, [playbackId]);
+  useEffect(() => { if (!focused) setOpened(false); }, [focused]);
+  // Allocate a native decoder only after a tap; release it on blur/background.
+  return focused && active && opened ? (
+    <ErrorBoundary inline><ActiveCommunityVideo url={url} /></ErrorBoundary>
+  ) : (
+    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Play video"
+      onPress={() => { DeviceEventEmitter.emit('yrdly_audio_playing', playbackId); setOpened(true); }}
+      style={{ height: 230, borderRadius: 12, backgroundColor: '#202520', alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ color: '#FFFFFF', fontSize: 18 }}>▶ Play video</Text>
+    </TouchableOpacity>
   );
 }
 export function CommunityRevisionNotice({
@@ -73,7 +104,7 @@ export function CommunityMedia({
 }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [mediaWidth, setMediaWidth] = useState(0);
-  const photos = images.filter(Boolean);
+  const photos = mediaUrls(images);
   return (
     <View style={{ gap: 10 }} onLayout={(event) => setMediaWidth(event.nativeEvent.layout.width)}>
       {photos.length === 1 ? (
@@ -99,7 +130,7 @@ export function CommunityMedia({
           ))}
         </ScrollView>
       ) : null}
-      {videos.filter(Boolean).map((url) => (
+      {mediaUrls(videos).map((url) => (
         <CommunityVideo key={url} url={url} />
       ))}
       {selected !== null && (

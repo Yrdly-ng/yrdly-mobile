@@ -1,3 +1,4 @@
+import { mediaUrls } from '../../../lib/media/media-urls';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -367,16 +368,9 @@ export default function CatalogItemScreen() {
 
   const isOwner = user?.id === business?.owner_id;
 
-  let rawImages: string[] = [];
-  if (Array.isArray(item.images)) {
-    rawImages = item.images;
-  } else if (typeof item.images === 'string') {
-    try {
-      rawImages = JSON.parse(item.images);
-    } catch (e) {}
-  }
+  let rawImages = mediaUrls(item.images);
   if (rawImages.length === 0 && (item as any).image_url) {
-    rawImages = [(item as any).image_url];
+    rawImages = mediaUrls((item as any).image_url);
   }
 
   const images = rawImages;

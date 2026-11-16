@@ -15,7 +15,7 @@ import {
   telemetryEnvironment,
   type AppEvent,
 } from './privacy';
-import { screenName } from './routes';
+import { configureDiagnostics, resetDiagnostics, recordDiagnostic, setDiagnosticScreen, setDiagnosticState, diagnosticContext, reliabilityProperties, sanitizeDiagnosticBreadcrumb } from './reliability';
 
 let initialized = false;
 let sentryEnabled = false;
@@ -24,6 +24,8 @@ let currentUser: string | null = null;
 let currentEmail: string | null = null;
 let currentHomeState: string | null = null;
 let lastScreen: string | null = null;
+let diagnosticsStarted = false;
+let lastMemoryWarning = 0;
 
 // Analytics/reporting must never make a successful app action fail.
 function safely(action: () => unknown): void {
@@ -56,9 +58,19 @@ export function initializeTelemetry(): void {
         attachViewHierarchy: false,
         replaysSessionSampleRate: posthogReplayEnabled ? 0 : 0.1,
         replaysOnErrorSampleRate: posthogReplayEnabled ? 0 : 1.0,
-        maxBreadcrumbs: 0,
-        beforeBreadcrumb: () => null,
-        beforeSend: sanitizeSentryEvent,
+        maxBreadcrumbs: 20,
+        beforeBreadcrumb: sanitizeDiagnosticBreadcrumb,
+        beforeSend: event => {
+          const safe = sanitizeSentryEvent(event);
+          const values = safe.exception?.values;
+          if (values?.length && (!safe.user?.id || safe.user.id === currentUser)) recordReliability('app_error', {
+            ...safe.tags,
+            error_category: values[0].value,
+            error_type: values[0].type,
+            handled: values.every(value => value.mechanism?.handled !== false),
+          });
+          return safe;
+        },
         // Keep default error/unhandled rejection handlers and native crash support.
         // Use one masked recorder: PostHog where configured, otherwise Sentry.
         integrations: (defaults) => [
@@ -95,6 +107,7 @@ export function initializeTelemetry(): void {
         ],
       });
       sentryEnabled = true;
+      configureDiagnostics(crumb => Sentry.addBreadcrumb(crumb), () => Sentry.getCurrentScope().clearBreadcrumbs());
       Sentry.setUser(null);
     });
   }
@@ -159,6 +172,7 @@ export function setTelemetryUser(id: string | null, email: string | null = null,
   }
   safely(() => analytics?.stopSessionRecording());
   const previousUser = currentUser;
+  resetDiagnostics();
   currentUser = nextUser;
   currentEmail = nextEmail;
   lastScreen = null;
@@ -179,10 +193,15 @@ export function setTelemetryUser(id: string | null, email: string | null = null,
 }
 
 export function trackScreen(template: string): void {
-  const name = screenName(template);
+  const name = setDiagnosticScreen(template);
   const replayAllowed = !!name && ['(tabs)/catalog', 'events/team', 'my-events'].includes(template);
   safely(() => replayAllowed ? analytics?.startSessionRecording() : analytics?.stopSessionRecording());
-  if (!name || name === lastScreen) return;
+  if (!name) {
+    if (lastScreen && sentryEnabled) safely(() => Sentry.setTag('screen', 'unknown'));
+    lastScreen = null;
+    return;
+  }
+  if (name === lastScreen) return;
   lastScreen = name;
   if (sentryEnabled) safely(() => Sentry.setTag('screen', name));
   safely(() => analytics?.screen(name, { home_state: currentHomeState }));
@@ -190,6 +209,7 @@ export function trackScreen(template: string): void {
 
 export function trackEvent(event: AppEvent): void {
   if (!appEvents.has(event)) return;
+  recordDiagnostic('app.action', event);
   safely(() => analytics?.capture(event, { home_state: currentHomeState }));
 }
 
@@ -199,7 +219,7 @@ export function captureAppError(error: unknown, context?: string): void {
   safely(() => {
     const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined;
     Sentry.captureException(
-      error instanceof Error ? error : new Error('Application operation failed'),
+      error instanceof Error ? error : new Error(diagnosticMessage(error)),
       {
         tags: {
           ...(context && errorContexts.has(context) ? { operation: context } : {}),
@@ -208,6 +228,36 @@ export function captureAppError(error: unknown, context?: string): void {
       }
     );
   });
+}
+
+function recordReliability(event: string, properties: Record<string, unknown> = {}): void {
+  safely(() => analytics?.capture(event, reliabilityProperties({ ...diagnosticContext(), ...properties })));
+}
+
+export function startAppDiagnostics(): void {
+  if (diagnosticsStarted || (!analytics && !sentryEnabled)) return;
+  diagnosticsStarted = true;
+  recordReliability('app_started');
+  if (sentryEnabled) safely(async () => {
+    if (await Sentry.crashedLastRun() === true) recordReliability('app_previous_native_crash');
+  });
+}
+
+export function trackAppState(state: string): void {
+  const safeState = setDiagnosticState(state);
+  if (sentryEnabled) safely(() => Sentry.setTag('app_state', safeState));
+}
+
+export function reportMemoryWarning(): void {
+  if (Date.now() - lastMemoryWarning < 30_000) return;
+  lastMemoryWarning = Date.now();
+  recordDiagnostic('app.memory', 'memory_warning');
+  recordReliability('app_memory_warning');
+}
+
+export function reportRecoveryRequested(): void {
+  recordDiagnostic('app.recovery', 'retry_requested');
+  recordReliability('app_recovery_requested');
 }
 
 export async function flushTelemetry(): Promise<void> {

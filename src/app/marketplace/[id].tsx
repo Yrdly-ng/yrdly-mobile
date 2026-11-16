@@ -1,3 +1,4 @@
+import { mediaUrls } from '../../lib/media/media-urls';
 import { directionsHref } from '../../lib/location/directions';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -440,15 +441,11 @@ function MarketplaceDetailContent() {
       </SafeAreaView>
     );
   }
-  const parsedImageUrls = Array.isArray(post.image_urls)
-    ? post.image_urls
-    : typeof post.image_urls === 'string'
-      ? JSON.parse(post.image_urls || '[]')
-      : [];
+  const parsedImageUrls = mediaUrls(post.image_urls);
   const imageUrls =
-    parsedImageUrls.length > 0 ? parsedImageUrls : post.image_url ? [post.image_url] : [];
+    parsedImageUrls.length > 0 ? parsedImageUrls : mediaUrls(post.image_url);
   const mediaItems = [];
-  if (post.video_urls?.[0]) mediaItems.push({ type: 'video', url: post.video_urls?.[0] });
+  for (const url of mediaUrls(post.video_urls)) mediaItems.push({ type: 'video', url });
   imageUrls.forEach((url: string) => mediaItems.push({ type: 'image', url }));
 
   const isOwner = user?.id === post.user_id;

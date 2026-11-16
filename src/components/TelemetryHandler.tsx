@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { AppState } from 'react-native';
 import { useSegments } from 'expo-router';
 import { useAuth } from '../hooks/use-supabase-auth';
-import { flushTelemetry, setTelemetryUser, trackScreen } from '../lib/telemetry';
+import { flushTelemetry, setTelemetryUser, trackScreen, startAppDiagnostics, trackAppState, reportMemoryWarning } from '../lib/telemetry';
 
 /** Track route templates only, after the account has been resolved. */
 export function TelemetryHandler() {
@@ -19,10 +19,14 @@ export function TelemetryHandler() {
   }, [loading, route, selectedHomeState, user?.email, user?.id]);
 
   useEffect(() => {
+    startAppDiagnostics();
+    trackAppState(AppState.currentState);
     const subscription = AppState.addEventListener('change', (state) => {
+      trackAppState(state);
       if (state !== 'active') void flushTelemetry();
     });
-    return () => subscription.remove();
+    const memory = AppState.addEventListener('memoryWarning', reportMemoryWarning);
+    return () => { subscription.remove(); memory.remove(); };
   }, []);
 
   return null;

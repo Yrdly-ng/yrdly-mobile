@@ -1,3 +1,4 @@
+import { mediaUrls } from '../../lib/media/media-urls';
 import { StyleSheet as UnistylesStyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -56,7 +57,7 @@ interface PostCardProps {
 import { AppState } from 'react-native';
 import { useIsFocused } from 'expo-router/react-navigation';
 
-const PostVideo = React.memo(function PostVideo({
+const ActivePostVideo = React.memo(function ActivePostVideo({
   post,
   videoUrl,
   isVisible,
@@ -82,12 +83,12 @@ const PostVideo = React.memo(function PostVideo({
   const [progress, setProgress] = useState(0);
   const isFocused = useIsFocused();
 
-  const targetUrl = videoUrl || post.video_urls?.[0] || (post as any).video_url || '';
+  const targetUrl = videoUrl || mediaUrls(post.video_urls)[0] || mediaUrls((post as any).video_url)[0] || '';
 
   const player = useVideoPlayer(targetUrl, (player) => {
     player.loop = true;
     player.muted = isVideoMuted;
-    player.timeUpdateEventInterval = 0.05;
+    player.timeUpdateEventInterval = 0.25;
     if (isVisible !== false && isFocused && AppState.currentState === 'active') {
       player.play();
     }
@@ -236,6 +237,22 @@ const PostVideo = React.memo(function PostVideo({
   );
 });
 
+const PostVideo = React.memo(function PostVideo(props: React.ComponentProps<typeof ActivePostVideo>) {
+  const focused = useIsFocused();
+  const [active, setActive] = useState(AppState.currentState === 'active');
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', state => setActive(state === 'active'));
+    return () => subscription.remove();
+  }, []);
+  // Pausing alone leaves decoders and video surfaces allocated for every slide.
+  if (props.isVisible === false || !focused || !active) {
+    return props.post.video_thumbnail_url ? (
+      <Image source={{ uri: props.post.video_thumbnail_url }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+    ) : <View style={{ width: '100%', height: '100%', backgroundColor: '#101510' }} />;
+  }
+  return <ActivePostVideo {...props} />;
+});
+
 export const PostCard = React.memo(
   function PostCard({
     post,
@@ -346,27 +363,17 @@ export const PostCard = React.memo(
     const heartScale = useSharedValue(0);
     const heartOpacity = useSharedValue(0);
 
-    const parsedUrls = Array.isArray(post.image_urls)
-      ? post.image_urls
-      : typeof post.image_urls === 'string'
-        ? JSON.parse(post.image_urls || '[]')
-        : [];
-    const urls = parsedUrls.length > 0 ? parsedUrls : post.image_url ? [post.image_url] : [];
+    const parsedUrls = mediaUrls(post.image_urls);
+    const urls = parsedUrls.length > 0 ? parsedUrls : mediaUrls(post.image_url);
 
     const mediaItems = React.useMemo(() => {
       const items: Array<{ type: 'video' | 'image'; url: string }> = [];
 
-      const parsedVideoUrls = Array.isArray(post.video_urls)
-        ? post.video_urls
-        : typeof post.video_urls === 'string'
-          ? JSON.parse(post.video_urls || '[]')
-          : [];
+      const parsedVideoUrls = mediaUrls(post.video_urls);
       const videoUrls =
         parsedVideoUrls.length > 0
           ? parsedVideoUrls
-          : (post as any).video_url
-            ? [(post as any).video_url]
-            : [];
+          : mediaUrls((post as any).video_url);
 
       videoUrls.forEach((url: string) => {
         if (url) items.push({ type: 'video', url });

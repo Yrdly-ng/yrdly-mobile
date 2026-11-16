@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { captureAppError } from '../lib/telemetry';
+import { captureAppError, reportRecoveryRequested } from '../lib/telemetry';
 
 interface Props {
   children: React.ReactNode;
@@ -30,6 +30,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     captureAppError(error, 'app.error_boundary');
+    if (!__DEV__) return;
     const prefix = `[ErrorBoundary${this.props.screenName ? `:${this.props.screenName}` : ''}]`;
     console.error(`${prefix} Caught:`, error.message);
 
@@ -42,6 +43,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   handleRestart = () => {
+    reportRecoveryRequested();
     // Increment resetKey to force full remount of children tree
     this.setState(
       (prev: State) => ({ hasError: false, error: null, resetKey: prev.resetKey + 1 }),
