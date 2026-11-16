@@ -75,11 +75,9 @@ jobs:
           EXPO_PUBLIC_POSTHOG_HOST=${{ secrets.EXPO_PUBLIC_POSTHOG_HOST }}
           EOF
 
-      - name: Write google-services.json
-        env:
-          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+      - name: Write verified Firebase Android client configuration
         run: |
-          node -e 'const fs = require("fs"); const value = process.env.GOOGLE_SERVICES_JSON; if (!value) throw new Error("Missing GOOGLE_SERVICES_JSON"); require("./scripts/validate-android-firebase.cjs").validateAndroidFirebase(JSON.parse(value)); fs.writeFileSync("google-services.json", value, { mode: 0o600 });'
+          node -e 'const fs = require("fs"); const value = fs.readFileSync("config/firebase/android-client.json", "utf8"); require("./scripts/validate-android-firebase.cjs").validateAndroidFirebase(JSON.parse(value)); fs.writeFileSync("google-services.json", value, { mode: 0o600 });'
 
       - name: Validate Firebase client key and installation authentication
         run: node scripts/verify-firebase-installations.cjs
