@@ -1,5 +1,6 @@
 import { StyleSheet, useUnistyles, UnistylesRuntime } from 'react-native-unistyles';
 import React from 'react';
+import { openPrivacyPolicy, openTerms } from '../../lib/legal';
 import { View, Text, ScrollView, TouchableOpacity, Alert, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -210,6 +211,12 @@ export default function SettingsScreen() {
             value={profile?.blocked_users?.length ? String(profile.blocked_users.length) : '0'}
             onPress={() => router.push('/settings/blocked' as any)}
           />
+        </SettingSection>
+
+        <SettingSection title="Legal">
+          <SettingRow icon={<Feather name="file-text" size={16} color={theme.colors.TEXT_PRIMARY} />} label="Privacy Policy" onPress={() => { void openPrivacyPolicy().catch(() => Alert.alert('Unable to open link', 'Please visit app.yrdly.ng/legal/privacy.')); }} />
+          <SettingDivider />
+          <SettingRow icon={<Feather name="book" size={16} color={theme.colors.TEXT_PRIMARY} />} label="Terms of Service" onPress={() => { void openTerms().catch(() => Alert.alert('Unable to open link', 'Please visit app.yrdly.ng/legal/terms.')); }} />
         </SettingSection>
 
         <SettingSection title="Preferences">

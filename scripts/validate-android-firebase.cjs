@@ -18,6 +18,11 @@ function validateAndroidFirebase(config) {
   if (!client || !client.client_info.mobilesdk_app_id?.startsWith(`1:${expectedFirebase.senderId}:android:`)) {
     throw new Error('Android Firebase application does not match com.yrdly and its configured sender.');
   }
+  // The first key is the one compiled and exercised by the live preflight.
+  const key = client.api_key?.[0]?.current_key;
+  if (typeof key !== 'string' || !/^AIza[A-Za-z0-9_-]{35}$/.test(key)) {
+    throw new Error('Android Firebase client API key missing or malformed.');
+  }
 }
 
 if (require.main === module) {

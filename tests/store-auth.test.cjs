@@ -42,6 +42,12 @@ function loadAuth(overrides = {}) {
             );
           },
         };
+      if (id === 'react-native') return {Platform:{OS:overrides.platform || 'android'}};
+      if (id === 'expo-crypto') return {randomUUID:()=> 'raw-nonce',CryptoDigestAlgorithm:{SHA256:'sha256'},digestStringAsync:async()=> 'hashed-nonce'};
+      if (id === 'expo-apple-authentication') return {
+        isAvailableAsync:async()=>true,AppleAuthenticationScope:{FULL_NAME:0,EMAIL:1},
+        signInAsync:async options=>{calls.push(['apple',options]);if(overrides.appleError)throw overrides.appleError;return overrides.credential || {identityToken:'fixture-token'};}
+      };
       if (id === 'expo-linking') return {};
       throw new Error(id);
     },
@@ -112,4 +118,15 @@ test('Google retains browser flow and propagates failed token persistence', asyn
   });
   assert.match((await service.signInWithGoogle()).error.message, /Cannot save session/);
   assert.equal(calls[0][1].provider, 'google');
+});
+
+test('native iOS Apple sign-in binds the hashed challenge to the raw Supabase nonce', async()=>{
+ let tokenArgs;const r=loadAuth({platform:'ios',auth:{signInWithIdToken:async args=>{tokenArgs=args;return {data:{session:{user:{id:'u'}}},error:null}}}});
+ assert.equal((await r.service.signInWithApple()).error,null);assert.equal(r.calls.find(x=>x[0]==='apple')[1].nonce,'hashed-nonce');
+ assert.deepEqual(tokenArgs,{provider:'apple',token:'fixture-token',nonce:'raw-nonce'});assert.equal(r.calls.some(x=>x[0]==='browser'),false);
+});
+test('native Apple cancellation, missing identity token and server rejection are handled',async()=>{
+ const cancelled=loadAuth({platform:'ios',appleError:{code:'ERR_REQUEST_CANCELED'}});assert.deepEqual(await cancelled.service.signInWithApple(),{data:null,error:null});
+ const missing=loadAuth({platform:'ios',credential:{}});assert.match((await missing.service.signInWithApple()).error.message,/identity token/);
+ const rejected=loadAuth({platform:'ios',auth:{signInWithIdToken:async()=>({data:{session:null},error:new Error('Rejected')})}});assert.match((await rejected.service.signInWithApple()).error.message,/Rejected/);
 });

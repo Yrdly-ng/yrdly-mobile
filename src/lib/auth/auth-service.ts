@@ -4,6 +4,9 @@ import { User } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
+import { Platform } from 'react-native';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -223,8 +226,28 @@ export class AuthService {
     return this.signInWithProvider('google');
   }
 
-  static signInWithApple() {
-    return this.signInWithProvider('apple');
+  static async signInWithApple() {
+    if (Platform.OS !== 'ios') return this.signInWithProvider('apple');
+    try {
+      if (!await AppleAuthentication.isAvailableAsync()) throw new Error('Apple sign-in is unavailable on this device.');
+      const nonce = Crypto.randomUUID();
+      const hashed = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, nonce);
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [AppleAuthentication.AppleAuthenticationScope.FULL_NAME, AppleAuthentication.AppleAuthenticationScope.EMAIL],
+        nonce: hashed,
+      });
+      if (!credential.identityToken) throw new Error('Apple did not return an identity token.');
+      const result = await supabase.auth.signInWithIdToken({provider:'apple', token:credential.identityToken, nonce});
+      if (result.error) throw result.error;
+      if (!result.data.session) throw new Error('Unable to create an Apple sign-in session.');
+      const name = [credential.fullName?.givenName, credential.fullName?.familyName].filter(Boolean).join(' ');
+      // Apple supplies the name only on first approval. Profile metadata is not authorization.
+      if (name) await supabase.auth.updateUser({data:{full_name:name,name}}).catch(() => undefined);
+      return {data:result.data,error:null};
+    } catch (error: any) {
+      if (error?.code === 'ERR_REQUEST_CANCELED') return {data:null,error:null};
+      return {data:null,error};
+    }
   }
 
   // Sign out

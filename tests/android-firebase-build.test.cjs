@@ -6,7 +6,7 @@ const { validateAndroidFirebase } = require('../scripts/validate-android-firebas
 
 const fixture = () => ({
   project_info: { project_id: 'yrdly-470221', project_number: '399225255875' },
-  client: [{ client_info: { mobilesdk_app_id: '1:399225255875:android:fixture', android_client_info: { package_name: 'com.yrdly' } } }],
+  client: [{ api_key: [{current_key:'AIza'+'A'.repeat(35)}], client_info: { mobilesdk_app_id: '1:399225255875:android:fixture', android_client_info: { package_name: 'com.yrdly' } } }],
 });
 
 test('Android builds accept only the Firebase sender assigned to Expo FCM', () => {
@@ -134,4 +134,10 @@ test('prebuild fingerprint checks follow the verified configuration rather than 
  const workflow = fs.readFileSync('.github/workflows/build-android.yml','utf8');
  assert.match(workflow,/const verified = select\(JSON.parse\(fs.readFileSync\('config\/firebase\/android-client.json'/);
  assert.doesNotMatch(workflow,/f46314d52071bbf12734aa86e54d31b74468851e7a618359af1da63dd4df2d90/);
+});
+
+test('the compiled first client key must be valid even if another key is valid',()=>{
+ for(const keys of [undefined,[],[{current_key:'bad'}],[{current_key:'bad'},{current_key:'AIza'+'A'.repeat(35)}]]){
+ const c=fixture();c.client[0].api_key=keys;assert.throws(()=>validateAndroidFirebase(c),/key missing or malformed/);
+ }
 });

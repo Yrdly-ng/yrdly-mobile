@@ -82,6 +82,7 @@ module.exports = {
     ios: {
       buildNumber: nativeBuildNumber,
       supportsTablet: true,
+      usesAppleSignIn: true,
       bundleIdentifier: "com.yrdly",
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false
@@ -140,6 +141,7 @@ module.exports = {
       favicon: "./assets/images/favicon.png"
     },
     plugins: [
+      "expo-apple-authentication",
       [
         "@sentry/react-native/expo",
         {
