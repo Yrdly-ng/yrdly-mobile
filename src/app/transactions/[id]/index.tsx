@@ -23,7 +23,8 @@ import { MARKETPLACE_CONSTANTS } from '../../../lib/shared/constants';
 import { api } from '../../../lib/network/api';
 
 type EscrowStatus =
-  'pending' | 'paid' | 'shipped' | 'delivered' | 'completed' | 'disputed' | 'cancelled';
+  'pending' | 'creating_escrow' | 'processing' | 'reconciling' | 'reconciliation_required' |
+  'paid' | 'funds_held' | 'shipped' | 'delivered' | 'completed' | 'disputed' | 'cancelled' | 'failed' | 'refunded';
 
 interface TxDetail {
   id: string;
@@ -63,6 +64,13 @@ const getStatusMeta = (
   }
 
   const meta: Record<EscrowStatus, { label: string; color: string; bg: string; icon: string }> = {
+    creating_escrow: { label: 'Preparing Payment', color: colors.WARNING, bg: colors.SURFACE, icon: 'clock' },
+    processing: { label: 'Processing Payment', color: colors.WARNING, bg: colors.SURFACE, icon: 'clock' },
+    reconciling: { label: 'Confirming Payment', color: colors.WARNING, bg: colors.SURFACE, icon: 'clock' },
+    reconciliation_required: { label: 'Payment Under Review', color: colors.WARNING, bg: colors.SURFACE, icon: 'alert-circle' },
+    funds_held: { label: 'In Escrow', color: colors.G, bg: colors.SURFACE, icon: 'lock' },
+    failed: { label: 'Failed', color: isDarkMode ? '#E57373' : '#B71C1C', bg: colors.SURFACE, icon: 'x-circle' },
+    refunded: { label: 'Refunded', color: isDarkMode ? '#81D4FA' : '#0288D1', bg: colors.SURFACE, icon: 'rotate-ccw' },
     pending: {
       label: 'Awaiting Payment',
       color: colors.WARNING,
@@ -106,7 +114,9 @@ const getStatusMeta = (
       icon: 'x-circle',
     },
   };
-  return meta[status];
+  return Object.prototype.hasOwnProperty.call(meta, status)
+    ? meta[status]
+    : { label: 'Status Unavailable', color: isDarkMode ? '#E0E0E0' : '#757575', bg: colors.SURFACE, icon: 'help-circle' };
 };
 
 const TIMELINE_STEPS: { status: EscrowStatus; label: string; tsKey: keyof TxDetail }[] = [
