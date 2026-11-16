@@ -3,6 +3,7 @@ import type { ErrorEvent, StackFrame } from '@sentry/react-native';
 import type { PostHogOptions } from 'posthog-react-native';
 import { isScreenName } from './routes';
 import { deviceLabel, homeState } from './metadata';
+import { reliabilityEvents, reliabilityProperties, sanitizeDiagnosticBreadcrumb } from './reliability';
 
 export function telemetryEnvironment(): 'development' | 'preview' | 'production' {
   const value = process.env.EXPO_PUBLIC_APP_ENV;
@@ -68,6 +69,10 @@ const errorTypes = new Set([
   'URIError',
   'EvalError',
   'AggregateError',
+  'SIGABRT',
+  'SIGSEGV',
+  'IllegalStateException',
+  'OutOfMemoryError',
 ]);
 
 export function isErrorCode(value: unknown): value is string {
@@ -98,6 +103,41 @@ export function sanitizeSentryEvent(event: ErrorEvent): ErrorEvent {
   const screen = event.tags?.screen;
   const code = event.tags?.error_code;
   const replayId = event.contexts?.replay?.replay_id;
+  const contexts: NonNullable<ErrorEvent['contexts']> = {};
+  if (typeof replayId === 'string' && /^[0-9a-f]{32}$/i.test(replayId)) contexts.replay = { replay_id: replayId };
+  // Keep only hardware/runtime facts needed to correlate crashes. Never retain
+  // device IDs, names, locale, addresses, request payloads or arbitrary contexts.
+  const device = event.contexts?.device;
+  if (device) {
+    const clean: Record<string, string | number | boolean> = {};
+    for (const key of ['model', 'manufacturer', 'brand', 'arch']) {
+      const value = deviceLabel(device[key]);
+      if (value) clean[key] = value;
+    }
+    for (const key of ['memory_size', 'free_memory', 'processor_count']) {
+      const value = device[key];
+      if (typeof value === 'number' && Number.isFinite(value) && value >= 0) clean[key] = value;
+    }
+    for (const key of ['low_memory', 'simulator']) if (typeof device[key] === 'boolean') clean[key] = device[key];
+    if (Object.keys(clean).length) contexts.device = clean;
+  }
+  const app = event.contexts?.app;
+  if (app) {
+    const clean: Record<string, string | boolean> = {};
+    for (const key of ['app_version', 'app_build']) {
+      const value = app[key];
+      if (typeof value === 'string' && /^[a-zA-Z0-9._+-]{1,80}$/.test(value)) clean[key] = value;
+    }
+    if (typeof app.in_foreground === 'boolean') clean.in_foreground = app.in_foreground;
+    if (Object.keys(clean).length) contexts.app = clean;
+  }
+  const os = event.contexts?.os;
+  if (os) {
+    const clean: Record<string, string> = {};
+    if (['Android', 'iOS', 'Windows', 'macOS', 'Linux'].includes(os.name || '')) clean.name = os.name!;
+    if (typeof os.version === 'string' && /^[0-9][a-zA-Z0-9._+-]{0,39}$/.test(os.version)) clean.version = os.version;
+    if (Object.keys(clean).length) contexts.os = clean;
+  }
   // Free-form error messages can contain server payloads, chat text, addresses,
   // or credentials. Group by exception class + original stack, not those values.
   const safe: ErrorEvent = {
@@ -125,15 +165,13 @@ export function sanitizeSentryEvent(event: ErrorEvent): ErrorEvent {
           ...(isEmail(event.user.email) ? { email: event.user.email } : {}),
         }
       : undefined,
-    // Preserve an existing replay link without retaining arbitrary replay metadata.
-    contexts:
-      typeof replayId === 'string' && /^[0-9a-f]{32}$/i.test(replayId)
-        ? { replay: { replay_id: replayId } }
-        : undefined,
+    contexts: Object.keys(contexts).length ? contexts : undefined,
+    breadcrumbs: event.breadcrumbs?.slice(-20).map(sanitizeDiagnosticBreadcrumb).filter((value): value is NonNullable<typeof value> => value !== null),
     tags: {
       ...(typeof operation === 'string' && errorContexts.has(operation) ? { operation } : {}),
       ...(isScreenName(screen) ? { screen } : {}),
       ...(isErrorCode(code) ? { error_code: code } : {}),
+      ...reliabilityProperties({ app_state: event.tags?.app_state }),
     },
     exception: event.exception
       ? {
@@ -164,12 +202,14 @@ export const sanitizePostHogEvent: BeforeSend = (event) => {
     event.event !== '$exception' &&
     event.event !== '$identify' &&
     event.event !== '$screen' &&
-    !appEvents.has(event.event as AppEvent)
+    !appEvents.has(event.event as AppEvent) &&
+    !reliabilityEvents.has(event.event)
   )
     return null;
   const source = event.properties || {};
   if (event.event === '$screen' && !isScreenName(source.$screen_name)) return null;
   const properties: NonNullable<typeof event.properties> = {};
+  if (reliabilityEvents.has(event.event)) Object.assign(properties, reliabilityProperties(source));
   // Email is a person-level lookup field, accepted only on identity events.
   // Never allow it (or arbitrary profile data) onto screens/product events.
   if (event.event === '$identify') {

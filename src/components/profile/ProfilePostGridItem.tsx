@@ -1,8 +1,8 @@
+import { mediaUrls } from '../../lib/media/media-urls';
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
-import { VideoView, useVideoPlayer } from 'expo-video';
 import { Post } from '../../types/index';
 import { StorageService } from '../../lib/media/storage-service';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -16,33 +16,14 @@ interface ProfilePostGridItemProps {
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
-const GridVideoThumbnail = ({ source }: { source: string }) => {
-  const player = useVideoPlayer(source, (p) => {
-    p.muted = true;
-    p.pause();
-  });
-  return (
-    <VideoView
-      player={player}
-      style={{ width: '100%', height: '100%' }}
-      contentFit="cover"
-      nativeControls={false}
-    />
-  );
-};
-
 export function ProfilePostGridItem({ post, onPress, width }: ProfilePostGridItemProps) {
   const { theme } = useUnistyles();
   const styles = sStylesheet;
 
-  const parsedUrls = Array.isArray(post.image_urls)
-    ? post.image_urls
-    : typeof post.image_urls === 'string'
-      ? JSON.parse(post.image_urls || '[]')
-      : [];
+  const parsedUrls = mediaUrls(post.image_urls);
   const hasImages = parsedUrls.length > 0;
   const imageUrl = hasImages ? parsedUrls[0] : post.image_url || post.video_thumbnail_url;
-  const hasVideo = !!post.video_urls?.[0];
+  const hasVideo = mediaUrls(post.video_urls).length > 0;
 
   const scale = useSharedValue(1);
 
@@ -81,14 +62,14 @@ export function ProfilePostGridItem({ post, onPress, width }: ProfilePostGridIte
             style={styles.image}
             contentFit="cover"
           />
-          {hasImages && post.image_urls!.length > 1 && !hasVideo && (
+          {hasImages && parsedUrls.length > 1 && !hasVideo && (
             <View style={styles.iconOverlay}>
               <Feather name="layers" size={14} color="#FFF" />
             </View>
           )}
         </>
       ) : hasVideo ? (
-        <GridVideoThumbnail source={post.video_urls![0]} />
+        <View style={[styles.placeholder, { backgroundColor: theme.colors.SURFACE_ALT }]}><Feather name="play" size={28} color={theme.colors.TEXT_PRIMARY} /></View>
       ) : (
         <View style={[styles.placeholder, { backgroundColor: theme.colors.SURFACE_ALT }]}>
           <Text style={styles.textSnippet} numberOfLines={3}>

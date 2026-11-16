@@ -28,6 +28,7 @@ if (inlineGoogleServices?.trim().startsWith("{")) {
 const requiresAndroidFirebase =
   process.env.EAS_BUILD_PLATFORM === "android" ||
   process.env.EAS_BUILD_PROFILE === "apk";
+const androidMapsKey = process.env.GOOGLE_MAPS_ANDROID_API_KEY?.trim() || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY?.trim();
 if (requiresAndroidFirebase) {
   const configPath = path.resolve(__dirname, googleServicesFile);
   if (!fs.existsSync(configPath)) {
@@ -45,6 +46,9 @@ if (requiresAndroidFirebase) {
   // com.yrdly package, and the Android mobilesdk_app_id sender prefix.
   const { validateAndroidFirebase } = require("./scripts/validate-android-firebase.cjs");
   validateAndroidFirebase(firebase);
+  if (!androidMapsKey) {
+    throw new Error('Android Google Maps configuration missing: provide GOOGLE_MAPS_ANDROID_API_KEY or EXPO_PUBLIC_GOOGLE_MAPS_API_KEY before building an APK.');
+  }
 }
 
 const nativeBuildNumber = process.env.YRDLY_BUILD_NUMBER || '1';
@@ -89,7 +93,7 @@ module.exports = {
       googleServicesFile,
       config: {
         googleMaps: {
-          apiKey: process.env.GOOGLE_MAPS_ANDROID_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+          apiKey: androidMapsKey
         }
       },
       intentFilters: [
@@ -146,7 +150,7 @@ module.exports = {
       [
         "react-native-maps",
         {
-          androidGoogleMapsApiKey: process.env.GOOGLE_MAPS_ANDROID_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
+          androidGoogleMapsApiKey: androidMapsKey,
           iosGoogleMapsApiKey: process.env.GOOGLE_MAPS_IOS_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
         }
       ],

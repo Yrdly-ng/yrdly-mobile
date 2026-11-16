@@ -1,3 +1,4 @@
+import { mediaUrls } from '../../lib/media/media-urls';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useRef } from 'react';
 import { View, Text, TouchableOpacity, Animated, Dimensions, Pressable } from 'react-native';
@@ -52,11 +53,7 @@ export function MarketplaceItemCard({ item, onPress, onMessageSeller, onBuyNow }
   const isOwner = user?.id === item.user_id;
   const pressScale = useRef(new Animated.Value(1)).current;
 
-  const parsedUrls = Array.isArray(item.image_urls)
-    ? item.image_urls
-    : typeof item.image_urls === 'string'
-      ? JSON.parse(item.image_urls || '[]')
-      : [];
+  const parsedUrls = mediaUrls(item.image_urls);
   const imageUrl =
     parsedUrls.length > 0 ? parsedUrls[0] : item.image_url || item.video_thumbnail_url;
   const sellerName = item.user?.name || item.author_name || 'Seller';

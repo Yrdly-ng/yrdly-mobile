@@ -68,6 +68,7 @@ function evaluateDynamicAppConfig(env = {}) {
 test('production Android EAS builds validate the exact configured Firebase sender', () => {
   const actual = evaluateDynamicAppConfig({
     EAS_BUILD_PROFILE: 'production', EAS_BUILD_PLATFORM: 'android',
+    GOOGLE_MAPS_ANDROID_API_KEY: 'fixture-maps-key',
     GOOGLE_SERVICES_JSON: JSON.stringify(fixture()),
   });
   assert.equal(actual.config.android.package, 'com.yrdly');
@@ -80,6 +81,15 @@ test('production Android EAS builds validate the exact configured Firebase sende
     }),
     /Firebase sender/,
   );
+});
+
+test('Android builds fail before producing an APK without a Maps key and trim the shared-key fallback', () => {
+  const base = { EAS_BUILD_PLATFORM: 'android', GOOGLE_SERVICES_JSON: JSON.stringify(fixture()) };
+  assert.throws(() => evaluateDynamicAppConfig(base), /Google Maps configuration missing/);
+  assert.throws(() => evaluateDynamicAppConfig({ ...base, GOOGLE_MAPS_ANDROID_API_KEY: '  ' }), /Google Maps configuration missing/);
+  const actual = evaluateDynamicAppConfig({ ...base, GOOGLE_MAPS_ANDROID_API_KEY: '  ', EXPO_PUBLIC_GOOGLE_MAPS_API_KEY: '  fixture-key  ' });
+  assert.equal(actual.config.android.config.googleMaps.apiKey, 'fixture-key');
+  assert.equal(actual.config.plugins.find(entry => entry[0] === 'react-native-maps')[1].androidGoogleMapsApiKey, 'fixture-key');
 });
 
 test('Android APK/internal builds cannot bypass the canonical sender check', () => {

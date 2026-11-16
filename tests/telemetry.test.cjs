@@ -12,10 +12,12 @@ const configured = {
 };
 
 // Run the actual modules, replacing only SDK boundaries and build-time env.
-function loadTelemetry({ env = configured, dev = false, failures = {} } = {}) {
+function loadTelemetry({ env = configured, dev = false, failures = {}, crashedLastRun = false } = {}) {
   const calls = [];
   const replayCalls = [];
   const eventProperties = [];
+  const capturedEvents = [];
+  const breadcrumbs = [];
   let sentryOptions;
   let posthogOptions;
   const call = (name, ...args) => {
@@ -42,6 +44,7 @@ function loadTelemetry({ env = configured, dev = false, failures = {} } = {}) {
       return call('screen', name);
     }
     capture(event, properties) {
+      capturedEvents.push({ event, properties });
       eventProperties.push(properties);
       return call('capture', event);
     }
@@ -50,6 +53,13 @@ function loadTelemetry({ env = configured, dev = false, failures = {} } = {}) {
     }
   }
   const sdk = {
+    addBreadcrumb(crumb) {
+      const safe = sentryOptions.beforeBreadcrumb(crumb);
+      if (safe) breadcrumbs.push(safe);
+      if (breadcrumbs.length > 20) breadcrumbs.shift();
+    },
+    getCurrentScope() { return { clearBreadcrumbs: () => { breadcrumbs.length = 0; } }; },
+    crashedLastRun: async () => crashedLastRun,
     init(options) {
       call('sentry.init');
       sentryOptions = options;
@@ -103,6 +113,8 @@ function loadTelemetry({ env = configured, dev = false, failures = {} } = {}) {
     api: load(path.resolve('src/lib/telemetry/index.ts')),
     calls,
     replayCalls,
+    capturedEvents,
+    breadcrumbs,
     eventProperties,
     get sentryOptions() {
       return sentryOptions;
@@ -579,4 +591,48 @@ test('device metadata is bounded and selected home state clears across identitie
   r.api.setTelemetryUser(null, null, 'Ogun');
   r.api.trackEvent('business_saved');
   assert.equal(r.eventProperties.at(-1).home_state, null);
+});
+
+test('bounded navigation/actions/lifecycle breadcrumbs survive sanitization and clear on account changes', () => {
+  const r = loadTelemetry(); r.api.initializeTelemetry(); r.api.setTelemetryUser(USER_A);
+  r.api.trackScreen('marketplace/[id]'); r.api.trackEvent('ticket_checkout_started');
+  r.api.trackAppState('background'); r.api.reportRecoveryRequested();
+  assert.deepEqual(r.breadcrumbs.map(b => b.category), ['app.navigation', 'app.action', 'app.lifecycle', 'app.recovery']);
+  const safe = r.sentryOptions.beforeSend({ breadcrumbs: [...r.breadcrumbs, {category:'fetch',message:'private',data:{token:'private'}}],
+    tags: {screen:'/marketplace/[id]',app_state:'background',private:'private'},
+    exception:{values:[{type:'TypeError',value:"Cannot read properties of undefined (reading 'private')",mechanism:{handled:false,type:'generic'}}]} });
+  assert.equal(safe.breadcrumbs.length,4);
+  assert.equal(safe.tags.screen,'/marketplace/[id]');
+  assert.ok(!JSON.stringify(safe).includes('private'));
+  const metric = r.capturedEvents.find(e => e.event === 'app_error');
+  assert.equal(metric.properties.error_category,'Undefined property access');
+  assert.equal(metric.properties.handled,false);
+  r.api.setTelemetryUser(USER_B); assert.equal(r.breadcrumbs.length,0);
+  r.api.trackScreen('map'); r.api.trackScreen('chat/private');
+  assert.deepEqual(r.calls.filter(c=>c[0]==='tag').at(-1), ['tag','screen','unknown']);
+});
+
+test('launch, confirmed previous native crash, and memory pressure are counted without duplicate startup or warning bursts', async () => {
+  const r=loadTelemetry({crashedLastRun:true}); r.api.initializeTelemetry();
+  r.api.startAppDiagnostics(); r.api.startAppDiagnostics();
+  r.api.reportMemoryWarning(); r.api.reportMemoryWarning();
+  await new Promise(resolve=>setImmediate(resolve));
+  for (const event of ['app_started','app_previous_native_crash','app_memory_warning']) {
+    assert.equal(r.capturedEvents.filter(e=>e.event===event).length,1);
+  }
+  const noCrash=loadTelemetry({crashedLastRun:null}); noCrash.api.initializeTelemetry();noCrash.api.startAppDiagnostics();
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.ok(!noCrash.capturedEvents.some(e=>e.event==='app_previous_native_crash'));
+});
+
+test('native hardware/build facts remain diagnostic while names, IDs, addresses and extra data are dropped', () => {
+  const r=loadTelemetry();r.api.initializeTelemetry();
+  const safe=r.sentryOptions.beforeSend({contexts:{device:{model:'TECNO KG7h',arch:'arm64',memory_size:4000,free_memory:100,low_memory:true,name:'private',id:'private'},app:{app_version:'1.0.0',app_build:'42',in_foreground:true,app_name:'private'},location:{address:'private'}},tags:{screen:'/map',app_state:'active'}});
+  assert.equal(safe.contexts.device.model,'TECNO KG7h');
+  assert.equal(safe.contexts.device.low_memory,true);
+  assert.equal(safe.contexts.app.app_build,'42');
+  assert.ok(!JSON.stringify(safe).includes('private'));
+  const payload=r.posthogOptions.before_send({event:'app_error',properties:{screen:'/map',handled:false,error_type:'TypeError',error_category:'Undefined property access',private:'private'}});
+  assert.equal(payload.properties.screen,'/map');assert.equal(payload.properties.handled,false);
+  assert.ok(!JSON.stringify(payload).includes('private'));
 });
