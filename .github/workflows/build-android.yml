@@ -106,7 +106,8 @@ jobs:
               source.client_info?.mobilesdk_app_id !== copy.client_info?.mobilesdk_app_id) {
             throw new Error('Expo prebuild copied a different Firebase client configuration');
           }
-          const expectedKeyHash = 'f46314d52071bbf12734aa86e54d31b74468851e7a618359af1da63dd4df2d90';
+          const verified = select(JSON.parse(fs.readFileSync('config/firebase/android-client.json', 'utf8')));
+          const expectedKeyHash = crypto.createHash('sha256').update(verified.api_key[0].current_key).digest('hex');
           const actualKeyHash = crypto.createHash('sha256').update(copy.api_key[0].current_key).digest('hex');
           if (actualKeyHash !== expectedKeyHash) throw new Error('Firebase API key is not the expected restricted Android QA key');
           const appGradle = fs.readFileSync('android/app/build.gradle', 'utf8');
