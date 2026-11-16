@@ -7,7 +7,14 @@ const encodedGoogleServices = process.env.GOOGLE_SERVICES_JSON_BASE64;
 const generatedGoogleServicesPath = path.join(__dirname, "google-services.json");
 let googleServicesFile = "./google-services.json";
 
-if (inlineGoogleServices?.trim().startsWith("{")) {
+// Firebase client identifiers are shipped publicly in the APK. Keep the verified
+// project configuration authoritative over stale build-environment copies.
+const verifiedGoogleServicesPath = path.join(__dirname, "config/firebase/android-client.json");
+if (fs.existsSync(verifiedGoogleServicesPath)) {
+  const verified = fs.readFileSync(verifiedGoogleServicesPath, "utf8");
+  require("./scripts/validate-android-firebase.cjs").validateAndroidFirebase(JSON.parse(verified));
+  fs.writeFileSync(generatedGoogleServicesPath, verified);
+} else if (inlineGoogleServices?.trim().startsWith("{")) {
   JSON.parse(inlineGoogleServices);
   fs.writeFileSync(generatedGoogleServicesPath, inlineGoogleServices);
 } else if (encodedGoogleServices) {

@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "399225255875",
+    "project_id": "yrdly-470221",
+    "storage_bucket": "yrdly-470221.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:399225255875:android:6475b121afd9c16a30af76",
+        "android_client_info": {
+          "package_name": "com.yrdly"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "399225255875-g1r3o3pr7qj6uhdn3o19t0thn9jl9nai.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDyt3KOJmq_dIumVjcrHvtbRq8L7MKhMBM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "399225255875-g1r3o3pr7qj6uhdn3o19t0thn9jl9nai.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "399225255875-s8qipc5mhqbcfvk3h95edct5gvdjsmmi.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.yrdly"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

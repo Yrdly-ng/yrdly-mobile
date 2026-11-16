@@ -19,13 +19,13 @@ test('Android builds accept only the Firebase sender assigned to Expo FCM', () =
   assert.throws(() => validateAndroidFirebase(invalid), /Firebase application/);
 });
 
-test('the GitHub build rejects a foreign Firebase secret before writing it into the APK', () => {
+test('the GitHub build validates the versioned Firebase client before writing it into the APK', () => {
   const workflow = fs.readFileSync('.github/workflows/build-android.yml', 'utf8');
-  const line = workflow.match(/node -e '(const fs = require\("fs"\); const value = process\.env\.GOOGLE_SERVICES_JSON;[^\n]+)'/)[1];
+  const line = workflow.match(/node -e '(const fs = require\("fs"\); const value = fs\.readFileSync[^;]+;[^\n]+)'/)[1];
   const invalid = fixture(); invalid.project_info.project_number = '123456789';
   let writes = 0;
   const context = config => ({
-    require: name => name === 'fs' ? { writeFileSync() { writes++; } } : { validateAndroidFirebase },
+    require: name => name === 'fs' ? { readFileSync() { return JSON.stringify(config); }, writeFileSync() { writes++; } } : { validateAndroidFirebase },
     process: { env: { GOOGLE_SERVICES_JSON: JSON.stringify(config) } }, JSON,
   });
   assert.throws(() => vm.runInNewContext(line, context(invalid)), /Firebase sender/);
@@ -35,10 +35,11 @@ test('the GitHub build rejects a foreign Firebase secret before writing it into 
 });
 
 
-function evaluateDynamicAppConfig(env = {}) {
+function evaluateDynamicAppConfig(env = {}, verified) {
   // Evaluate app.config.js without writing credentials or files to disk.
   const source = fs.readFileSync('app.config.js', 'utf8');
   const written = new Map();
+  if (verified) written.set("/virtual/yrdly-mobile/config/firebase/android-client.json", JSON.stringify(verified));
   const mockFs = {
     existsSync: filename => written.has(filename),
     readFileSync: filename => {
@@ -121,3 +122,10 @@ test('Android app ID and project match but wrong mobilesdk_app_id is rejected', 
     /Firebase application/,
   );
 });
+
+ test('verified client configuration takes precedence over stale EAS environment', () => {
+ const foreign = fixture(); foreign.project_info.project_id = 'old-project';
+ const actual = evaluateDynamicAppConfig({GOOGLE_SERVICES_JSON:JSON.stringify(foreign)},fixture());
+ const generated = JSON.parse(actual.written.get('/virtual/yrdly-mobile/google-services.json'));
+ assert.equal(generated.project_info.project_id,'yrdly-470221');
+ });
