@@ -129,3 +129,9 @@ test('Android app ID and project match but wrong mobilesdk_app_id is rejected', 
  const generated = JSON.parse(actual.written.get('/virtual/yrdly-mobile/google-services.json'));
  assert.equal(generated.project_info.project_id,'yrdly-470221');
  });
+
+test('prebuild fingerprint checks follow the verified configuration rather than a retired key', () => {
+ const workflow = fs.readFileSync('.github/workflows/build-android.yml','utf8');
+ assert.match(workflow,/const verified = select\(JSON.parse\(fs.readFileSync\('config\/firebase\/android-client.json'/);
+ assert.doesNotMatch(workflow,/f46314d52071bbf12734aa86e54d31b74468851e7a618359af1da63dd4df2d90/);
+});
