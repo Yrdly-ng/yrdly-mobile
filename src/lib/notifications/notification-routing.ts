@@ -157,6 +157,8 @@ export function getMobileNotificationDestination(input: NotificationRouteInput):
           : `/communities/${communityId}`
         : '/communities';
     }
+    case 'daily_prompt':
+      return '/daily-prompts';
     case 'welcome':
     case 'system_announcement':
       return '/notifications';
