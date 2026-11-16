@@ -416,3 +416,10 @@ test('event team invitations and access updates open assigned duties, never a gu
     assert.equal(route({ type, relatedId: 'event-id', data: { event_id: 'event-id' } }), '/events/team');
   }
 });
+
+test('opt-in daily prompt notifications resolve to the question screen',()=>{
+  assert.equal(route({type:'daily_prompt',data:{}}),'/daily-prompts');
+  assert.equal(r.getPushNotificationDestination({type:'daily_prompt',url:'/daily-prompts'}),'/daily-prompts');
+  assert.equal(r.getPushNotificationDestination({title:'YRDLY',data:{type:'daily_prompt',url:'/daily-prompts'}}),'/daily-prompts');
+  assert.equal(r.getNotificationTarget({type:'daily_prompt'}),null);
+});

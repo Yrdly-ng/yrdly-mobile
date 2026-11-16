@@ -103,6 +103,7 @@ export type PostCategory =
 
 export interface Post {
   id: string;
+  daily_prompt_id?: string | null;
   user_id: string;
   author_name: string;
   author_image?: string;
@@ -462,6 +463,8 @@ export interface SafetyAlert {
 }
 
 export interface NotificationSettings {
+  /** Explicit opt-in; absent means OFF for editorial reminders. */
+  dailyPrompts?: boolean;
   friendRequests: boolean;
   messages: boolean;
   postUpdates: boolean;
