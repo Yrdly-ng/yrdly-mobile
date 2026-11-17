@@ -898,6 +898,79 @@ function CatalogEventCard({ item, router, theme, sStylesheet }: any) {
   );
 }
 
+
+/**
+ * Spotlight the soonest actual published event. This is a presentation treatment,
+ * not a paid, promoted or manually verified "featured" designation.
+ */
+function UpcomingEventSpotlight({
+  event,
+  onPress,
+}: {
+  event: any;
+  onPress: () => void;
+}) {
+  const { theme } = useUnistyles();
+  const cover = event.cover_image_url || event.image_urls?.[0];
+  const eventDate = event.start_time
+    ? new Date(event.start_time).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })
+    : 'Date to be announced';
+  return (
+    <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel={`View upcoming event ${event.title || 'Untitled event'}`}
+      onPress={onPress}
+      activeOpacity={0.9}
+      style={{
+        marginHorizontal: 20,
+        marginBottom: 20,
+        height: 238,
+        borderRadius: 20,
+        overflow: 'hidden',
+        backgroundColor: theme.colors.SURFACE_ALT,
+        borderWidth: 1,
+        borderColor: theme.colors.GLASS_BORDER,
+      }}
+    >
+      <Image
+        source={{ uri: cover }}
+        contentFit="cover"
+        style={{ width: '100%', height: '100%' }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          paddingHorizontal: 16,
+          paddingVertical: 15,
+          backgroundColor: 'rgba(10,21,14,0.84)',
+          gap: 5,
+        }}
+      >
+        <Text style={{ color: '#A8F5A1', fontFamily: 'Inter-Bold', fontSize: 10, letterSpacing: 1.2 }}>
+          UP NEXT
+        </Text>
+        <Text
+          numberOfLines={2}
+          style={{ color: '#FFFFFF', fontFamily: 'Outfit-Bold', fontSize: 21 }}
+        >
+          {event.title || 'Upcoming event'}
+        </Text>
+        <Text numberOfLines={1} style={{ color: '#E5F3E7', fontFamily: 'Inter-Regular', fontSize: 12 }}>
+          {[eventDate, event.location_online ? 'Online' : event.location_address]
+            .filter(Boolean).join(' · ')}
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
+          <Text style={{ color: '#A8F5A1', fontFamily: 'Inter-SemiBold', fontSize: 12 }}>View event</Text>
+          <Ionicons name="arrow-forward" size={14} color="#A8F5A1" />
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 // ─── EVENTS SECTION ──────────────────────────────────────────────────────────
 function EventsSection({
   currentLoc,
@@ -984,10 +1057,16 @@ function EventsSection({
     setRefreshing(true);
     setRefreshKey((value) => value + 1);
   };
+  // No promoted claim: show an actual event only, in chronological order.
+  const showSpotlight =
+    !search.trim() &&
+    filter === 'All' &&
+    !error &&
+    !!(events[0]?.cover_image_url || events[0]?.image_urls?.[0]);
   return (
     <View style={eventUI.page}>
       <FlatList
-        data={events}
+        data={showSpotlight ? events.slice(1) : events}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 110 }}
@@ -1067,12 +1146,18 @@ function EventsSection({
                 </TouchableOpacity>
               ))}
             </ScrollView>
+            {showSpotlight && (
+              <UpcomingEventSpotlight
+                event={events[0]}
+                onPress={() => router.push(`/events/${events[0].id}` as any)}
+              />
+            )}
             <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
               <Text style={eventUI.sectionTitle}>
                 {search.trim()
                   ? 'Your search results'
                   : filter === 'All'
-                    ? 'Coming up near you'
+                    ? showSpotlight ? 'More events near you' : 'Coming up near you'
                     : filter}
               </Text>
               <Text style={eventUI.sectionHint}>
@@ -1095,7 +1180,7 @@ function EventsSection({
           </>
         }
         ListEmptyComponent={
-          loading ? (
+          events.length > 0 ? null : loading ? (
             <ActivityIndicator
               accessibilityLabel="Loading events"
               color={theme.colors.G}
