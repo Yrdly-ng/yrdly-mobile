@@ -71,6 +71,7 @@ function fixture() {
     TouchableOpacity: 'Button',
     ActivityIndicator: 'Spinner',
     Ionicons: 'Icon',
+    CategoryIcon: 'CategoryIcon',
     EventCard: 'EventCard',
     UpcomingEventSpotlight: 'UpcomingEventSpotlight',
   };
