@@ -93,6 +93,7 @@ function fixture() {
     TouchableOpacity: 'Button',
     ActivityIndicator: 'Spinner',
     CategoryDropdown: 'CategoryDropdown',
+    DiscoveryCategoryChips: 'DiscoveryCategoryChips',
     Ionicons: 'Icon',
     BusinessImage: 'BusinessImage',
     VerifiedBadge: 'VerifiedBadge',
