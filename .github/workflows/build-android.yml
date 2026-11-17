@@ -13,6 +13,14 @@ on:
         description: 'Build note (optional)'
         required: false
         default: 'Manual build'
+      architecture:
+        description: 'QA APK architecture (ARM64 physical phones, or universal fallback)'
+        required: true
+        type: choice
+        default: arm64
+        options:
+          - arm64
+          - universal
 
 permissions:
   contents: read
@@ -30,6 +38,9 @@ jobs:
     env:
       EXPO_PUBLIC_APP_ENV: production
       YRDLY_BUILD_NUMBER: ${{ github.run_number }}
+      # Enabled for QA only, not for EAS/Play Store release builds.
+      YRDLY_ANDROID_QA_SIZE_OPTIMIZATIONS: '1'
+      YRDLY_QA_ABI: ${{ inputs.architecture || 'arm64' }}
       GOOGLE_MAPS_ANDROID_API_KEY: ${{ secrets.GOOGLE_MAPS_ANDROID_API_KEY }}
       EXPO_PUBLIC_POSTHOG_API_KEY: ${{ secrets.EXPO_PUBLIC_POSTHOG_API_KEY }}
       EXPO_PUBLIC_SENTRY_DSN: ${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
@@ -122,7 +133,18 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew clean assembleRelease --info --stacktrace
+          case "$YRDLY_QA_ABI" in
+            arm64)
+              ./gradlew clean assembleRelease -PreactNativeArchitectures=arm64-v8a --info --stacktrace
+              ;;
+            universal)
+              ./gradlew clean assembleRelease --info --stacktrace
+              ;;
+            *)
+              echo "::error::Unsupported QA APK architecture: $YRDLY_QA_ABI"
+              exit 1
+              ;;
+          esac
 
       - name: Locate APK
         id: locate_apk
@@ -130,6 +152,26 @@ jobs:
           APK_PATH=$(find android/app/build/outputs/apk -name "*.apk" | head -n 1)
           echo "APK_PATH=$APK_PATH" >> $GITHUB_ENV
           echo "Found APK at $APK_PATH"
+
+      - name: Verify QA APK architectures and report size
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const cp = require('node:child_process');
+          const apk = process.env.APK_PATH;
+          if (!apk || !fs.existsSync(apk)) throw new Error('APK is missing');
+          const paths = cp.execFileSync('unzip', ['-Z1', apk], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }).split(/\r?\n/);
+          const abis = [...new Set(paths.map(p => p.match(/^lib\/([^/]+)\/[^/]+\.so$/)?.[1]).filter(Boolean))].sort();
+          if (!abis.length) throw new Error('APK has no packaged native libraries');
+          if (process.env.YRDLY_QA_ABI === 'arm64' && (abis.length !== 1 || abis[0] !== 'arm64-v8a')) {
+            throw new Error('Expected an ARM64-only APK; found ' + abis.join(', '));
+          }
+          const bytes = fs.statSync(apk).size;
+          const mib = (bytes / 1024 / 1024).toFixed(2);
+          console.log('APK size: ' + bytes + ' bytes (' + mib + ' MiB); ABIs: ' + abis.join(', '));
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '### Android QA APK size\\n\\n' + mib + ' MiB (' + bytes + ' bytes)\\n\\nArchitectures: ' + abis.join(', ') + '\\n');
+          NODE
 
       - name: Verify Firebase resources inside built APK
         run: |
@@ -200,6 +242,6 @@ jobs:
         if: ${{ always() && env.APK_PATH != '' }}
         uses: actions/upload-artifact@v4
         with:
-          name: yrdly-android-apk-${{ github.run_number }}
+          name: yrdly-android-${{ env.YRDLY_QA_ABI }}-apk-${{ github.run_number }}
           path: ${{ env.APK_PATH }}
           retention-days: 7
