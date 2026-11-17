@@ -44,6 +44,7 @@ import * as Location from 'expo-location';
 import { LocationPicker, LocationValue } from '../../components/location/LocationPicker';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { EventCard } from '../../components/events/EventCard';
+import { CategoryIcon } from '../../components/discovery/CategoryIcon';
 import { eventScreenStyles as eventUI } from '../../components/events/event-screen-styles';
 import { DiscoverPeopleSection } from '../../components/people/DiscoverPeopleSection';
 import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/use-notification-route-ack';
@@ -261,11 +262,15 @@ function DiscoveryCategoryChips({
               borderRadius: 20,
               paddingHorizontal: 15,
               justifyContent: 'center',
+              alignItems: 'center',
+              flexDirection: 'row',
+              gap: 7,
               borderWidth: 1,
               borderColor: active ? theme.colors.G : theme.colors.GLASS_BORDER,
               backgroundColor: active ? theme.colors.G : theme.colors.SURFACE,
             }}
           >
+            <CategoryIcon category={value} color={active ? '#102110' : theme.colors.TEXT_PRIMARY} size={16} />
             <Text
               style={{
                 fontFamily: 'Inter-SemiBold',
@@ -1134,12 +1139,14 @@ function EventsSection({
                   }}
                   style={[
                     eventUI.chip,
+                    { flexDirection: 'row', gap: 7, alignItems: 'center' },
                     filter === option && {
                       backgroundColor: theme.colors.G,
                       borderColor: theme.colors.G,
                     },
                   ]}
                 >
+                  <CategoryIcon category={option} size={16} color={filter === option ? '#102110' : theme.colors.TEXT_PRIMARY} />
                   <Text style={[eventUI.chipText, filter === option && { color: '#102110' }]}>
                     {option}
                   </Text>
@@ -1420,9 +1427,12 @@ function PlacesSection({
                 </View>
               </View>
               <View style={sStylesheet.placeInfo}>
-                <Text style={sStylesheet.placeCategory}>
-                  {item.category || 'Independent business'}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <CategoryIcon category={item.category} size={14} color={theme.colors.TEXT_SECONDARY} />
+                  <Text style={sStylesheet.placeCategory} numberOfLines={1}>
+                    {item.category || 'Independent business'}
+                  </Text>
+                </View>
                 <View style={sStylesheet.placeTitleRow}>
                   <Text style={sStylesheet.placeName} numberOfLines={2}>
                     {item.name}
