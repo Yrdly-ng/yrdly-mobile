@@ -127,7 +127,7 @@ test('weekend filter constrains dates and only published unarchived events are r
   const app = fixture();
   let header = list(app.render()).props.ListHeaderComponent;
   nodes(header)
-    .find((node) => node.type === 'Button' && text(node) === 'Weekend')
+    .find((node) => node.type === 'Button' && text(node).trim() === 'Weekend')
     .props.onPress();
   app.render();
   await app.load();
