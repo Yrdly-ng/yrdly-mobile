@@ -74,3 +74,69 @@ test('shoppable feed collage only changes photo-only For Sale posts and uses the
   assert.match(source, /onOpen=\{handleImageTap\}/);
   assert.doesNotMatch(source, /From ₦3,500/);
 });
+
+
+const { CATEGORY_ICON_GROUPS, getCategoryIconKey, normalizeCategoryLabel } =
+  load('src/lib/discovery/category-icon-map.ts');
+
+test('known category labels resolve to consistent outline icon meanings', () => {
+  const keys = Object.keys(CATEGORY_ICON_GROUPS);
+  assert.ok(keys.length >= 35);
+  const normalizedLabels = new Map();
+  for (const key of keys) {
+    for (const label of CATEGORY_ICON_GROUPS[key]) {
+      const normalized = normalizeCategoryLabel(label);
+      const previous = normalizedLabels.get(normalized);
+      assert.ok(!previous || previous === key, label + ' must have one meaning');
+      normalizedLabels.set(normalized, key);
+      assert.equal(getCategoryIconKey(label), key, label);
+    }
+  }
+  assert.ok(normalizedLabels.size >= 140);
+  for (const [label, expected] of [
+    ['Electronics', 'electronics'],
+    ['Home & Living', 'home'],
+    ['Fashion', 'fashion'],
+    ['Music', 'music'],
+    ['Food & Drink', 'food'],
+    ['Arts & Culture', 'arts'],
+    ['Beauty & Salon', 'beauty'],
+    ['Health & Beauty', 'beauty'],
+    ['Laundry', 'laundry'],
+    ['Tailoring', 'tailoring'],
+    ['Unknown custom category', 'other'],
+    ['', 'other'],
+  ]) assert.equal(getCategoryIconKey(label), expected, label);
+  assert.equal(getCategoryIconKey('Restaurant & Cafe'), 'food', 'accent-insensitive');
+  assert.equal(getCategoryIconKey('CUSTOM CLOTHING & SEWING'), 'tailoring');
+});
+
+test('every existing business catalog category has a designated icon', () => {
+  const source = fs.readFileSync('src/lib/businesses/catalog-categories.ts', 'utf8');
+  const catalog = source.slice(source.indexOf('const CATALOG_CATEGORIES'), source.indexOf('function catalogSector'));
+  const labels = [...new Set([...catalog.matchAll(/'([^']+)'/g)].map(match => match[1]))];
+  const known = new Set(
+    Object.values(CATEGORY_ICON_GROUPS).flat().map(normalizeCategoryLabel),
+  );
+  assert.ok(labels.length > 70);
+  assert.deepEqual(
+    labels.filter(label => !known.has(normalizeCategoryLabel(label))),
+    [],
+    'Category icon mapping must be updated when catalog categories change',
+  );
+});
+
+
+test('mobile discovery category icons are present in all entry points', () => {
+  const catalog = fs.readFileSync('src/app/(tabs)/catalog.tsx', 'utf8');
+  const businessHub = fs.readFileSync('src/components/businesses/BusinessHub.tsx', 'utf8');
+  const legacyEvents = fs.readFileSync('src/components/events/EventList.tsx', 'utf8');
+  const renderer = fs.readFileSync('src/components/discovery/CategoryIcon.tsx', 'utf8');
+  assert.match(catalog, /CategoryIcon category=\{value\}/);
+  assert.match(catalog, /CategoryIcon category=\{option\}/);
+  assert.match(catalog, /CategoryIcon category=\{item\.category\}/);
+  assert.match(businessHub, /CategoryIcon category=\{tile\.name\}/);
+  assert.match(legacyEvents, /CategoryIcon category=\{label\}/);
+  assert.match(renderer, /NATIVE_CATEGORY_ICONS: Record<CategoryIconKey, NativeIconName>/);
+  assert.ok(!renderer.includes('emoji'));
+});
