@@ -157,8 +157,10 @@ export function getMobileNotificationDestination(input: NotificationRouteInput):
           : `/communities/${communityId}`
         : '/communities';
     }
-    case 'daily_prompt':
-      return '/daily-prompts';
+    case 'daily_prompt': {
+      const promptId = firstId(data.promptId, data.prompt_id);
+      return promptId ? `/daily-prompts?promptId=${encodeURIComponent(promptId)}` : '/daily-prompts';
+    }
     case 'welcome':
     case 'system_announcement':
       return '/notifications';
@@ -180,6 +182,7 @@ export function getMobileNotificationDestination(input: NotificationRouteInput):
 export function getPushNotificationDestination(data: Record<string, unknown>): string {
   data = normalizeNotificationPayload(data);
   const typed = getMobileNotificationDestination({ type: String(data.type || ''), data });
+  if (data.type === 'daily_prompt' && firstId(data.promptId, data.prompt_id)) return typed;
   // Prefer authoritative resource IDs over stale URLs; URLs support legacy payloads.
   if (getNotificationTarget({ ...data, url: undefined })) return typed;
   if (['payout_processed', 'payout_failed'].includes(String(data.type))) {
@@ -468,6 +471,7 @@ export function translateNotificationUrl(url: string): string {
     if (
       [
         '/notifications',
+        '/daily-prompts',
         '/bookings',
         '/transactions',
         '/disputes',

@@ -13,12 +13,16 @@ async function verifyFirebaseInstallations(config, fetcher = fetch) {
   const base = `https://firebaseinstallations.googleapis.com/v1/projects/${config.project_info.project_id}/installations`;
   const headers = { 'Content-Type': 'application/json', 'x-goog-api-key': key };
   async function request(url, method, body, authorization) {
-    let response;
-    try { response = await fetcher(url, { method, headers: { ...headers, ...(authorization ? { Authorization: authorization } : {}) },
-      ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(20000) }); }
-    catch { throw new Error('Firebase Installations could not be reached; credentials remain unverified.'); }
-    let data = {}; try { data = await response.json(); } catch { /* DELETE may have no body. */ }
-    return { status: response.status, data };
+    // Match the SDK's one bounded retry for transient provider failures.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      let response;
+      try { response = await fetcher(url, { method, headers: { ...headers, ...(authorization ? { Authorization: authorization } : {}) },
+        ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(20000) }); }
+      catch { throw new Error('Firebase Installations could not be reached; credentials remain unverified.'); }
+      let data = {}; try { data = await response.json(); } catch { /* DELETE may have no body. */ }
+      if (response.status >= 500 && attempt === 0) continue;
+      return { status: response.status, data };
+    }
   }
   const created = await request(base, 'POST', { fid, appId: client.client_info.mobilesdk_app_id, authVersion: 'FIS_v2', sdkVersion: 'a:0.0.0' });
   if (created.status !== 200) {
@@ -31,8 +35,8 @@ async function verifyFirebaseInstallations(config, fetcher = fetch) {
   const actualFid = created.data.fid;
   if (typeof refresh !== 'string' || actualFid !== fid) throw new Error('Firebase returned an incomplete synthetic installation; credentials remain unverified.');
   try {
-    const token = await request(`${base}/${fid}/authTokens:generate`, 'POST', { installation: { sdkVersion: 'a:0.0.0' } }, `FIS_v2 ${refresh}`);
-    if (token.status !== 200 || typeof token.data.token !== 'string') throw new Error('Firebase installation authentication failed; do not distribute this build.');
+    const token = await request(`${base}/${fid}/authTokens:generate`, 'POST', { installation: { sdkVersion: 'a:0.0.0', appId: client.client_info.mobilesdk_app_id } }, `FIS_v2 ${refresh}`);
+    if (token.status !== 200 || typeof token.data.token !== 'string') throw new Error(`Firebase installation authentication failed (HTTP ${token.status}); do not distribute this build.`);
   } finally {
     const deleted = await request(`${base}/${fid}`, 'DELETE', undefined, `FIS_v2 ${refresh}`);
     if (![200,204,404].includes(deleted.status)) throw new Error(`Synthetic Firebase installation cleanup failed (HTTP ${deleted.status}).`);
