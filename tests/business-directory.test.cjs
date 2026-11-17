@@ -200,8 +200,8 @@ test('category changes keep a working recovery action and channels do not collid
   assert.equal(list.props.stickyHeaderIndices, undefined);
   assert.doesNotMatch(text(tree), /Good things\. Close to home\./);
   nodes(list.props.ListHeaderComponent)
-    .find((node) => node.type === 'CategoryDropdown')
-    .props.setCategory('Beauty & Salon');
+    .find((node) => node.type === 'DiscoveryCategoryChips')
+    .props.onSelect('Beauty & Salon');
   app.render();
   const second = await app.focus();
   assert.ok(
