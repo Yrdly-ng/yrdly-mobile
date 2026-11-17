@@ -225,6 +225,63 @@ function MarketplaceCover({ item }: { item: Post }) {
   );
 }
 
+
+/**
+ * Discoverable category filters: keep the existing query values, but make
+ * popular categories visible without opening a separate dropdown.
+ */
+function DiscoveryCategoryChips({
+  values,
+  selected,
+  onSelect,
+}: {
+  values: readonly string[];
+  selected: string;
+  onSelect: (value: string) => void;
+}) {
+  const { theme } = useUnistyles();
+  return (
+    <ScrollView
+      horizontal
+      nestedScrollEnabled
+      showsHorizontalScrollIndicator={false}
+      accessibilityLabel="Browse categories"
+      contentContainerStyle={{ gap: 8, paddingHorizontal: 20, paddingVertical: 4 }}
+    >
+      {values.map((value) => {
+        const active = value === selected;
+        return (
+          <TouchableOpacity
+            key={value}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
+            onPress={() => onSelect(value)}
+            style={{
+              minHeight: 40,
+              borderRadius: 20,
+              paddingHorizontal: 15,
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: active ? theme.colors.G : theme.colors.GLASS_BORDER,
+              backgroundColor: active ? theme.colors.G : theme.colors.SURFACE,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: 'Inter-SemiBold',
+                fontSize: 12,
+                color: active ? '#102110' : theme.colors.TEXT_PRIMARY,
+              }}
+            >
+              {value}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
 // ─── MARKETPLACE SECTION ─────────────────────────────────────────────────────
 function MarketplaceSection({
   currentLoc,
@@ -361,26 +418,36 @@ function MarketplaceSection({
 
   return (
     <View style={sStylesheet.sectionContainer}>
-      <View
-        style={[
-          sStylesheet.marketplaceToolbar,
-          {
-            paddingHorizontal: 20,
-            paddingRight: 20,
-            justifyContent: 'space-between',
-            flexDirection: 'row',
-            alignItems: 'center',
-          },
-        ]}
-      >
-        <CategoryDropdown
-          category={category}
-          setCategory={setCategory}
-          options={CATS}
-          theme={theme}
-        />
-        <TouchableOpacity style={sStylesheet.filterBtn} onPress={() => setShowFilter(true)}>
-          <Ionicons name="options-outline" size={18} color={theme.colors.MUTED} />
+      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12 }}>
+        <Text style={{ fontFamily: 'Outfit-Bold', fontSize: 23, color: theme.colors.TEXT_PRIMARY }}>
+          Buy & sell nearby
+        </Text>
+        <Text style={{ fontFamily: 'Inter-Regular', fontSize: 13, color: theme.colors.TEXT_SECONDARY, marginTop: 4 }}>
+          Good finds, close to home.
+        </Text>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="List an item for sale"
+          onPress={() => router.push('/create-for-sale' as any)}
+          style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, marginTop: 12 }}
+        >
+          <Ionicons name="add-circle-outline" size={19} color={theme.colors.G} />
+          <Text style={{ fontFamily: 'Inter-SemiBold', fontSize: 13, color: theme.colors.G }}>
+            List an item
+          </Text>
+        </TouchableOpacity>
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingBottom: 12 }}>
+        <View style={{ flex: 1 }}>
+          <DiscoveryCategoryChips values={CATS} selected={category} onSelect={setCategory} />
+        </View>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Filter marketplace listings"
+          style={[sStylesheet.filterBtn, { marginRight: 20, marginLeft: 8 }]}
+          onPress={() => setShowFilter(true)}
+        >
+          <Ionicons name="options-outline" size={18} color={theme.colors.TEXT_PRIMARY} />
         </TouchableOpacity>
       </View>
 
@@ -1175,18 +1242,14 @@ function PlacesSection({
               <Text style={businessUI.subtitle}>
                 Find your next favourite shop, service or everyday essential.
               </Text>
-              <View style={sStylesheet.placesFilterRow}>
-                <CategoryDropdown
-                  category={category}
-                  setCategory={setCategory}
-                  options={PLACE_CATS}
-                  theme={theme}
-                  label="Category"
-                />
-                <Text style={businessUI.sectionHint}>
-                  {category === 'All' ? 'All categories' : category}
-                </Text>
-              </View>
+              <Text style={[businessUI.sectionHint, { marginTop: 4 }]}>
+                Browse by category
+              </Text>
+            </View>
+            <View style={{ marginHorizontal: -20 }}>
+              <DiscoveryCategoryChips values={PLACE_CATS} selected={category} onSelect={setCategory} />
+            </View>
+            <View style={{ height: 2 }}>
             </View>
             <View style={businessUI.sectionHeader}>
               <Text style={businessUI.sectionTitle}>
@@ -1279,8 +1342,14 @@ function PlacesSection({
                   <Text style={sStylesheet.placeName} numberOfLines={2}>
                     {item.name}
                   </Text>
-                  {(item as any).phone_verified && <VerifiedBadge size={17} />}
-                  <Ionicons name="arrow-forward" size={20} color={theme.colors.TEXT_PRIMARY} />
+                  {(item as any).phone_verified && (
+                    <View accessibilityLabel="Phone number verified" style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                      <Ionicons name="call-outline" size={13} color={theme.colors.G} />
+                      <Text style={{ color: theme.colors.G, fontFamily: 'Inter-Medium', fontSize: 10 }}>
+                        Phone verified
+                      </Text>
+                    </View>
+                  )}
                 </View>
                 {!!item.description && (
                   <Text style={sStylesheet.placeDescription} numberOfLines={2}>
@@ -1288,7 +1357,7 @@ function PlacesSection({
                   </Text>
                 )}
                 {(location || distance || rating) && (
-                  <View style={sStylesheet.placeMetaRow}>
+                  <View style={[sStylesheet.placeMetaRow, { flexWrap: 'wrap' }]}>
                     {(location || distance) && (
                       <View style={[sStylesheet.placeMetaItem, { flex: 1 }]}>
                         <Ionicons
@@ -1309,6 +1378,12 @@ function PlacesSection({
                     )}
                   </View>
                 )}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 }}>
+                  <Text style={{ color: theme.colors.G, fontFamily: 'Inter-SemiBold', fontSize: 12 }}>
+                    View business
+                  </Text>
+                  <Ionicons name="arrow-forward" size={14} color={theme.colors.G} />
+                </View>
               </View>
             </TouchableOpacity>
           );
@@ -1784,7 +1859,14 @@ const stylesheet = StyleSheet.create((theme) => ({
     alignItems: 'center',
   },
 
-  marketplaceCard: { width: '48%' },
+  marketplaceCard: {
+    width: '48%',
+    backgroundColor: theme.colors.SURFACE,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    borderRadius: 18,
+    padding: 8,
+  },
   marketplaceCardImgWrap: {
     width: '100%',
     aspectRatio: 1,
@@ -1827,7 +1909,7 @@ const stylesheet = StyleSheet.create((theme) => ({
   },
   marketplaceCardPrice: {
     fontFamily: 'Outfit-ExtraBold',
-    fontSize: 15,
+    fontSize: 17,
     color: theme.colors.G,
     marginBottom: 4,
   },
@@ -1918,28 +2000,30 @@ const stylesheet = StyleSheet.create((theme) => ({
     backgroundColor: theme.colors.SURFACE,
     borderWidth: 1,
     borderColor: theme.colors.GLASS_BORDER,
-    borderRadius: 24,
+    borderRadius: 20,
     overflow: 'hidden',
+    flexDirection: 'row',
+    minHeight: 145,
   },
-  placePhotoWrap: { height: 170, width: '100%', backgroundColor: theme.colors.SURFACE_ALT },
+  placePhotoWrap: { height: 145, width: 116, backgroundColor: theme.colors.SURFACE_ALT },
   placePhoto: { width: '100%', height: '100%' },
   placeModeBadge: {
     position: 'absolute',
-    left: 14,
-    bottom: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    left: 6,
+    bottom: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
     borderRadius: 10,
     backgroundColor: '#242017',
   },
   placeModeText: { fontFamily: 'Inter-SemiBold', fontSize: 11, color: '#F6D8A5' },
-  placeInfo: { padding: 18, gap: 8 },
+  placeInfo: { flex: 1, padding: 12, gap: 5 },
   placeTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   placeName: {
     flex: 1,
     fontFamily: 'Outfit-Bold',
-    fontSize: 23,
-    lineHeight: 28,
+    fontSize: 16,
+    lineHeight: 21,
     color: theme.colors.TEXT_PRIMARY,
   },
   placeCategory: {
@@ -1951,7 +2035,7 @@ const stylesheet = StyleSheet.create((theme) => ({
   },
   placeDescription: {
     fontFamily: 'Inter-Regular',
-    fontSize: 13,
+    fontSize: 12,
     lineHeight: 20,
     color: theme.colors.TEXT_SECONDARY,
   },
