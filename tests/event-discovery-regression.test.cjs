@@ -163,6 +163,7 @@ async function mount(t, fixtures = rows, legacy = false, clock = now) {
     TouchableOpacity: 'Button',
     ActivityIndicator: 'Spinner',
     Ionicons: 'Icon',
+    UpcomingEventSpotlight: 'UpcomingEventSpotlight',
   };
   const module = { exports: {} };
   new Function(...Object.keys(deps), 'module', legacy ? legacyCode : code)(
