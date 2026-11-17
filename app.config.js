@@ -128,11 +128,16 @@ module.exports = {
         "android.permission.RECORD_AUDIO",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.VIBRATE",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      // Users choose individual images and videos via the Android system picker
+      // (including the React Native crop picker), not continuous gallery access.
+      // Block dependencies from re-adding these permissions during manifest merge.
+      blockedPermissions: [
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_MEDIA_VIDEO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ]
     },
     web: {
