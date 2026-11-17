@@ -45,3 +45,32 @@ test('commercial and event posts reject engagement while ordinary conversations 
     assert.equal(supportsPostEngagement(category), true, String(category));
   }
 });
+
+
+test('discovery redesign uses real listing, business and event data without fictional verification', () => {
+  const catalog = fs.readFileSync('src/app/(tabs)/catalog.tsx', 'utf8');
+  assert.match(catalog, /function DiscoveryCategoryChips\(/);
+  assert.match(catalog, /values=\{CATS\}/);
+  assert.match(catalog, /values=\{PLACE_CATS\}/);
+  assert.match(catalog, /List an item/);
+  assert.match(catalog, /Phone verified/);
+  assert.doesNotMatch(catalog, /Verified Business|Trusted verified business/);
+  assert.match(catalog, /function UpcomingEventSpotlight\(/);
+  assert.match(catalog, /UP NEXT/);
+  assert.match(catalog, /showSpotlight \? events\.slice\(1\) : events/);
+  assert.match(catalog, /!search\.trim\(\)/);
+  assert.match(catalog, /events\[0\]\?\.cover_image_url/);
+});
+
+test('shoppable feed collage only changes photo-only For Sale posts and uses their real price', () => {
+  const source = fs.readFileSync('src/components/posts/PostCard.tsx', 'utf8');
+  assert.match(source, /function MarketplaceFeedCollage\(/);
+  assert.match(source, /post\.category === 'For Sale'/);
+  assert.match(source, /urls\.length >= 2/);
+  assert.match(source, /!mediaUrls\(post\.video_urls\)\.length/);
+  assert.match(source, /showMarketplaceCollage && \(/);
+  assert.match(source, /!showMarketplaceCollage && mediaItems\.length > 0/);
+  assert.match(source, /formatPrice\(price\)/);
+  assert.match(source, /onOpen=\{handleImageTap\}/);
+  assert.doesNotMatch(source, /From ₦3,500/);
+});
