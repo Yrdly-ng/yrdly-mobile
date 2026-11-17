@@ -228,6 +228,11 @@ module.exports = {
       [
         "expo-build-properties",
         {
+          // Opt-in for Android QA builds only. Store/EAS builds retain their current behavior.
+          android: {
+            enableMinifyInReleaseBuilds: process.env.YRDLY_ANDROID_QA_SIZE_OPTIMIZATIONS === "1",
+            enableShrinkResourcesInReleaseBuilds: process.env.YRDLY_ANDROID_QA_SIZE_OPTIMIZATIONS === "1",
+          },
           ios: {
             enableSceneSupport: true
           },
