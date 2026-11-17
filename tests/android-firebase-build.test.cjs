@@ -147,6 +147,8 @@ test('Android QA shrinking is explicitly opted in and cannot silently change EAS
   const normal = evaluateDynamicAppConfig({});
   const optimized = evaluateDynamicAppConfig({ YRDLY_ANDROID_QA_SIZE_OPTIMIZATIONS: '1' });
   const getAndroid = cfg => cfg.config.plugins.find(entry => entry[0] === 'expo-build-properties')[1].android;
+  assert.equal(getAndroid(normal).enableMultiDex, true);
+  assert.equal(getAndroid(optimized).enableMultiDex, true);
   assert.equal(getAndroid(normal).enableMinifyInReleaseBuilds, false);
   assert.equal(getAndroid(normal).enableShrinkResourcesInReleaseBuilds, false);
   assert.equal(getAndroid(optimized).enableMinifyInReleaseBuilds, true);
