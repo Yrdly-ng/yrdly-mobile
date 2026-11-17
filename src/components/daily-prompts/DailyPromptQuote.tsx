@@ -52,8 +52,8 @@ export function DailyPromptQuote({ promptId }: { promptId?: string | null }) {
       <Text
         style={{
           fontFamily: 'Inter-SemiBold',
-          fontSize: 12,
-          color: theme.colors.MUTED,
+          fontSize: 14,
+          color: theme.colors.TEXT_PRIMARY,
           marginBottom: 8,
         }}
       >
@@ -81,7 +81,7 @@ export function DailyPromptQuote({ promptId }: { promptId?: string | null }) {
           }}
           style={{ minHeight: 44, justifyContent: 'center', marginTop: 4 }}
         >
-          <Text style={{ fontFamily: 'Inter-SemiBold', fontSize: 14, color: theme.colors.G }}>
+          <Text style={{ fontFamily: 'Inter-SemiBold', fontSize: 14, color: theme.colors.TEXT_PRIMARY, textDecorationLine: 'underline' }}>
             View question and neighbours’ answers
           </Text>
         </TouchableOpacity>
