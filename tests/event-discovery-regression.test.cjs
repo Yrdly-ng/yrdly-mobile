@@ -163,6 +163,7 @@ async function mount(t, fixtures = rows, legacy = false, clock = now) {
     TouchableOpacity: 'Button',
     ActivityIndicator: 'Spinner',
     Ionicons: 'Icon',
+    CategoryIcon: 'CategoryIcon',
     UpcomingEventSpotlight: 'UpcomingEventSpotlight',
   };
   const module = { exports: {} };
@@ -190,7 +191,9 @@ async function mount(t, fixtures = rows, legacy = false, clock = now) {
     requests: () => requests,
     async select(label) {
       const button = nodes(list().props.ListHeaderComponent).find(
-        (node) => node.type === 'Button' && node.props.children?.props?.children === label
+        (node) =>
+          node.type === 'Button' &&
+          nodes(node).some((child) => child.type === 'Text' && child.props.children === label)
       );
       assert.ok(button, label);
       await act(async () => button.props.onPress());
