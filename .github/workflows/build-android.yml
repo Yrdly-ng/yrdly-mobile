@@ -173,6 +173,34 @@ jobs:
             '### Android QA APK size\\n\\n' + mib + ' MiB (' + bytes + ' bytes)\\n\\nArchitectures: ' + abis.join(', ') + '\\n');
           NODE
 
+      - name: Verify built APK does not request broad gallery access
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const cp = require('node:child_process');
+          const apk = process.env.APK_PATH;
+          if (!apk || !fs.existsSync(apk)) throw new Error('APK not found for permissions check');
+          const buildTools = fs.readdirSync(path.join(process.env.ANDROID_HOME, 'build-tools'))
+            .sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).at(-1);
+          const aapt2 = path.join(process.env.ANDROID_HOME, 'build-tools', buildTools, 'aapt2');
+          if (!fs.existsSync(aapt2)) throw new Error('aapt2 not found');
+          const manifest = cp.execFileSync(aapt2, ['dump', 'permissions', apk],
+            { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
+          const banned = [
+            'android.permission.READ_MEDIA_IMAGES',
+            'android.permission.READ_MEDIA_VIDEO',
+            'android.permission.READ_EXTERNAL_STORAGE',
+            'android.permission.WRITE_EXTERNAL_STORAGE',
+          ];
+          for (const name of banned) {
+            if (manifest.includes(name)) throw new Error('APK requests forbidden media permission: ' + name);
+          }
+          console.log('PASS: signed APK does not request broad photo/video or legacy storage access.');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '\\nAndroid media permissions: PASS (no broad library or legacy storage access).\\n');
+          NODE
+
       - name: Verify Firebase resources inside built APK
         run: |
           node <<'NODE'
