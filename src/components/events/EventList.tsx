@@ -11,6 +11,7 @@ import {
 import { useUnistyles } from 'react-native-unistyles';
 import { Ionicons } from '@expo/vector-icons';
 import { EventCard } from './EventCard';
+import { CategoryIcon } from '../discovery/CategoryIcon';
 import { eventScreenStyles as ui } from './event-screen-styles';
 import { supabase } from '../../lib/supabase/supabase';
 import { Post } from '../../types/index';
@@ -280,9 +281,11 @@ export function EventList({ searchQuery = '', sortOption = 'newest' }: EventList
                   }}
                   style={[
                     ui.chip,
+                    { flexDirection: 'row', alignItems: 'center', gap: 7 },
                     selected && { backgroundColor: theme.colors.G, borderColor: theme.colors.G },
                   ]}
                 >
+                  <CategoryIcon category={label} size={16} color={selected ? '#102110' : theme.colors.TEXT_PRIMARY} />
                   <Text style={[ui.chipText, selected && { color: '#102110' }]}>
                     {label === 'Party' ? 'Parties' : label}
                   </Text>

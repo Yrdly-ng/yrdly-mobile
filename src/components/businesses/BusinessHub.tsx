@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Avatar } from '../Avatar';
+import { CategoryIcon } from '../discovery/CategoryIcon';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase/supabase';
@@ -233,9 +234,12 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
           <Text style={[s.bizName, { color: theme.colors.TEXT_PRIMARY }]} numberOfLines={1}>
             {item.name}
           </Text>
-          <Text style={[s.bizCat, { color: theme.colors.MUTED }]} numberOfLines={1}>
-            {item.category || 'Other'}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <CategoryIcon category={item.category} size={14} color={theme.colors.MUTED} />
+            <Text style={[s.bizCat, { color: theme.colors.MUTED, flex: 1 }]} numberOfLines={1}>
+              {item.category || 'Other'}
+            </Text>
+          </View>
 
           <View style={s.bizMetaRow}>
             <View style={s.bizRating}>
@@ -346,6 +350,9 @@ export function BusinessHub({ searchQuery }: BusinessHubProps) {
                   <View style={s.tileOverlay} />
                   <View style={s.tileBadge}>
                     <Text style={s.tileBadgeTxt}>{tile.count}</Text>
+                  </View>
+                  <View style={{ position: 'absolute', top: 12, left: 12, padding: 8, borderRadius: 11, backgroundColor: 'rgba(0,0,0,0.6)' }}>
+                    <CategoryIcon category={tile.name} size={22} color={'#FFFFFF'} />
                   </View>
                   <Text style={s.tileTitle}>{tile.name}</Text>
                 </TouchableOpacity>

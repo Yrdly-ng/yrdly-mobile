@@ -44,6 +44,7 @@ import * as Location from 'expo-location';
 import { LocationPicker, LocationValue } from '../../components/location/LocationPicker';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { EventCard } from '../../components/events/EventCard';
+import { CategoryIcon } from '../../components/discovery/CategoryIcon';
 import { eventScreenStyles as eventUI } from '../../components/events/event-screen-styles';
 import { DiscoverPeopleSection } from '../../components/people/DiscoverPeopleSection';
 import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/use-notification-route-ack';
@@ -225,6 +226,67 @@ function MarketplaceCover({ item }: { item: Post }) {
   );
 }
 
+
+/**
+ * Discoverable category filters: keep the existing query values, but make
+ * popular categories visible without opening a separate dropdown.
+ */
+function DiscoveryCategoryChips({
+  values,
+  selected,
+  onSelect,
+}: {
+  values: readonly string[];
+  selected: string;
+  onSelect: (value: string) => void;
+}) {
+  const { theme } = useUnistyles();
+  return (
+    <ScrollView
+      horizontal
+      nestedScrollEnabled
+      showsHorizontalScrollIndicator={false}
+      accessibilityLabel="Browse categories"
+      contentContainerStyle={{ gap: 8, paddingHorizontal: 20, paddingVertical: 4 }}
+    >
+      {values.map((value) => {
+        const active = value === selected;
+        return (
+          <TouchableOpacity
+            key={value}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
+            onPress={() => onSelect(value)}
+            style={{
+              minHeight: 40,
+              borderRadius: 20,
+              paddingHorizontal: 15,
+              justifyContent: 'center',
+              alignItems: 'center',
+              flexDirection: 'row',
+              gap: 7,
+              borderWidth: 1,
+              borderColor: active ? theme.colors.G : theme.colors.GLASS_BORDER,
+              backgroundColor: active ? theme.colors.G : theme.colors.SURFACE,
+            }}
+          >
+            <CategoryIcon category={value} color={active ? '#102110' : theme.colors.TEXT_PRIMARY} size={16} />
+            <Text
+              style={{
+                fontFamily: 'Inter-SemiBold',
+                fontSize: 12,
+                color: active ? '#102110' : theme.colors.TEXT_PRIMARY,
+              }}
+            >
+              {value}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
 // ─── MARKETPLACE SECTION ─────────────────────────────────────────────────────
 function MarketplaceSection({
   currentLoc,
@@ -361,26 +423,36 @@ function MarketplaceSection({
 
   return (
     <View style={sStylesheet.sectionContainer}>
-      <View
-        style={[
-          sStylesheet.marketplaceToolbar,
-          {
-            paddingHorizontal: 20,
-            paddingRight: 20,
-            justifyContent: 'space-between',
-            flexDirection: 'row',
-            alignItems: 'center',
-          },
-        ]}
-      >
-        <CategoryDropdown
-          category={category}
-          setCategory={setCategory}
-          options={CATS}
-          theme={theme}
-        />
-        <TouchableOpacity style={sStylesheet.filterBtn} onPress={() => setShowFilter(true)}>
-          <Ionicons name="options-outline" size={18} color={theme.colors.MUTED} />
+      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12 }}>
+        <Text style={{ fontFamily: 'Outfit-Bold', fontSize: 23, color: theme.colors.TEXT_PRIMARY }}>
+          Buy & sell nearby
+        </Text>
+        <Text style={{ fontFamily: 'Inter-Regular', fontSize: 13, color: theme.colors.TEXT_SECONDARY, marginTop: 4 }}>
+          Good finds, close to home.
+        </Text>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="List an item for sale"
+          onPress={() => router.push('/create-for-sale' as any)}
+          style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, marginTop: 12 }}
+        >
+          <Ionicons name="add-circle-outline" size={19} color={theme.colors.G} />
+          <Text style={{ fontFamily: 'Inter-SemiBold', fontSize: 13, color: theme.colors.G }}>
+            List an item
+          </Text>
+        </TouchableOpacity>
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingBottom: 12 }}>
+        <View style={{ flex: 1 }}>
+          <DiscoveryCategoryChips values={CATS} selected={category} onSelect={setCategory} />
+        </View>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Filter marketplace listings"
+          style={[sStylesheet.filterBtn, { marginRight: 20, marginLeft: 8 }]}
+          onPress={() => setShowFilter(true)}
+        >
+          <Ionicons name="options-outline" size={18} color={theme.colors.TEXT_PRIMARY} />
         </TouchableOpacity>
       </View>
 
@@ -831,6 +903,79 @@ function CatalogEventCard({ item, router, theme, sStylesheet }: any) {
   );
 }
 
+
+/**
+ * Spotlight the soonest actual published event. This is a presentation treatment,
+ * not a paid, promoted or manually verified "featured" designation.
+ */
+function UpcomingEventSpotlight({
+  event,
+  onPress,
+}: {
+  event: any;
+  onPress: () => void;
+}) {
+  const { theme } = useUnistyles();
+  const cover = event.cover_image_url || event.image_urls?.[0];
+  const eventDate = event.start_time
+    ? new Date(event.start_time).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })
+    : 'Date to be announced';
+  return (
+    <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel={`View upcoming event ${event.title || 'Untitled event'}`}
+      onPress={onPress}
+      activeOpacity={0.9}
+      style={{
+        marginHorizontal: 20,
+        marginBottom: 20,
+        height: 238,
+        borderRadius: 20,
+        overflow: 'hidden',
+        backgroundColor: theme.colors.SURFACE_ALT,
+        borderWidth: 1,
+        borderColor: theme.colors.GLASS_BORDER,
+      }}
+    >
+      <Image
+        source={{ uri: cover }}
+        contentFit="cover"
+        style={{ width: '100%', height: '100%' }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          paddingHorizontal: 16,
+          paddingVertical: 15,
+          backgroundColor: 'rgba(10,21,14,0.84)',
+          gap: 5,
+        }}
+      >
+        <Text style={{ color: '#A8F5A1', fontFamily: 'Inter-Bold', fontSize: 10, letterSpacing: 1.2 }}>
+          UP NEXT
+        </Text>
+        <Text
+          numberOfLines={2}
+          style={{ color: '#FFFFFF', fontFamily: 'Outfit-Bold', fontSize: 21 }}
+        >
+          {event.title || 'Upcoming event'}
+        </Text>
+        <Text numberOfLines={1} style={{ color: '#E5F3E7', fontFamily: 'Inter-Regular', fontSize: 12 }}>
+          {[eventDate, event.location_online ? 'Online' : event.location_address]
+            .filter(Boolean).join(' · ')}
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
+          <Text style={{ color: '#A8F5A1', fontFamily: 'Inter-SemiBold', fontSize: 12 }}>View event</Text>
+          <Ionicons name="arrow-forward" size={14} color="#A8F5A1" />
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 // ─── EVENTS SECTION ──────────────────────────────────────────────────────────
 function EventsSection({
   currentLoc,
@@ -848,8 +993,12 @@ function EventsSection({
   const [error, setError] = useState(false);
   const [filter, setFilter] = useState('All');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [seenCategories, setSeenCategories] = useState<string[]>([]);
   useNotificationRouteAcknowledgement(!loading);
-  const filters = ['All', 'Today', 'This Week', 'Weekend', 'Community', 'Music', 'Food', 'Sports'];
+  const filters = Array.from(new Set([
+    'All', 'Today', 'This Week', 'Weekend', 'Community', 'Music', 'Food', 'Sports',
+    ...seenCategories,
+  ]));
 
   useFocusEffect(
     useCallback(() => {
@@ -867,7 +1016,7 @@ function EventsSection({
           .or(`end_time.gte.${now.toISOString()},start_time.gte.${now.toISOString()}`)
           .order('start_time', { ascending: true })
           .limit(30);
-        if (['Community', 'Music', 'Food', 'Sports'].includes(filter)) {
+        if (filter !== 'All' && !['Today', 'This Week', 'Weekend'].includes(filter)) {
           q = q.ilike('category', `%${filter}%`);
         } else if (filter === 'Today') {
           const end = new Date(today);
@@ -896,7 +1045,17 @@ function EventsSection({
           const { data, error: fetchError } = await q;
           if (!active) return;
           if (fetchError) setError(true);
-          else setEvents(data || []);
+          else {
+            setEvents(data || []);
+            if (filter === 'All' && data?.length) {
+              const publishedCategories = data
+                .map((item) => typeof item.category === 'string' ? item.category.trim() : '')
+                .filter(Boolean);
+              setSeenCategories((previous) =>
+                Array.from(new Set([...previous, ...publishedCategories])).sort()
+              );
+            }
+          }
         } catch {
           if (active) setError(true);
         } finally {
@@ -917,10 +1076,16 @@ function EventsSection({
     setRefreshing(true);
     setRefreshKey((value) => value + 1);
   };
+  // No promoted claim: show an actual event only, in chronological order.
+  const showSpotlight =
+    !search.trim() &&
+    filter === 'All' &&
+    !error &&
+    !!(events[0]?.cover_image_url || events[0]?.image_urls?.[0]);
   return (
     <View style={eventUI.page}>
       <FlatList
-        data={events}
+        data={showSpotlight ? events.slice(1) : events}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 110 }}
@@ -988,24 +1153,32 @@ function EventsSection({
                   }}
                   style={[
                     eventUI.chip,
+                    { flexDirection: 'row', gap: 7, alignItems: 'center' },
                     filter === option && {
                       backgroundColor: theme.colors.G,
                       borderColor: theme.colors.G,
                     },
                   ]}
                 >
+                  <CategoryIcon category={option} size={16} color={filter === option ? '#102110' : theme.colors.TEXT_PRIMARY} />
                   <Text style={[eventUI.chipText, filter === option && { color: '#102110' }]}>
                     {option}
                   </Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
+            {showSpotlight && (
+              <UpcomingEventSpotlight
+                event={events[0]}
+                onPress={() => router.push(`/events/${events[0].id}` as any)}
+              />
+            )}
             <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
               <Text style={eventUI.sectionTitle}>
                 {search.trim()
                   ? 'Your search results'
                   : filter === 'All'
-                    ? 'Coming up near you'
+                    ? showSpotlight ? 'More events near you' : 'Coming up near you'
                     : filter}
               </Text>
               <Text style={eventUI.sectionHint}>
@@ -1028,7 +1201,7 @@ function EventsSection({
           </>
         }
         ListEmptyComponent={
-          loading ? (
+          events.length > 0 ? null : loading ? (
             <ActivityIndicator
               accessibilityLabel="Loading events"
               color={theme.colors.G}
@@ -1175,18 +1348,14 @@ function PlacesSection({
               <Text style={businessUI.subtitle}>
                 Find your next favourite shop, service or everyday essential.
               </Text>
-              <View style={sStylesheet.placesFilterRow}>
-                <CategoryDropdown
-                  category={category}
-                  setCategory={setCategory}
-                  options={PLACE_CATS}
-                  theme={theme}
-                  label="Category"
-                />
-                <Text style={businessUI.sectionHint}>
-                  {category === 'All' ? 'All categories' : category}
-                </Text>
-              </View>
+              <Text style={[businessUI.sectionHint, { marginTop: 4 }]}>
+                Browse by category
+              </Text>
+            </View>
+            <View style={{ marginHorizontal: -20 }}>
+              <DiscoveryCategoryChips values={PLACE_CATS} selected={category} onSelect={setCategory} />
+            </View>
+            <View style={{ height: 2 }}>
             </View>
             <View style={businessUI.sectionHeader}>
               <Text style={businessUI.sectionTitle}>
@@ -1272,15 +1441,24 @@ function PlacesSection({
                 </View>
               </View>
               <View style={sStylesheet.placeInfo}>
-                <Text style={sStylesheet.placeCategory}>
-                  {item.category || 'Independent business'}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <CategoryIcon category={item.category} size={14} color={theme.colors.TEXT_SECONDARY} />
+                  <Text style={sStylesheet.placeCategory} numberOfLines={1}>
+                    {item.category || 'Independent business'}
+                  </Text>
+                </View>
                 <View style={sStylesheet.placeTitleRow}>
                   <Text style={sStylesheet.placeName} numberOfLines={2}>
                     {item.name}
                   </Text>
-                  {(item as any).phone_verified && <VerifiedBadge size={17} />}
-                  <Ionicons name="arrow-forward" size={20} color={theme.colors.TEXT_PRIMARY} />
+                  {(item as any).phone_verified && (
+                    <View accessibilityLabel="Phone number verified" style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                      <Ionicons name="call-outline" size={13} color={theme.colors.G} />
+                      <Text style={{ color: theme.colors.G, fontFamily: 'Inter-Medium', fontSize: 10 }}>
+                        Phone verified
+                      </Text>
+                    </View>
+                  )}
                 </View>
                 {!!item.description && (
                   <Text style={sStylesheet.placeDescription} numberOfLines={2}>
@@ -1288,7 +1466,7 @@ function PlacesSection({
                   </Text>
                 )}
                 {(location || distance || rating) && (
-                  <View style={sStylesheet.placeMetaRow}>
+                  <View style={[sStylesheet.placeMetaRow, { flexWrap: 'wrap' }]}>
                     {(location || distance) && (
                       <View style={[sStylesheet.placeMetaItem, { flex: 1 }]}>
                         <Ionicons
@@ -1309,6 +1487,12 @@ function PlacesSection({
                     )}
                   </View>
                 )}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 }}>
+                  <Text style={{ color: theme.colors.G, fontFamily: 'Inter-SemiBold', fontSize: 12 }}>
+                    View business
+                  </Text>
+                  <Ionicons name="arrow-forward" size={14} color={theme.colors.G} />
+                </View>
               </View>
             </TouchableOpacity>
           );
@@ -1784,7 +1968,14 @@ const stylesheet = StyleSheet.create((theme) => ({
     alignItems: 'center',
   },
 
-  marketplaceCard: { width: '48%' },
+  marketplaceCard: {
+    width: '48%',
+    backgroundColor: theme.colors.SURFACE,
+    borderWidth: 1,
+    borderColor: theme.colors.GLASS_BORDER,
+    borderRadius: 18,
+    padding: 8,
+  },
   marketplaceCardImgWrap: {
     width: '100%',
     aspectRatio: 1,
@@ -1827,7 +2018,7 @@ const stylesheet = StyleSheet.create((theme) => ({
   },
   marketplaceCardPrice: {
     fontFamily: 'Outfit-ExtraBold',
-    fontSize: 15,
+    fontSize: 17,
     color: theme.colors.G,
     marginBottom: 4,
   },
@@ -1918,28 +2109,30 @@ const stylesheet = StyleSheet.create((theme) => ({
     backgroundColor: theme.colors.SURFACE,
     borderWidth: 1,
     borderColor: theme.colors.GLASS_BORDER,
-    borderRadius: 24,
+    borderRadius: 20,
     overflow: 'hidden',
+    flexDirection: 'row',
+    minHeight: 145,
   },
-  placePhotoWrap: { height: 170, width: '100%', backgroundColor: theme.colors.SURFACE_ALT },
+  placePhotoWrap: { height: 145, width: 116, backgroundColor: theme.colors.SURFACE_ALT },
   placePhoto: { width: '100%', height: '100%' },
   placeModeBadge: {
     position: 'absolute',
-    left: 14,
-    bottom: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    left: 6,
+    bottom: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
     borderRadius: 10,
     backgroundColor: '#242017',
   },
   placeModeText: { fontFamily: 'Inter-SemiBold', fontSize: 11, color: '#F6D8A5' },
-  placeInfo: { padding: 18, gap: 8 },
+  placeInfo: { flex: 1, padding: 12, gap: 5 },
   placeTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   placeName: {
     flex: 1,
     fontFamily: 'Outfit-Bold',
-    fontSize: 23,
-    lineHeight: 28,
+    fontSize: 16,
+    lineHeight: 21,
     color: theme.colors.TEXT_PRIMARY,
   },
   placeCategory: {
@@ -1951,7 +2144,7 @@ const stylesheet = StyleSheet.create((theme) => ({
   },
   placeDescription: {
     fontFamily: 'Inter-Regular',
-    fontSize: 13,
+    fontSize: 12,
     lineHeight: 20,
     color: theme.colors.TEXT_SECONDARY,
   },

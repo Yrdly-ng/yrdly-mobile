@@ -45,3 +45,106 @@ test('commercial and event posts reject engagement while ordinary conversations 
     assert.equal(supportsPostEngagement(category), true, String(category));
   }
 });
+
+
+test('discovery redesign uses real listing, business and event data without fictional verification', () => {
+  const catalog = fs.readFileSync('src/app/(tabs)/catalog.tsx', 'utf8');
+  assert.match(catalog, /function DiscoveryCategoryChips\(/);
+  assert.match(catalog, /values=\{CATS\}/);
+  assert.match(catalog, /values=\{PLACE_CATS\}/);
+  assert.match(catalog, /List an item/);
+  assert.match(catalog, /Phone verified/);
+  assert.doesNotMatch(catalog, /Verified Business|Trusted verified business/);
+  assert.match(catalog, /function UpcomingEventSpotlight\(/);
+  assert.match(catalog, /UP NEXT/);
+  assert.match(catalog, /showSpotlight \? events\.slice\(1\) : events/);
+  assert.match(catalog, /!search\.trim\(\)/);
+  assert.match(catalog, /events\[0\]\?\.cover_image_url/);
+});
+
+test('shoppable feed collage only changes photo-only For Sale posts and uses their real price', () => {
+  const source = fs.readFileSync('src/components/posts/PostCard.tsx', 'utf8');
+  assert.match(source, /function MarketplaceFeedCollage\(/);
+  assert.match(source, /post\.category === 'For Sale'/);
+  assert.match(source, /urls\.length >= 2/);
+  assert.match(source, /!mediaUrls\(post\.video_urls\)\.length/);
+  assert.match(source, /showMarketplaceCollage && \(/);
+  assert.match(source, /!showMarketplaceCollage && mediaItems\.length > 0/);
+  assert.match(source, /formatPrice\(price\)/);
+  assert.match(source, /onOpen=\{handleImageTap\}/);
+  assert.doesNotMatch(source, /From ₦3,500/);
+});
+
+
+const { CATEGORY_ICON_GROUPS, getCategoryIconKey, normalizeCategoryLabel } =
+  load('src/lib/discovery/category-icon-map.ts');
+
+test('known category labels resolve to consistent outline icon meanings', () => {
+  const keys = Object.keys(CATEGORY_ICON_GROUPS);
+  assert.ok(keys.length >= 35);
+  const normalizedLabels = new Map();
+  for (const key of keys) {
+    for (const label of CATEGORY_ICON_GROUPS[key]) {
+      const normalized = normalizeCategoryLabel(label);
+      const previous = normalizedLabels.get(normalized);
+      assert.ok(!previous || previous === key, label + ' must have one meaning');
+      normalizedLabels.set(normalized, key);
+      assert.equal(getCategoryIconKey(label), key, label);
+    }
+  }
+  assert.ok(normalizedLabels.size >= 140);
+  for (const [label, expected] of [
+    ['Electronics', 'electronics'],
+    ['Home & Living', 'home'],
+    ['Fashion', 'fashion'],
+    ['Music', 'music'],
+    ['Food & Drink', 'food'],
+    ['Arts & Culture', 'arts'],
+    ['Beauty & Salon', 'beauty'],
+    ['Health & Beauty', 'beauty'],
+    ['Laundry', 'laundry'],
+    ['Tailoring', 'tailoring'],
+    ['Unknown custom category', 'other'],
+    ['', 'other'],
+  ]) assert.equal(getCategoryIconKey(label), expected, label);
+  assert.equal(getCategoryIconKey('Restaurant & Cafe'), 'food', 'accent-insensitive');
+  assert.equal(getCategoryIconKey('CUSTOM CLOTHING & SEWING'), 'tailoring');
+});
+
+test('every existing business catalog category has a designated icon', () => {
+  const source = fs.readFileSync('src/lib/businesses/catalog-categories.ts', 'utf8');
+  const catalog = source.slice(source.indexOf('const CATALOG_CATEGORIES'), source.indexOf('function catalogSector'));
+  const labels = [...new Set([...catalog.matchAll(/'([^']+)'/g)].map(match => match[1]))];
+  const known = new Set(
+    Object.values(CATEGORY_ICON_GROUPS).flat().map(normalizeCategoryLabel),
+  );
+  assert.ok(labels.length > 70);
+  assert.deepEqual(
+    labels.filter(label => !known.has(normalizeCategoryLabel(label))),
+    [],
+    'Category icon mapping must be updated when catalog categories change',
+  );
+});
+
+
+test('mobile discovery category icons are present in all entry points', () => {
+  const catalog = fs.readFileSync('src/app/(tabs)/catalog.tsx', 'utf8');
+  const businessHub = fs.readFileSync('src/components/businesses/BusinessHub.tsx', 'utf8');
+  const legacyEvents = fs.readFileSync('src/components/events/EventList.tsx', 'utf8');
+  const renderer = fs.readFileSync('src/components/discovery/CategoryIcon.tsx', 'utf8');
+  assert.match(catalog, /CategoryIcon category=\{value\}/);
+  assert.match(catalog, /CategoryIcon category=\{option\}/);
+  assert.match(catalog, /CategoryIcon category=\{item\.category\}/);
+  assert.match(businessHub, /CategoryIcon category=\{tile\.name\}/);
+  assert.match(legacyEvents, /CategoryIcon category=\{label\}/);
+  assert.match(renderer, /NATIVE_CATEGORY_ICONS: Record<CategoryIconKey, NativeIconName>/);
+  assert.ok(!renderer.includes('emoji'));
+});
+
+test('mobile events expose only observed published categories and filter them correctly', () => {
+  const catalog = fs.readFileSync('src/app/(tabs)/catalog.tsx', 'utf8');
+  assert.match(catalog, /seenCategories/);
+  assert.match(catalog, /publishedCategories/);
+  assert.match(catalog, /setSeenCategories/);
+  assert.match(catalog, /filter !== 'All' && !\['Today', 'This Week', 'Weekend'\]\.includes\(filter\)/);
+});
