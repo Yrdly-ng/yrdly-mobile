@@ -446,13 +446,14 @@ export const PostCard = React.memo(
 
     const parsedUrls = mediaUrls(post.image_urls);
     const urls = parsedUrls.length > 0 ? parsedUrls : mediaUrls(post.image_url);
+    const legacyVideoUrl = (post as any).video_url;
 
     const showMarketplaceCollage =
       !expanded &&
       post.category === 'For Sale' &&
       urls.length >= 2 &&
       !mediaUrls(post.video_urls).length &&
-      !mediaUrls((post as any).video_url).length;
+      !mediaUrls(legacyVideoUrl).length;
 
     const mediaItems = React.useMemo(() => {
       const items: Array<{ type: 'video' | 'image'; url: string }> = [];
@@ -461,7 +462,7 @@ export const PostCard = React.memo(
       const videoUrls =
         parsedVideoUrls.length > 0
           ? parsedVideoUrls
-          : mediaUrls((post as any).video_url);
+          : mediaUrls(legacyVideoUrl);
 
       videoUrls.forEach((url: string) => {
         if (url) items.push({ type: 'video', url });
@@ -472,7 +473,7 @@ export const PostCard = React.memo(
       });
 
       return items;
-    }, [post.video_urls, (post as any).video_url, urls]);
+    }, [post.video_urls, legacyVideoUrl, urls]);
 
     useEffect(() => {
       if (isVisible === false) {
