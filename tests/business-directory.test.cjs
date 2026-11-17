@@ -95,6 +95,7 @@ function fixture() {
     CategoryDropdown: 'CategoryDropdown',
     DiscoveryCategoryChips: 'DiscoveryCategoryChips',
     Ionicons: 'Icon',
+    CategoryIcon: 'CategoryIcon',
     BusinessImage: 'BusinessImage',
     VerifiedBadge: 'VerifiedBadge',
     console: { error() {} },
