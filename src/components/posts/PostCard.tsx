@@ -253,6 +253,87 @@ const PostVideo = React.memo(function PostVideo(props: React.ComponentProps<type
   return <ActivePostVideo {...props} />;
 });
 
+
+/**
+ * A shoppable, adaptive image layout for existing For Sale posts.
+ * It never represents multiple products: every tile belongs to the same listing.
+ * Mixed photo/video posts keep the existing carousel to preserve playback.
+ */
+function MarketplaceFeedCollage({
+  images,
+  price,
+  onOpen,
+}: {
+  images: string[];
+  price?: number;
+  onOpen: (index: number) => void;
+}) {
+  const { theme } = useUnistyles();
+  const visible = images.slice(0, 3);
+  const more = Math.max(0, images.length - visible.length);
+  const tile = (url: string, index: number, height: number, showMore = false) => (
+    <TouchableOpacity
+      key={`${url}-${index}`}
+      accessibilityRole="button"
+      accessibilityLabel={`View listing photo ${index + 1} of ${images.length}`}
+      activeOpacity={0.86}
+      onPress={() => onOpen(index)}
+      style={{ flex: 1, height, overflow: 'hidden', backgroundColor: theme.colors.SURFACE_ALT }}
+    >
+      <Image
+        source={{ uri: StorageService.getOptimizedImageUrl(url, 720) || url }}
+        style={{ width: '100%', height: '100%' }}
+        contentFit="cover"
+      />
+      {showMore && more > 0 && (
+        <View
+          style={{
+            position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
+            justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.55)',
+          }}
+        >
+          <Text style={{ color: '#FFFFFF', fontFamily: 'Outfit-Bold', fontSize: 22 }}>
+            +{more}
+          </Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+
+  return (
+    <View style={{ marginHorizontal: 16, marginBottom: 12, borderRadius: 16, overflow: 'hidden' }}>
+      <View style={{ height: 228, flexDirection: 'row', gap: 3 }}>
+        <View style={{ flex: 1.7 }}>
+          {tile(visible[0], 0, 228)}
+        </View>
+        <View style={{ flex: 1, gap: 3 }}>
+          {visible.length === 2
+            ? tile(visible[1], 1, 228)
+            : (
+              <>
+                {tile(visible[1], 1, 112)}
+                {tile(visible[2], 2, 113, true)}
+              </>
+            )}
+        </View>
+      </View>
+      {typeof price === 'number' && Number.isFinite(price) && (
+        <View
+          style={{
+            position: 'absolute', bottom: 10, right: 10,
+            backgroundColor: 'rgba(7,24,13,0.92)', borderRadius: 10,
+            paddingHorizontal: 12, paddingVertical: 7,
+          }}
+        >
+          <Text style={{ color: '#FFFFFF', fontFamily: 'Outfit-Bold', fontSize: 14 }}>
+            {formatPrice(price)}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
 export const PostCard = React.memo(
   function PostCard({
     post,
@@ -365,6 +446,13 @@ export const PostCard = React.memo(
 
     const parsedUrls = mediaUrls(post.image_urls);
     const urls = parsedUrls.length > 0 ? parsedUrls : mediaUrls(post.image_url);
+
+    const showMarketplaceCollage =
+      !expanded &&
+      post.category === 'For Sale' &&
+      urls.length >= 2 &&
+      !mediaUrls(post.video_urls).length &&
+      !mediaUrls((post as any).video_url).length;
 
     const mediaItems = React.useMemo(() => {
       const items: Array<{ type: 'video' | 'image'; url: string }> = [];
@@ -961,8 +1049,17 @@ export const PostCard = React.memo(
             })()}
         </TouchableOpacity>
 
+        {/* Marketplace collage for photo-only listings; other posts keep swipeable media. */}
+        {showMarketplaceCollage && (
+          <MarketplaceFeedCollage
+            images={urls}
+            price={post.price}
+            onOpen={handleImageTap}
+          />
+        )}
+
         {/* Media Carousel (Unified Images & Videos) */}
-        {mediaItems.length > 0 && (
+        {!showMarketplaceCollage && mediaItems.length > 0 && (
           <View
             onLayout={(event) => setMediaWidth(event.nativeEvent.layout.width)}
             style={{ position: 'relative', marginBottom: 12 }}
@@ -1102,6 +1199,7 @@ export const PostCard = React.memo(
           }}
         >
           {(post.category === 'For Sale' || post.category === 'Event') &&
+            !showMarketplaceCollage &&
             post.price !== undefined && (
               <View style={{ paddingHorizontal: 20, marginBottom: 8 }}>
                 <Text
