@@ -164,3 +164,31 @@ test('QA Android workflow includes ARM64-only builds, size verification and univ
   assert.match(workflow, /Verify Firebase resources inside built APK/);
   assert.match(workflow, /Show APK signing certificate/);
 });
+
+
+test('Android release never requests broad gallery or legacy storage access', () => {
+  const config = evaluateDynamicAppConfig({}).config;
+  const denied = [
+    'android.permission.READ_MEDIA_IMAGES',
+    'android.permission.READ_MEDIA_VIDEO',
+    'android.permission.READ_EXTERNAL_STORAGE',
+    'android.permission.WRITE_EXTERNAL_STORAGE',
+  ];
+  for (const name of denied) {
+    assert.ok(!config.android.permissions.includes(name), name + ' must not be requested');
+    assert.ok(config.android.blockedPermissions.includes(name), name + ' must be blocked after manifest merge');
+  }
+  for (const needed of [
+    'android.permission.CAMERA',
+    'android.permission.ACCESS_FINE_LOCATION',
+    'android.permission.POST_NOTIFICATIONS',
+  ]) {
+    assert.ok(config.android.permissions.includes(needed), needed + ' must remain available');
+    assert.ok(!config.android.blockedPermissions.includes(needed), needed + ' must not be blocked');
+  }
+  const workflow = fs.readFileSync('.github/workflows/build-android.yml', 'utf8');
+  assert.match(workflow, /Verify built APK does not request broad gallery access/);
+  assert.match(workflow, /dump', 'permissions'/);
+  assert.match(workflow, /READ_MEDIA_IMAGES/);
+  assert.match(workflow, /READ_MEDIA_VIDEO/);
+});
