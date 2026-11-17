@@ -72,6 +72,7 @@ function fixture() {
     ActivityIndicator: 'Spinner',
     Ionicons: 'Icon',
     EventCard: 'EventCard',
+    UpcomingEventSpotlight: 'UpcomingEventSpotlight',
   };
   const module = { exports: {} };
   new Function(...Object.keys(deps), 'module', code)(...Object.values(deps), module);
