@@ -140,3 +140,11 @@ test('mobile discovery category icons are present in all entry points', () => {
   assert.match(renderer, /NATIVE_CATEGORY_ICONS: Record<CategoryIconKey, NativeIconName>/);
   assert.ok(!renderer.includes('emoji'));
 });
+
+test('mobile events expose only observed published categories and filter them correctly', () => {
+  const catalog = fs.readFileSync('src/app/(tabs)/catalog.tsx', 'utf8');
+  assert.match(catalog, /seenCategories/);
+  assert.match(catalog, /publishedCategories/);
+  assert.match(catalog, /setSeenCategories/);
+  assert.match(catalog, /filter !== 'All' && !\['Today', 'This Week', 'Weekend'\]\.includes\(filter\)/);
+});
