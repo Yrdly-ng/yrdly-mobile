@@ -993,8 +993,12 @@ function EventsSection({
   const [error, setError] = useState(false);
   const [filter, setFilter] = useState('All');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [seenCategories, setSeenCategories] = useState<string[]>([]);
   useNotificationRouteAcknowledgement(!loading);
-  const filters = ['All', 'Today', 'This Week', 'Weekend', 'Community', 'Music', 'Food', 'Sports'];
+  const filters = Array.from(new Set([
+    'All', 'Today', 'This Week', 'Weekend', 'Community', 'Music', 'Food', 'Sports',
+    ...seenCategories,
+  ]));
 
   useFocusEffect(
     useCallback(() => {
@@ -1012,7 +1016,7 @@ function EventsSection({
           .or(`end_time.gte.${now.toISOString()},start_time.gte.${now.toISOString()}`)
           .order('start_time', { ascending: true })
           .limit(30);
-        if (['Community', 'Music', 'Food', 'Sports'].includes(filter)) {
+        if (filter !== 'All' && !['Today', 'This Week', 'Weekend'].includes(filter)) {
           q = q.ilike('category', `%${filter}%`);
         } else if (filter === 'Today') {
           const end = new Date(today);
@@ -1041,7 +1045,17 @@ function EventsSection({
           const { data, error: fetchError } = await q;
           if (!active) return;
           if (fetchError) setError(true);
-          else setEvents(data || []);
+          else {
+            setEvents(data || []);
+            if (filter === 'All' && data?.length) {
+              const publishedCategories = data
+                .map((item) => typeof item.category === 'string' ? item.category.trim() : '')
+                .filter(Boolean);
+              setSeenCategories((previous) =>
+                Array.from(new Set([...previous, ...publishedCategories])).sort()
+              );
+            }
+          }
         } catch {
           if (active) setError(true);
         } finally {
