@@ -34,7 +34,7 @@ import { useAuth } from '../../hooks/use-supabase-auth';
 import { timeAgo } from '../../lib/shared/utils';
 import { Post } from '../../types/index';
 import { StorageService } from '../../lib/media/storage-service';
-import { LiquidGlassView, isLiquidGlassSupported } from '@callstack/liquid-glass';
+import { NavigationSurface } from '../navigation/NavigationSurface';
 import { ModerationService } from '@/lib/moderation/moderation-service';
 import { supportsPostEngagement } from '../../lib/posts/post-engagement';
 
@@ -337,31 +337,7 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
         return (
           <BottomSheetFooter {...props} bottomInset={0}>
             <View style={{ overflow: 'hidden' }}>
-              {isLiquidGlassSupported ? (
-                <LiquidGlassView
-                  {...({
-                    intensity: 80,
-                    tint: theme.colors.DARK === '#050505' ? 'dark' : 'light',
-                    fallbackColor:
-                      theme.colors.DARK === '#050505'
-                        ? 'rgba(0,0,0,0.85)'
-                        : 'rgba(255,255,255,0.85)',
-                  } as any)}
-                  style={StyleSheet.absoluteFill}
-                />
-              ) : (
-                <View
-                  style={[
-                    StyleSheet.absoluteFill,
-                    {
-                      backgroundColor:
-                        theme.colors.DARK === '#050505'
-                          ? 'rgba(0,0,0,0.85)'
-                          : 'rgba(255,255,255,0.85)',
-                    },
-                  ]}
-                />
-              )}
+              <NavigationSurface style={StyleSheet.absoluteFill} />
               <CommentInput
                 ref={inputRef}
                 userAvatarSource={userAvatarSource}

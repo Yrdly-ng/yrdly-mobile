@@ -7,6 +7,7 @@ import { useAppTheme } from '../../context/ThemeContext';
 import { HomeIcon, ExploreIcon, MessagesIcon, ProfileIcon } from '../../components/SvgIcons';
 import { useEffect, useRef, useState } from 'react';
 import { BlurView } from 'expo-blur';
+import { NavigationSurface } from '../../components/navigation/NavigationSurface';
 import { PencilSimple, Storefront, CalendarBlank, WarningCircle, X } from 'phosphor-react-native';
 import Animated, {
   useSharedValue,
@@ -375,13 +376,14 @@ export default function TabLayout() {
         screenOptions={{
           headerShown: false,
           tabBarShowLabel: true,
+          tabBarBackground: () => <NavigationSurface style={{ flex: 1 }} />,
           tabBarStyle: {
             position: 'absolute',
             bottom: 0,
             left: 0,
             right: 0,
             height: tabBarHeight,
-            backgroundColor: theme.colors.GLASS_BG,
+            backgroundColor: 'transparent',
             borderTopWidth: 1,
             borderTopColor: theme.colors.GLASS_BORDER,
             paddingBottom: insets.bottom,

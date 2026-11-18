@@ -11,6 +11,7 @@ test('valid configuration exercises installation auth and always deletes the syn
   methods.push(options.method);
   if(methods.length===1){fid=JSON.parse(options.body).fid;return {status:200,json:async()=>({fid,refreshToken:'private-refresh'})}}
   if(options.method==='DELETE')return {status:204,json:async()=>{throw Error('empty')}};
+  assert.equal(JSON.parse(options.body).installation.appId,fixture().client[0].client_info.mobilesdk_app_id);
   return {status:200,json:async()=>({token:'private-auth'})};
  });assert.deepEqual(methods,['POST','POST','DELETE']);
 });
@@ -19,4 +20,24 @@ test('failed authentication still cleans up and is not reported as a successful 
   calls.push(options.method);if(calls.length===1)return {status:200,json:async()=>({fid:JSON.parse(options.body).fid,refreshToken:'private'})};
   return {status:options.method==='DELETE'?200:401,json:async()=>({})};
  }),/installation authentication failed/);assert.deepEqual(calls,['POST','POST','DELETE']);
+});
+
+test('transient provider authentication errors get one bounded retry and cleanup',async()=>{
+ let fid,attempts=0;const calls=[];
+ await verify(fixture(),async(url,options)=>{
+  calls.push(options.method);
+  if(options.method==='DELETE')return {status:204,json:async()=>({})};
+  if(!url.includes('authTokens:generate')){fid=JSON.parse(options.body).fid;return {status:200,json:async()=>({fid,refreshToken:'private-refresh'})};}
+  attempts++;return attempts===1?{status:503,json:async()=>({error:{message:'private-provider-message'}})}:{status:200,json:async()=>({token:'private-token'})};
+ });
+ assert.equal(attempts,2);assert.deepEqual(calls,['POST','POST','POST','DELETE']);
+});
+test('permanent authentication errors fail closed with safe HTTP diagnostics',async()=>{
+ let attempts=0;
+ await assert.rejects(verify(fixture(),async(url,options)=>{
+  if(options.method==='DELETE')return {status:204,json:async()=>({})};
+  if(!url.includes('authTokens:generate'))return {status:200,json:async()=>({fid:JSON.parse(options.body).fid,refreshToken:'private-refresh'})};
+  attempts++;return {status:403,json:async()=>({error:{message:'private-provider-message'}})};
+ }),error=>/HTTP 403/.test(error.message)&&!error.message.includes('private-provider-message'));
+ assert.equal(attempts,1);
 });

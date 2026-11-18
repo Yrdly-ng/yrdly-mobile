@@ -33,6 +33,7 @@ import { Ionicons, Entypo } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { VerifiedBadge } from '../VerifiedBadge';
 import { Post } from '../../types/index';
+import { DailyPromptQuote } from '../daily-prompts/DailyPromptQuote';
 import { timeAgo, formatPrice } from '../../lib/shared/utils';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { supportsPostEngagement } from '../../lib/posts/post-engagement';
@@ -1007,6 +1008,7 @@ export const PostCard = React.memo(
               {post.title}
             </Text>
           )}
+          <DailyPromptQuote promptId={post.daily_prompt_id} />
           {!!post.text &&
             (() => {
               const maxLength = 180;
