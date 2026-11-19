@@ -19,7 +19,7 @@ function fixture(file, get) {
     'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
     'react-native-unistyles': { useUnistyles: () => ({ theme: { colors } }) },
-    'expo-router': { useRouter: () => ({ push: value => routes.push(value), replace: value => routes.push(value), back() {} }), useLocalSearchParams: () => params, useFocusEffect: cb => React.useEffect(cb, [cb]) },
+    'expo-router': { useRouter: () => ({ push: value => routes.push(value), setParams: value => Object.assign(params, value), back() {} }), useLocalSearchParams: () => params, useFocusEffect: cb => React.useEffect(cb, [cb]) },
     '@expo/vector-icons': { Feather: 'Feather' },
   };
   const output = ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
@@ -78,6 +78,31 @@ test('native answers retain historical question ID and show neighbours together'
   assert.deepEqual(f.calls, [`/api/daily-prompts?promptId=${ID}`, `/api/daily-prompts/responses?promptId=${ID}&page=0`]);
   const today = screen.root.findAllByType('TouchableOpacity').find(node => node.props.accessibilityRole === 'link');
   act(() => today.props.onPress());
-  assert.deepEqual(f.routes, ['/daily-prompts']);
+  assert.equal(f.params.promptId, '');
+  await act(async () => screen.unmount());
+});
+test('native today link clears the historical question and shows how to retry before publication', async () => {
+  const date = '2026-11-17';
+  let published = false;
+  const f = fixture('src/app/daily-prompts.tsx', url => {
+    if (url.includes('/responses?')) return { responses: [], nextPage: null };
+    if (url.includes('?promptId=')) return { prompt: question, date };
+    return { prompt: published ? { ...question, id: 'today', question: 'What makes a good neighbour?', prompt_date: date } : null, date };
+  });
+  let screen;
+  await act(async () => { screen = create(React.createElement(f.component)); });
+  const today = screen.root.findAllByType('TouchableOpacity').find(node => node.props.accessibilityRole === 'link');
+  await act(async () => {
+    today.props.onPress();
+    screen.update(React.createElement(f.component));
+  });
+  assert.equal(f.calls.at(-1), '/api/daily-prompts');
+  assert.match(text(screen.root), /7 a.m. Lagos time/);
+  assert.doesNotMatch(text(screen.root), /favourite restaurant/);
+  const retry = screen.root.findAllByType('TouchableOpacity').find(node => text(node).includes('Check again'));
+  published = true;
+  await act(async () => retry.props.onPress());
+  assert.match(text(screen.root), /What makes a good neighbour/);
+  assert.match(text(screen.root), /Share your answer/);
   await act(async () => screen.unmount());
 });
