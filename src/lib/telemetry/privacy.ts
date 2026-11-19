@@ -99,8 +99,12 @@ function cleanFrame(frame: StackFrame): StackFrame {
 }
 
 export function sanitizeSentryEvent(event: ErrorEvent): ErrorEvent {
-  const operation = event.tags?.operation;
+  const candidateOperation = event.tags?.operation;
+  const operation = typeof candidateOperation === 'string' && errorContexts.has(candidateOperation)
+    ? candidateOperation
+    : undefined;
   const screen = event.tags?.screen;
+  const safeScreen = isScreenName(screen) ? screen : undefined;
   const code = event.tags?.error_code;
   const replayId = event.contexts?.replay?.replay_id;
   const contexts: NonNullable<ErrorEvent['contexts']> = {};
@@ -168,26 +172,34 @@ export function sanitizeSentryEvent(event: ErrorEvent): ErrorEvent {
     contexts: Object.keys(contexts).length ? contexts : undefined,
     breadcrumbs: event.breadcrumbs?.slice(-20).map(sanitizeDiagnosticBreadcrumb).filter((value): value is NonNullable<typeof value> => value !== null),
     tags: {
-      ...(typeof operation === 'string' && errorContexts.has(operation) ? { operation } : {}),
-      ...(isScreenName(screen) ? { screen } : {}),
+      ...(operation ? { operation } : {}),
+      ...(safeScreen ? { screen: safeScreen } : {}),
       ...(isErrorCode(code) ? { error_code: code } : {}),
       ...reliabilityProperties({ app_state: event.tags?.app_state }),
     },
     exception: event.exception
       ? {
-          values: event.exception.values?.map((exception) => ({
-            type: errorTypes.has(exception.type || '') ? exception.type : 'Error',
-            value: diagnosticMessage({ message: exception.value }) === 'Application operation failed' ? 'Error details omitted for privacy' : diagnosticMessage({ message: exception.value }),
-            stacktrace: exception.stacktrace
-              ? { frames: exception.stacktrace.frames?.map(cleanFrame) }
-              : undefined,
-            mechanism: exception.mechanism
-              ? {
-                  type: exception.mechanism.type,
-                  handled: exception.mechanism.handled,
-                }
-              : undefined,
-          })),
+          values: event.exception.values?.map((exception) => {
+            const type = exception.type && errorTypes.has(exception.type) ? exception.type : 'Error';
+            const category = diagnosticMessage({ message: exception.value });
+            const context = operation || safeScreen;
+            const location = context ? ` in ${context}` : '';
+            return {
+              type,
+              value: category === 'Application operation failed'
+                ? `${type}${location}: cause unclassified`
+                : category,
+              stacktrace: exception.stacktrace
+                ? { frames: exception.stacktrace.frames?.map(cleanFrame) }
+                : undefined,
+              mechanism: exception.mechanism
+                ? {
+                    type: exception.mechanism.type,
+                    handled: exception.mechanism.handled,
+                  }
+                : undefined,
+            };
+          }),
         }
       : undefined,
   };

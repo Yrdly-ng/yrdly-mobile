@@ -250,6 +250,24 @@ test('Sentry preserves only validated replay linkage alongside the existing priv
   }
 });
 
+test('Sentry reports known causes and uses safe mobile context when the cause is unknown', () => {
+  const runtime = loadTelemetry();
+  runtime.api.initializeTelemetry();
+  const beforeSend = runtime.sentryOptions.beforeSend;
+  for (const [tags, value, expected] of [
+    [{ screen: '/transactions', operation: 'app.error_boundary' }, 'private', 'TypeError in app.error_boundary: cause unclassified'],
+    [{ screen: '/transactions', operation: 'private' }, 'private', 'TypeError in /transactions: cause unclassified'],
+    [{ screen: '/private', operation: 'private' }, 'private', 'TypeError: cause unclassified'],
+    [{}, 'addViewAt: failed to insert view [1234] with private context', 'Native view insertion failed'],
+    [{}, 'API key not found: private secret', 'Native Google Maps API key missing'],
+  ]) {
+    const safe = beforeSend({ tags, exception: { values: [{ type: 'TypeError', value }] } });
+    assert.equal(safe.exception.values[0].value, expected);
+    assert.equal(beforeSend(safe).exception.values[0].value, expected);
+    assert.doesNotMatch(JSON.stringify(safe), /private|1234/);
+  }
+});
+
 test('installed Sentry replay hooks link and flush a sanitized native unhandled rejection', async () => {
   const runtime = loadTelemetry({ env: { EXPO_PUBLIC_SENTRY_DSN: configured.EXPO_PUBLIC_SENTRY_DSN } });
   runtime.api.initializeTelemetry();
