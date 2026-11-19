@@ -831,7 +831,7 @@ function ChatContent() {
       if (recipient && result.data) {
         void import('../../lib/notifications/notification-triggers')
           .then(({ NotificationTriggers }) =>
-            NotificationTriggers.onMessageSent(recipient, owner, currentConvId, message.text || '')
+            NotificationTriggers.onMessageSent(recipient, currentConvId)
           )
           .catch(() => {});
       }
