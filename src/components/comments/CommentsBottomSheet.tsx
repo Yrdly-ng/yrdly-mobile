@@ -251,7 +251,7 @@ export const CommentsBottomSheet = forwardRef<CommentsBottomSheetRef, CommentsBo
         // Trigger notification
         const { NotificationTriggers } =
           await import('../../lib/notifications/notification-triggers');
-        void NotificationTriggers.onPostCommented(postId, user.id, text.trim()).catch(() => {});
+        void NotificationTriggers.onPostCommented(postId, user.id).catch(() => {});
 
         onCommentAdded?.();
       } catch (e) {
