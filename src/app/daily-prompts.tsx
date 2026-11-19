@@ -26,6 +26,8 @@ export default function DailyPromptResponsesScreen() {
   const [loading, setLoading] = useState(true);
   const [more, setMore] = useState(false);
   const [error, setError] = useState('');
+  const [refresh, setRefresh] = useState(0);
+  const refreshQuestion = () => setRefresh((attempt) => attempt + 1);
   useFocusEffect(
     useCallback(() => {
       let active = true;
@@ -67,7 +69,9 @@ export default function DailyPromptResponsesScreen() {
       return () => {
         active = false;
       };
-    }, [requestedId])
+      // A manual retry restarts the focused request for the same question.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [requestedId, refresh])
   );
   const loadMore = async () => {
     if (!prompt || nextPage === null || more) return;
@@ -111,7 +115,10 @@ export default function DailyPromptResponsesScreen() {
         </Text>
       </View>
       {loading ? (
-        <ActivityIndicator color={theme.colors.G} style={{ marginTop: 30 }} />
+        <View style={{ alignItems: 'center', gap: 12, padding: 28 }}>
+          <ActivityIndicator color={theme.colors.G} />
+          <Text style={{ color: theme.colors.TEXT_PRIMARY }}>Loading neighbourhood question…</Text>
+        </View>
       ) : (
         <FlatList
           data={answers}
@@ -153,7 +160,7 @@ export default function DailyPromptResponsesScreen() {
                   ) : (
                     <TouchableOpacity
                       accessibilityRole="link"
-                      onPress={() => router.replace('/daily-prompts' as any)}
+                      onPress={() => router.setParams({ promptId: '' })}
                       style={{ minHeight: 44, justifyContent: 'center' }}
                     >
                       <Text style={{ color: theme.colors.G, fontFamily: 'Inter-SemiBold' }}>
@@ -171,15 +178,28 @@ export default function DailyPromptResponsesScreen() {
                     Neighbourhood responses
                   </Text>
                 </>
-              ) : (
-                <Text style={{ color: theme.colors.MUTED }}>
-                  No question is live yet. Check back tomorrow.
-                </Text>
+              ) : !error && (
+                <View style={{ gap: 10, padding: 18, borderRadius: 18, backgroundColor: theme.colors.SURFACE }}>
+                  <Text style={{ color: theme.colors.TEXT_PRIMARY, fontFamily: 'Outfit-Bold', fontSize: 18 }}>
+                    Today’s question isn’t available yet
+                  </Text>
+                  <Text style={{ color: theme.colors.TEXT_PRIMARY }}>
+                    New questions open from 7 a.m. Lagos time. Check back later today.
+                  </Text>
+                  <TouchableOpacity accessibilityRole="button" onPress={refreshQuestion} style={{ minHeight: 44, justifyContent: 'center' }}>
+                    <Text style={{ color: theme.colors.G, fontFamily: 'Inter-SemiBold' }}>Check again</Text>
+                  </TouchableOpacity>
+                </View>
               )}
               {!!error && (
-                <Text accessibilityRole="alert" style={{ color: '#eab308' }}>
-                  {error}
-                </Text>
+                <View style={{ gap: 8 }}>
+                  <Text accessibilityRole="alert" style={{ color: theme.colors.TEXT_PRIMARY }}>{error}</Text>
+                  {!prompt && (
+                    <TouchableOpacity accessibilityRole="button" onPress={refreshQuestion} style={{ minHeight: 44, justifyContent: 'center' }}>
+                      <Text style={{ color: theme.colors.G, fontFamily: 'Inter-SemiBold' }}>Try again</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               )}
             </View>
           }
