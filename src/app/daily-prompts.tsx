@@ -21,6 +21,7 @@ export default function DailyPromptResponsesScreen() {
   const requestedId = Array.isArray(params.promptId) ? params.promptId[0] : params.promptId;
   const [currentDate, setCurrentDate] = useState('');
   const [prompt, setPrompt] = useState<Prompt | null>(null);
+  const [showTodayLink, setShowTodayLink] = useState(false);
   const [answers, setAnswers] = useState<Response[]>([]);
   const [nextPage, setNextPage] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,6 +35,7 @@ export default function DailyPromptResponsesScreen() {
       setLoading(true);
       setError('');
       setPrompt(null);
+      setShowTodayLink(false);
       setAnswers([]);
       setNextPage(null);
       const endpoint = requestedId
@@ -51,6 +53,16 @@ export default function DailyPromptResponsesScreen() {
             setAnswers([]);
             setNextPage(null);
             return;
+          }
+          if (data.prompt.prompt_date !== data.date) {
+            const displayedId = data.prompt.id;
+            void api.get<{ prompt: Prompt | null; date: string }>('/api/daily-prompts')
+              .then(({ prompt: today, date }) => {
+                if (active && today && today.id !== displayedId && today.prompt_date === date) {
+                  setShowTodayLink(true);
+                }
+              })
+              .catch(() => {}); // The historical question and answers remain available.
           }
           const result = await api.get<{ responses: Response[]; nextPage: number | null }>(
             `/api/daily-prompts/responses?promptId=${encodeURIComponent(data.prompt.id)}&page=0`
@@ -91,6 +103,7 @@ export default function DailyPromptResponsesScreen() {
       setMore(false);
     }
   };
+  const isToday = prompt?.prompt_date === currentDate;
   return (
     <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: theme.colors.DARK }}>
       <View
@@ -127,6 +140,11 @@ export default function DailyPromptResponsesScreen() {
             <View style={{ paddingHorizontal: 20, paddingVertical: 18, gap: 12 }}>
               {prompt ? (
                 <>
+                  {!isToday && (
+                    <Text style={{ color: theme.colors.TEXT_PRIMARY, fontFamily: 'Inter-SemiBold' }}>
+                      Past neighbourhood question
+                    </Text>
+                  )}
                   <Text
                     style={{
                       fontFamily: 'Outfit-Bold',
@@ -137,7 +155,7 @@ export default function DailyPromptResponsesScreen() {
                   >
                     {prompt.question}
                   </Text>
-                  {prompt.prompt_date === currentDate ? (
+                  {isToday ? (
                     <TouchableOpacity
                       accessibilityRole="button"
                       onPress={() =>
@@ -157,7 +175,7 @@ export default function DailyPromptResponsesScreen() {
                         Share your answer
                       </Text>
                     </TouchableOpacity>
-                  ) : (
+                  ) : showTodayLink && (
                     <TouchableOpacity
                       accessibilityRole="link"
                       onPress={() => router.setParams({ promptId: '' })}
@@ -231,7 +249,7 @@ export default function DailyPromptResponsesScreen() {
           ListEmptyComponent={
             prompt ? (
               <Text style={{ textAlign: 'center', color: theme.colors.MUTED, padding: 28 }}>
-                No answers nearby yet. Be the first!
+                {isToday ? 'No answers nearby yet. Be the first!' : 'No neighbourhood answers to show.'}
               </Text>
             ) : null
           }

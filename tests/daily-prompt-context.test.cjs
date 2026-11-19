@@ -13,7 +13,8 @@ function fixture(file, get) {
   const colors = { DARK: '#000', TEXT_PRIMARY: '#fff', MUTED: '#aaa', G: '#82db7e', SURFACE: '#222', GLASS_BORDER: '#444' };
   const native = Object.fromEntries(['View', 'Text', 'TouchableOpacity', 'ActivityIndicator'].map(name => [name, name]));
   native.FlatList = props => React.createElement('FlatList', {}, props.ListHeaderComponent,
-    ...props.data.map(item => React.createElement(React.Fragment, { key: item.id }, props.renderItem({ item }))), props.ListFooterComponent);
+    ...props.data.map(item => React.createElement(React.Fragment, { key: item.id }, props.renderItem({ item }))),
+    props.data.length === 0 ? props.ListEmptyComponent : null, props.ListFooterComponent);
   const imports = {
     react: React,
     'react-native': native,
@@ -74,16 +75,15 @@ test('native answers retain historical question ID and show neighbours together'
   assert.match(text(screen.root), /favourite restaurant/);
   assert.match(text(screen.root), /Chicken Republic/);
   assert.match(text(screen.root), /community restaurant/);
+  assert.match(text(screen.root), /Past neighbourhood question/);
   assert.doesNotMatch(text(screen.root), /Share your answer/);
-  assert.deepEqual(f.calls, [`/api/daily-prompts?promptId=${ID}`, `/api/daily-prompts/responses?promptId=${ID}&page=0`]);
-  const today = screen.root.findAllByType('TouchableOpacity').find(node => node.props.accessibilityRole === 'link');
-  act(() => today.props.onPress());
-  assert.equal(f.params.promptId, '');
+  assert.doesNotMatch(text(screen.root), /View today/);
+  assert.deepEqual(f.calls, [`/api/daily-prompts?promptId=${ID}`, '/api/daily-prompts', `/api/daily-prompts/responses?promptId=${ID}&page=0`]);
   await act(async () => screen.unmount());
 });
-test('native today link clears the historical question and shows how to retry before publication', async () => {
+test('native shows the today link only for a different live question and handles publication changes', async () => {
   const date = '2026-11-17';
-  let published = false;
+  let published = true;
   const f = fixture('src/app/daily-prompts.tsx', url => {
     if (url.includes('/responses?')) return { responses: [], nextPage: null };
     if (url.includes('?promptId=')) return { prompt: question, date };
@@ -92,6 +92,8 @@ test('native today link clears the historical question and shows how to retry be
   let screen;
   await act(async () => { screen = create(React.createElement(f.component)); });
   const today = screen.root.findAllByType('TouchableOpacity').find(node => node.props.accessibilityRole === 'link');
+  assert.ok(today);
+  published = false;
   await act(async () => {
     today.props.onPress();
     screen.update(React.createElement(f.component));
@@ -104,5 +106,18 @@ test('native today link clears the historical question and shows how to retry be
   await act(async () => retry.props.onPress());
   assert.match(text(screen.root), /What makes a good neighbour/);
   assert.match(text(screen.root), /Share your answer/);
+  assert.doesNotMatch(text(screen.root), /View today|Past neighbourhood question/);
+  await act(async () => screen.unmount());
+});
+test('native keeps the past question readable when no new question has been published', async () => {
+  const f = fixture('src/app/daily-prompts.tsx', url => {
+    if (url.includes('/responses?')) return { responses: [], nextPage: null };
+    return { prompt: url.includes('?promptId=') ? question : null, date: '2026-11-17' };
+  });
+  let screen;
+  await act(async () => { screen = create(React.createElement(f.component)); });
+  assert.match(text(screen.root), /Past neighbourhood question/);
+  assert.match(text(screen.root), /No neighbourhood answers to show/);
+  assert.doesNotMatch(text(screen.root), /View today|Be the first/);
   await act(async () => screen.unmount());
 });
