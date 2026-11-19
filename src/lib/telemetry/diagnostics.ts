@@ -11,10 +11,13 @@ export function diagnosticMessage(value: unknown): string {
   const reactError = text.match(/^Minified React error #([0-9]{1,3});/);
   if (reactError) return `React runtime error #${reactError[1]}`;
   if (/^React runtime error #[0-9]{1,3}$/.test(text)) return text;
+  if (/^addViewAt: failed to insert view \[/i.test(text)) return 'Native view insertion failed';
   if (/decoder.*(?:failed|unavailable)|codec.*(?:failed|unavailable)|mediacodec/i.test(text)) return 'Media decoder unavailable';
   if (/maximum call stack size exceeded|too much recursion/i.test(text)) return 'JavaScript stack overflow';
   if (/cannot (?:read|set) propert(?:y|ies) of undefined|undefined is not an object/i.test(text)) return 'Undefined property access';
   if (/cannot (?:read|set) propert(?:y|ies) of null|null is not an object/i.test(text)) return 'Null property access';
+  if (/ is not a function(?:[. ]|$)/i.test(text)) return 'Non-callable value invoked';
+  if (/ is not defined[.!]?$|^Can.t find variable:/i.test(text)) return 'JavaScript identifier unavailable';
   if (/loading (?:css )?chunk .+ failed|chunkloaderror|failed to fetch dynamically imported module|importing a module script failed/i.test(text)) return 'Application chunk unavailable';
   if (/RefererNotAllowedMapError/.test(text)) return 'Google Maps referrer rejected';
   if (/InvalidKeyMapError|MissingKeyMapError/.test(text)) return 'Google Maps API key unavailable';
@@ -34,9 +37,12 @@ export const diagnosticMessages = new Set([
   'Memory allocation failed',
   'Operation cancelled',
   'Media decoder unavailable',
+  'Native view insertion failed',
   'JavaScript stack overflow',
   'Undefined property access',
   'Null property access',
+  'Non-callable value invoked',
+  'JavaScript identifier unavailable',
   'Application chunk unavailable',
   'Google Maps referrer rejected',
   'Google Maps API key unavailable',

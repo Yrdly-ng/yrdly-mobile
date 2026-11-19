@@ -35,6 +35,28 @@ test('the GitHub build validates the versioned Firebase client before writing it
 });
 
 
+test('the APK workflow verifies Maps metadata inside the generated Android application', () => {
+  const workflow = fs.readFileSync('.github/workflows/build-android.yml', 'utf8');
+  const script = workflow.split('Verify generated Android Google Maps setup')[1]
+    ?.split("node --env-file=.env <<'NODE'\n")[1]?.split('\n          NODE')[0];
+  assert.ok(script);
+  const expectedKey = 'fixture-key';
+  const entry = value => `<meta-data android:value="${value}" android:name="com.google.android.geo.API_KEY" />`;
+  function verify(application, env = { GOOGLE_MAPS_ANDROID_API_KEY: expectedKey }, outside = '') {
+    const manifest = `<manifest><application>${application}</application>${outside}</manifest>`;
+    return vm.runInNewContext(script, {
+      require: () => ({ readFileSync: () => manifest }),
+      process: { env },
+    });
+  }
+  assert.doesNotThrow(() => verify(entry(expectedKey)));
+  assert.doesNotThrow(() => verify(entry(expectedKey), { EXPO_PUBLIC_GOOGLE_MAPS_API_KEY: ` ${expectedKey} ` }));
+  for (const application of ['', entry('wrong-key'), entry(expectedKey).repeat(2)]) {
+    assert.throws(() => verify(application), /did not embed the configured Google Maps key/);
+  }
+  assert.throws(() => verify('', undefined, entry(expectedKey)), /did not embed/);
+});
+
 function evaluateDynamicAppConfig(env = {}, verified) {
   // Evaluate app.config.js without writing credentials or files to disk.
   const source = fs.readFileSync('app.config.js', 'utf8');

@@ -99,6 +99,22 @@ jobs:
       - name: Run Expo prebuild
         run: npx expo prebuild --platform android --clean
 
+      - name: Verify generated Android Google Maps setup
+        run: |
+          node --env-file=.env <<'NODE'
+          const fs = require('node:fs');
+          const manifest = fs.readFileSync('android/app/src/main/AndroidManifest.xml', 'utf8');
+          const application = manifest.match(/<application\b[^>]*>([\s\S]*?)<\/application>/)?.[1];
+          const mapsEntries = (application?.match(/<meta-data\b[^>]*>/g) || [])
+            .filter(tag => /\bandroid:name="com\.google\.android\.geo\.API_KEY"/.test(tag));
+          const expected = process.env.GOOGLE_MAPS_ANDROID_API_KEY?.trim() ||
+            process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY?.trim();
+          const embedded = mapsEntries[0]?.match(/\bandroid:value="([^"]*)"/)?.[1];
+          if (mapsEntries.length !== 1 || !expected || embedded !== expected) {
+            throw new Error('Expo prebuild did not embed the configured Google Maps key in the Android manifest.');
+          }
+          NODE
+
       - name: Verify generated Android Firebase setup
         run: |
           node <<'NODE'
