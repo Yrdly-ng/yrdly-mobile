@@ -9,6 +9,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { paylukCheckoutHtml } from '../../lib/payments/payluk-checkout-html';
 import { WEB_APP_URL } from '../../lib/network/api';
@@ -71,64 +72,67 @@ export function PaylukCheckout({
       visible
       presentationStyle="fullScreen"
       statusBarTranslucent
+      navigationBarTranslucent
       onRequestClose={onCancel}
     >
-      <StatusBar barStyle="light-content" backgroundColor="#0d0d0d" />
-      <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={onCancel}
-            style={styles.closeBtn}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Feather name="x" size={20} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Secure Payment</Text>
-          <View style={styles.lockBadge}>
-            <Feather name="lock" size={12} color="#82db7e" />
-            <Text style={styles.lockText}>Payluk</Text>
-          </View>
-        </View>
-
-        {/* WebView */}
-        <WebView
-          ref={webViewRef}
-          // Give the inline document a real HTTPS origin. Payluk creates its
-          // session with fetch(), which can fail or stall from about:blank.
-          source={{ html, baseUrl: WEB_APP_URL }}
-          onMessage={handleMessage}
-          onError={() =>
-            onError(
-              'Secure checkout could not load. Check your order status before trying again.'
-            )
-          }
-          onHttpError={() =>
-            onError(
-              'Secure checkout is unavailable. Check your order status before trying again.'
-            )
-          }
-          onRenderProcessGone={() =>
-            onError(
-              'Secure checkout stopped unexpectedly. Check your order status before trying again.'
-            )
-          }
-          onContentProcessDidTerminate={() =>
-            onError(
-              'Secure checkout stopped unexpectedly. Check your order status before trying again.'
-            )
-          }
-          javaScriptEnabled
-          domStorageEnabled
-          startInLoadingState
-          renderLoading={() => (
-            <View style={styles.loader}>
-              <ActivityIndicator size="large" color="#82db7e" />
+      <StatusBar barStyle="light-content" />
+      <SafeAreaProvider style={styles.container}>
+        <SafeAreaView style={styles.container}>
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity
+              onPress={onCancel}
+              style={styles.closeBtn}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Feather name="x" size={20} color="#fff" />
+            </TouchableOpacity>
+            <Text style={styles.title}>Secure Payment</Text>
+            <View style={styles.lockBadge}>
+              <Feather name="lock" size={12} color="#82db7e" />
+              <Text style={styles.lockText}>Payluk</Text>
             </View>
-          )}
-          style={styles.webview}
-        />
-      </View>
+          </View>
+
+          {/* WebView */}
+          <WebView
+            ref={webViewRef}
+            // Give the inline document a real HTTPS origin. Payluk creates its
+            // session with fetch(), which can fail or stall from about:blank.
+            source={{ html, baseUrl: WEB_APP_URL }}
+            onMessage={handleMessage}
+            onError={() =>
+              onError(
+                'Secure checkout could not load. Check your order status before trying again.'
+              )
+            }
+            onHttpError={() =>
+              onError(
+                'Secure checkout is unavailable. Check your order status before trying again.'
+              )
+            }
+            onRenderProcessGone={() =>
+              onError(
+                'Secure checkout stopped unexpectedly. Check your order status before trying again.'
+              )
+            }
+            onContentProcessDidTerminate={() =>
+              onError(
+                'Secure checkout stopped unexpectedly. Check your order status before trying again.'
+              )
+            }
+            javaScriptEnabled
+            domStorageEnabled
+            startInLoadingState
+            renderLoading={() => (
+              <View style={styles.loader}>
+                <ActivityIndicator size="large" color="#82db7e" />
+              </View>
+            )}
+            style={styles.webview}
+          />
+        </SafeAreaView>
+      </SafeAreaProvider>
     </Modal>
   );
 }
@@ -141,7 +145,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 56,
+    paddingTop: 14,
     paddingBottom: 14,
     paddingHorizontal: 20,
     backgroundColor: '#0d0d0d',

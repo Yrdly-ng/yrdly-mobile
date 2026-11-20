@@ -165,7 +165,7 @@ test('the compiled first client key must be valid even if another key is valid',
 });
 
 
-test('Android QA shrinking is explicitly opted in and cannot silently change EAS store builds', () => {
+test('Android shrinking is enabled for production and explicitly opted-in QA builds', () => {
   const normal = evaluateDynamicAppConfig({});
   const optimized = evaluateDynamicAppConfig({ YRDLY_ANDROID_QA_SIZE_OPTIMIZATIONS: '1' });
   const getAndroid = cfg => cfg.config.plugins.find(entry => entry[0] === 'expo-build-properties')[1].android;
@@ -175,6 +175,9 @@ test('Android QA shrinking is explicitly opted in and cannot silently change EAS
   assert.equal(getAndroid(normal).enableShrinkResourcesInReleaseBuilds, false);
   assert.equal(getAndroid(optimized).enableMinifyInReleaseBuilds, true);
   assert.equal(getAndroid(optimized).enableShrinkResourcesInReleaseBuilds, true);
+  const production = getAndroid(evaluateDynamicAppConfig({ EAS_BUILD_PROFILE: 'production' }));
+  assert.equal(production.enableMinifyInReleaseBuilds, true);
+  assert.equal(production.enableShrinkResourcesInReleaseBuilds, true);
 });
 
 test('QA Android workflow includes ARM64-only builds, size verification and universal fallback', () => {
