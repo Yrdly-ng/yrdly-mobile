@@ -228,7 +228,6 @@ module.exports = {
       ["expo-sqlite", { useSQLCipher: true }],
       "expo-video",
       ["expo-audio", { enableBackgroundPlayback: false }],
-      "./plugins/withAROptional.js",
       "./plugins/withImageCropPicker.js",
       "expo-localization",
       [
