@@ -228,6 +228,7 @@ module.exports = {
       "expo-video",
       "expo-audio",
       "./plugins/withImageCropPicker.js",
+      "./plugins/withAndroidOptionalFeatures.js",
       "expo-localization",
       [
         "expo-build-properties",
