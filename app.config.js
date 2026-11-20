@@ -60,6 +60,9 @@ if (requiresAndroidFirebase) {
 
 const nativeBuildNumber = process.env.YRDLY_BUILD_NUMBER || '1';
 if (!/^[1-9][0-9]*$/.test(nativeBuildNumber) || !Number.isSafeInteger(Number(nativeBuildNumber)) || Number(nativeBuildNumber) > 2100000000) throw new Error('Invalid native build number');
+const optimizeAndroidRelease =
+  process.env.EAS_BUILD_PROFILE === 'production' ||
+  process.env.YRDLY_ANDROID_QA_SIZE_OPTIMIZATIONS === '1';
 
 module.exports = {
   expo: {
@@ -228,15 +231,15 @@ module.exports = {
       "expo-video",
       "expo-audio",
       "./plugins/withImageCropPicker.js",
+      "./plugins/withAndroidOptionalFeatures.js",
       "expo-localization",
       [
         "expo-build-properties",
         {
-          // Opt-in for Android QA builds only. Store/EAS builds retain their current behavior.
           android: {
             enableMultiDex: true,
-            enableMinifyInReleaseBuilds: process.env.YRDLY_ANDROID_QA_SIZE_OPTIMIZATIONS === "1",
-            enableShrinkResourcesInReleaseBuilds: process.env.YRDLY_ANDROID_QA_SIZE_OPTIMIZATIONS === "1",
+            enableMinifyInReleaseBuilds: optimizeAndroidRelease,
+            enableShrinkResourcesInReleaseBuilds: optimizeAndroidRelease,
           },
           ios: {
             enableSceneSupport: true
