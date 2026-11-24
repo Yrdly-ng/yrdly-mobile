@@ -48,7 +48,7 @@ export function createMeasurementController(deps: {driver:()=>Promise<Driver|nul
         const ready=await configure(true);
         allowed=ready&&version===epoch;
         initialized=true;
-        if(!allowed) await configure(false);
+        if(!allowed) { await configure(false); await deps.storage.set(CONSENT,'denied'); }
         return allowed;
       } catch {allowed=false;try {await configure(false);}catch{};try {await deps.storage.set(CONSENT,'denied');}catch{};return false;}
     });

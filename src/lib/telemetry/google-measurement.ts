@@ -22,7 +22,7 @@ export const googleMeasurement = createMeasurementController({
       return {
         consent:allowed=>sdk.setConsent(analytics,{analytics_storage:allowed,ad_storage:false,ad_user_data:false,ad_personalization:false}),
         collection:allowed=>sdk.setAnalyticsCollectionEnabled(analytics,allowed),
-        event:(name,params)=>sdk.logEvent(analytics,name,params),
+        event:async(name,params)=>{await sdk.logEvent(analytics,name,params);},
       };
     }catch{return null;}
   },

@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import { googleMeasurement } from './google-measurement';
 import { approvedListing, UUID } from './google-measurement-policy';
-const MAX=30, AGE=30*24*60*60*1000;
+const MAX=20, AGE=30*24*60*60*1000;
 type Entry={id:string; at:number};
 const key=(owner:string)=>`yrdly.google.pending.${owner}`;
 let serial:Promise<unknown>=Promise.resolve();
