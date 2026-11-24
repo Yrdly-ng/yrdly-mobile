@@ -58,6 +58,19 @@ if (requiresAndroidFirebase) {
   }
 }
 
+// Explicit build-time opt-in; QA and preview builds must never collect analytics.
+const googleAnalyticsEnabled = process.env.EXPO_PUBLIC_YRDLY_GOOGLE_ANALYTICS === 'true';
+if (googleAnalyticsEnabled && (process.env.EXPO_PUBLIC_APP_ENV !== 'production' ||
+  process.env.EAS_BUILD_PROFILE && process.env.EAS_BUILD_PROFILE !== 'production')) {
+  throw new Error('Google measurement is restricted to an approved production build.');
+}
+const iosFirebaseFile = process.env.GOOGLE_SERVICE_INFO_PLIST;
+if (googleAnalyticsEnabled && process.env.EAS_BUILD_PLATFORM === 'ios') {
+  if (!iosFirebaseFile || !fs.existsSync(iosFirebaseFile)) throw new Error('Verified production GoogleService-Info.plist is required.');
+  const plist = require('node:child_process').execFileSync('/usr/bin/plutil',['-convert','json','-o','-',iosFirebaseFile],{encoding:'utf8'});
+  const config = JSON.parse(plist);
+  if (config.PROJECT_ID !== 'yrdly-470221' || config.BUNDLE_ID !== 'com.yrdly' || !/^1:\\d+:ios:[a-f0-9]+$/i.test(config.GOOGLE_APP_ID || '')) throw new Error('Invalid iOS Firebase project or app identifier.');
+}
 const nativeBuildNumber = process.env.YRDLY_BUILD_NUMBER || '1';
 if (!/^[1-9][0-9]*$/.test(nativeBuildNumber) || !Number.isSafeInteger(Number(nativeBuildNumber)) || Number(nativeBuildNumber) > 2100000000) throw new Error('Invalid native build number');
 
@@ -84,8 +97,15 @@ module.exports = {
       supportsTablet: true,
       usesAppleSignIn: true,
       bundleIdentifier: "com.yrdly",
+      ...(iosFirebaseFile ? {googleServicesFile: iosFirebaseFile} : {}),
       infoPlist: {
-        ITSAppUsesNonExemptEncryption: false
+        ITSAppUsesNonExemptEncryption: false,
+        FIREBASE_ANALYTICS_COLLECTION_ENABLED: false,
+        FIREBASE_ANALYTICS_COLLECTION_DEACTIVATED: !googleAnalyticsEnabled,
+        GOOGLE_ANALYTICS_DEFAULT_ALLOW_ANALYTICS_STORAGE: false,
+        GOOGLE_ANALYTICS_DEFAULT_ALLOW_AD_STORAGE: false,
+        GOOGLE_ANALYTICS_DEFAULT_ALLOW_AD_USER_DATA: false,
+        GOOGLE_ANALYTICS_DEFAULT_ALLOW_AD_PERSONALIZATION_SIGNALS: false
       },
       associatedDomains: [
         "applinks:app.yrdly.ng"
@@ -146,6 +166,8 @@ module.exports = {
       favicon: "./assets/images/favicon.png"
     },
     plugins: [
+      ...(googleAnalyticsEnabled ? ["@react-native-firebase/app", ["@react-native-firebase/analytics", {ios: {withoutAdIdSupport: true}}]] : []),
+      "./plugins/withGoogleAnalyticsPrivacy.js",
       "expo-apple-authentication",
       [
         "@sentry/react-native/expo",
@@ -240,7 +262,8 @@ module.exports = {
             enableShrinkResourcesInReleaseBuilds: process.env.YRDLY_ANDROID_QA_SIZE_OPTIMIZATIONS === "1",
           },
           ios: {
-            enableSceneSupport: true
+            enableSceneSupport: true,
+            ...(googleAnalyticsEnabled ? {useFrameworks: "static"} : {})
           }
         }
       ],

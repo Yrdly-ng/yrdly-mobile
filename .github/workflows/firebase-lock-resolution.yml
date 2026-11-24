@@ -1,0 +1,36 @@
+name: Firebase dependency resolution (draft only)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - '.github/workflows/firebase-lock-resolution.yml'
+permissions:
+  contents: read
+jobs:
+  lock:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'feat/firebase-analytics-cutover'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - run: npm install --global pnpm@11.2.2
+      - name: Generate pinned lockfile without dependency scripts
+        run: pnpm install --lockfile-only --ignore-scripts --no-frozen-lockfile
+      - name: Emit public dependency lock patch for review
+        run: |
+          git diff -- pnpm-lock.yaml > /tmp/yrdly-firebase-lock.patch
+          test -s /tmp/yrdly-firebase-lock.patch
+          echo 'BEGIN_LOCK_PATCH_BASE64'
+          base64 -w 100 /tmp/yrdly-firebase-lock.patch
+          echo 'END_LOCK_PATCH_BASE64'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: firebase-lockfile
+          path: pnpm-lock.yaml
+          retention-days: 7

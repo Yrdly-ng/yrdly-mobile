@@ -1,3 +1,5 @@
+import { googleMeasurement } from '../lib/telemetry/google-measurement';
+import { recoverListings } from '../lib/telemetry/google-listings';
 import { useEffect } from 'react';
 import { AppState } from 'react-native';
 import { useSegments } from 'expo-router';
@@ -29,5 +31,19 @@ export function TelemetryHandler() {
     return () => { subscription.remove(); memory.remove(); };
   }, []);
 
+  useEffect(()=>{
+    let current=true;
+    const owner=user?.id;
+    const recover=async()=>{
+      await googleMeasurement.initialize();
+      if(!current||!owner||loading||!googleMeasurement.allowed()||AppState.currentState!=='active')return;
+      const {api}=await import('../lib/network/api');
+      await recoverListings(owner,()=>current,async id=>(await api.get<{data?:unknown}>(`/api/posts?id=${encodeURIComponent(id)}`)).data);
+    };
+    void recover().catch(()=>{});
+    const timer=setInterval(()=>{void recover().catch(()=>{});},60_000);
+    const appState=AppState.addEventListener('change',state=>{if(state==='active')void recover().catch(()=>{});});
+    return()=>{current=false;clearInterval(timer);appState.remove();};
+  },[user?.id,loading]);
   return null;
 }

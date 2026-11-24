@@ -45,6 +45,14 @@ export const api = {
     try {
       const result = await client.post<T>(path, body, signal);
       recordFlow(path, 'succeeded', result);
+      // Only the authenticated web verification response can authorize revenue.
+      if (['/api/payment/verify','/api/events/tickets/verify','/api/bookings/verify'].includes(path)) {
+        void import('../telemetry/google-measurement').then(({googleMeasurement})=>googleMeasurement.purchase(path,result)).catch(()=>{});
+      }
+      if (path === '/api/posts') {
+        const post=(result as {data?:{user_id?:unknown}})?.data;
+        if(typeof post?.user_id==='string')void import('../telemetry/google-listings').then(m=>m.rememberListing(post,post.user_id as string)).catch(()=>{});
+      }
       return result;
     } catch (error) {
       recordFlow(path, 'failed');

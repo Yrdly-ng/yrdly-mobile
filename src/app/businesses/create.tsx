@@ -27,6 +27,7 @@ import { resolveCoords } from '../../lib/location/geocoding-service';
 import ImagePicker from 'react-native-image-crop-picker';
 import { OpeningHoursPicker } from '../../components/businesses/OpeningHoursPicker';
 import { GooglePlacesAutocomplete } from '@/components/location/PlacesAutocomplete';
+import { googleMeasurement } from '@/lib/telemetry/google-measurement';
 import { captureAppError, trackEvent } from '@/lib/telemetry';
 
 const CATS = [
@@ -311,6 +312,7 @@ export default function BusinessEditScreen() {
       }
 
       trackEvent('business_saved');
+      if (!id && businessId) void googleMeasurement.conversion('business_created',businessId);
       setSaved(true);
       setTimeout(() => {
         if (id) {

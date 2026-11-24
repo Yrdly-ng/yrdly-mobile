@@ -1,3 +1,4 @@
+import { GoogleMeasurementPreference } from '@/components/telemetry/GoogleMeasurementPreference';
 import { LegalLinks } from '../../components/legal/LegalLinks';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState } from 'react';
@@ -21,7 +22,7 @@ export default function PrivacySettingsScreen() {
   const s = sStylesheet;
 
   const router = useRouter();
-  const { profile, updateProfile } = useAuth();
+  const { user, profile, updateProfile } = useAuth();
   const [updating, setUpdating] = useState(false);
 
   const handleToggle = async (
@@ -62,6 +63,7 @@ export default function PrivacySettingsScreen() {
           Manage how your location is shared and how others find you in your local neighbourhood.
         </Text>
 
+        <GoogleMeasurementPreference owner={user?.id} color={theme.colors.TEXT_PRIMARY} muted={theme.colors.MUTED} accent={theme.colors.G} />
         <View style={s.card}>
           <View style={s.row}>
             <View style={s.rowLeft}>
