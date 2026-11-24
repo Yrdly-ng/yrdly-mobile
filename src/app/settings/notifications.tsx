@@ -65,7 +65,7 @@ export default function NotificationSettingsScreen() {
     paymentReceived: true,
     disputeUpdates: true,
     safetyAlerts: true,
-    dailyPrompts: false,
+    dailyPrompts: true,
     ...profile?.notification_settings,
   };
 
@@ -177,7 +177,7 @@ export default function NotificationSettingsScreen() {
               </View>
               <View style={s.rowText}>
                 <Text style={s.rowLabel}>Daily Neighbourhood Questions</Text>
-                <Text style={s.rowSub}>Optional daily reminder at 6 PM Nigeria time</Text>
+                <Text style={s.rowSub}>Daily reminder at 6 PM Nigeria time. Turn off any time.</Text>
               </View>
             </View>
             <Switch
