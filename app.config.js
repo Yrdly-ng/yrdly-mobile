@@ -69,7 +69,7 @@ if (googleAnalyticsEnabled && process.env.EAS_BUILD_PLATFORM === 'ios') {
   if (!iosFirebaseFile || !fs.existsSync(iosFirebaseFile)) throw new Error('Verified production GoogleService-Info.plist is required.');
   const plist = require('node:child_process').execFileSync('/usr/bin/plutil',['-convert','json','-o','-',iosFirebaseFile],{encoding:'utf8'});
   const config = JSON.parse(plist);
-  if (config.PROJECT_ID !== 'yrdly-470221' || config.BUNDLE_ID !== 'com.yrdly' || !/^1:\\d+:ios:[a-f0-9]+$/i.test(config.GOOGLE_APP_ID || '')) throw new Error('Invalid iOS Firebase project or app identifier.');
+  if (config.PROJECT_ID !== 'yrdly-470221' || config.BUNDLE_ID !== 'com.yrdly' || !/^1:\d+:ios:[a-f0-9]+$/i.test(config.GOOGLE_APP_ID || '')) throw new Error('Invalid iOS Firebase project or app identifier.');
 }
 const nativeBuildNumber = process.env.YRDLY_BUILD_NUMBER || '1';
 if (!/^[1-9][0-9]*$/.test(nativeBuildNumber) || !Number.isSafeInteger(Number(nativeBuildNumber)) || Number(nativeBuildNumber) > 2100000000) throw new Error('Invalid native build number');

@@ -62,7 +62,7 @@ export default function Profile2Screen() {
           home_location_geom: `POINT(${postLng} ${postLat})`,
           profile_completed: true,
         });
-        if (profile?.profile_completed !== true) void googleMeasurement.conversion('sign_up',user.id);
+        if (profile?.id === user.id && profile.profile_completed !== true) void googleMeasurement.conversion('sign_up',user.id);
       } catch (e) {
         console.error('Error saving profile step 2 location:', e);
       } finally {
@@ -183,7 +183,7 @@ export default function Profile2Screen() {
                 />
               </View>
 
-              <GoogleMeasurementPreference owner={user?.id} color={colors.TEXT} muted={colors.LABEL} accent="#82DB7E" />
+              <GoogleMeasurementPreference owner={user?.id} color={colors.TEXT_PRIMARY} muted={colors.LABEL} accent="#82DB7E" />
               <View style={{ marginTop: 12, zIndex: 1 }}>
                 <PrimaryBtn
                   label={`Complete Setup & Join`}
