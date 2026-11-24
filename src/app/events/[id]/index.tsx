@@ -1,3 +1,4 @@
+import { randomUUID } from 'expo-crypto';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
@@ -309,7 +310,7 @@ export default function EventDetailScreen() {
 
     if (!id) return;
     const channel = supabase
-      .channel(`public:events:${id}`)
+      .channel(`public:events:${id}:${randomUUID()}`)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'events', filter: `id=eq.${id}` },

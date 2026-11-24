@@ -268,6 +268,27 @@ test('Sentry reports known causes and uses safe mobile context when the cause is
   }
 });
 
+test('Sentry retains known native codes and stages without copying the rejection payload', () => {
+  const runtime = loadTelemetry();
+  runtime.api.initializeTelemetry();
+  const send = runtime.sentryOptions.beforeSend;
+  const event = {
+    tags: { operation: 'catalog.location.position' },
+    exception: { values: [{ type: 'CodedError', value: 'private payload' }] },
+  };
+  const result = send(event, { originalException: {
+    code: 'ERR_CURRENT_LOCATION_IS_UNAVAILABLE',
+    message: 'private coordinates',
+  } });
+  assert.equal(result.tags.error_code, 'ERR_CURRENT_LOCATION_IS_UNAVAILABLE');
+  assert.equal(result.exception.values[0].value,
+    'CodedError in catalog.location.position: ERR_CURRENT_LOCATION_IS_UNAVAILABLE');
+  assert.doesNotMatch(JSON.stringify(result), /private/);
+  const unknown = send(event, { originalException: { code: 'ERR_PRIVATE_CUSTOMER_ID' } });
+  assert.equal(unknown.tags.error_code, undefined);
+  assert.equal(unknown.exception.values[0].value, 'CodedError in catalog.location.position: operation failed');
+});
+
 test('installed Sentry replay hooks link and flush a sanitized native unhandled rejection', async () => {
   const runtime = loadTelemetry({ env: { EXPO_PUBLIC_SENTRY_DSN: configured.EXPO_PUBLIC_SENTRY_DSN } });
   runtime.api.initializeTelemetry();

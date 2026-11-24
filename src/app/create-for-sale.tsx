@@ -1,3 +1,4 @@
+import { captureAppError } from '@/lib/telemetry';
 import { useImageEditor, discardEditedImage } from '@/hooks/media/use-image-editor';
 import { isPaidPrice, MINIMUM_PRICE_MESSAGE } from '@/lib/marketplace/price-policy';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
@@ -175,14 +176,11 @@ export default function CreateForSaleScreen() {
           validFiles.push(file);
 
           if (type.startsWith('image/')) {
-            const { MediaToolkit } = await import('react-native-media-toolkit');
-            const editedMetadata = await MediaToolkit.getMediaMetadata(file.uri);
-            asset.width = editedMetadata.width;
-            asset.height = editedMetadata.height;
-            setImageDimsMap((prev) => ({
-              ...prev,
-              [file.uri]: { w: asset.width, h: asset.height },
-            }));
+            const w = file.width ?? asset.width;
+            const h = file.height ?? asset.height;
+            if (w > 0 && h > 0) {
+              setImageDimsMap((prev) => ({ ...prev, [file.uri]: { w, h } }));
+            }
           }
         }
         setAttachedFiles((prev) => {
@@ -191,9 +189,12 @@ export default function CreateForSaleScreen() {
           return next;
         });
       }
-    } catch (e: any) {
-      if (e.message !== 'User cancelled image selection' && e.message !== 'User cancelled') {
-        Alert.alert('Error', e.message || 'Failed to pick media');
+    } catch (error) {
+      const code = error && typeof error === 'object' && 'code' in error ? error.code : null;
+      const message = error instanceof Error ? error.message : '';
+      if (code !== 'E_PICKER_CANCELLED' && message !== 'User cancelled image selection' && message !== 'User cancelled') {
+        captureAppError(error, 'media.picker');
+        Alert.alert('Media unavailable', 'Could not open the selected media. Please try again.');
       }
     } finally {
       pickingMedia.current = false;

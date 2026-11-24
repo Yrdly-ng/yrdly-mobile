@@ -10,6 +10,7 @@ export const reliabilityEvents = new Set([
 ]);
 const actions = new Set([
   'post_created',
+  'media_video_toolkit_initializing',
   'business_saved',
   'business_created',
   'message_sent',

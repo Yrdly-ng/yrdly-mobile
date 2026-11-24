@@ -64,6 +64,7 @@ function harness(scenario = 'success') {
     active = 0,
     maxActive = 0;
   const deleted = [];
+  const reported = [];
   const files = new Map([['file:///source.mp4', { exists: true, isDirectory: false, size: 3000 }]]);
   const controller = new AbortController();
   const fsMock = {
@@ -107,10 +108,23 @@ function harness(scenario = 'success') {
   };
   const api = loader({
     'expo-file-system/legacy': fsMock,
+    '@/lib/telemetry': { captureAppError: (error, operation) => reported.push([error.message, operation]) },
+    '@/lib/telemetry/reliability': { recordDiagnostic() {} },
+    'react-native-nitro-modules': {
+      NitroModules: { hasHybridObject: (name) => name === 'MediaToolkit' && scenario !== 'missing-toolkit' },
+    },
     'react-native-media-toolkit': { MediaToolkit: toolkit },
   })('src/lib/media/native-video-editor.ts');
-  return { api, controller, inspect: () => ({ encoded, deleted, maxActive, files }) };
+  return { api, controller, inspect: () => ({ encoded, deleted, maxActive, files, reported }) };
 }
+
+test('a missing video HybridObject fails before importing the native toolkit', async () => {
+  const h = harness('missing-toolkit');
+  await assert.rejects(h.api.getVideoToolkit(), /Video editing is unavailable/);
+  assert.deepEqual(h.inspect().reported, [
+    ['Native media toolkit initialization failed', 'media.video.initialize'],
+  ]);
+});
 
 for (const scenario of ['success', 'oversize', 'cancelled', 'wrong-duration'])
   test(`native export protects source and validates the saved file: ${scenario}`, async () => {

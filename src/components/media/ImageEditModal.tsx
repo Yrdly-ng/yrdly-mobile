@@ -12,6 +12,8 @@ import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Crypto from 'expo-crypto';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import { captureAppError } from '@/lib/telemetry';
 import type { MobileFile } from '@/lib/media/storage-service';
 import { centeredVideoCrop, moveVideoCrop, type VideoCrop } from '@/lib/media/video-editing';
 import { CropFrame } from './CropFrame';
@@ -119,14 +121,6 @@ export function ImageEditModal({
   );
   useEffect(() => {
     mounted.current = true;
-    void import('react-native-media-toolkit')
-      .then(({ MediaToolkit }) => MediaToolkit.getMediaMetadata(file.uri))
-      .then((metadata) => {
-        if (mounted.current && metadata.width > 0 && metadata.height > 0) setDimensions(metadata);
-      })
-      .catch(() => {
-        if (mounted.current) setError('Could not open this photo. You can keep the original.');
-      });
     return () => {
       mounted.current = false;
     };
@@ -140,49 +134,52 @@ export function ImageEditModal({
     exporting.current = true;
     setBusy(true);
     setError('');
-    let croppedUri: string | undefined,
-      outputUri: string | undefined,
-      accepted = false;
+    let tempUri: string | undefined;
+    let outputUri: string | undefined;
+    let accepted = false;
     try {
-      const { MediaToolkit } = await import('react-native-media-toolkit');
       if (!FileSystem.cacheDirectory) throw new Error('Photo storage unavailable');
       const directory = FileSystem.cacheDirectory + 'yrdly-image-edits/';
       await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
-      const name = Crypto.randomUUID();
-      const cropped = await MediaToolkit.cropImage(file.uri, {
-        ...crop,
-        outputPath: (directory + name + '-crop.png').replace(/^file:\/\//, ''),
-      });
-      croppedUri = cropped.uri;
-      // Bound output size, normalize orientation, and omit location/EXIF metadata.
-      const output = await MediaToolkit.compressImage(cropped.uri, {
-        maxWidth: 2048,
-        maxHeight: 2048,
-        quality: 88,
-        format: file.type === 'image/png' ? 'png' : 'jpeg',
-        outputPath: (directory + name + (file.type === 'image/png' ? '.png' : '.jpg')).replace(
-          /^file:\/\//,
-          ''
-        ),
-      });
-      outputUri = output.uri;
+      const originX = Math.min(dimensions.width - 1, Math.max(0, Math.round(crop.x * dimensions.width)));
+      const originY = Math.min(dimensions.height - 1, Math.max(0, Math.round(crop.y * dimensions.height)));
+      const width = Math.max(1, Math.min(dimensions.width - originX, Math.round(crop.width * dimensions.width)));
+      const height = Math.max(1, Math.min(dimensions.height - originY, Math.round(crop.height * dimensions.height)));
+      const png = file.type === 'image/png';
+      const output = await manipulateAsync(
+        file.uri,
+        [
+          { crop: { originX, originY, width, height } },
+          ...(Math.max(width, height) > 2048
+            ? [{ resize: width >= height ? { width: 2048 } : { height: 2048 } }]
+            : []),
+        ],
+        { compress: 0.88, format: png ? SaveFormat.PNG : SaveFormat.JPEG }
+      );
+      tempUri = output.uri;
       if (!mounted.current) return;
-      const info = await FileSystem.getInfoAsync(output.uri);
+      outputUri = directory + Crypto.randomUUID() + (png ? '.png' : '.jpg');
+      await FileSystem.moveAsync({ from: output.uri, to: outputUri });
+      if (!mounted.current) return;
+      const info = await FileSystem.getInfoAsync(outputUri);
       if (!info.exists || info.isDirectory || !info.size) throw new Error('Photo export failed');
       accepted = true;
       onFinish({
-        uri: output.uri,
+        uri: outputUri,
         name:
           (file.name.replace(/\.[^.]+$/, '') || 'photo') +
           (file.type === 'image/png' ? '-cropped.png' : '-cropped.jpg'),
         type: file.type === 'image/png' ? 'image/png' : 'image/jpeg',
         size: info.size,
+        width: output.width,
+        height: output.height,
       });
-    } catch {
+    } catch (cause) {
+      captureAppError(cause, 'media.photo.export');
       if (mounted.current) setError('Could not save the crop. Your original photo is safe.');
     } finally {
-      if (croppedUri && croppedUri !== file.uri && (!accepted || croppedUri !== outputUri))
-        void FileSystem.deleteAsync(croppedUri, { idempotent: true }).catch(() => {});
+      if (tempUri && tempUri !== file.uri)
+        void FileSystem.deleteAsync(tempUri, { idempotent: true }).catch(() => {});
       if (!accepted && outputUri && outputUri !== file.uri)
         void FileSystem.deleteAsync(outputUri, { idempotent: true }).catch(() => {});
       exporting.current = false;
@@ -204,7 +201,22 @@ export function ImageEditModal({
         </Text>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <View {...pan.panHandlers} style={{ width, height }}>
-            <Image source={{ uri: file.uri }} style={{ width, height }} contentFit="contain" />
+            <Image
+              source={{ uri: file.uri }}
+              style={{ width, height }}
+              contentFit="contain"
+              onLoad={({ source }) => {
+                if (source.width > 0 && source.height > 0 && mounted.current) {
+                  setDimensions({ width: source.width, height: source.height });
+                  setError('');
+                }
+              }}
+              onError={() => {
+                if (!mounted.current) return;
+                captureAppError(new Error('Photo decode failed'), 'media.photo.decode');
+                setError('Could not open this photo. You can keep the original.');
+              }}
+            />
             {dimensions && (
               <CropFrame
                 crop={crop}
