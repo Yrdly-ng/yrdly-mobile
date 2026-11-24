@@ -211,6 +211,11 @@ export default function CheckoutScreen() {
       if (!result.success || !result.transactionId)
         throw new Error('Could not initialize payment.');
       if (result.alreadyPaid || result.totalAmount === 0) {
+        if (result.alreadyPaid && result.totalAmount > 0) {
+          void import('@/lib/telemetry/google-measurement').then(({googleMeasurement}) => {
+            if (googleMeasurement.allowed()) return api.post('/api/payment/verify', {txRef:result.transactionId});
+          }).catch(()=>{});
+        }
         router.replace({
           pathname: '/checkout/success',
           params: {

@@ -477,6 +477,11 @@ export default function EventDetailScreen() {
       });
       if (!result.success) throw new Error('Could not start checkout.');
       if (result.free || result.alreadyPaid) {
+        if (!result.free && result.alreadyPaid && typeof result.tx_ref === 'string') {
+          void import('@/lib/telemetry/google-measurement').then(({googleMeasurement}) => {
+            if (googleMeasurement.allowed()) return api.post('/api/events/tickets/verify', {tx_ref:result.tx_ref});
+          }).catch(()=>{});
+        }
         const tierName = selectedTier.name;
         setSelectedTier(null);
         showTicketSuccess(tierName);
