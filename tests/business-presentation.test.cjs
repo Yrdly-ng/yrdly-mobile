@@ -47,6 +47,10 @@ test('business detail never exposes product catalog for a service-only business'
   assert.match(screen, /shouldShowBusinessCatalog\(business\.mode, catalogItems\.length, catalogError\)/);
   assert.doesNotMatch(screen, /catalogItems\.length > 0 \|\| catalogError \? 'catalog' : 'services'/);
 });
+test('business detail reports load failures with a safe telemetry operation', () => {
+  const screen = fs.readFileSync('src/app/businesses/[id].tsx', 'utf8');
+  assert.match(screen, /captureAppError\\(e, 'business\\.load'\\)/);
+});
 test('business address supports saved text and JSON locations without exposing object placeholders', () => {
   assert.equal(getBusinessLocation('  14 Test Road  '), '14 Test Road');
   assert.equal(getBusinessLocation({ address: 'Main Street', geopoint: {} }), 'Main Street');
