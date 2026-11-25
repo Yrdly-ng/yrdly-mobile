@@ -32,7 +32,7 @@ function loadTelemetry({ env = configured, dev = false, failures = {}, crashedLa
     }
     startSessionRecording() { replayCalls.push('start'); }
     stopSessionRecording() { replayCalls.push('stop'); }
-    captureException(error) { return call('posthog.exception', error.message); }
+    captureException(error, properties) { return call('posthog.exception', error.message, properties); }
     identify(id, properties) {
       return call('identify', id, properties);
     }
@@ -599,7 +599,7 @@ test('PostHog recorder starts only on masked discovery screens and stops before 
  runtime.api.trackScreen('(tabs)/catalog');assert.equal(runtime.replayCalls.at(-1),'start');
  runtime.api.trackScreen('unknown-private');assert.equal(runtime.replayCalls.at(-1),'stop');
  runtime.api.captureAppError(new Error('private@example.test bank details'),'chat.send');
- assert.deepEqual(runtime.calls.filter(([name])=>name==='posthog.exception'),[['posthog.exception','Application operation failed']]);
+ assert.deepEqual(runtime.calls.filter(([name])=>name==='posthog.exception'),[['posthog.exception','Application operation failed',{operation:'chat.send'}]]);
 });
 
 
