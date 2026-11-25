@@ -37,12 +37,13 @@ Use a single-context layout: root `GLOSSARY.md` plus `docs/adr/`. Before domain 
 - Keep cross-cutting hooks in `src/hooks/`; put feature-specific hooks in `src/hooks/<domain>/`.
 - When moving a hook, update every import and the code map in `CLAUDE-YRDLY-MOBILE.md`.
 
-### Ship a fix from chat (YRDLY iOS)
+### Ship a fix from chat (YRDLY Android-first)
 
 - Work on a dedicated fix branch and open a pull request; never commit directly to `main`.
-- For an iOS fix that is compatible with the installed native runtime, publish the branch commit to the EAS `verify` channel using `.eas/workflows/verify-update.yml`.
-- Verify the update on the `verify-simulator` iOS simulator build in Expo Simulators before asking for merge.
+- Android is the active verification and release platform. For JavaScript, styling, or asset fixes compatible with the installed native runtime, publish the branch commit to the EAS `verify` channel using `.eas/workflows/verify-android.yml`.
+- Build/install the `verify-android` internal APK on a physical Android device and verify the change before asking for merge.
 - Do not merge the pull request or publish to the `production` channel unless the user explicitly asks.
-- After the user merges, publish the merged commit to `production` only on explicit instruction, using `.eas/workflows/publish-production.yml`.
+- After the user merges, publish the merged Android commit to `production` only on explicit instruction, using `.eas/workflows/publish-android-production.yml`.
+- iOS remains configured for a future phase. Preserve `verify-simulator` and the iOS OTA workflows; do not make iOS the default verification target until the user has an Apple Developer account and requests iOS work.
 - Native code, native dependency, or native configuration changes require a new native build; do not try to ship them as OTA updates.
 - Keep the app's shared `runtimeVersion` policy and EAS channel assignments aligned with `app.config.js` and `eas.json`.
