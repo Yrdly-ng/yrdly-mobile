@@ -1,4 +1,4 @@
-const { test } = require('node:test');
+const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -12,7 +12,7 @@ function mount(file, props) {
     calls = [];
   let cursor = 0,
     first = true,
-    tree;
+  tree;
   const state = (initial) => {
     const index = cursor++;
     if (!(index in states)) states[index] = typeof initial === 'function' ? initial() : initial;
@@ -81,6 +81,7 @@ function mount(file, props) {
     'expo-video': { VideoView: 'VideoView', useVideoPlayer: () => player },
     '@expo/vector-icons': { Feather: 'Feather' },
     'expo-crypto': { randomUUID: () => 'crop-test' },
+    '@/lib/telemetry': { captureAppError: noop },
     'expo-file-system/legacy': {
       cacheDirectory: 'file:///cache/',
       makeDirectoryAsync: async () => {},
