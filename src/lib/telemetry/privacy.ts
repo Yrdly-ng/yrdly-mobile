@@ -275,6 +275,10 @@ export const sanitizePostHogEvent: BeforeSend = (event) => {
     properties.$exception_list = list.map(exception => ({
       type: 'Error', value: diagnosticMessage({message:exception.value}),
     }));
+    const operation = source.operation;
+    if (typeof operation === 'string' && errorContexts.has(operation)) {
+      properties.operation = operation;
+    }
   }
   properties.$geoip_disable = true;
   if (['android', 'ios', 'web'].includes(source.app_platform as string))
