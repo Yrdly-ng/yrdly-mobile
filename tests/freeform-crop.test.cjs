@@ -85,6 +85,7 @@ function mount(file, props) {
     'expo-file-system/legacy': {
       cacheDirectory: 'file:///cache/',
       makeDirectoryAsync: async () => {},
+      moveAsync: async () => {},
       getInfoAsync: async () => ({ exists: true, isDirectory: false, size: 1234 }),
       deleteAsync: async () => {},
     },
