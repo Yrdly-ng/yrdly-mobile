@@ -298,7 +298,7 @@ function PostDetailContent() {
       // Trigger notification
       const { NotificationTriggers } =
         await import('../../lib/notifications/notification-triggers');
-      void NotificationTriggers.onPostCommented(id, user.id, text.trim()).catch(() => {});
+      void NotificationTriggers.onPostCommented(id, user.id).catch(() => {});
 
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     } catch (e) {
