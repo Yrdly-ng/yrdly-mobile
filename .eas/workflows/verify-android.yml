@@ -1,0 +1,16 @@
+# publishes this commit to the `verify` channel for Android QA.
+# use an internal APK build with the verify-android profile to install it on a device.
+# this does not affect production users.
+name: Publish Android update for verification
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  publish_update:
+    name: Publish Android update to the verify channel
+    type: update
+    environment: production
+    params:
+      platform: android
+      channel: verify
