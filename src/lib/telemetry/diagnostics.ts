@@ -1,8 +1,35 @@
+const nativeErrorCodes = new Set([
+  'ERR_CURRENT_LOCATION_IS_UNAVAILABLE',
+  'ERR_LOCATION_BACKGROUND_UNAUTHORIZED',
+  'ERR_LOCATION_MISSING_ACTIVITY',
+  'ERR_LOCATION_REQUEST_CANCELLED',
+  'ERR_LOCATION_REQUEST_REJECTED',
+  'ERR_LOCATION_SETTINGS_UNSATISFIED',
+  'ERR_LOCATION_UNAUTHORIZED',
+  'ERR_LOCATION_UNAVAILABLE',
+  'ERR_LOCATION_UNKNOWN',
+  'ERR_NO_PERMISSION_IN_MANIFEST',
+  'ERR_NO_PERMISSIONS_MODULE',
+  'E_ACTIVITY_DOES_NOT_EXIST',
+  'E_CALLBACK_ERROR',
+  'E_FAILED_TO_OPEN_CAMERA',
+  'E_NO_IMAGE_DATA_FOUND',
+  'E_NO_LIBRARY_PERMISSION',
+  'E_PICKER_CANCELLED',
+]);
+
+export function isNativeErrorCode(value: unknown): value is string {
+  return typeof value === 'string' && nativeErrorCodes.has(value);
+}
+
 /** Fixed categories only: never send the original server payload or user content. */
 export function diagnosticMessage(value: unknown): string {
   const text = value instanceof Error ? value.message :
     value && typeof value === 'object' && 'message' in value && typeof value.message === 'string' ? value.message : '';
   if (diagnosticMessages.has(text)) return text;
+  if (/HybridObject.*MediaToolkit|MediaToolkit.*HybridObject/i.test(text)) return 'Native media toolkit initialization failed';
+  if (/^Photo (?:decode|export) failed$|^Photo storage unavailable$/.test(text)) return text;
+  if (/^Current location is unavailable|location services are disabled|location request failed/i.test(text)) return 'Device location unavailable';
   if (/^(?:Abort|SIGABRT)$/.test(text)) return 'Native abort';
   if (/out of memory|failed to allocate a [0-9]+ byte allocation/i.test(text)) return 'Memory allocation failed';
   if (/^The (?:operation|user request) was aborted[.!]?$/.test(text)) return 'Operation cancelled';
@@ -34,6 +61,11 @@ export function diagnosticMessage(value: unknown): string {
 
 export const diagnosticMessages = new Set([
   'Native abort',
+  'Native media toolkit initialization failed',
+  'Photo decode failed',
+  'Photo export failed',
+  'Photo storage unavailable',
+  'Device location unavailable',
   'Memory allocation failed',
   'Operation cancelled',
   'Media decoder unavailable',

@@ -1,3 +1,4 @@
+import { captureAppError } from '@/lib/telemetry';
 import { CampaignBanner } from '../../components/campaigns/CampaignBanner';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
@@ -1551,12 +1552,21 @@ export default function CatalogTab() {
   }, [search]);
 
   useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return;
-      const l = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      setCurrentLoc(l);
-    })();
+    let active = true;
+    async function loadLocation() {
+      let operation = 'catalog.location.permission';
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (!active || status !== 'granted') return;
+        operation = 'catalog.location.position';
+        const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        if (active) setCurrentLoc(location);
+      } catch (error) {
+        captureAppError(error, operation);
+      }
+    }
+    void loadLocation();
+    return () => { active = false; };
   }, []);
 
   const { displayLabel, activeFilter, setGlobalFilter } = useLocation();

@@ -60,8 +60,8 @@ export function initializeTelemetry(): void {
         replaysOnErrorSampleRate: posthogReplayEnabled ? 0 : 1.0,
         maxBreadcrumbs: 20,
         beforeBreadcrumb: sanitizeDiagnosticBreadcrumb,
-        beforeSend: event => {
-          const safe = sanitizeSentryEvent(event);
+        beforeSend: (event, hint) => {
+          const safe = sanitizeSentryEvent(event, hint?.originalException);
           const values = safe.exception?.values;
           if (values?.length && (!safe.user?.id || safe.user.id === currentUser)) recordReliability('app_error', {
             ...safe.tags,
@@ -214,7 +214,11 @@ export function trackEvent(event: AppEvent): void {
 }
 
 export function captureAppError(error: unknown, context?: string): void {
-  safely(() => analytics?.captureException(new Error(diagnosticMessage(error))));
+  const safeOperation = context && errorContexts.has(context) ? context : undefined;
+  safely(() => analytics?.captureException(
+    new Error(diagnosticMessage(error)),
+    safeOperation ? { operation: safeOperation } : undefined,
+  ));
   if (!sentryEnabled) return;
   safely(() => {
     const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined;

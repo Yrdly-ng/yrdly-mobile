@@ -1,4 +1,4 @@
-const { test } = require('node:test');
+const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -12,7 +12,7 @@ function mount(file, props) {
     calls = [];
   let cursor = 0,
     first = true,
-    tree;
+  tree;
   const state = (initial) => {
     const index = cursor++;
     if (!(index in states)) states[index] = typeof initial === 'function' ? initial() : initial;
@@ -71,12 +71,21 @@ function mount(file, props) {
       useUnistyles: () => ({ theme: { colors: new Proxy({}, { get: () => '#ffffff' }) } }),
     },
     'expo-image': { Image: 'Image' },
+    'expo-image-manipulator': {
+      manipulateAsync: async (uri, actions, options) => {
+        calls.push({ operation: 'image-manipulate', uri, actions, options });
+        return { uri: 'file:///edited.jpg', width: 240, height: 180 };
+      },
+      SaveFormat: { JPEG: 'jpeg', PNG: 'png' },
+    },
     'expo-video': { VideoView: 'VideoView', useVideoPlayer: () => player },
     '@expo/vector-icons': { Feather: 'Feather' },
     'expo-crypto': { randomUUID: () => 'crop-test' },
+    '@/lib/telemetry': { captureAppError: noop },
     'expo-file-system/legacy': {
       cacheDirectory: 'file:///cache/',
       makeDirectoryAsync: async () => {},
+      moveAsync: async () => {},
       getInfoAsync: async () => ({ exists: true, isDirectory: false, size: 1234 }),
       deleteAsync: async () => {},
     },
@@ -255,7 +264,11 @@ for (const media of ['Image', 'Video'])
       onFinish: (file) => finished.push(file),
     });
     await h.settle();
-    if (media === 'Video') {
+    if (media === 'Image') {
+      const image = nodes(h.tree).find((node) => node.type === 'Image');
+      image.props.onLoad({ source: { width: 800, height: 600 } });
+      h.render();
+    } else {
       button(h, 'Crop').props.onPress();
       h.render();
     }
@@ -271,9 +284,18 @@ for (const media of ['Image', 'Video'])
     assert.ok(Math.abs(child.props.crop.y - 0.1) < 1e-8);
     button(h, 'Confirm').props.onPress();
     await h.settle();
-    const output = media === 'Image' ? h.calls[0].options : h.calls[0].edit.crop;
-    for (const key of ['x', 'y', 'width', 'height'])
-      assert.equal(output[key], child.props.crop[key]);
+    const output = media === 'Image'
+      ? h.calls.find((call) => call.operation === 'image-manipulate').actions.find((action) => action.crop)?.crop
+      : h.calls.find((call) => call.operation === 'video-export').edit.crop;
+    if (media === 'Image') {
+      assert.equal(output.originX, Math.round(child.props.crop.x * 800));
+      assert.equal(output.originY, Math.round(child.props.crop.y * 600));
+      assert.equal(output.width, Math.round(child.props.crop.width * 800));
+      assert.equal(output.height, Math.round(child.props.crop.height * 600));
+    } else {
+      for (const key of ['x', 'y', 'width', 'height'])
+        assert.equal(output[key], child.props.crop[key]);
+    }
     assert.equal(finished.length, 1);
-    assert.match(finished[0].uri, /edited/);
+    assert.match(finished[0].uri, media === 'Image' ? /yrdly-image-edits/ : /edited/);
   });

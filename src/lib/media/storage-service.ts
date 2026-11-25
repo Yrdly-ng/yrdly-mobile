@@ -19,6 +19,8 @@ export interface MobileFile {
   name: string;
   type: string; // MIME type, e.g. 'image/jpeg'
   size?: number;
+  width?: number;
+  height?: number;
 }
 
 let activeUploads = 0;

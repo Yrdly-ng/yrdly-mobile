@@ -1,3 +1,5 @@
+import { captureAppError } from '@/lib/telemetry';
+import { recordDiagnostic } from '@/lib/telemetry/reliability';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { MobileFile } from './storage-service';
 import {
@@ -11,10 +13,16 @@ import {
 
 let processing: Promise<unknown> = Promise.resolve();
 
-async function getToolkit() {
+export async function getVideoToolkit() {
   try {
+    recordDiagnostic('app.action', 'media_video_toolkit_initializing');
+    const { NitroModules } = await import('react-native-nitro-modules');
+    if (!NitroModules.hasHybridObject('MediaToolkit')) {
+      throw new Error('Native media toolkit initialization failed');
+    }
     return (await import('react-native-media-toolkit')).MediaToolkit;
-  } catch {
+  } catch (error) {
+    captureAppError(error, 'media.video.initialize');
     throw new VideoEditError(
       'Video editing is unavailable in this app version. Update Yrdly to edit your video.'
     );
@@ -30,7 +38,7 @@ function cancelled(signal: AbortSignal) {
 }
 
 export async function readNativeVideoMetadata(file: MobileFile): Promise<VideoMetadata> {
-  const toolkit = await getToolkit();
+  const toolkit = await getVideoToolkit();
   // Thumbnail extraction supports all native video containers and returns
   // rotation-corrected dimensions; do not infer metadata from the extension.
   const thumbnail = await toolkit.getThumbnail(file.uri, { timeMs: 0, maxWidth: 256, quality: 50 });
@@ -73,7 +81,7 @@ async function encode(
   const outputUri = directory + Date.now() + '-' + Math.random().toString(36).slice(2) + '.mp4';
   let accepted = false;
   try {
-    const toolkit = await getToolkit();
+    const toolkit = await getVideoToolkit();
     cancelled(signal);
     const pixels = videoCropPixels(metadata, edit.crop, Math.max(metadata.width, metadata.height));
     const result = await toolkit.trimAndCropVideo(file.uri, {

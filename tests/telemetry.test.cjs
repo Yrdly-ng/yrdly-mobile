@@ -32,7 +32,7 @@ function loadTelemetry({ env = configured, dev = false, failures = {}, crashedLa
     }
     startSessionRecording() { replayCalls.push('start'); }
     stopSessionRecording() { replayCalls.push('stop'); }
-    captureException(error) { return call('posthog.exception', error.message); }
+    captureException(error, properties) { return call('posthog.exception', error.message, properties); }
     identify(id, properties) {
       return call('identify', id, properties);
     }
@@ -266,6 +266,27 @@ test('Sentry reports known causes and uses safe mobile context when the cause is
     assert.equal(beforeSend(safe).exception.values[0].value, expected);
     assert.doesNotMatch(JSON.stringify(safe), /private|1234/);
   }
+});
+
+test('Sentry retains known native codes and stages without copying the rejection payload', () => {
+  const runtime = loadTelemetry();
+  runtime.api.initializeTelemetry();
+  const send = runtime.sentryOptions.beforeSend;
+  const event = {
+    tags: { operation: 'catalog.location.position' },
+    exception: { values: [{ type: 'CodedError', value: 'private payload' }] },
+  };
+  const result = send(event, { originalException: {
+    code: 'ERR_CURRENT_LOCATION_IS_UNAVAILABLE',
+    message: 'private coordinates',
+  } });
+  assert.equal(result.tags.error_code, 'ERR_CURRENT_LOCATION_IS_UNAVAILABLE');
+  assert.equal(result.exception.values[0].value,
+    'CodedError in catalog.location.position: ERR_CURRENT_LOCATION_IS_UNAVAILABLE');
+  assert.doesNotMatch(JSON.stringify(result), /private/);
+  const unknown = send(event, { originalException: { code: 'ERR_PRIVATE_CUSTOMER_ID' } });
+  assert.equal(unknown.tags.error_code, undefined);
+  assert.equal(unknown.exception.values[0].value, 'CodedError in catalog.location.position: operation failed');
 });
 
 test('installed Sentry replay hooks link and flush a sanitized native unhandled rejection', async () => {
@@ -578,7 +599,7 @@ test('PostHog recorder starts only on masked discovery screens and stops before 
  runtime.api.trackScreen('(tabs)/catalog');assert.equal(runtime.replayCalls.at(-1),'start');
  runtime.api.trackScreen('unknown-private');assert.equal(runtime.replayCalls.at(-1),'stop');
  runtime.api.captureAppError(new Error('private@example.test bank details'),'chat.send');
- assert.deepEqual(runtime.calls.filter(([name])=>name==='posthog.exception'),[['posthog.exception','Application operation failed']]);
+ assert.deepEqual(runtime.calls.filter(([name])=>name==='posthog.exception'),[['posthog.exception','Application operation failed',{operation:'chat.send'}]]);
 });
 
 

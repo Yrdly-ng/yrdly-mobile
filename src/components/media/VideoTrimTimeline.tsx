@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Image } from 'expo-image';
 import { PanResponder, StyleSheet, Text, View } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
+import { getVideoToolkit } from '@/lib/media/native-video-editor';
 
 interface Props {
   uri: string;
@@ -24,9 +25,9 @@ export function VideoTrimTimeline(props: Props) {
     let active = true;
     const generated: string[] = [];
     void (async () => {
-      const { MediaToolkit } = await import('react-native-media-toolkit');
+      const toolkit = await getVideoToolkit();
       for (let index = 0; index < 8 && active; index++) {
-        const thumbnail = await MediaToolkit.getThumbnail(props.uri, {
+        const thumbnail = await toolkit.getThumbnail(props.uri, {
           timeMs: Math.round((props.duration * 1000 * index) / 8),
           maxWidth: 120,
           quality: 50,

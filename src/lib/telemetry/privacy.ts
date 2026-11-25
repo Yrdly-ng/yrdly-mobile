@@ -1,4 +1,4 @@
-import { diagnosticMessage } from './diagnostics';
+import { diagnosticMessage, isNativeErrorCode } from './diagnostics';
 import type { ErrorEvent, StackFrame } from '@sentry/react-native';
 import type { PostHogOptions } from 'posthog-react-native';
 import { isScreenName } from './routes';
@@ -43,6 +43,12 @@ export const errorContexts = new Set([
   'chat.load',
   'app.error_boundary',
   'app.logger',
+  'catalog.location.permission',
+  'catalog.location.position',
+  'media.photo.decode',
+  'media.photo.export',
+  'media.picker',
+  'media.video.initialize',
 ]);
 
 export function isUserId(value: unknown): value is string {
@@ -69,6 +75,8 @@ const errorTypes = new Set([
   'URIError',
   'EvalError',
   'AggregateError',
+  'NativeException',
+  'CodedError',
   'SIGABRT',
   'SIGSEGV',
   'IllegalStateException',
@@ -76,7 +84,8 @@ const errorTypes = new Set([
 ]);
 
 export function isErrorCode(value: unknown): value is string {
-  return typeof value === 'string' && /^(?:[0-9]{2}[0-9A-Z]{3}|PGRST[0-9]{3})$/.test(value);
+  return isNativeErrorCode(value) ||
+    (typeof value === 'string' && /^(?:[0-9]{2}[0-9A-Z]{3}|PGRST[0-9]{3})$/.test(value));
 }
 
 function cleanFilename(value?: string): string | undefined {
@@ -98,14 +107,17 @@ function cleanFrame(frame: StackFrame): StackFrame {
   };
 }
 
-export function sanitizeSentryEvent(event: ErrorEvent): ErrorEvent {
+export function sanitizeSentryEvent(event: ErrorEvent, originalException?: unknown): ErrorEvent {
   const candidateOperation = event.tags?.operation;
   const operation = typeof candidateOperation === 'string' && errorContexts.has(candidateOperation)
     ? candidateOperation
     : undefined;
   const screen = event.tags?.screen;
   const safeScreen = isScreenName(screen) ? screen : undefined;
-  const code = event.tags?.error_code;
+  const originalCode = originalException && typeof originalException === 'object' && 'code' in originalException
+    ? originalException.code
+    : undefined;
+  const code = isErrorCode(event.tags?.error_code) ? event.tags?.error_code : originalCode;
   const replayId = event.contexts?.replay?.replay_id;
   const contexts: NonNullable<ErrorEvent['contexts']> = {};
   if (typeof replayId === 'string' && /^[0-9a-f]{32}$/i.test(replayId)) contexts.replay = { replay_id: replayId };
@@ -179,16 +191,21 @@ export function sanitizeSentryEvent(event: ErrorEvent): ErrorEvent {
     },
     exception: event.exception
       ? {
-          values: event.exception.values?.map((exception) => {
+          values: event.exception.values?.map((exception, index, exceptions) => {
             const type = exception.type && errorTypes.has(exception.type) ? exception.type : 'Error';
             const category = diagnosticMessage({ message: exception.value });
+            const original = index === exceptions.length - 1
+              ? diagnosticMessage(originalException)
+              : 'Application operation failed';
+            const classified = category === 'Application operation failed' ? original : category;
+            const nativeCode = index === exceptions.length - 1 && isNativeErrorCode(code) ? code : undefined;
             const context = operation || safeScreen;
             const location = context ? ` in ${context}` : '';
             return {
               type,
-              value: category === 'Application operation failed'
-                ? `${type}${location}: cause unclassified`
-                : category,
+              value: classified === 'Application operation failed'
+                ? `${type}${location}: ${nativeCode ?? (operation?.startsWith('catalog.location.') || operation?.startsWith('media.') ? 'operation failed' : 'cause unclassified')}`
+                : classified,
               stacktrace: exception.stacktrace
                 ? { frames: exception.stacktrace.frames?.map(cleanFrame) }
                 : undefined,
@@ -258,6 +275,10 @@ export const sanitizePostHogEvent: BeforeSend = (event) => {
     properties.$exception_list = list.map(exception => ({
       type: 'Error', value: diagnosticMessage({message:exception.value}),
     }));
+    const operation = source.operation;
+    if (typeof operation === 'string' && errorContexts.has(operation)) {
+      properties.operation = operation;
+    }
   }
   properties.$geoip_disable = true;
   if (['android', 'ios', 'web'].includes(source.app_platform as string))
