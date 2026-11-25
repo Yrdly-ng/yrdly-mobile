@@ -93,6 +93,30 @@ function cleanFilename(value?: string): string | undefined {
   return path?.startsWith('app:///') ? path : path?.split('/').pop();
 }
 
+function cleanPostHogStacktrace(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== 'object' || !('frames' in value) || !Array.isArray(value.frames)) return undefined;
+  const frames = value.frames.slice(-40).flatMap((frame) => {
+    if (!frame || typeof frame !== 'object') return [];
+    const item = frame as Record<string, unknown>;
+    const filename = typeof item.filename === 'string' ? cleanFilename(item.filename) : undefined;
+    const functionName = typeof item.function === 'string'
+      ? item.function.replace(/[^a-zA-Z0-9_.$<> [\\]-]/g, '').slice(0, 160)
+      : undefined;
+    const lineno = typeof item.lineno === 'number' && Number.isInteger(item.lineno) && item.lineno >= 0 ? item.lineno : undefined;
+    const colno = typeof item.colno === 'number' && Number.isInteger(item.colno) && item.colno >= 0 ? item.colno : undefined;
+    const inApp = typeof item.in_app === 'boolean' ? item.in_app : undefined;
+    const clean = {
+      ...(filename ? { filename } : {}),
+      ...(functionName ? { function: functionName } : {}),
+      ...(lineno !== undefined ? { lineno } : {}),
+      ...(colno !== undefined ? { colno } : {}),
+      ...(inApp !== undefined ? { in_app: inApp } : {}),
+    };
+    return Object.keys(clean).length ? [clean] : [];
+  });
+  return frames.length ? { frames } : undefined;
+}
+
 function cleanFrame(frame: StackFrame): StackFrame {
   // File names and line numbers remain useful for source-map symbolication.
   // Drop source snippets, local variables, full device paths, and URL credentials.
@@ -272,13 +296,27 @@ export const sanitizePostHogEvent: BeforeSend = (event) => {
   if (event.event === '$exception') {
     const list = Array.isArray(source.$exception_list) ? source.$exception_list as Record<string, unknown>[] : [];
     if (!list.length) return null;
-    properties.$exception_list = list.map(exception => ({
-      type: 'Error', value: diagnosticMessage({message:exception.value}),
-    }));
-    const operation = source.operation;
-    if (typeof operation === 'string' && errorContexts.has(operation)) {
-      properties.operation = operation;
-    }
+    const operation = typeof source.operation === 'string' && errorContexts.has(source.operation)
+      ? source.operation
+      : undefined;
+    properties.$exception_list = list.map(exception => {
+      const category = diagnosticMessage({ message: exception.value });
+      const value = category === 'Application operation failed' && operation
+        ? `Application operation failed in ${operation}`
+        : category;
+      const stacktrace = cleanPostHogStacktrace(exception.stacktrace);
+      const allowedTypes = new Set(['Error', 'TypeError', 'ReferenceError', 'SyntaxError', 'RangeError', 'URIError', 'EvalError', 'AggregateError', 'NativeException', 'CodedError']);
+      const type = typeof exception.type === 'string' && allowedTypes.has(exception.type)
+        ? exception.type
+        : 'Error';
+      return {
+        type,
+        value,
+        ...(stacktrace ? { stacktrace } : {}),
+      };
+    });
+    if (operation) properties.operation = operation;
+    if (isErrorCode(source.error_code)) properties.error_code = source.error_code;
   }
   properties.$geoip_disable = true;
   if (['android', 'ios', 'web'].includes(source.app_platform as string))
