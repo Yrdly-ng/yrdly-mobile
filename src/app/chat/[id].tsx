@@ -550,8 +550,7 @@ function ChatContent() {
     fetchMessages();
 
     // Realtime subscriptions for messages table
-    const ch = supabase
-      createMessagesChannel(supabase, `chat-${liveId}`)
+    const ch = createMessagesChannel(supabase, `chat-${liveId}`)
       .on(
         'postgres_changes',
         {
