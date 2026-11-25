@@ -92,8 +92,7 @@ export function useTypingDetection(conversationId: string) {
   useEffect(() => {
     if (!conversationId) return;
 
-    const channel = supabase
-      createMessagesChannel(supabase, `typing-${conversationId}`)
+    const channel = createMessagesChannel(supabase, `typing-${conversationId}`)
       .on(
         'postgres_changes',
         {
