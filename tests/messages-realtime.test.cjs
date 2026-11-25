@@ -87,10 +87,10 @@ function effectBody(kind, supabase, presenceIdsKey = 'neighbour-a') {
 test('chat and typing screens use unique channels across overlapping effects', () => {
   const chat = fs.readFileSync('src/app/chat/[id].tsx', 'utf8');
   const typing = fs.readFileSync('src/hooks/chat/use-typing-detection.ts', 'utf8');
-  assert.match(chat, /createMessagesChannel\\(supabase, `chat-\\$\\{liveId\\}`\\)/);
-  assert.match(typing, /createMessagesChannel\\(supabase, `typing-\\$\\{conversationId\\}`\\)/);
-  assert.doesNotMatch(chat, /\\.channel\\(`chat-\\$\\{liveId\\}`\\)/);
-  assert.doesNotMatch(typing, /\\.channel\\(`typing-\\$\\{conversationId\\}`\\)/);
+  assert.match(chat, /createMessagesChannel\(supabase, `chat-\$\{liveId\}`\)/);
+  assert.match(typing, /createMessagesChannel\(supabase, `typing-\$\{conversationId\}`\)/);
+  assert.doesNotMatch(chat, /\.channel\(`chat-\$\{liveId\}`\)/);
+  assert.doesNotMatch(typing, /\.channel\(`typing-\$\{conversationId\}`\)/);
 });
 
 for (const kind of ['presence', 'conversations']) {
