@@ -93,25 +93,23 @@ function cleanFilename(value?: string): string | undefined {
   return path?.startsWith('app:///') ? path : path?.split('/').pop();
 }
 
-function cleanPostHogStacktrace(value: unknown): Record<string, unknown> | undefined {
+function cleanPostHogStacktrace(
+  value: unknown
+): { frames: Array<Record<string, string | number | boolean>> } | undefined {
   if (!value || typeof value !== 'object' || !('frames' in value) || !Array.isArray(value.frames)) return undefined;
   const frames = value.frames.slice(-40).flatMap((frame) => {
     if (!frame || typeof frame !== 'object') return [];
     const item = frame as Record<string, unknown>;
+    const clean: Record<string, string | number | boolean> = {};
     const filename = typeof item.filename === 'string' ? cleanFilename(item.filename) : undefined;
     const functionName = typeof item.function === 'string'
-      ? item.function.replace(/[^a-zA-Z0-9_.$<> [\\]-]/g, '').slice(0, 160)
+      ? item.function.replace(/[^a-zA-Z0-9_.$<> -]/g, '').slice(0, 160)
       : undefined;
-    const lineno = typeof item.lineno === 'number' && Number.isInteger(item.lineno) && item.lineno >= 0 ? item.lineno : undefined;
-    const colno = typeof item.colno === 'number' && Number.isInteger(item.colno) && item.colno >= 0 ? item.colno : undefined;
-    const inApp = typeof item.in_app === 'boolean' ? item.in_app : undefined;
-    const clean = {
-      ...(filename ? { filename } : {}),
-      ...(functionName ? { function: functionName } : {}),
-      ...(lineno !== undefined ? { lineno } : {}),
-      ...(colno !== undefined ? { colno } : {}),
-      ...(inApp !== undefined ? { in_app: inApp } : {}),
-    };
+    if (filename) clean.filename = filename;
+    if (functionName) clean.function = functionName;
+    if (typeof item.lineno === 'number' && Number.isInteger(item.lineno) && item.lineno >= 0) clean.lineno = item.lineno;
+    if (typeof item.colno === 'number' && Number.isInteger(item.colno) && item.colno >= 0) clean.colno = item.colno;
+    if (typeof item.in_app === 'boolean') clean.in_app = item.in_app;
     return Object.keys(clean).length ? [clean] : [];
   });
   return frames.length ? { frames } : undefined;
