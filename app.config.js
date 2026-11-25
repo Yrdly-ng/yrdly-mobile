@@ -137,6 +137,7 @@ module.exports = {
       // (including the React Native crop picker), not continuous gallery access.
       // Block dependencies from re-adding these permissions during manifest merge.
       blockedPermissions: [
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_MEDIA_VIDEO",
         "android.permission.READ_EXTERNAL_STORAGE",
@@ -229,7 +230,7 @@ module.exports = {
       ],
       ["expo-sqlite", { useSQLCipher: true }],
       "expo-video",
-      "expo-audio",
+      ["expo-audio", { enableBackgroundPlayback: false }],
       "./plugins/withImageCropPicker.js",
       "./plugins/withAndroidOptionalFeatures.js",
       "expo-localization",
