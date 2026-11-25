@@ -297,5 +297,5 @@ for (const media of ['Image', 'Video'])
         assert.equal(output[key], child.props.crop[key]);
     }
     assert.equal(finished.length, 1);
-    assert.match(finished[0].uri, /edited/);
+    assert.match(finished[0].uri, media === 'Image' ? /yrdly-image-edits/ : /edited/);
   });
