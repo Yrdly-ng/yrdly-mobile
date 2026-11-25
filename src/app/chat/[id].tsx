@@ -31,6 +31,7 @@ import { checkActiveSession } from '@/lib/auth/session-policy';
 import ImageViewing from 'react-native-image-viewing';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { supabase } from '../../lib/supabase/supabase';
+import { createMessagesChannel } from '@/lib/messages/realtime';
 import { useAuth } from '../../hooks/use-supabase-auth';
 import { useNotificationRouteAcknowledgement } from '../../hooks/notifications/use-notification-route-ack';
 import { useAppTheme } from '../../context/ThemeContext';
@@ -550,7 +551,7 @@ function ChatContent() {
 
     // Realtime subscriptions for messages table
     const ch = supabase
-      .channel(`chat-${liveId}`)
+      createMessagesChannel(supabase, `chat-${liveId}`)
       .on(
         'postgres_changes',
         {
