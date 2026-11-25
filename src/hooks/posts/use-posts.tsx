@@ -178,7 +178,7 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
             locationClauses.push(`${field}.eq.${JSON.stringify(value)}`);
           }
           if (locationClauses.length) {
-            eventsQuery = eventsQuery.or(`and(${locationClauses.join(',')}),is_online.eq.true`);
+            eventsQuery = eventsQuery.or(`and(${locationClauses.join(',')}),location_online.eq.true`);
           }
 
           // Hide sold marketplace items from the feed
@@ -245,7 +245,7 @@ export const usePosts = (filter?: LocationFilter | null, enabled = true) => {
           };
           const canShowEvent = (event: any) =>
             !blocked.includes(event.organizer_id) &&
-            (event.is_online || matchesArea(event)) &&
+            (event.location_online || matchesArea(event)) &&
             event.status === 'PUBLISHED' &&
             !event.is_archived &&
             event.moderation_status === 'approved' &&

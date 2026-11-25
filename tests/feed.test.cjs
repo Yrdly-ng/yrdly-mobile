@@ -215,7 +215,7 @@ test('failed refresh preserves readable content and retry clears the error', asy
   await h.close();
 });
 
-test('event filtering excludes blocked organizers and wrong parent areas but keeps online events', async () => {
+test('event filtering excludes blocked organizers and wrong parent areas but keeps online events', async () => {\n  const feedSource = require('node:fs').readFileSync('src/hooks/posts/use-posts.tsx', 'utf8');\n  assert.match(feedSource, /location_online\\.eq\\.true/);\n  assert.match(feedSource, /event\\.location_online/);
   const h = harness();
   const event = (id, extra = {}) => ({
     id,
@@ -233,7 +233,7 @@ test('event filtering excludes blocked organizers and wrong parent areas but kee
     event('local'),
     event('blocked', { organizer_id: 'blocked' }),
     event('wrong-area', ogun),
-    event('online', { ...ogun, is_online: true }),
+    event('online', { ...ogun, location_online: true }),
   ];
   await h.render(lagos);
   assert.deepEqual(
