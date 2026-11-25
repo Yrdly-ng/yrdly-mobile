@@ -9,6 +9,8 @@ interface NotificationBadgeContextType {
   refreshUnreadCount: () => Promise<void>;
 }
 
+let notificationBadgeChannelGeneration = 0;
+
 const NotificationBadgeContext = createContext<NotificationBadgeContextType>({
   unreadCount: 0,
   refreshUnreadCount: async () => {},
@@ -41,7 +43,7 @@ export function NotificationBadgeProvider({ children }: { children: React.ReactN
 
     // Subscribe to realtime updates on the notifications table
     const channel = supabase
-      .channel('global_notifications_badge')
+      .channel(`global_notifications_badge-${++notificationBadgeChannelGeneration}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
