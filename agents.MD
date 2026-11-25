@@ -36,3 +36,13 @@ Use a single-context layout: root `GLOSSARY.md` plus `docs/adr/`. Before domain 
 - Keep domain UI in `src/components/<domain>/` and domain behavior in `src/lib/<domain>/`.
 - Keep cross-cutting hooks in `src/hooks/`; put feature-specific hooks in `src/hooks/<domain>/`.
 - When moving a hook, update every import and the code map in `CLAUDE-YRDLY-MOBILE.md`.
+
+### Ship a fix from chat (YRDLY iOS)
+
+- Work on a dedicated fix branch and open a pull request; never commit directly to `main`.
+- For an iOS fix that is compatible with the installed native runtime, publish the branch commit to the EAS `verify` channel using `.eas/workflows/verify-update.yml`.
+- Verify the update on the `verify-simulator` iOS simulator build in Expo Simulators before asking for merge.
+- Do not merge the pull request or publish to the `production` channel unless the user explicitly asks.
+- After the user merges, publish the merged commit to `production` only on explicit instruction, using `.eas/workflows/publish-production.yml`.
+- Native code, native dependency, or native configuration changes require a new native build; do not try to ship them as OTA updates.
+- Keep the app's shared `runtimeVersion` policy and EAS channel assignments aligned with `app.config.js` and `eas.json`.
