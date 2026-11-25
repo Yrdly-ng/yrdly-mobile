@@ -36,6 +36,7 @@ import {
   shouldShowBusinessCatalog,
 } from '../../lib/businesses/presentation';
 import { useServiceOfferings } from '../../hooks/bookings/use-bookings';
+import { captureAppError } from '../../lib/telemetry';
 type Tab = 'catalog' | 'services' | 'reviews' | 'analytics';
 let businessDetailGeneration = 0;
 
@@ -458,6 +459,7 @@ export default function BusinessProfileScreen() {
         }
       } catch (e) {
         setBusinessError(true);
+        captureAppError(e, 'business.load');
         console.error(e);
       } finally {
         setLoading(false);
