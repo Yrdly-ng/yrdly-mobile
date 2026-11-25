@@ -5,7 +5,9 @@
   },
   "build": {
     "development": {
-      "env": { "EXPO_PUBLIC_APP_ENV": "development" },
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "development"
+      },
       "developmentClient": true,
       "distribution": "internal",
       "node": "22.15.0",
@@ -15,7 +17,9 @@
       }
     },
     "preview": {
-      "env": { "EXPO_PUBLIC_APP_ENV": "preview" },
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "preview"
+      },
       "distribution": "internal",
       "pnpm": "11.2.2"
     },
@@ -29,7 +33,9 @@
       "autoIncrement": true,
       "distribution": "store",
       "environment": "production",
-      "env": { "EXPO_PUBLIC_APP_ENV": "production" },
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "production"
+      },
       "node": "22.15.0",
       "pnpm": "11.2.2",
       "android": {
@@ -38,6 +44,16 @@
       "ios": {
         "simulator": false,
         "image": "macos-sequoia-15.6-xcode-26.2"
+      },
+      "channel": "production"
+    },
+    "verify-simulator": {
+      "extends": "production",
+      "autoIncrement": false,
+      "distribution": "internal",
+      "channel": "verify",
+      "ios": {
+        "simulator": true
       }
     }
   },
