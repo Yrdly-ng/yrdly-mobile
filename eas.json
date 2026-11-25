@@ -55,6 +55,15 @@
       "ios": {
         "simulator": true
       }
+    },
+    "verify-android": {
+      "extends": "production",
+      "autoIncrement": false,
+      "distribution": "internal",
+      "channel": "verify",
+      "android": {
+        "buildType": "apk"
+      }
     }
   },
   "submit": {
