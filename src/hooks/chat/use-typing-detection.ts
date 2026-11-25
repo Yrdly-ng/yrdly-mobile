@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/hooks/use-supabase-auth';
 import { supabase } from '@/lib/supabase/supabase';
+import { createMessagesChannel } from '@/lib/messages/realtime';
 
 interface TypingUser {
   user_id: string;
@@ -91,8 +92,7 @@ export function useTypingDetection(conversationId: string) {
   useEffect(() => {
     if (!conversationId) return;
 
-    const channel = supabase
-      .channel(`typing-${conversationId}`)
+    const channel = createMessagesChannel(supabase, `typing-${conversationId}`)
       .on(
         'postgres_changes',
         {

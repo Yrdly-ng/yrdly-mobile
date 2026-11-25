@@ -215,9 +215,16 @@ export function trackEvent(event: AppEvent): void {
 
 export function captureAppError(error: unknown, context?: string): void {
   const safeOperation = context && errorContexts.has(context) ? context : undefined;
+  const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined;
+  const safeCode = isErrorCode(code) ? code : undefined;
   safely(() => analytics?.captureException(
     new Error(diagnosticMessage(error)),
-    safeOperation ? { operation: safeOperation } : undefined,
+    safeOperation || safeCode
+      ? {
+          ...(safeOperation ? { operation: safeOperation } : {}),
+          ...(safeCode ? { error_code: safeCode } : {}),
+        }
+      : undefined,
   ));
   if (!sentryEnabled) return;
   safely(() => {

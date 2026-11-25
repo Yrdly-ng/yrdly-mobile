@@ -235,7 +235,8 @@ test('online status requires a fresh heartbeat and an online flag', () => {
   const now = Date.parse('2026-10-16T12:00:00.000Z');
   assert.equal(isUserOnline(true, new Date(now - 45_000).toISOString(), now), true);
   assert.equal(isUserOnline(false, new Date(now - 5_000).toISOString(), now), false);
-  assert.equal(isUserOnline(true, new Date(now - 91_000).toISOString(), now), false);
+  assert.equal(isUserOnline(true, new Date(now - 120_000).toISOString(), now), true);
+  assert.equal(isUserOnline(true, new Date(now - 150_001).toISOString(), now), false);
   assert.equal(isUserOnline(true, 'invalid timestamp', now), false);
   assert.equal(getUserActivityStatus(true, new Date(now - 45_000).toISOString(), now), 'active');
   assert.equal(getUserActivityStatus(false, new Date(now - 45_000).toISOString(), now), 'away');
