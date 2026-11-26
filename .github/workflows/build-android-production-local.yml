@@ -118,7 +118,6 @@ jobs:
             --profile production \
             --local \
             --non-interactive \
-            --output "$GITHUB_WORKSPACE/dist/yrdly-android-production.aab"
 
       - name: Verify AAB artifact
         shell: bash
