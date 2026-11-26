@@ -7,7 +7,6 @@ import {
   Text,
   TouchableOpacity,
   useWindowDimensions,
-  Image as RNImage,
   FlatList,
   Share,
   Platform,
@@ -417,15 +416,13 @@ export const PostCard = React.memo(
       }
 
       if (post.video_thumbnail_url) {
-        RNImage.getSize(
-          post.video_thumbnail_url,
-          (w, h) => {
-            if (w && h) {
-              setVideoAspectRatio(w / h);
+        void Image.loadAsync(post.video_thumbnail_url, { maxWidth: 1200, maxHeight: 1200 })
+          .then((image) => {
+            if (image.width > 0 && image.height > 0) {
+              setVideoAspectRatio(image.width / image.height);
             }
-          },
-          () => {}
-        );
+          })
+          .catch(() => {});
       }
     }, [post.video_urls, post.video_thumbnail_url, post.image_width, post.image_height]);
 
@@ -483,6 +480,7 @@ export const PostCard = React.memo(
     }, [isVisible]);
 
     useEffect(() => {
+      let active = true;
       urls.forEach((url: string) => {
         if (!url || imageHeights[url]) return;
 
@@ -492,20 +490,18 @@ export const PostCard = React.memo(
           return;
         }
 
-        RNImage.getSize(
-          url,
-          (naturalWidth, naturalHeight) => {
-            if (naturalWidth && naturalHeight) {
-              const displayHeight = (naturalHeight / naturalWidth) * imageDisplayWidth;
-              setImageHeights((prev) => ({ ...prev, [url]: displayHeight }));
-            }
-          },
-          () => {
-            // Silently handle get size errors
-          }
-        );
+        void Image.loadAsync(url, { maxWidth: 1600, maxHeight: 1600 })
+          .then((image) => {
+            if (!active || !image.width || !image.height) return;
+            const displayHeight = (image.height / image.width) * imageDisplayWidth;
+            setImageHeights((prev) => ({ ...prev, [url]: displayHeight }));
+          })
+          .catch(() => {
+            // Keep the existing aspect-ratio fallback when metadata cannot load.
+          });
       });
-    }, [urls, post.image_width, post.image_height, imageDisplayWidth]);
+      return () => { active = false; };
+    }, [urls, imageHeights, post.image_width, post.image_height, imageDisplayWidth]);
 
     // Clamp rendered height: min 4:5 portrait, max 1.91:1 landscape
     const getImageHeight = (url: string): number => {
