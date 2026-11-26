@@ -697,7 +697,8 @@ function MarketplaceSection({
                 ))}
               </ScrollView>
 
-              <Text                style={{
+              <Text
+                style={{
                   fontFamily: 'Inter-Bold',
                   fontSize: 13,
                   color: theme.colors.TEXT_PRIMARY,
@@ -1396,7 +1397,8 @@ function PlacesSection({
               <Text style={businessUI.emptyText}>
                 Try another category, search or location to discover more businesses.
               </Text>
-              {category !== 'All' && (                <TouchableOpacity
+              {category !== 'All' && (
+                <TouchableOpacity
                   accessibilityRole="button"
                   style={businessUI.secondaryButton}
                   onPress={() => setCategory('All')}
