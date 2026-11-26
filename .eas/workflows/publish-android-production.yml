@@ -1,0 +1,16 @@
+# publishes the merged commit to the Android `production` channel.
+# installed production builds with the same runtime version receive it on a later launch.
+# run only after the fix is merged and explicitly approved.
+name: Publish Android update to production
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  publish:
+    name: Publish Android update to the production channel
+    type: update
+    environment: production
+    params:
+      platform: android
+      channel: production

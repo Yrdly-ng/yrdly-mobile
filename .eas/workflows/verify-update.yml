@@ -1,0 +1,15 @@
+# publishes this commit to the `verify` channel. only the verify-simulator build listens to it,
+# so the update reaches a cloud iphone in expo simulators and no real user. run it before merge.
+name: Publish update for verification
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  publish_update:
+    name: Publish update to the verify channel
+    type: update
+    environment: production
+    params:
+      platform: ios
+      channel: verify

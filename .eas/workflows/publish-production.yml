@@ -1,0 +1,15 @@
+# publishes the merged commit to the `production` channel. installed production builds with the
+# same runtime version get it on a later launch. run it only after the fix is merged.
+name: Publish iOS update to production
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  publish:
+    name: Publish update to the production channel
+    type: update
+    environment: production
+    params:
+      platform: ios
+      channel: production

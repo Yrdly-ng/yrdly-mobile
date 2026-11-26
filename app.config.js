@@ -69,6 +69,12 @@ module.exports = {
     name: "YRDLY",
     slug: "yrdly",
     version: "1.0.0",
+    updates: {
+      url: "https://u.expo.dev/e7a4c0a6-f56c-4822-b2aa-e6c0eae694cf"
+    },
+    runtimeVersion: {
+      policy: "appVersion"
+    },
     orientation: "portrait",
     icon: "./assets/images/logo.png",
     splash: {
