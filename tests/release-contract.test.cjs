@@ -194,6 +194,8 @@ test('disabled Maps routing preserves the existing native key and query', () => 
   assert.equal(adapter.outer.props.requestUrl, undefined);
   assert.equal(adapter.outer.props.query.key, 'public-test-only');
   assert.equal(adapter.outer.props.query.components, 'country:ng');
+  assert.equal(adapter.outer.props.listViewDisplayed, 'auto');
+  assert.equal(adapter.outer.props.minLength, 2);
 });
 
 test('Maps routing follows token refresh, logout and account switches without restoring stale sessions', async () => {
@@ -207,6 +209,8 @@ test('Maps routing follows token refresh, logout and account switches without re
   assert.equal(input.props.requestUrl.useOnPlatform, 'all');
   assert.equal(input.props.requestUrl.headers.Authorization, 'Bearer first-token');
   assert.equal(input.props.query.key, 'server-proxy');
+  assert.equal(input.props.listViewDisplayed, 'auto');
+  assert.equal(input.props.minLength, 2);
   assert.equal(input.props.textInputProps.editable, true);
   adapter.session('refreshed-token');
   input = adapter.render();
