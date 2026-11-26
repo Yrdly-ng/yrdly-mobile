@@ -56,6 +56,8 @@ const AuthenticatedPlacesAutocomplete = forwardRef<GooglePlacesAutocompleteRef, 
     return (
       <NativePlacesAutocomplete
         {...props}
+        listViewDisplayed={props.listViewDisplayed ?? 'auto'}
+        minLength={props.minLength ?? 2}
         key={user?.id ?? 'signed-out'}
         ref={ref}
         requestUrl={requestUrl}
@@ -76,6 +78,8 @@ export const GooglePlacesAutocomplete = forwardRef<GooglePlacesAutocompleteRef, 
     return (
       <NativePlacesAutocomplete
         {...props}
+        listViewDisplayed={props.listViewDisplayed ?? 'auto'}
+        minLength={props.minLength ?? 2}
         ref={ref}
         query={{ ...props.query, key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '' }}
       />
