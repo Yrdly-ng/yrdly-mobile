@@ -5,10 +5,10 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Image,
   Linking,
   ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -146,7 +146,7 @@ export default function AlertDetailsScreen() {
         <Image
           source={{ uri: alert.subject_photo_url }}
           style={stylesheet.photo}
-          resizeMode="cover"
+          contentFit="cover"
         />
       )}
 

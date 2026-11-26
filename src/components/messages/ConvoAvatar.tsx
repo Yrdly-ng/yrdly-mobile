@@ -1,6 +1,7 @@
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React from 'react';
-import { View, Image } from 'react-native';
+import { View } from 'react-native';
+import { Image } from 'expo-image';
 import Svg, { Path, Rect } from 'react-native-svg';
 export type ConvoType = 'friends' | 'marketplace' | 'business';
 
@@ -75,6 +76,9 @@ export function ConvoAvatar({ avatarId, type, online = false, size = 48 }: Props
             : `https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=${size * 2}&h=${size * 2}&fit=crop&auto=format&q=70`,
         }}
         style={[stylesheet.avatar, { width: size, height: size, borderRadius: size / 2 }]}
+        contentFit="cover"
+        cachePolicy="disk"
+        recyclingKey={avatarId || 'default-conversation-avatar'}
       />
 
       {badgeInfo && (
