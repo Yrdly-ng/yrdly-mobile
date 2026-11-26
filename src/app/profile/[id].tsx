@@ -11,6 +11,7 @@ import {
   Share,
 } from 'react-native';
 import { Image } from 'expo-image';
+import * as Clipboard from 'expo-clipboard';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase/supabase';
@@ -266,6 +267,18 @@ export default function OtherUserProfileScreen() {
     } catch (error) {
       console.error('Unable to share profile:', error);
       Alert.alert('Could not share profile', 'Please try again.');
+    }
+  };
+
+  const handleCopyProfileLink = async () => {
+    if (!profile?.id) return;
+    const profileUrl = `https://app.yrdly.ng/profile/${encodeURIComponent(profile.id)}`;
+    try {
+      await Clipboard.setStringAsync(profileUrl);
+      Alert.alert('Link copied', 'Profile link copied to your clipboard.');
+    } catch (error) {
+      console.error('Unable to copy profile link:', error);
+      Alert.alert('Could not copy link', 'Please try sharing the profile instead.');
     }
   };
 
@@ -597,6 +610,30 @@ export default function OtherUserProfileScreen() {
                 />
                 <Text style={[stylesheet.btnActionTxt, { color: theme.colors.TEXT_PRIMARY }]}>
                   Share
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  stylesheet.btnAction,
+                  {
+                    backgroundColor: theme.colors.SURFACE,
+                    borderColor: theme.colors.GLASS_BORDER,
+                    borderWidth: 1,
+                  },
+                ]}
+                onPress={handleCopyProfileLink}
+                accessibilityRole="button"
+                accessibilityLabel="Copy profile link"
+              >
+                <Ionicons
+                  name="copy-outline"
+                  size={16}
+                  color={theme.colors.TEXT_PRIMARY}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={[stylesheet.btnActionTxt, { color: theme.colors.TEXT_PRIMARY }]}>
+                  Copy link
                 </Text>
               </TouchableOpacity>
 
