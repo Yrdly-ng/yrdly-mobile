@@ -8,8 +8,10 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Share,
 } from 'react-native';
 import { Image } from 'expo-image';
+import * as Clipboard from 'expo-clipboard';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase/supabase';
@@ -251,6 +253,32 @@ export default function OtherUserProfileScreen() {
       Alert.alert('Error', e.message);
     } finally {
       setFollowLoading(false);
+    }
+  };
+
+  const handleShareProfile = async () => {
+    if (!profile?.id) return;
+    const profileUrl = `https://app.yrdly.ng/profile/${encodeURIComponent(profile.id)}`;
+    try {
+      await Share.share({
+        title: ` ${profile.name || 'YRDLY'} on YRDLY`.trim(),
+        message: `Check out ${profile.name || 'this profile'} on YRDLY!\n${profileUrl}`,
+      });
+    } catch (error) {
+      console.error('Unable to share profile:', error);
+      Alert.alert('Could not share profile', 'Please try again.');
+    }
+  };
+
+  const handleCopyProfileLink = async () => {
+    if (!profile?.id) return;
+    const profileUrl = `https://app.yrdly.ng/profile/${encodeURIComponent(profile.id)}`;
+    try {
+      await Clipboard.setStringAsync(profileUrl);
+      Alert.alert('Link copied', 'Profile link copied to your clipboard.');
+    } catch (error) {
+      console.error('Unable to copy profile link:', error);
+      Alert.alert('Could not copy link', 'Please try sharing the profile instead.');
     }
   };
 
@@ -559,6 +587,54 @@ export default function OtherUserProfileScreen() {
                     </Text>
                   </>
                 )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  stylesheet.btnAction,
+                  {
+                    backgroundColor: theme.colors.SURFACE,
+                    borderColor: theme.colors.GLASS_BORDER,
+                    borderWidth: 1,
+                  },
+                ]}
+                onPress={handleShareProfile}
+                accessibilityRole="button"
+                accessibilityLabel="Share profile"
+              >
+                <Ionicons
+                  name="share-outline"
+                  size={16}
+                  color={theme.colors.TEXT_PRIMARY}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={[stylesheet.btnActionTxt, { color: theme.colors.TEXT_PRIMARY }]}>
+                  Share
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  stylesheet.btnAction,
+                  {
+                    backgroundColor: theme.colors.SURFACE,
+                    borderColor: theme.colors.GLASS_BORDER,
+                    borderWidth: 1,
+                  },
+                ]}
+                onPress={handleCopyProfileLink}
+                accessibilityRole="button"
+                accessibilityLabel="Copy profile link"
+              >
+                <Ionicons
+                  name="copy-outline"
+                  size={16}
+                  color={theme.colors.TEXT_PRIMARY}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={[stylesheet.btnActionTxt, { color: theme.colors.TEXT_PRIMARY }]}>
+                  Copy link
+                </Text>
               </TouchableOpacity>
 
               {isFollowing && isFollower && (
@@ -982,9 +1058,11 @@ const _stylesheet = StyleSheet.create((theme) => ({
   statBtn: { alignItems: 'center' },
   statV: { fontSize: 18, fontFamily: 'Outfit-Bold', color: theme.colors.TEXT_PRIMARY },
   statL: { fontSize: 11, fontFamily: 'Inter-Regular', color: theme.colors.LABEL },
-  actionRow: { flexDirection: 'row', gap: 12 },
+  actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   btnAction: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '45%',
+    minWidth: 120,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

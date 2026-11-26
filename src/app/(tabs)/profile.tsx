@@ -9,8 +9,10 @@ import {
   RefreshControl,
   useWindowDimensions,
   Alert,
+  Share,
 } from 'react-native';
 import { Image } from 'expo-image';
+import * as Clipboard from 'expo-clipboard';
 import { FlashList } from '@shopify/flash-list';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -342,6 +344,34 @@ export default function ProfileTab() {
     }
   }, [user, profile?.phone_verified, router]);
 
+  const handleShareProfile = async () => {
+    const profileId = profile?.id || user?.id;
+    if (!profileId) return;
+    const profileUrl = `https://app.yrdly.ng/profile/${encodeURIComponent(profileId)}`;
+    try {
+      await Share.share({
+        title: `${profile?.name || user?.user_metadata?.name || 'My'} profile on YRDLY`,
+        message: `Check out ${profile?.name || user?.user_metadata?.name || 'my'} profile on YRDLY!\n${profileUrl}`,
+      });
+    } catch (error) {
+      console.error('Unable to share profile:', error);
+      Alert.alert('Could not share profile', 'Please try again.');
+    }
+  };
+
+  const handleCopyProfileLink = async () => {
+    const profileId = profile?.id || user?.id;
+    if (!profileId) return;
+    const profileUrl = `https://app.yrdly.ng/profile/${encodeURIComponent(profileId)}`;
+    try {
+      await Clipboard.setStringAsync(profileUrl);
+      Alert.alert('Link copied', 'Your profile link has been copied to your clipboard.');
+    } catch (error) {
+      console.error('Unable to copy profile link:', error);
+      Alert.alert('Could not copy link', 'Please try sharing your profile instead.');
+    }
+  };
+
   const listHeader = (
     <View style={stylesheet.headerContainer}>
       {/* ── Nav bar (YRDLY New Designs matching) ── */}
@@ -509,6 +539,56 @@ export default function ProfileTab() {
             Edit Profile
           </Text>
         </TouchableOpacity>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+        <TouchableOpacity
+          style={{
+            height: 36,
+            paddingHorizontal: 20,
+            borderRadius: 18,
+            backgroundColor: theme.colors.SURFACE_ALT,
+            borderWidth: 1,
+            borderColor: theme.colors.GLASS_BORDER,
+            justifyContent: 'center',
+            alignItems: 'center',
+            alignSelf: 'flex-start',
+            flexDirection: 'row',
+            gap: 8,
+          }}
+          onPress={handleShareProfile}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Share profile"
+        >
+          <Ionicons name="share-outline" size={15} color={theme.colors.TEXT_PRIMARY} />
+          <Text style={{ color: theme.colors.TEXT_PRIMARY, fontSize: 13, fontFamily: 'Inter-Medium' }}>
+            Share Profile
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{
+            height: 36,
+            paddingHorizontal: 20,
+            borderRadius: 18,
+            backgroundColor: theme.colors.SURFACE,
+            borderWidth: 1,
+            borderColor: theme.colors.GLASS_BORDER,
+            justifyContent: 'center',
+            alignItems: 'center',
+            alignSelf: 'flex-start',
+            flexDirection: 'row',
+            gap: 8,
+          }}
+          onPress={handleCopyProfileLink}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Copy profile link"
+        >
+          <Ionicons name="copy-outline" size={15} color={theme.colors.TEXT_PRIMARY} />
+          <Text style={{ color: theme.colors.TEXT_PRIMARY, fontSize: 13, fontFamily: 'Inter-Medium' }}>
+            Copy Profile Link
+          </Text>
+        </TouchableOpacity>
+        </View>
       </View>
 
       {/* ── Stats Bar (New Design 3-Column with border dividers) ── */}

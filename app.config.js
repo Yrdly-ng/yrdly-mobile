@@ -121,6 +121,9 @@ module.exports = {
       ]
     },
     android: {
+      // The clipboard module changes Android native code. Keep this runtime
+      // distinct from existing 1.0.0 binaries so they cannot receive this JS update.
+      runtimeVersion: "1.0.1",
       versionCode: Number(nativeBuildNumber),
       adaptiveIcon: {
         foregroundImage: "./assets/images/logo.png",
