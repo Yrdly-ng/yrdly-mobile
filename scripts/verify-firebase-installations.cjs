@@ -26,10 +26,22 @@ async function verifyFirebaseInstallations(config, fetcher = fetch) {
   }
   const created = await request(base, 'POST', { fid, appId: client.client_info.mobilesdk_app_id, authVersion: 'FIS_v2', sdkVersion: 'a:0.0.0' });
   if (created.status !== 200) {
-    const invalid = created.data.error?.details?.some(d => d.reason === 'API_KEY_INVALID');
-    throw new Error(invalid
-      ? 'Firebase rejected this Android client key (API_KEY_INVALID). Replace the Android client configuration before building.'
-      : `Firebase Installations rejected the client configuration (HTTP ${created.status}); verify the key, app and API restrictions.`);
+    const providerError = created.data.error || {};
+    const reasons = Array.isArray(providerError.details)
+      ? providerError.details.map(d => ({
+          reason: d.reason || d['@type'] || undefined,
+          service: d.metadata?.service || undefined,
+          consumer: d.metadata?.consumer || undefined,
+          permission: d.metadata?.permission || undefined
+        })).filter(d => Object.values(d).some(Boolean))
+      : [];
+    // Log only Google's structured diagnostic fields; never echo request headers or API keys.
+    const diagnostic = JSON.stringify({
+      status: providerError.status || undefined,
+      message: providerError.message || undefined,
+      reasons
+    });
+    throw new Error(`Firebase Installations rejected the client configuration (HTTP ${created.status}). Google diagnostic: ${diagnostic}. Check the API key's API restrictions and Firebase Installations API enablement.`);
   }
   const refresh = created.data.refreshToken;
   const actualFid = created.data.fid;
