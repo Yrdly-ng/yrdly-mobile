@@ -1,0 +1,136 @@
+name: Android Production AAB (self-hosted EAS local build)
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: "Android versionCode (must be greater than the latest Play Store upload)"
+        required: true
+        default: "19"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: yrdly-android-production-aab
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build signed Android production AAB
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXPO_PUBLIC_APP_ENV: production
+      YRDLY_BUILD_NUMBER: ${{ inputs.build_number }}
+      GOOGLE_MAPS_ANDROID_API_KEY: ${{ secrets.GOOGLE_MAPS_ANDROID_API_KEY }}
+      EXPO_PUBLIC_POSTHOG_API_KEY: ${{ secrets.EXPO_PUBLIC_POSTHOG_API_KEY }}
+      EXPO_PUBLIC_SENTRY_DSN: ${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+      SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+      EXPO_PUBLIC_PAYLUK_PUBLIC_KEY: ${{ secrets.EXPO_PUBLIC_PAYLUK_PUBLIC_KEY }}
+      EXPO_PUBLIC_WEB_APP_URL: ${{ secrets.EXPO_PUBLIC_WEB_APP_URL }}
+      EXPO_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY }}
+      EXPO_PUBLIC_VEXO_API_KEY: ${{ secrets.EXPO_PUBLIC_VEXO_API_KEY }}
+      EXPO_PUBLIC_POSTHOG_KEY: ${{ secrets.EXPO_PUBLIC_POSTHOG_KEY }}
+      EXPO_PUBLIC_POSTHOG_HOST: ${{ secrets.EXPO_PUBLIC_POSTHOG_HOST }}
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Validate required credentials and build inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$EXPO_TOKEN" || { echo "::error::Add EXPO_TOKEN as a GitHub Actions repository secret. It is required to download YRDLY's existing EAS Android signing credentials."; exit 1; }
+          [[ "$YRDLY_BUILD_NUMBER" =~ ^[1-9][0-9]*$ ]] || { echo "::error::build_number must be a positive integer."; exit 1; }
+          for name in EXPO_PUBLIC_SUPABASE_URL EXPO_PUBLIC_SUPABASE_ANON_KEY EXPO_PUBLIC_WEB_APP_URL EXPO_PUBLIC_GOOGLE_MAPS_API_KEY; do
+            test -n "${!name:-}" || { echo "::error::Missing GitHub Actions secret for $name"; exit 1; }
+          done
+          test -s config/firebase/android-client.json || { echo "::error::Verified Firebase Android client config is missing."; exit 1; }
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.15.0"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: "11.2.2"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Verify Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${ANDROID_HOME:-}" || { echo "::error::ANDROID_HOME is not available on this runner."; exit 1; }
+          command -v sdkmanager >/dev/null
+          command -v adb >/dev/null
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Configure Sentry build uploads
+        run: node scripts/configure-telemetry-build.cjs
+
+      - name: Write build environment file
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          {
+            printf 'EXPO_PUBLIC_SUPABASE_URL=%s\n' "$EXPO_PUBLIC_SUPABASE_URL"
+            printf 'EXPO_PUBLIC_SUPABASE_ANON_KEY=%s\n' "$EXPO_PUBLIC_SUPABASE_ANON_KEY"
+            printf 'EXPO_PUBLIC_PAYLUK_PUBLIC_KEY=%s\n' "$EXPO_PUBLIC_PAYLUK_PUBLIC_KEY"
+            printf 'EXPO_PUBLIC_WEB_APP_URL=%s\n' "$EXPO_PUBLIC_WEB_APP_URL"
+            printf 'EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=%s\n' "$EXPO_PUBLIC_GOOGLE_MAPS_API_KEY"
+            printf 'EXPO_PUBLIC_VEXO_API_KEY=%s\n' "$EXPO_PUBLIC_VEXO_API_KEY"
+            printf 'EXPO_PUBLIC_POSTHOG_KEY=%s\n' "$EXPO_PUBLIC_POSTHOG_KEY"
+            printf 'EXPO_PUBLIC_POSTHOG_HOST=%s\n' "$EXPO_PUBLIC_POSTHOG_HOST"
+          } > .env
+
+      - name: Validate Firebase and Maps configuration
+        run: |
+          node -e 'const fs=require("fs"); require("./scripts/validate-android-firebase.cjs").validateAndroidFirebase(JSON.parse(fs.readFileSync("config/firebase/android-client.json","utf8"))); if (!(process.env.GOOGLE_MAPS_ANDROID_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY)) throw new Error("Missing Android Maps key");'
+
+      - name: Build signed production AAB locally (no EAS cloud build)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          npx --yes eas-cli@latest build \
+            --platform android \
+            --profile production \
+            --local \
+            --non-interactive \
+            --output "$GITHUB_WORKSPACE/dist/yrdly-android-production.aab"
+
+      - name: Verify AAB artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dist/yrdly-android-production.aab || { echo "::error::Production AAB was not generated."; exit 1; }
+          file dist/yrdly-android-production.aab
+          ls -lh dist/yrdly-android-production.aab
+
+      - name: Upload production AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: yrdly-android-production-aab-${{ inputs.build_number }}
+          path: dist/yrdly-android-production.aab
+          if-no-files-found: error
+          retention-days: 7
