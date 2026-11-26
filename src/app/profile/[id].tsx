@@ -1058,9 +1058,11 @@ const _stylesheet = StyleSheet.create((theme) => ({
   statBtn: { alignItems: 'center' },
   statV: { fontSize: 18, fontFamily: 'Outfit-Bold', color: theme.colors.TEXT_PRIMARY },
   statL: { fontSize: 11, fontFamily: 'Inter-Regular', color: theme.colors.LABEL },
-  actionRow: { flexDirection: 'row', gap: 12 },
+  actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   btnAction: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '45%',
+    minWidth: 120,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
