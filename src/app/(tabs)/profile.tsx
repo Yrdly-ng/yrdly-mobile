@@ -575,7 +575,6 @@ export default function ProfileTab() {
             justifyContent: 'center',
             alignItems: 'center',
             alignSelf: 'flex-start',
-            marginTop: 10,
             flexDirection: 'row',
             gap: 8,
           }}
