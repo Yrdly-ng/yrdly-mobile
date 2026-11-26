@@ -539,6 +539,7 @@ export default function ProfileTab() {
             Edit Profile
           </Text>
         </TouchableOpacity>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
         <TouchableOpacity
           style={{
             height: 36,
@@ -550,7 +551,6 @@ export default function ProfileTab() {
             justifyContent: 'center',
             alignItems: 'center',
             alignSelf: 'flex-start',
-            marginTop: 10,
             flexDirection: 'row',
             gap: 8,
           }}
@@ -589,6 +589,7 @@ export default function ProfileTab() {
             Copy Profile Link
           </Text>
         </TouchableOpacity>
+        </View>
       </View>
 
       {/* ── Stats Bar (New Design 3-Column with border dividers) ── */}
