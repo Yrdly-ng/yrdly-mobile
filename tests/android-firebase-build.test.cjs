@@ -145,11 +145,13 @@ test('Android app ID and project match but wrong mobilesdk_app_id is rejected', 
   );
 });
 
- test('verified client configuration takes precedence over stale EAS environment', () => {
- const foreign = fixture(); foreign.project_info.project_id = 'old-project';
- const actual = evaluateDynamicAppConfig({GOOGLE_SERVICES_JSON:JSON.stringify(foreign)},fixture());
+test('explicit EAS Firebase configuration takes precedence over the committed fallback', () => {
+ const external = fixture(); external.project_info.project_id = 'yrdly-470221';
+ external.client[0].api_key[0].current_key = 'AIza' + 'B'.repeat(35);
+ const fallback = fixture(); fallback.client[0].api_key[0].current_key = 'AIza' + 'A'.repeat(35);
+ const actual = evaluateDynamicAppConfig({GOOGLE_SERVICES_JSON:JSON.stringify(external)},fallback);
  const generated = JSON.parse(actual.written.get('/virtual/yrdly-mobile/google-services.json'));
- assert.equal(generated.project_info.project_id,'yrdly-470221');
+ assert.equal(generated.client[0].api_key[0].current_key,external.client[0].api_key[0].current_key);
  });
 
 test('prebuild fingerprint checks follow the verified configuration rather than a retired key', () => {
