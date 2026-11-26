@@ -501,7 +501,7 @@ export const PostCard = React.memo(
           });
       });
       return () => { active = false; };
-    }, [urls, imageHeights, post.image_width, post.image_height, imageDisplayWidth]);
+    }, [urls, post.image_width, post.image_height, imageDisplayWidth]);
 
     // Clamp rendered height: min 4:5 portrait, max 1.91:1 landscape
     const getImageHeight = (url: string): number => {
