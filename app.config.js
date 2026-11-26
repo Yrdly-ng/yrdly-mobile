@@ -121,6 +121,8 @@ module.exports = {
       ]
     },
     android: {
+      // Opt in explicitly to Android 15+ edge-to-edge layout and inset handling.
+      edgeToEdgeEnabled: true,
       // The clipboard module changes Android native code. Keep this runtime
       // distinct from existing 1.0.0 binaries so they cannot receive this JS update.
       runtimeVersion: "1.0.1",
@@ -279,7 +281,8 @@ module.exports = {
           }
         }
       ],
-      "./plugins/withAndroidBuildMemory.js"
+      "./plugins/withAndroidBuildMemory.js",
+      "./plugins/withOptimizedResourceShrinking.js"
     ],
     newArchEnabled: true,
     experiments: {
