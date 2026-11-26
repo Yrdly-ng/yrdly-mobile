@@ -41,3 +41,14 @@ test('permanent authentication errors fail closed with safe HTTP diagnostics',as
  }),error=>/HTTP 403/.test(error.message)&&!error.message.includes('private-provider-message'));
  assert.equal(attempts,1);
 });
+
+test('Firebase denial diagnostics retain known codes without echoing untrusted fields',async()=>{
+ const privateValue='private-provider-secret';
+ await assert.rejects(verify(fixture(),async()=>({status:403,json:async()=>({error:{
+  status:'PERMISSION_DENIED',message:privateValue,details:[
+   {reason:'ACCESS_DENIED',metadata:{service:'firebaseinstallations.googleapis.com',consumer:privateValue,permission:privateValue}},
+   {reason:privateValue,metadata:{service:privateValue}},
+   null
+  ]
+ }})})),error=>/HTTP 403/.test(error.message)&&/PERMISSION_DENIED/.test(error.message)&&/ACCESS_DENIED/.test(error.message)&&/firebaseinstallations\.googleapis\.com/.test(error.message)&&!error.message.includes(privateValue));
+});

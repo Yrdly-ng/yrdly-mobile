@@ -26,10 +26,32 @@ async function verifyFirebaseInstallations(config, fetcher = fetch) {
   }
   const created = await request(base, 'POST', { fid, appId: client.client_info.mobilesdk_app_id, authVersion: 'FIS_v2', sdkVersion: 'a:0.0.0' });
   if (created.status !== 200) {
-    const invalid = created.data.error?.details?.some(d => d.reason === 'API_KEY_INVALID');
-    throw new Error(invalid
-      ? 'Firebase rejected this Android client key (API_KEY_INVALID). Replace the Android client configuration before building.'
-      : `Firebase Installations rejected the client configuration (HTTP ${created.status}); verify the key, app and API restrictions.`);
+    const providerError = created.data.error || {};
+    // Do not trust or echo provider-controlled free text, including metadata.
+    const allowedReasons = new Set([
+      'ACCESS_DENIED', 'API_KEY_INVALID', 'API_KEY_SERVICE_BLOCKED',
+      'API_KEY_ANDROID_APP_BLOCKED', 'API_KEY_IOS_APP_BLOCKED',
+      'API_KEY_HTTP_REFERRER_BLOCKED', 'API_KEY_IP_ADDRESS_BLOCKED',
+      'SERVICE_DISABLED', 'PERMISSION_DENIED', 'CONSUMER_INVALID',
+      'CONSUMER_SUSPENDED', 'BILLING_DISABLED', 'IAM_PERMISSION_DENIED'
+    ]);
+    const allowedStatuses = new Set([
+      'INVALID_ARGUMENT', 'PERMISSION_DENIED', 'UNAUTHENTICATED',
+      'FAILED_PRECONDITION', 'NOT_FOUND', 'RESOURCE_EXHAUSTED',
+      'INTERNAL', 'UNAVAILABLE', 'DEADLINE_EXCEEDED', 'UNKNOWN'
+    ]);
+    const reasons = Array.isArray(providerError.details)
+      ? providerError.details.map(d => ({
+          reason: allowedReasons.has(d?.reason) ? d.reason : undefined,
+          service: d?.metadata?.service === 'firebaseinstallations.googleapis.com'
+            ? 'firebaseinstallations.googleapis.com' : undefined
+        })).filter(d => Object.values(d).some(Boolean))
+      : [];
+    const diagnostic = JSON.stringify({
+      status: allowedStatuses.has(providerError.status) ? providerError.status : undefined,
+      reasons
+    });
+    throw new Error(`Firebase Installations rejected the client configuration (HTTP ${created.status}). Google diagnostic: ${diagnostic}. Check the API key's API restrictions and Firebase Installations API enablement.`);
   }
   const refresh = created.data.refreshToken;
   const actualFid = created.data.fid;
