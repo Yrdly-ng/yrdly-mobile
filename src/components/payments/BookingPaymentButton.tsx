@@ -34,6 +34,9 @@ export function BookingPaymentButton({
     try {
       const result = await payments.initialize(bookingId);
       if (result.alreadyPaid) {
+        void import('../../lib/telemetry/google-measurement').then(({googleMeasurement}) => {
+          if (googleMeasurement.allowed()) return payments.verify(bookingId);
+        }).catch(()=>{});
         onConfirmed();
         return;
       }

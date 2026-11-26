@@ -22,3 +22,7 @@ allowBuilds:
   "@callstack/liquid-glass": true
   esbuild: true
   "@sentry/cli": true
+  # Firebase's packaged JavaScript and protobuf outputs do not need install hooks
+  # for app bundling. Keep unreviewed dependency scripts disabled.
+  "@firebase/util": false
+  protobufjs: false

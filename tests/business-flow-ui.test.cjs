@@ -203,6 +203,7 @@ function mount(file, options = {}) {
     },
     '/components/location/PlacesAutocomplete': { GooglePlacesAutocomplete: 'Places' },
     '/lib/telemetry': { captureAppError: noop, trackEvent: noop },
+    '/lib/telemetry/google-measurement': { googleMeasurement: { conversion: async (...args) => { calls.push({method:'googleConversion', args}); return true; } } },
   };
   function load(filename) {
     const output = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
@@ -429,6 +430,7 @@ test('business edit reads and writes with owner scope and preserves product/serv
   assert.ok(read.filters.some(([key, value]) => key === 'owner_id' && value === 'owner'));
   assert.ok(write.filters.some(([key, value]) => key === 'owner_id' && value === 'owner'));
   assert.equal(write.payload.mode, 'both');
+  assert.equal(app.calls.filter(c => c.method === 'googleConversion').length, 0, 'Editing a business is not a new business conversion');
 });
 
 const booking = {

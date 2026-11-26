@@ -1,0 +1,9 @@
+# Firebase Analytics staged rollout
+
+This is a draft feature; do not merge or release before the Android and iOS native configuration, privacy disclosures, and physical-device validation are complete. Google measurement requires EXPO_PUBLIC_YRDLY_GOOGLE_ANALYTICS=true, production app environment, production web/API origins, and Firebase project yrdly-470221. No production build flag has been enabled.
+
+Native analytics collection defaults to disabled. Optional device-local consent is available on onboarding and in Privacy settings. Ads storage, ad user data, ad personalization, and automatic screen reporting remain disabled. Never set user IDs, email, phone, precise location, URL, checkout token or raw transaction UUID on Firebase. Purchase transaction IDs are SHA-256 hashes matching the web prefix. Only authenticated successful verification responses from web PR #111 may provide measurementAmount. Missing measurement evidence produces no event.
+
+Listing approvals are recovered only on the original seller device while consent remains granted (bounded queue, 30-day retention); no admin or cross-device conversion guarantee. Signup is measured after successful completion of a previously incomplete onboarding profile; not a raw login. Existing PostHog/Sentry/push logic is unchanged.
+
+Before release: verify both native builds, ensure the exact production iOS GoogleService-Info.plist is securely provided (not a service account), verify the Android/iOS Firebase registrations and GA4 stream IDs, check native manifest/Info.plist collection defaults, verify consent on physical devices, check first_open and purchase/key events in DebugView, audit App Store privacy and Play Data safety, and verify wallet/redirect and staged-payment verification call sites. Do not send test purchases to production. Keep feature flag off until approved.
