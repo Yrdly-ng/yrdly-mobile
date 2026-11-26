@@ -20,6 +20,7 @@ import {
   GlassInput,
   StepBar,
   PrimaryBtn,
+  BackBtn,
 } from '@/components/onboarding/primitives';
 import { ONBOARDING_THEME } from '@/constants/onboarding-theme';
 import { AuthService } from '@/lib/auth/auth-service';
@@ -214,6 +215,7 @@ export default function Profile1Screen() {
           style={{ flex: 1 }}
         >
           <View style={styles.topBar}>
+            <BackBtn onClick={() => router.back()} light />
             <StepBar step={1} total={2} label="Personalize" />
           </View>
 
@@ -328,6 +330,7 @@ const stylesheet = UnistylesStyleSheet.create((theme) => ({
   topBar: {
     paddingHorizontal: 24,
     paddingTop: 12,
+    gap: 14,
   },
   scrollContent: {
     flexGrow: 1,
