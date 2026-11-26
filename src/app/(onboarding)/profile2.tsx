@@ -16,7 +16,7 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 LogBox.ignoreLogs(['VirtualizedLists should never be nested inside plain ScrollViews']);
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { SceneBg, GlassCard, StepBar, PrimaryBtn } from '@/components/onboarding/primitives';
+import { SceneBg, GlassCard, StepBar, PrimaryBtn, BackBtn } from '@/components/onboarding/primitives';
 import { ONBOARDING_THEME } from '@/constants/onboarding-theme';
 import { AuthService } from '@/lib/auth/auth-service';
 import { useAuth } from '@/hooks/use-supabase-auth';
@@ -82,10 +82,12 @@ export default function Profile2Screen() {
           style={{ flex: 1 }}
         >
           <View style={styles.topBar}>
+            <BackBtn onClick={() => router.back()} light />
             <StepBar step={2} total={2} label="Your Neighbourhood" />
           </View>
 
           <ScrollView
+            removeClippedSubviews={false}
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
@@ -103,9 +105,11 @@ export default function Profile2Screen() {
               {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
 
               {/* Location Input */}
-              <View style={{ zIndex: 50, elevation: 50, marginBottom: 12 }}>
+              <View style={{ position: "relative", zIndex: 100, elevation: 100, marginBottom: 12 }}>
                 <GooglePlacesAutocomplete
                   keyboardShouldPersistTaps="handled"
+                  listViewDisplayed="auto"
+                  minLength={2}
                   placeholder="Search your neighbourhood…"
                   fetchDetails={true}
                   onPress={async (data, details = null) => {
@@ -162,7 +166,10 @@ export default function Profile2Screen() {
                       setFormError('Could not get location details. Please try another address.');
                     }
                   }}
-                  onFail={(error) => console.error('[GooglePlaces] onFail:', error)}
+                  onFail={(error) => {
+                    console.error('[GooglePlaces] onFail:', error);
+                    setFormError('Location search is temporarily unavailable. Please check your connection and try again.');
+                  }}
                   onNotFound={() => console.warn('[GooglePlaces] onNotFound')}
                   debounce={400}
                   query={{
@@ -211,6 +218,7 @@ const stylesheet = UnistylesStyleSheet.create(() => ({
   topBar: {
     paddingHorizontal: 16,
     paddingTop: 12,
+    gap: 14,
   },
   scrollContent: {
     flexGrow: 1,
@@ -258,6 +266,8 @@ const stylesheet = UnistylesStyleSheet.create(() => ({
   },
   listView: {
     backgroundColor: 'rgba(15,15,15,0.96)',
+    zIndex: 100,
+    elevation: 100,
     borderRadius: radii.card,
     marginTop: 8,
     borderWidth: 1,
