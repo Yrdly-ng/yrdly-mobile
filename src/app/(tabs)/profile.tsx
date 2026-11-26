@@ -12,6 +12,7 @@ import {
   Share,
 } from 'react-native';
 import { Image } from 'expo-image';
+import * as Clipboard from 'expo-clipboard';
 import { FlashList } from '@shopify/flash-list';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -358,6 +359,19 @@ export default function ProfileTab() {
     }
   };
 
+  const handleCopyProfileLink = async () => {
+    const profileId = profile?.id || user?.id;
+    if (!profileId) return;
+    const profileUrl = `https://app.yrdly.ng/profile/${encodeURIComponent(profileId)}`;
+    try {
+      await Clipboard.setStringAsync(profileUrl);
+      Alert.alert('Link copied', 'Your profile link has been copied to your clipboard.');
+    } catch (error) {
+      console.error('Unable to copy profile link:', error);
+      Alert.alert('Could not copy link', 'Please try sharing your profile instead.');
+    }
+  };
+
   const listHeader = (
     <View style={stylesheet.headerContainer}>
       {/* ── Nav bar (YRDLY New Designs matching) ── */}
@@ -548,6 +562,31 @@ export default function ProfileTab() {
           <Ionicons name="share-outline" size={15} color={theme.colors.TEXT_PRIMARY} />
           <Text style={{ color: theme.colors.TEXT_PRIMARY, fontSize: 13, fontFamily: 'Inter-Medium' }}>
             Share Profile
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{
+            height: 36,
+            paddingHorizontal: 20,
+            borderRadius: 18,
+            backgroundColor: theme.colors.SURFACE,
+            borderWidth: 1,
+            borderColor: theme.colors.GLASS_BORDER,
+            justifyContent: 'center',
+            alignItems: 'center',
+            alignSelf: 'flex-start',
+            marginTop: 10,
+            flexDirection: 'row',
+            gap: 8,
+          }}
+          onPress={handleCopyProfileLink}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Copy profile link"
+        >
+          <Ionicons name="copy-outline" size={15} color={theme.colors.TEXT_PRIMARY} />
+          <Text style={{ color: theme.colors.TEXT_PRIMARY, fontSize: 13, fontFamily: 'Inter-Medium' }}>
+            Copy Profile Link
           </Text>
         </TouchableOpacity>
       </View>
