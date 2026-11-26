@@ -7,14 +7,10 @@ const encodedGoogleServices = process.env.GOOGLE_SERVICES_JSON_BASE64;
 const generatedGoogleServicesPath = path.join(__dirname, "google-services.json");
 let googleServicesFile = "./google-services.json";
 
-// Firebase client identifiers are shipped publicly in the APK. Keep the verified
-// project configuration authoritative over stale build-environment copies.
+// Prefer the explicitly provisioned build credential. The committed fallback is
+// retained for local development, but must never shadow a rotated EAS key.
 const verifiedGoogleServicesPath = path.join(__dirname, "config/firebase/android-client.json");
-if (fs.existsSync(verifiedGoogleServicesPath)) {
-  const verified = fs.readFileSync(verifiedGoogleServicesPath, "utf8");
-  require("./scripts/validate-android-firebase.cjs").validateAndroidFirebase(JSON.parse(verified));
-  fs.writeFileSync(generatedGoogleServicesPath, verified);
-} else if (inlineGoogleServices?.trim().startsWith("{")) {
+if (inlineGoogleServices?.trim().startsWith("{")) {
   JSON.parse(inlineGoogleServices);
   fs.writeFileSync(generatedGoogleServicesPath, inlineGoogleServices);
 } else if (encodedGoogleServices) {
@@ -23,6 +19,10 @@ if (fs.existsSync(verifiedGoogleServicesPath)) {
   fs.writeFileSync(generatedGoogleServicesPath, decoded);
 } else if (inlineGoogleServices && fs.existsSync(path.resolve(__dirname, inlineGoogleServices))) {
   googleServicesFile = path.relative(__dirname, path.resolve(__dirname, inlineGoogleServices));
+} else if (fs.existsSync(verifiedGoogleServicesPath)) {
+  const verified = fs.readFileSync(verifiedGoogleServicesPath, "utf8");
+  require("./scripts/validate-android-firebase.cjs").validateAndroidFirebase(JSON.parse(verified));
+  fs.writeFileSync(generatedGoogleServicesPath, verified);
 }
 
 // Android EAS workers must reject a missing, stale or foreign Firebase
