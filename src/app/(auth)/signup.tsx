@@ -14,6 +14,7 @@ import {
   PrimaryBtn,
   Divider,
   SocialRow,
+  BackBtn,
 } from '@/components/onboarding/primitives';
 import { ONBOARDING_THEME } from '@/constants/onboarding-theme';
 import { AuthService } from '@/lib/auth/auth-service';
@@ -93,6 +94,7 @@ export default function SignUpScreen() {
           style={styles.keyboardView}
         >
           <View style={styles.header}>
+            <BackBtn onClick={() => router.back()} light />
             <Logo size={36} />
           </View>
 
@@ -185,6 +187,9 @@ const stylesheet = UnistylesStyleSheet.create(() => ({
     flex: 1,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 24,
     paddingTop: 12,
   },
