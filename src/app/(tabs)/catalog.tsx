@@ -1438,7 +1438,9 @@ function PlacesSection({
                   contentFit="cover"
                 />
                 <View style={sStylesheet.placeModeBadge}>
-                  <Text style={sStylesheet.placeModeText}>{getBusinessModeLabel(item.mode)}</Text>
+                  <Text style={sStylesheet.placeModeText} numberOfLines={2} ellipsizeMode="tail">
+                    {getBusinessModeLabel(item.mode)}
+                  </Text>
                 </View>
               </View>
               <View style={sStylesheet.placeInfo}>
@@ -2130,12 +2132,19 @@ const stylesheet = StyleSheet.create((theme) => ({
     position: 'absolute',
     left: 6,
     bottom: 6,
+    maxWidth: 104,
     paddingHorizontal: 7,
     paddingVertical: 4,
     borderRadius: 10,
     backgroundColor: '#242017',
   },
-  placeModeText: { fontFamily: 'Inter-SemiBold', fontSize: 11, color: '#F6D8A5' },
+  placeModeText: {
+    flexShrink: 1,
+    fontFamily: 'Inter-SemiBold',
+    fontSize: 10,
+    lineHeight: 13,
+    color: '#F6D8A5',
+  },
   placeInfo: { flex: 1, padding: 12, gap: 5 },
   placeTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   placeName: {
