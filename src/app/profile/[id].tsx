@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Share,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -251,6 +252,20 @@ export default function OtherUserProfileScreen() {
       Alert.alert('Error', e.message);
     } finally {
       setFollowLoading(false);
+    }
+  };
+
+  const handleShareProfile = async () => {
+    if (!profile?.id) return;
+    const profileUrl = `https://app.yrdly.ng/profile/${encodeURIComponent(profile.id)}`;
+    try {
+      await Share.share({
+        title: ` ${profile.name || 'YRDLY'} on YRDLY`.trim(),
+        message: `Check out ${profile.name || 'this profile'} on YRDLY!\n${profileUrl}`,
+      });
+    } catch (error) {
+      console.error('Unable to share profile:', error);
+      Alert.alert('Could not share profile', 'Please try again.');
     }
   };
 
@@ -559,6 +574,30 @@ export default function OtherUserProfileScreen() {
                     </Text>
                   </>
                 )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  stylesheet.btnAction,
+                  {
+                    backgroundColor: theme.colors.SURFACE,
+                    borderColor: theme.colors.GLASS_BORDER,
+                    borderWidth: 1,
+                  },
+                ]}
+                onPress={handleShareProfile}
+                accessibilityRole="button"
+                accessibilityLabel="Share profile"
+              >
+                <Ionicons
+                  name="share-outline"
+                  size={16}
+                  color={theme.colors.TEXT_PRIMARY}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={[stylesheet.btnActionTxt, { color: theme.colors.TEXT_PRIMARY }]}>
+                  Share
+                </Text>
               </TouchableOpacity>
 
               {isFollowing && isFollower && (
