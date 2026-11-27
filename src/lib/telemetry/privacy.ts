@@ -19,6 +19,9 @@ export const appEvents = new Set([
   'account_created',
   'business_created',
   'message_sent',
+  'onboarding_profile_completed',
+  'onboarding_home_reached',
+  'onboarding_meaningful_action',
   'business_save_failed',
   'message_send_failed',
   'ticket_checkout_started',
@@ -321,7 +324,9 @@ export const sanitizePostHogEvent: BeforeSend = (event) => {
     properties.signup_method = source.signup_method as string;
   }
   properties.$geoip_disable = true;
-  if (['android', 'ios', 'web'].includes(source.app_platform as string))
+  if (event.event === 'onboarding_meaningful_action' && typeof source.action_type === 'string' && ['community_post', 'business_message'].includes(source.action_type))
+    properties.action_type = source.action_type;
+  if (['android', 'ios', 'web'].includes(source.app_platform as string)
     properties.app_platform = source.app_platform;
   for (const key of ['device_model', 'device_manufacturer']) {
     const value = deviceLabel(source[key]);
