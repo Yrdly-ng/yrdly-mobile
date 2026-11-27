@@ -27,6 +27,8 @@ let lastScreen: string | null = null;
 let diagnosticsStarted = false;
 let lastMemoryWarning = 0;
 const trackedSignupIds = new Set<string>();
+const trackedOnboardingEventKeys = new Set<string>();
+const trackedMeaningfulActionKeys = new Set<string>();
 
 // Analytics/reporting must never make a successful app action fail.
 function safely(action: () => unknown): void {
@@ -212,6 +214,26 @@ export function trackEvent(event: AppEvent): void {
   if (!appEvents.has(event)) return;
   recordDiagnostic('app.action', event);
   safely(() => analytics?.capture(event, { home_state: currentHomeState }));
+}
+
+export function trackOnboardingEvent(event: 'onboarding_profile_completed' | 'onboarding_home_reached'): void {
+  if (!currentUser || !appEvents.has(event)) return;
+  const key = currentUser + ':' + event;
+  if (trackedOnboardingEventKeys.has(key)) return;
+  trackedOnboardingEventKeys.add(key);
+  trackEvent(event);
+}
+
+export function trackOnboardingMeaningfulAction(actionType: 'community_post' | 'business_message'): void {
+  if (!currentUser || !appEvents.has('onboarding_meaningful_action')) return;
+  const key = currentUser + ':' + actionType;
+  if (trackedMeaningfulActionKeys.has(key)) return;
+  trackedMeaningfulActionKeys.add(key);
+  recordDiagnostic('app.action', 'onboarding_meaningful_action');
+  safely(() => analytics?.capture('onboarding_meaningful_action', {
+    action_type: actionType,
+    home_state: currentHomeState,
+  }));
 }
 
 /** Record one account creation per user per app process, without PII. */
