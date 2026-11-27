@@ -26,6 +26,7 @@ let currentHomeState: string | null = null;
 let lastScreen: string | null = null;
 let diagnosticsStarted = false;
 let lastMemoryWarning = 0;
+const trackedSignupIds = new Set<string>();
 
 // Analytics/reporting must never make a successful app action fail.
 function safely(action: () => unknown): void {
@@ -211,6 +212,19 @@ export function trackEvent(event: AppEvent): void {
   if (!appEvents.has(event)) return;
   recordDiagnostic('app.action', event);
   safely(() => analytics?.capture(event, { home_state: currentHomeState }));
+}
+
+/** Record one account creation per user per app process, without PII. */
+export function trackAccountCreated(userId: string, signupMethod: 'email' | 'google' | 'apple'): void {
+  if (!isUserId(userId) || !['email', 'google', 'apple'].includes(signupMethod) || trackedSignupIds.has(userId)) return;
+  initializeTelemetry();
+  if (!analytics) return;
+  setTelemetryUser(userId);
+  trackedSignupIds.add(userId);
+  safely(() => analytics?.capture('account_created', {
+    signup_method: signupMethod,
+    home_state: currentHomeState,
+  }));
 }
 
 export function captureAppError(error: unknown, context?: string): void {
