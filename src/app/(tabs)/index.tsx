@@ -52,6 +52,7 @@ import { useScrollToTop, useIsFocused } from 'expo-router/react-navigation';
 import { AlertBanner } from '../../components/alerts/AlertBanner';
 import { AlertService, Alert } from '../../lib/alerts/alert-service';
 import { supportsPostEngagement } from '../../lib/posts/post-engagement';
+import { trackOnboardingEvent } from '@/lib/telemetry';
 import * as SecureStore from 'expo-secure-store';
 const AnimatedFlashList = Animated.createAnimatedComponent(FlashList as any) as any;
 
@@ -215,6 +216,11 @@ export default function HomeTab() {
   const [activeAlerts, setActiveAlerts] = useState<Alert[]>([]);
   const isFocused = useIsFocused();
   const scrollOffsetShared = useSharedValue(0);
+
+  useEffect(() => {
+    if (user?.id && profile?.profile_completed && isFocused)
+      trackOnboardingEvent('onboarding_home_reached');
+  }, [user?.id, profile?.profile_completed, isFocused]);
 
   useEffect(() => {
     const postDeletedSub = DeviceEventEmitter.addListener('post_deleted', (postId) => {

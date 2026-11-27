@@ -16,8 +16,12 @@ export function telemetryEnvironment(): 'development' | 'preview' | 'production'
 
 export const appEvents = new Set([
   'business_saved',
+  'account_created',
   'business_created',
   'message_sent',
+  'onboarding_profile_completed',
+  'onboarding_home_reached',
+  'onboarding_meaningful_action',
   'business_save_failed',
   'message_send_failed',
   'ticket_checkout_started',
@@ -316,7 +320,12 @@ export const sanitizePostHogEvent: BeforeSend = (event) => {
     if (operation) properties.operation = operation;
     if (isErrorCode(source.error_code)) properties.error_code = source.error_code;
   }
+  if (event.event === 'account_created' && ['email', 'google', 'apple'].includes(source.signup_method as string)) {
+    properties.signup_method = source.signup_method as string;
+  }
   properties.$geoip_disable = true;
+  if (event.event === 'onboarding_meaningful_action' && typeof source.action_type === 'string' && ['community_post', 'business_message'].includes(source.action_type))
+    properties.action_type = source.action_type;
   if (['android', 'ios', 'web'].includes(source.app_platform as string))
     properties.app_platform = source.app_platform;
   for (const key of ['device_model', 'device_manufacturer']) {

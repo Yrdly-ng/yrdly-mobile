@@ -7,6 +7,7 @@ import { makeRedirectUri } from 'expo-auth-session';
 import { Platform } from 'react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
+import { trackAccountCreated } from '../telemetry';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -122,6 +123,7 @@ export class AuthService {
         };
       }
 
+      if (data.user) trackAccountCreated(data.user.id, 'email');
       return { user: data.user, session: data.session, error: null };
     } catch (error) {
       console.error('Sign up error:', error);
@@ -215,11 +217,19 @@ export class AuthService {
       if (!sessionResult) throw new Error('Sign-in callback was incomplete. Please try again.');
       if (sessionResult.error) throw sessionResult.error;
       if (!sessionResult.data.session) throw new Error('Unable to create a sign-in session.');
+      this.trackRecentProviderSignup(sessionResult.data.session.user, provider);
       return { data: sessionResult.data, error: null };
     } catch (error) {
       // Do not log callback URLs or provider tokens.
       return { data: null, error };
     }
+  }
+
+  private static trackRecentProviderSignup(user: User, provider: 'google' | 'apple'): void {
+    if (user.app_metadata?.provider !== provider) return;
+    const createdAgo = Date.now() - Date.parse(user.created_at);
+    if (!Number.isFinite(createdAgo) || createdAgo < -60_000 || createdAgo > 600_000) return;
+    trackAccountCreated(user.id, provider);
   }
 
   static signInWithGoogle() {
@@ -240,6 +250,7 @@ export class AuthService {
       const result = await supabase.auth.signInWithIdToken({provider:'apple', token:credential.identityToken, nonce});
       if (result.error) throw result.error;
       if (!result.data.session) throw new Error('Unable to create an Apple sign-in session.');
+      if (result.data.user) this.trackRecentProviderSignup(result.data.user, 'apple');
       const name = [credential.fullName?.givenName, credential.fullName?.familyName].filter(Boolean).join(' ');
       // Apple supplies the name only on first approval. Profile metadata is not authorization.
       if (name) await supabase.auth.updateUser({data:{full_name:name,name}}).catch(() => undefined);

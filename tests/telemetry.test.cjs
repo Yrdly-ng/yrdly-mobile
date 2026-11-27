@@ -142,6 +142,54 @@ test('missing configuration, development default, and kill switch do not initial
   }
 });
 
+test('signup telemetry identifies without email, deduplicates in-process, and keeps only a validated method', () => {
+  const runtime = loadTelemetry();
+  runtime.api.trackAccountCreated(USER_A, 'google');
+  runtime.api.trackAccountCreated(USER_A, 'google');
+  assert.equal(runtime.capturedEvents.filter(({ event }) => event === 'account_created').length, 1);
+  const captured = runtime.capturedEvents.find(({ event }) => event === 'account_created');
+  assert.equal(captured.properties.signup_method, 'google');
+  assert.equal(captured.properties.email, undefined);
+  const sanitized = runtime.posthogOptions.before_send({
+    event: 'account_created', uuid: 'event-id', timestamp: '2026-11-27T00:00:00.000Z',
+    properties: { signup_method: 'google', app_platform: 'android', email: 'private@example.test', home_state: 'Lagos', $is_identified: true },
+  });
+  assert.equal(sanitized.properties.signup_method, 'google');
+  assert.equal(sanitized.properties.app_platform, 'android');
+  assert.equal(sanitized.properties.home_state, 'Lagos');
+  assert.equal(sanitized.properties.email, undefined);
+});
+
+test('mobile onboarding events are deduplicated per user and meaningful-action type, with action type privacy-filtered', () => {
+  const runtime = loadTelemetry();
+  runtime.api.initializeTelemetry();
+  runtime.api.setTelemetryUser(USER_A, null);
+  runtime.api.trackOnboardingEvent('onboarding_profile_completed');
+  runtime.api.trackOnboardingEvent('onboarding_profile_completed');
+  runtime.api.trackOnboardingEvent('onboarding_home_reached');
+  runtime.api.trackOnboardingMeaningfulAction('community_post');
+  runtime.api.trackOnboardingMeaningfulAction('community_post');
+  runtime.api.trackOnboardingMeaningfulAction('business_message');
+  const captured = runtime.capturedEvents.filter(({ event }) => event.startsWith('onboarding_'));
+  assert.deepEqual(captured.map(({ event }) => event), [
+    'onboarding_profile_completed',
+    'onboarding_home_reached',
+    'onboarding_meaningful_action',
+    'onboarding_meaningful_action',
+  ]);
+  assert.deepEqual(captured.slice(2).map(({ properties }) => properties.action_type), ['community_post', 'business_message']);
+  const sanitized = runtime.posthogOptions.before_send({
+    event: 'onboarding_meaningful_action', uuid: 'event-id', timestamp: '2026-11-27T00:00:00.000Z',
+    properties: { action_type: 'community_post', text: 'private post text', email: 'private@example.test', app_platform: 'android' },
+  });
+  assert.equal(sanitized.properties.action_type, 'community_post');
+  assert.equal(sanitized.properties.text, undefined);
+  assert.equal(sanitized.properties.email, undefined);
+  assert.equal(runtime.posthogOptions.before_send({
+    event: 'onboarding_meaningful_action', properties: { action_type: 'unsupported', text: 'private' },
+  }).properties.action_type, undefined);
+});
+
 test('initialization is once-only and services work independently with either PostHog key name', () => {
   for (const keyName of ['EXPO_PUBLIC_POSTHOG_API_KEY', 'EXPO_PUBLIC_POSTHOG_KEY']) {
     const { api, calls } = loadTelemetry({ env: { [keyName]: 'project-key' } });

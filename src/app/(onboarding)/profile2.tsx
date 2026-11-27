@@ -22,6 +22,7 @@ import { AuthService } from '@/lib/auth/auth-service';
 import { useAuth } from '@/hooks/use-supabase-auth';
 import { GooglePlacesAutocomplete } from '@/components/location/PlacesAutocomplete';
 import { resolveCoords } from '@/lib/location/geocoding-service';
+import { trackOnboardingEvent } from '@/lib/telemetry';
 
 const { colors, radii } = ONBOARDING_THEME;
 
@@ -62,6 +63,7 @@ export default function Profile2Screen() {
           home_location_geom: `POINT(${postLng} ${postLat})`,
           profile_completed: true,
         });
+        trackOnboardingEvent('onboarding_profile_completed');
         if (profile?.id === user.id && profile.profile_completed !== true) void googleMeasurement.conversion('sign_up',user.id);
       } catch (e) {
         console.error('Error saving profile step 2 location:', e);
