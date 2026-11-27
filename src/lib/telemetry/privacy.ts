@@ -16,6 +16,7 @@ export function telemetryEnvironment(): 'development' | 'preview' | 'production'
 
 export const appEvents = new Set([
   'business_saved',
+  'account_created',
   'business_created',
   'message_sent',
   'business_save_failed',
@@ -315,6 +316,9 @@ export const sanitizePostHogEvent: BeforeSend = (event) => {
     });
     if (operation) properties.operation = operation;
     if (isErrorCode(source.error_code)) properties.error_code = source.error_code;
+  }
+  if (event.event === 'account_created' && ['email', 'google', 'apple'].includes(source.signup_method as string)) {
+    properties.signup_method = source.signup_method as string;
   }
   properties.$geoip_disable = true;
   if (['android', 'ios', 'web'].includes(source.app_platform as string))
