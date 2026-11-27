@@ -1,4 +1,4 @@
-import { captureAppError } from '@/lib/telemetry';
+import { captureAppError, trackOnboardingMeaningfulAction } from '@/lib/telemetry';
 import { useImageEditor, discardEditedImage } from '@/hooks/media/use-image-editor';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useEffect, useRef, useState } from 'react';
@@ -331,6 +331,7 @@ export default function CreatePostScreen() {
         }
       );
 
+      trackOnboardingMeaningfulAction('community_post');
       setPosting(false);
       setUploadProgress(0);
       setPosted(true);
