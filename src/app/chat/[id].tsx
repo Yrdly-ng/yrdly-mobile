@@ -40,7 +40,7 @@ import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { setActiveConversationId } from '../../lib/offline/active-chat-tracker';
 import { useVideoEditor, discardEditedVideo } from '@/hooks/media/use-video-editor';
-import { captureAppError, trackEvent } from '@/lib/telemetry';
+import { captureAppError, trackEvent, trackOnboardingMeaningfulAction } from '@/lib/telemetry';
 
 interface Message {
   id: string;
@@ -806,7 +806,11 @@ function ChatContent() {
         ).data;
       if (!confirmed) throw new Error('Message acknowledgement unavailable. Tap to retry.');
       if (currentOwner.current !== owner || requestContext.current !== context) return;
-      if (result.data) trackEvent('message_sent');
+      if (result.data) {
+        trackEvent('message_sent');
+        if (meta?.type === 'business' || meta?.type === 'briefcase' || meta?.business_id || paramType === 'business' || paramType === 'briefcase' || paramBusinessId)
+          trackOnboardingMeaningfulAction('business_message');
+      }
       pendingMessages.current.delete(message.id);
       persistOutbox();
       setMessages((previous) =>
