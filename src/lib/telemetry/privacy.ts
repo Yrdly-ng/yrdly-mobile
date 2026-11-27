@@ -326,7 +326,7 @@ export const sanitizePostHogEvent: BeforeSend = (event) => {
   properties.$geoip_disable = true;
   if (event.event === 'onboarding_meaningful_action' && typeof source.action_type === 'string' && ['community_post', 'business_message'].includes(source.action_type))
     properties.action_type = source.action_type;
-  if (['android', 'ios', 'web'].includes(source.app_platform as string)
+  if (['android', 'ios', 'web'].includes(source.app_platform as string))
     properties.app_platform = source.app_platform;
   for (const key of ['device_model', 'device_manufacturer']) {
     const value = deviceLabel(source[key]);
