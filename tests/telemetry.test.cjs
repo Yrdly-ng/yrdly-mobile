@@ -162,6 +162,7 @@ test('signup telemetry identifies without email, deduplicates in-process, and ke
 
 test('mobile onboarding events are deduplicated per user and meaningful-action type, with action type privacy-filtered', () => {
   const runtime = loadTelemetry();
+  runtime.api.initializeTelemetry();
   runtime.api.setTelemetryUser(USER_A, null);
   runtime.api.trackOnboardingEvent('onboarding_profile_completed');
   runtime.api.trackOnboardingEvent('onboarding_profile_completed');
