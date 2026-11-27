@@ -142,6 +142,24 @@ test('missing configuration, development default, and kill switch do not initial
   }
 });
 
+test('signup telemetry identifies without email, deduplicates in-process, and keeps only a validated method', () => {
+  const runtime = loadTelemetry();
+  runtime.api.trackAccountCreated(USER_A, 'google');
+  runtime.api.trackAccountCreated(USER_A, 'google');
+  assert.equal(runtime.capturedEvents.filter(({ event }) => event === 'account_created').length, 1);
+  const captured = runtime.capturedEvents.find(({ event }) => event === 'account_created');
+  assert.equal(captured.properties.signup_method, 'google');
+  assert.equal(captured.properties.email, undefined);
+  const sanitized = runtime.posthogOptions.before_send({
+    event: 'account_created', uuid: 'event-id', timestamp: '2026-11-27T00:00:00.000Z',
+    properties: { signup_method: 'google', app_platform: 'android', email: 'private@example.test', home_state: 'Lagos', $is_identified: true },
+  });
+  assert.equal(sanitized.properties.signup_method, 'google');
+  assert.equal(sanitized.properties.app_platform, 'android');
+  assert.equal(sanitized.properties.home_state, 'Lagos');
+  assert.equal(sanitized.properties.email, undefined);
+});
+
 test('initialization is once-only and services work independently with either PostHog key name', () => {
   for (const keyName of ['EXPO_PUBLIC_POSTHOG_API_KEY', 'EXPO_PUBLIC_POSTHOG_KEY']) {
     const { api, calls } = loadTelemetry({ env: { [keyName]: 'project-key' } });
