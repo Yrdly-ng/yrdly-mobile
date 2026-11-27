@@ -34,36 +34,6 @@ export interface CreateAlertData extends Omit<
 
 export class AlertService {
   /**
-   * Fetches the most recent active alert.
-   */
-  static async getActiveAlert(): Promise<Alert | null> {
-    try {
-      const { data, error } = await supabase
-        .from('alerts')
-        .select('*')
-        .eq('is_resolved', false)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error fetching active alert:', error);
-        return null;
-      }
-
-      // Check if it's expired
-      if (data && data.expires_at && new Date(data.expires_at) < new Date()) {
-        return null;
-      }
-
-      return data;
-    } catch (error) {
-      console.error('getActiveAlert error:', error);
-      return null;
-    }
-  }
-
-  /**
    * Fetches all recent active alerts.
    */
   static async getActiveAlerts(): Promise<Alert[]> {
