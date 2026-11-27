@@ -26,6 +26,7 @@ function loadAuth(overrides = {}) {
   new Function('require', 'module', 'exports', source)(
     (id) => {
       if (id.includes('session-policy')) return {};
+      if (id === '../telemetry') return { trackAccountCreated: (uid, method) => calls.push(['signup', uid, method]) };
       if (id.includes('supabase/supabase')) return { supabase: { auth } };
       if (id === 'expo-auth-session')
         return { makeRedirectUri: () => 'yrdlymobile://auth/callback' };
@@ -129,4 +130,32 @@ test('native Apple cancellation, missing identity token and server rejection are
  const cancelled=loadAuth({platform:'ios',appleError:{code:'ERR_REQUEST_CANCELED'}});assert.deepEqual(await cancelled.service.signInWithApple(),{data:null,error:null});
  const missing=loadAuth({platform:'ios',credential:{}});assert.match((await missing.service.signInWithApple()).error.message,/identity token/);
  const rejected=loadAuth({platform:'ios',auth:{signInWithIdToken:async()=>({data:{session:null},error:new Error('Rejected')})}});assert.match((await rejected.service.signInWithApple()).error.message,/Rejected/);
+});
+
+
+test('email signup emits account_created only for a new identity', async () => {
+  const user = { id: '11111111-1111-4111-8111-111111111111', identities: [{ id: 'email' }] };
+  const { service, calls } = loadAuth({ auth: { signUp: async () => ({ data: { user, session: null }, error: null }) } });
+  const result = await service.signUp('new@example.test', 'secret', 'New User');
+  assert.equal(result.error, null);
+  assert.deepEqual(calls.filter(([name]) => name === 'signup'), [['signup', user.id, 'email']]);
+});
+
+test('email signup does not emit account_created for the existing-user identities-empty response', async () => {
+  const user = { id: '11111111-1111-4111-8111-111111111111', identities: [] };
+  const { service, calls } = loadAuth({ auth: { signUp: async () => ({ data: { user, session: null }, error: null }) } });
+  const result = await service.signUp('existing@example.test', 'secret', 'Existing User');
+  assert.match(result.error?.message || '', /already exists/i);
+  assert.equal(calls.some(([name]) => name === 'signup'), false);
+});
+
+test('recent Google OAuth account creation emits signup telemetry, existing accounts do not', async () => {
+  const user = { id: '11111111-1111-4111-8111-111111111111', created_at: new Date(Date.now() - 30_000).toISOString(), app_metadata: { provider: 'google' } };
+  const { service, calls } = loadAuth({ auth: { exchangeCodeForSession: async () => ({ data: { session: { user } }, error: null }) } });
+  await service.signInWithGoogle();
+  assert.deepEqual(calls.filter(([name]) => name === 'signup'), [['signup', user.id, 'google']]);
+  const oldUser = { ...user, created_at: new Date(Date.now() - 60 * 60_000).toISOString() };
+  const existing = loadAuth({ auth: { exchangeCodeForSession: async () => ({ data: { session: { user: oldUser } }, error: null }) } });
+  await existing.service.signInWithGoogle();
+  assert.equal(existing.calls.some(([name]) => name === 'signup'), false);
 });
