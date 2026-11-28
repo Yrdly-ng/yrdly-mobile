@@ -376,7 +376,7 @@ export default function TabLayout() {
         screenOptions={{
           headerShown: false,
           tabBarShowLabel: true,
-          tabBarBackground: () => <NavigationSurface style={{ flex: 1 }} />,
+          tabBarBackground: () => <NavigationSurface style={{ flex: 1 }} isDarkMode={isDarkMode} />,
           tabBarStyle: {
             position: 'absolute',
             bottom: 0,
