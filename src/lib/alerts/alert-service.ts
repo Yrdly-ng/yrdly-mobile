@@ -1,5 +1,6 @@
 import { supabase } from '../supabase/supabase';
 import { AuthService } from '../auth/auth-service';
+import { api } from '../network/api';
 
 export interface Alert {
   id: string;
@@ -33,36 +34,6 @@ export interface CreateAlertData extends Omit<
 }
 
 export class AlertService {
-  /**
-   * Fetches the most recent active alert.
-   */
-  static async getActiveAlert(): Promise<Alert | null> {
-    try {
-      const { data, error } = await supabase
-        .from('alerts')
-        .select('*')
-        .eq('is_resolved', false)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error fetching active alert:', error);
-        return null;
-      }
-
-      // Check if it's expired
-      if (data && data.expires_at && new Date(data.expires_at) < new Date()) {
-        return null;
-      }
-
-      return data;
-    } catch (error) {
-      console.error('getActiveAlert error:', error);
-      return null;
-    }
-  }
-
   /**
    * Fetches all recent active alerts.
    */
@@ -164,15 +135,7 @@ export class AlertService {
         throw new Error('Not authorized to resolve alerts');
       }
 
-      const { error } = await supabase
-        .from('alerts')
-        .update({
-          is_resolved: true,
-          resolved_at: new Date().toISOString(),
-        })
-        .eq('id', alertId);
-
-      if (error) throw error;
+      await api.post('/api/alerts/resolve', { alertId });
       return { error: null };
     } catch (error) {
       console.error('resolveAlert error:', error);
