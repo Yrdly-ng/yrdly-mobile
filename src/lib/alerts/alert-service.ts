@@ -1,5 +1,6 @@
 import { supabase } from '../supabase/supabase';
 import { AuthService } from '../auth/auth-service';
+import { api } from '../network/api';
 
 export interface Alert {
   id: string;
@@ -134,15 +135,7 @@ export class AlertService {
         throw new Error('Not authorized to resolve alerts');
       }
 
-      const { error } = await supabase
-        .from('alerts')
-        .update({
-          is_resolved: true,
-          resolved_at: new Date().toISOString(),
-        })
-        .eq('id', alertId);
-
-      if (error) throw error;
+      await api.post('/api/alerts/resolve', { alertId });
       return { error: null };
     } catch (error) {
       console.error('resolveAlert error:', error);
