@@ -57,6 +57,18 @@ test('Android and unsupported iOS keep a visible opaque surface and children', a
   }
 });
 
+test('explicit tab theme override updates Android surface in both directions', async () => {
+  const state = setup({ platform: 'android', dark: false });
+  let root;
+  await act(async () => { root = create(React.createElement(state.Component, { isDarkMode: false })); });
+  assert.equal(root.toJSON().props.style[1].backgroundColor, '#FFFFFF');
+  await act(async () => root.update(React.createElement(state.Component, { isDarkMode: true })));
+  assert.equal(root.toJSON().props.style[1].backgroundColor, '#151A17');
+  await act(async () => root.update(React.createElement(state.Component, { isDarkMode: false })));
+  assert.equal(root.toJSON().props.style[1].backgroundColor, '#FFFFFF');
+  await act(async () => root.unmount());
+});
+
 test('late preference lookup cannot override a newer accessibility event', async () => {
   const state = setup();
   let root;

@@ -4,8 +4,11 @@ import { LiquidGlassView, isLiquidGlassSupported } from '@callstack/liquid-glass
 import { useAppTheme } from '../../context/ThemeContext';
 
 /** Glass belongs to navigation chrome; Android and accessibility modes stay opaque. */
-export function NavigationSurface({ style, children }: { style?: StyleProp<ViewStyle>; children?: React.ReactNode }) {
-  const { isDarkMode } = useAppTheme();
+export function NavigationSurface({ style, children, isDarkMode: themeOverride }: { style?: StyleProp<ViewStyle>; children?: React.ReactNode; isDarkMode?: boolean }) {
+  const { isDarkMode: contextIsDarkMode } = useAppTheme();
+  // Tab navigators may retain their background callback; accept the current
+  // theme from the subscribed tab layout so native tab chrome cannot go stale.
+  const isDarkMode = themeOverride ?? contextIsDarkMode;
   const [reduceTransparency, setReduceTransparency] = useState(true);
   const [reduceMotion, setReduceMotion] = useState(true);
   useEffect(() => {
