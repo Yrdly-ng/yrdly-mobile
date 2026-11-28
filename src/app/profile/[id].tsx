@@ -222,6 +222,15 @@ export default function OtherUserProfileScreen() {
     };
   }, [id]);
 
+  const handleProfileBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      // A copied profile URL can cold-start the app with no prior screen.
+      router.replace('/(tabs)' as any);
+    }
+  };
+
   const handleToggleFollow = async () => {
     if (!currentUser || !currentProfile || !profile) return;
     setFollowLoading(true);
@@ -326,7 +335,7 @@ export default function OtherUserProfileScreen() {
     return (
       <SafeAreaView style={[stylesheet.container, { backgroundColor: theme.colors.DARK }]}>
         <View style={[stylesheet.header, { borderBottomColor: theme.colors.GLASS_BORDER }]}>
-          <TouchableOpacity onPress={() => router.back()} style={stylesheet.navBtn}>
+          <TouchableOpacity onPress={handleProfileBack} style={stylesheet.navBtn}>
             <Ionicons name="chevron-back" size={24} color={theme.colors.TEXT_PRIMARY} />
           </TouchableOpacity>
           <Text
@@ -349,7 +358,7 @@ export default function OtherUserProfileScreen() {
     return (
       <SafeAreaView style={[stylesheet.container, { backgroundColor: theme.colors.DARK }]}>
         <View style={[stylesheet.header, { borderBottomColor: theme.colors.GLASS_BORDER }]}>
-          <TouchableOpacity onPress={() => router.back()} style={stylesheet.navBtn}>
+          <TouchableOpacity onPress={handleProfileBack} style={stylesheet.navBtn}>
             <Ionicons name="chevron-back" size={24} color={theme.colors.TEXT_PRIMARY} />
           </TouchableOpacity>
           <Text
@@ -428,7 +437,7 @@ export default function OtherUserProfileScreen() {
   return (
     <SafeAreaView style={[stylesheet.container, { backgroundColor: theme.colors.DARK }]}>
       <View style={stylesheet.header}>
-        <TouchableOpacity onPress={() => router.back()} style={stylesheet.navBtn}>
+        <TouchableOpacity onPress={handleProfileBack} style={stylesheet.navBtn}>
           <Ionicons name="chevron-back" size={20} color={theme.colors.TEXT_PRIMARY} />
         </TouchableOpacity>
         <Text
@@ -438,7 +447,14 @@ export default function OtherUserProfileScreen() {
         </Text>
         <TouchableOpacity
           onPress={() => {
-            if (isOwnProfile) return;
+            if (isOwnProfile) {
+              Alert.alert('Profile options', '', [
+                { text: 'Share profile', onPress: handleShareProfile },
+                { text: 'Copy profile link', onPress: handleCopyProfileLink },
+                { text: 'Cancel', style: 'cancel' },
+              ]);
+              return;
+            }
             Alert.alert('Options', '', [
               {
                 text: 'Block User',
