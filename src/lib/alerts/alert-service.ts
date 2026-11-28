@@ -43,6 +43,8 @@ export class AlertService {
         .from('safety_alerts')
         .select('*')
         .eq('status', 'approved')
+        // Match the web feed: community alerts are visible for 24 hours only.
+        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -61,7 +63,8 @@ export class AlertService {
               severity: alert.severity,
               area: alert.area_name,
               source: 'user',
-              is_resolved: false,
+              is_resolved: Boolean(alert.is_resolved || alert.resolved_at || alert.status === 'resolved'),
+              status: alert.status === 'resolved' ? 'resolved' : 'active',
               created_at: alert.created_at,
               radius_km: 0,
             }) as Alert
