@@ -38,17 +38,11 @@ export default function AlertDetailsScreen() {
   const fetchAlert = useCallback(async () => {
     if (!id) return;
     try {
-      let { data, error } = await supabase.from('safety_alerts').select('*').eq('id', id).single();
-
-      if (!data) {
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('alerts')
-          .select('*')
-          .eq('id', id)
-          .single();
-        data = fallbackData;
-        if (!data) error = fallbackError;
-      }
+      const { data, error } = await supabase
+        .from('safety_alerts')
+        .select('*')
+        .eq('id', id)
+        .single();
 
       if (data) {
         setAlert({
