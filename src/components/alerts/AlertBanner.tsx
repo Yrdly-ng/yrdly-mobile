@@ -9,7 +9,6 @@ import {
   isResolved as checkIsResolved,
   formatAlertDate,
 } from '../../constants/alerts';
-import { SeverityStrip } from './SeverityStrip';
 
 interface AlertBannerProps {
   alert: Alert;
@@ -43,15 +42,13 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({ alert, onPress, onDism
       style={[
         stylesheet.container,
         {
-          backgroundColor: resolved ? theme.colors.SURFACE_ALT : c.bg,
-          borderColor: resolved ? theme.colors.GLASS_BORDER : c.border,
+          backgroundColor: theme.colors.SURFACE,
+          borderColor: theme.colors.GLASS_BORDER,
           opacity: resolved ? 0.6 : 1,
         },
         style,
       ]}
     >
-      <SeverityStrip tier={tier} isResolved={resolved} width={5} />
-
       <View style={stylesheet.innerWrapper}>
         <View
           style={[
@@ -64,9 +61,12 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({ alert, onPress, onDism
 
         <View style={stylesheet.content}>
           <View style={stylesheet.headerRow}>
-            <Text style={[stylesheet.type, { color: resolved ? theme.colors.LABEL : c.text }]}>
-              {getAlertLabel(alert)}
-            </Text>
+            <View style={stylesheet.typeLabelRow}>
+              <View style={[stylesheet.severityDot, { backgroundColor: resolved ? theme.colors.LABEL : c.icon }]} />
+              <Text style={[stylesheet.type, { color: resolved ? theme.colors.LABEL : c.text }]}>
+                {getAlertLabel(alert)}
+              </Text>
+            </View>
             <Text style={stylesheet.time}>{formatAlertDate(alert.created_at)}</Text>
           </View>
 
@@ -124,7 +124,7 @@ const _stylesheet = StyleSheet.create((theme) => ({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 12,
+    gap: 10,
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
@@ -143,7 +143,19 @@ const _stylesheet = StyleSheet.create((theme) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 8,
     marginBottom: 4,
+  },
+  typeLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 1,
+  },
+  severityDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
   },
   type: {
     fontFamily: 'Outfit-SemiBold',
@@ -186,10 +198,10 @@ const _stylesheet = StyleSheet.create((theme) => ({
     color: theme.colors.G,
   },
   dismissButton: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    padding: 4,
+    position: 'relative',
+    padding: 6,
+    marginTop: -6,
+    marginRight: -6,
     zIndex: 2,
   },
 }));
